@@ -24,66 +24,58 @@ function LoginPage() {
   };
 
   return (
-    <div
-      className="container"
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundImage: "url(/Assets/Images/PenseeLogos/pensee-logo-only.png)",
-        backgroundSize: "contain",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-        width: "100%",
-        height: "100vh",
-      }}
-    >
-      <div class="left">
-        <h1>Wrap N' Track</h1>
-        <img
-          src="/Assets/Images/PenseeLogos/pensee-name-only.png"
-          alt="Logo"
-          style={{
-            filter: "brightness(0) invert(1)",
-            width: "80%",
-          }}
-        />
-      </div>
+    <div className="login-container">
+      {/* Background Image */}
+      <div className="background-image" />
 
-      <div className="right">
-        <h3> Login </h3>
-        <form onSubmit={handleSubmit}>
-          <div className="input-container">
-            <label htmlFor="email">Email:</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Email"
-              required
-            />
-          </div>
-          <div className="input-container">
-            <label htmlFor="password">Password:</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Email"
-              required
-            />
-          </div>
-          <button type="submit">Login</button>
-          <div className="forgotPassword-link">
-            <p>
-              <a href="/register">Forgot password</a>
-            </p>
-          </div>
-        </form>
+      {/* Content Container */}
+      <div className="content-wrapper">
+        {/* Left Section - Branding */}
+        <div className="left-section">
+          <h1>Wrap N' Track</h1>
+          <img
+            src="/Assets/Images/PenseeLogos/pensee-name-only.png"
+            alt="Logo"
+            className="brand-logo"
+          />
+        </div>
+
+        {/* Right Section - Login Form */}
+        <div className="right-section">
+          <h3>Login</h3>
+          <form onSubmit={handleSubmit}>
+            <div className="input-container">
+              <label htmlFor="email">Email:</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+            <div className="input-container">
+              <label htmlFor="password">Password:</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter your password"
+                required
+              />
+            </div>
+            <button type="submit" className="login-button">
+              Login
+            </button>
+            <div className="forgot-password">
+              <a href="/register">Forgot password?</a>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
