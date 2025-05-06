@@ -1,0 +1,77 @@
+@font-face {
+  font-family: Cinzel;
+  src: url(../../../public/Assets/Fonts/Cinzel-Regular.ttf);
+  @font-face {
+    font-family: Bold;
+    src: url(../../../public/Assets/Fonts/Cinzel-VariableFont_wght.ttf);
+  }
+}
+
+.container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  height: 99vh;
+  background-color: #f0f0f0;
+  font-family: bold;
+}
+
+.container h3 {
+  font-size: 28px;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  flex-direction: column;
+  border-radius: 12px 0px 0px 12px;
+  width: 30%;
+  height: 60%;
+  background-color: #696a8f;
+  font-size: 24px;
+  font-family: Cinzel;
+  color: #ffffff;
+}
+
+.left img {
+  width: 10;
+  height: 20%;
+  color: #ffffff;
+  padding-bottom: 20px;
+}
+
+.right {
+  border-radius: 0px 12px 12px 0px;
+  width: 30%;
+  height: 60%;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.right input {
+  display: flex;
+  justify-content: space-evenly;
+  height: 34px;
+  width: 100%;
+  border-radius: 5px;
+  border-style: solid;
+  font-size: 15px;
+}
+.right button {
+  margin-left: 2%;
+  width: 100%;
+  height: 34px;
+  border: #696a8f;
+  border-radius: 8px;
+  margin-top: 5%;
+  background-color: #696a8f;
+  color: white;
+}
+
+.input-container {
+  padding-top: 12px;
+}
