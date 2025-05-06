@@ -1,0 +1,126 @@
+@font-face {
+  font-family: Cinder;
+  src: url(../../../public/Assets/Fonts/Cinzel-Regular.ttf);
+}
+
+.sidebar {
+  width: 220px;
+  height: 100vh;
+  background-color: #696a8f;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s;
+  font-size: 15px;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  font-family: Cinder;
+}
+
+.sidebar-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #fff;
+}
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebar-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-nav li {
+  position: relative;
+}
+
+.sidebar-nav li a,
+.dropdown-header {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  color: #ecf0f1;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.sidebar-nav li a:hover,
+.dropdown-header:hover {
+  background-color: #484a83;
+  color: #fff;
+}
+
+.icon {
+  margin-right: 15px;
+  font-size: 1.1rem;
+}
+
+.dropdown .arrow {
+  margin-left: auto;
+}
+
+.dropdown-menu {
+  max-height: 0;
+  overflow: hidden;
+  background-color: #1a252f;
+  transition: max-height 0.3s ease-out;
+}
+
+.dropdown.open .dropdown-menu {
+  max-height: 300px; /* Adjust based on content */
+}
+
+.dropdown-menu li a {
+  padding-left: 50px;
+}
+
+.sidebar-footer {
+  padding: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px 15px;
+  background: none;
+  border: none;
+  color: #ecf0f1;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.logout-btn:hover {
+  background-color: #e74c3c;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 70px;
+  }
+  .text,
+  .sidebar-header h2,
+  .dropdown .arrow {
+    display: none;
+  }
+  .icon {
+    margin-right: 0;
+    font-size: 1.5rem;
+  }
+  .dropdown-menu li a {
+    padding-left: 20px;
+  }
+}
