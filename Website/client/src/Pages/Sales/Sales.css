@@ -1,0 +1,195 @@
+.salesContainer {
+    display: flex;
+    flex-direction: row;
+    width: 100vw;
+    background-color: #F0F0F0;
+    overflow: hidden;
+}
+
+.salesSideNav {
+    width: 220px;
+    height: 100vh;
+}
+
+.salesSubContainer2 {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+}
+
+.salesTopBar {
+    background-color: #FDFDFD;
+    width: 100%;
+    height: 10%;
+}
+
+.salesContentContainer1 {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100vh;
+}
+
+.salesButtonRow{
+    display: flex;
+    flex-direction: row;
+    padding: 30px 20px 0px 20px;
+}
+
+.salesEditButton, .salesDeleteButton, .salesCreateOrderButton, .salesAddProductButton {
+    width: 120px;
+    height: 40px;
+    background-color: #FDFDFD;
+}
+
+.salesEditButton {
+    border-radius: 5px 0px 0px 5px;
+    color: #888888;
+}
+
+.salesDeleteButton {
+    border-radius: 0px 5px 5px 0px;
+    color: #D61414;
+}
+
+.salesCreateOrderButton {
+    border-radius: 5px;
+    background-color: #696A8F;
+    margin-left: 10px;
+}
+
+.salesEditButton:hover {
+    background-color: #888888 !important;
+}
+
+.salesDeleteButton:hover {
+    background-color: #D61414 !important;
+}
+
+.salesCreateOrderButton:hover, .salesAddProductButton:hover {
+    background-color: #696A8F !important;
+}
+
+.salesSelectedDiv {
+    display: flex;
+    flex-direction: row;
+    width: 120px;
+    height: 40px;
+    background-color: #FDFDFD;
+    border-radius: 5px;
+    margin-left: 10px;
+    font-size: 12px;
+    color: #888888;
+    align-items: center;
+    justify-content: center;
+    padding-left: 5px;
+}
+
+.salesSelectedDivCloseButton:hover {
+    color: #888888 !important;
+}
+
+.salesAddProductButton {
+    border-radius: 5px;
+    background-color: #696A8F;
+    margin-left: auto;
+}
+
+.salesTotalProductsRow {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 10px 20px 10px 20px;
+    background-color: #FDFDFD;
+}
+
+#salesDropDowns, .salesSearchBar {
+    color: #888888;
+    font-size: 12px;
+    font-weight: 500;
+    height: 43px;
+}
+
+.salesDropDown1 {
+    width: 107px;
+}
+
+.salesDropDown2, .salesDropDown3 {
+    width: 155px;
+}
+
+.salesSearchBar {
+    width: 300px;
+}
+
+.salesSearchBar:hover {
+    border-color: #888888 !important;
+}
+
+.salesProductsTable {
+    display: flex;
+    flex-direction: column;
+    padding: 0px 20px 10px 20px;
+    background-color: #FDFDFD;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.salesProductsTableHeader {
+    top: 0;
+    position: sticky;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 5px 0px 5px 0px;
+    gap: 20px;
+    border-bottom: #888888 1px solid;
+    font-size: 14px;
+    font-weight: bold;
+    background-color: #ffffff;
+    width: 100%;
+}
+
+.salesProductsTableListItems {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 5px 0px 5px 0px;
+    gap: 20px;
+    border-bottom: #888888 1px solid;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.salesCheckBox .ant-checkbox-inner {
+    width: 25px;
+    height: 25px;
+    border-radius: 0px;
+}
+
+.salesCheckBoxFiller {
+    width: 25%;
+}
+
+.salesCheckBox .ant-checkbox-checked .ant-checkbox-inner {
+    background: transparent !important;
+}
+
+.salesCheckBox .ant-checkbox-checked .ant-checkbox-inner::after {
+    border-color: #888888 !important;
+}
+
+.salesProductsTableHeaderDivs {
+    display: flex;
+    width: 100%;
+    height: 50px;
+    align-items: center;
+}
+
+.salesProductsTableListItemsDivs {
+    display: flex;
+    width: 100%;
+    height: 70px;
+    align-items: center;
+}
