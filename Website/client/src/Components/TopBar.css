@@ -1,0 +1,28 @@
+.dashboard-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.dashboard-search {
+  width: 320px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  font-size: 16px;
+  background: #fff;
+}
+
+.dashboard-topbar-icons {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.dashboard-avatar img {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e0e0e0;
+} 

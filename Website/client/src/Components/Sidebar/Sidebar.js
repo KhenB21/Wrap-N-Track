@@ -14,7 +14,7 @@ const Sidebar = () => {
       <nav className="sidebar-nav">
         <ul>
           <li>
-            <Link to="/dashboard">
+            <Link to="/">
               <span className="icon">📊</span>
               <span className="text">Dashboard</span>
             </Link>
@@ -53,13 +53,13 @@ const Sidebar = () => {
             </ul>
           </li>
           <li>
-            <Link to="/customers">
+            <Link to="/customer-details">
               <span className="icon">👥</span>
               <span className="text">Customers</span>
             </Link>
           </li>
           <li>
-            <Link to="/suppliers">
+            <Link to="/supplier-details">
               <span className="icon">🏭</span>
               <span className="text">Suppliers</span>
             </Link>
