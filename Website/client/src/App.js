@@ -5,7 +5,9 @@ import OrderDetails from "./Pages/OrderDetails/OrderDetails";
 import ProductDetails from "./Pages/ProductDetails/ProductDetails";
 import CustomerDetails from "./Pages/CustomerDetails/CustomerDetails";
 import SupplierDetails from "./Pages/SupplierDetails/SupplierDetails";
+import UserDetails from "./Pages/UserDetails/UserDetails";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Register from "./Pages/Register/Register";
 
 function App() {
   return (
@@ -17,6 +19,9 @@ function App() {
         <Route path="/order-details" element={<OrderDetails />} />
         <Route path="/customer-details" element={<CustomerDetails />} /> 
         <Route path="/supplier-details" element={<SupplierDetails />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/user-details" element={<UserDetails />} />
+
       </Routes>
     </Router>
   );

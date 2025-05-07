@@ -1,0 +1,79 @@
+.notifications-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 60px;
+  z-index: 1000;
+}
+
+.notifications-popup {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  width: 400px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.notifications-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+  padding: 0.5rem;
+}
+
+.notifications-list {
+  padding: 1rem;
+}
+
+.notification-item {
+  padding: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.notification-message {
+  margin: 0;
+  color: #333;
+}
+
+.notification-time {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.no-notifications {
+  text-align: center;
+  color: #666;
+  padding: 2rem;
+} 

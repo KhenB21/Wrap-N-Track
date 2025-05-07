@@ -42,12 +42,19 @@ const orders = [
   },
 ];
 
+function getProfilePictureUrl() {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (!user || !user.profile_picture_path) return "/placeholder-profile.png";
+  if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
+  return `http://localhost:3001${user.profile_picture_path}`;
+}
+
 export default function OrderDetails() {
   return (
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar />
+        <TopBar avatarUrl={getProfilePictureUrl()} />
         {/* Action Bar */}
         <div className="order-action-bar">
           <button className="btn-edit">Edit</button>

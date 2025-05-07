@@ -1,14 +1,41 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 import "./Dashboard.css";
 
 function Dashboard() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+
+    if (!token || !userData) {
+      navigate('/login');
+      return;
+    }
+    // No need to set user state for avatar
+  }, [navigate]);
+
+  const getProfilePictureUrl = () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user || !user.profile_picture_path) return "/placeholder-profile.png";
+    if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
+    return `http://localhost:3001${user.profile_picture_path}`;
+  };
+
+  // Optionally, check authentication before rendering
+  if (!localStorage.getItem('token') || !localStorage.getItem('user')) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar />
+        <TopBar avatarUrl={getProfilePictureUrl()} />
         {/* Inventory Overview */}
         <div className="dashboard-section">
           <h3>Inventory Overview</h3>
