@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import "./Inventory.css";
-import { Button, Checkbox, Dropdown, Image, Input, InputNumber, Modal, Select, Space, Upload } from "antd";
-import { BarcodeOutlined, CloseOutlined, DeleteOutlined, DingtalkCircleFilled, DownOutlined, EditOutlined, PlusOutlined, SearchOutlined, ShoppingCartOutlined } from "@ant-design/icons";
+import { Button, Checkbox, Dropdown, Form, Image, Input, InputNumber, Modal, Select, Space, Upload } from "antd";
+import { BarcodeOutlined, CloseOutlined, DeleteOutlined, DingtalkCircleFilled, DownOutlined, EditOutlined, FilterOutlined, PlusOutlined, SearchOutlined, ShoppingCartOutlined } from "@ant-design/icons";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import { Option } from "antd/es/mentions";
 import '@ant-design/v5-patch-for-react-19';
 import { v4 as uuidv4 } from 'uuid';
-
+import Column from "antd/es/table/Column";
+import TopBar from "../../Components/TopBar";
 
 const inventoryGetBase64 = file =>
     new Promise((resolve, reject) => {
@@ -44,22 +45,30 @@ const Inventory = () => {
     const [selectedInventoryCheckboxes, setSelectedInventoryCheckboxes] = useState([]);
     const [selectedInventoryRows, setSelectedInventoryRows] = useState([]);
 
+    const [selectedInventoryItem, setSelectedInventoryItem] = useState(null);
+    const [inventoryItemModalOpen, setInventoryItemModalOpen] = useState(false);
+
+    const handleInventoryRowClick = (item) => {
+        setSelectedInventoryItem(item);
+        setInventoryItemModalOpen(true);
+    };
+
     const handleInventoryCheckboxChange = (event, rowInventoryId) => {
         setSelectedInventoryRows(prevInventorySelected => {
             const newInventorySelection = event.target.checked
                 ? [...prevInventorySelected, rowInventoryId] 
                 : prevInventorySelected.filter(id => id !== rowInventoryId);
             
-            console.log("✅ New Selection:", newInventorySelection); // 🔥 Debugging selection state
+            console.log("✅ New Selection:", newInventorySelection);
     
-            setSelectedInventoryCheckBoxCount(newInventorySelection.length); // ✅ Sync count with selected rows
+            setSelectedInventoryCheckBoxCount(newInventorySelection.length);
             return newInventorySelection; 
         });
     };    
 
     const handleInventorySelectedCountClose = () => {
         setSelectedInventoryCheckBoxCount(0);
-        setSelectedInventoryRows([]); // ✅ Clear selection properly
+        setSelectedInventoryRows([]);
         setSelectedInventoryCheckboxes([]);
     };
     
@@ -72,7 +81,7 @@ const Inventory = () => {
             sku: "#IN-00001",
             supplier: "Celestea",
             category: "Beverages",
-            item: "Artisan Teas",
+            itemName: "Artisan Teas",
             variant: "Oolong Tea",
             amountUnit: "1pc",
             price: "195.00",
@@ -83,21 +92,20 @@ const Inventory = () => {
     ]);
 
     const getNextSKU = () => {
-        if (inventoryItems.length === 0) return "#IN-00001"; // First product in inventory
+        if (inventoryItems.length === 0) return "#IN-00001";
     
-        // Extract numeric parts of SKUs, find the highest number, then increment
         const highestSkuNum = Math.max(...inventoryItems.map(item => parseInt(item.sku.replace("#IN-", ""), 10)));
-        return `#IN-${String(highestSkuNum + 1).padStart(5, "0")}`; // Keep format consistent
+        return `#IN-${String(highestSkuNum + 1).padStart(5, "0")}`;
     };
     
 
     const handleAddProduct = () => {
         const newItem = {
-            id: uuidv4(), // ✅ Generates a truly unique ID
+            id: uuidv4(),
             sku: getNextSKU(), 
             supplier: supplier || "Unknown Supplier",
             category: category || "Unknown Category",
-            item: item || "Unnamed Item",
+            itemName: itemName || "Unnamed Item",
             variant: variant || "Unknown Variant",
             amountUnit: amountUnit || "1pc",
             price: price || "0.00",
@@ -116,7 +124,7 @@ const Inventory = () => {
     const [sku, setSku] = useState("");
     const [supplier, setSupplier] = useState("");
     const [category, setCategory] = useState("");
-    const [item, setItem] = useState("");
+    const [itemName, setItemName] = useState("");
     const [variant, setVariant] = useState("");
     const [amountUnit, setAmountUnit] = useState("");
     const [price, setPrice] = useState("");
@@ -126,7 +134,7 @@ const Inventory = () => {
         setSku("");
         setSupplier("");
         setCategory("");
-        setItem("");
+        setItemName("");
         setVariant("");
         setAmountUnit("");
         setPrice("");
@@ -145,17 +153,16 @@ const Inventory = () => {
             return;
         }
     
-        // ✅ Set form fields for editing
         setSku(selectedInventoryItem.sku);
         setSupplier(selectedInventoryItem.supplier);
         setCategory(selectedInventoryItem.category);
-        setItem(selectedInventoryItem.item);
+        setItemName(selectedInventoryItem.itemName);
         setVariant(selectedInventoryItem.variant);
         setAmountUnit(selectedInventoryItem.amountUnit);
         setPrice(selectedInventoryItem.price);
         setStockQty(selectedInventoryItem.stockQty);
     
-        setInventoryEditingRowId(selectedInventoryItem.id); // ✅ Track which row is being edited
+        setInventoryEditingRowId(selectedInventoryItem.id);
         setNewInventoryProductModalOpen(true);
     };    
     
@@ -168,7 +175,7 @@ const Inventory = () => {
                     sku, 
                     supplier, 
                     category, 
-                    item: typeof item.item === "object" ? item.item.itemName || "" : item.item, // ✅ Converts object to string
+                    itemName,
                     variant, 
                     amountUnit, 
                     price, 
@@ -178,19 +185,19 @@ const Inventory = () => {
                 : item
         );
     
-        console.log("🚀 Updated Items After Save:", updatedInventoryItems); // 🔥 Debugging: Check updated inventory
+        console.log("🚀 Updated Items After Save:", updatedInventoryItems);
     
         setInventoryItems(updatedInventoryItems);
-        setSelectedInventoryRows([]); // ✅ Clear selection
+        setSelectedInventoryRows([]);
         setInventoryEditingRowId(null);
-        resetInputs(); // ✅ Ensure the modal fields reset
+        resetInputs();
     
         setNewInventoryProductModalOpen(false);
     };
     
     
     useEffect(() => {
-        console.log("Inventory Updated:", inventoryItems); // 🔥 Should log every time inventory changes
+        console.log("Inventory Updated:", inventoryItems);
     }, [inventoryItems]);    
     
 
@@ -269,29 +276,89 @@ const Inventory = () => {
             <div className="inventorySubContainer2">
 
                 <div className="inventoryTopBar">
-                    topBar
+                    <TopBar />
                 </div>
 
                 <div className="inventoryContentContainer1">
 
-                    <div className="inventoryButtonRow">
-                    <Button
-                        type="primary"
-                        className="inventoryEditButton"
-                        disabled={selectedInventoryRows.length === 0}
-                        onClick={handleEditProduct}
-                    >
-                        <EditOutlined /> Edit
-                    </Button>
+                <div className="inventoryResponsiveButtonRow" style={{gap: "5px", marginLeft: "10px"}}>
+                    <div style={{display: "flex", flexDirection: "row", gap: "5px"}}>
+                        <Button
+                            type="primary"
+                            className="inventoryEditButton"
+                            disabled={selectedInventoryRows.length === 0}
+                            onClick={handleEditProduct}
+                            style={{width: "50px", fontSize: "10px", borderRadius: "5px", marginLeft: 0}}
+                        >
+                            <EditOutlined /> Edit
+                        </Button>
 
-                    <Button
-                        type="primary"
-                        className="inventoryDeleteButton"
-                        disabled={selectedInventoryRows.length === 0}
-                        onClick={handleDeleteProducts}
-                    >
-                        <DeleteOutlined /> Delete
-                    </Button>
+                        <Button
+                            type="primary"
+                            className="inventoryDeleteButton"
+                            disabled={selectedInventoryRows.length === 0}
+                            onClick={handleDeleteProducts}
+                            style={{width: "60px", fontSize: "10px", borderRadius: "5px"}}
+                        >
+                            <DeleteOutlined /> Delete
+                        </Button>
+                        <Button
+                            type="primary"
+                            className="inventoryCreateOrderButton"
+                            style={{marginLeft: 0, width: "90px", fontSize: "10px", borderRadius: "5px"}}
+                        >
+                            <ShoppingCartOutlined />Create Order
+                        </Button>
+
+                        <Button
+                            type="primary"
+                            className="inventoryAddProductButton"
+                            onClick={() => {
+                                setInventoryEditingRowId(null);
+                                setSelectedInventoryRows([]);
+                                resetInputs();
+                                setNewInventoryProductModalOpen(true);
+                            }}
+                            style={{marginLeft: 0, width: "90px", fontSize: "10px", borderRadius: "5px"}}
+                        >
+                            Add Product<PlusOutlined />
+                        </Button>
+                    </div>
+                        {selectedInventoryRows.length > 0 && (
+                            <div className="inventorySelectedDiv" style={{display: "flex", marginLeft: "0px"}}>
+                                <div style={{ display: "flex", flexDirection: "row", gap: "5px", width: "100%" }}>
+                                    <p>{selectedInventoryRows.length}</p>
+                                    <p>Selected</p>
+                                </div>
+                                <Button
+                                    className="inventorySelectedDivCloseButton"
+                                    style={{ border: "none" }}
+                                    onClick={handleInventorySelectedCountClose}
+                                >
+                                    <CloseOutlined />
+                                </Button>
+                            </div>
+                        )}
+                </div>
+
+                    <div className="inventoryButtonRow">
+                        <Button
+                            type="primary"
+                            className="inventoryEditButton"
+                            disabled={selectedInventoryRows.length === 0}
+                            onClick={handleEditProduct}
+                        >
+                            <EditOutlined /> Edit
+                        </Button>
+
+                        <Button
+                            type="primary"
+                            className="inventoryDeleteButton"
+                            disabled={selectedInventoryRows.length === 0}
+                            onClick={handleDeleteProducts}
+                        >
+                            <DeleteOutlined /> Delete
+                        </Button>
                         <Button
                             type="primary"
                             className="inventoryCreateOrderButton"
@@ -319,9 +386,9 @@ const Inventory = () => {
                             type="primary"
                             className="inventoryAddProductButton"
                             onClick={() => {
-                                setInventoryEditingRowId(null); // ✅ Ensure no row is being edited
-                                setSelectedInventoryRows([]);   // ✅ Reset selection
-                                resetInputs();         // ✅ Reset modal fields
+                                setInventoryEditingRowId(null);
+                                setSelectedInventoryRows([]);
+                                resetInputs();
                                 setNewInventoryProductModalOpen(true);
                             }}
                         >
@@ -345,6 +412,7 @@ const Inventory = () => {
                                     {editingInventoryRowId ? "Save Changes" : "Add Product"}
                                 </Button>,
                             ]}
+                            className="inventoryAddProductsModal"
                         >
                             <div style={{
                                 display: "flex",
@@ -365,6 +433,7 @@ const Inventory = () => {
                                         fileList={fileList}
                                         onPreview={handlePreview}
                                         onChange={handleChange}
+                                        style={{display: "flex", width: "fit-content"}}
                                     >
                                         {fileList.length >= 8 ? null : uploadButton}
                                     </Upload>
@@ -390,6 +459,7 @@ const Inventory = () => {
                                         required
                                         value={sku}
                                         onChange={(e) => setSku(e.target.value)}
+                                        id="inventoryAddProductsModalFields"
                                     />
                                 </div>
 
@@ -400,10 +470,11 @@ const Inventory = () => {
                                         allowClear
                                         value={supplier || ""}
                                         onChange={(value) => setSupplier(value || "")}
+                                        id="inventoryAddProductsModalFields"
                                     >
-                                        <Select.Option value="inventorySupplier1">inventorySupplier1</Select.Option>
-                                        <Select.Option value="inventorySupplier2">inventorySupplier2</Select.Option>
-                                        <Select.Option value="inventorySupplier3">inventorySupplier3</Select.Option>
+                                        <Select.Option value="Supplier1">Supplier1</Select.Option>
+                                        <Select.Option value="Supplier2">Supplier2</Select.Option>
+                                        <Select.Option value="Supplier3">Supplier3</Select.Option>
                                     </Select>
                                 </div>
 
@@ -414,10 +485,11 @@ const Inventory = () => {
                                         allowClear
                                         value={category || ""}
                                         onChange={(value) => setCategory(value || "")}
+                                        id="inventoryAddProductsModalFields"
                                     >
-                                        <Select.Option value="inventoryCategory1">inventoryCategory1</Select.Option>
-                                        <Select.Option value="inventoryCategory2">inventoryCategory2</Select.Option>
-                                        <Select.Option value="inventoryCategory3">inventoryCategory3</Select.Option>
+                                        <Select.Option value="Category1">Category1</Select.Option>
+                                        <Select.Option value="Category2">Category2</Select.Option>
+                                        <Select.Option value="Category3">Category3</Select.Option>
                                     </Select>
                                 </div>
 
@@ -427,8 +499,9 @@ const Inventory = () => {
                                         placeholder="Enter Item Name"
                                         style={{ width: 470 }}
                                         required
-                                        value={item}
-                                        onChange={(e) => setItem(e.target.value)}
+                                        value={itemName}
+                                        onChange={(e) => setItemName(e.target.value)}
+                                        id="inventoryAddProductsModalFields"
                                     />
                                 </div>
 
@@ -440,6 +513,7 @@ const Inventory = () => {
                                         required
                                         value={variant}
                                         onChange={(e) => setVariant(e.target.value)}
+                                        id="inventoryAddProductsModalFields"
                                     />
                                 </div>
 
@@ -451,6 +525,7 @@ const Inventory = () => {
                                         style={{ width: 470 }}
                                         value={amountUnit}
                                         onChange={(value) => setAmountUnit(value)}
+                                        id="inventoryAddProductsModalFields"
                                     />
                                 </div>
 
@@ -463,6 +538,7 @@ const Inventory = () => {
                                         required
                                         value={price}
                                         onChange={(value) => setPrice(value)}
+                                        id="inventoryAddProductsModalFields"
                                     />
                                 </div>
 
@@ -475,6 +551,7 @@ const Inventory = () => {
                                         required
                                         value={stockQty}
                                         onChange={(value) => setStockQty(value)}
+                                        id="inventoryAddProductsModalFields"
                                     />
                                 </div>
 
@@ -482,6 +559,43 @@ const Inventory = () => {
                             
 
                         </Modal>
+                    </div>
+
+                    <div className="inventoryResponsiveTotalProductsRow">
+                        <div
+                            style={{display: "flex",
+                                flexDirection: "row",
+                                marginRight: "auto",
+                            }}
+                        >
+                            <p
+                                style={{
+                                    fontSize: "12px",
+                                    fontWeight: "bold",
+                            }}
+                            >
+                                Total Products:
+                            </p>
+                            <p
+                                style={{
+                                    fontSize: "12px",
+                                    marginLeft: "10px",
+                            }}
+                            >
+                                {inventoryItems.length}
+                            </p>
+                        </div>
+
+                        <div style={{display: "flex", flexDirection: "row", gap: "10px"}}>
+                            <Input
+                                    placeholder="Search"
+                                    onSearch={inventoryOnSearch}
+                                    addonAfter={<SearchOutlined style={{ cursor: "pointer" }} />}
+                                    className="inventorySearchBar"
+                                    style={{marginRight: "auto", width: "250px"}}
+                                />
+                            <FilterOutlined style={{marginBottom: "10px"}}/>
+                        </div>
                     </div>
 
                     <div className="inventoryTotalProductsRow">
@@ -563,41 +677,132 @@ const Inventory = () => {
                                 <div key={header} className="inventoryProductsTableHeaderDivs">{header}</div>
                             ))}
                         </div>
-
-                        {inventoryItems.map((item) => (
-                            <div 
-                                key={item.id} 
-                                className="inventoryProductsTableListItems"
-                            >
-                                <Checkbox
-                                    className="inventoryCheckBox"
-                                    checked={selectedInventoryRows.includes(item.id)}
-                                    onChange={(e) => handleInventoryCheckboxChange(e, item.id)}
-                                />
-                                <div className="inventoryProductsTableListItemsDivs" style={{ width: "100%" }}>
-                                    <img 
-                                        src={item.imageSrc} 
-                                        alt={item.variant} 
-                                        style={{ width: "60px", border: "#888888 1px solid" }} 
-                                    />
+                        
+                        <div className="inventoryProductsTableListColumn">
+                            {inventoryItems.map((item) => (
+                                <div 
+                                    key={item.id} 
+                                    className="inventoryProductsTableListItems"
+                                >
+                                    <div className="inventoryCheckBoxContainer">
+                                        <Checkbox
+                                            className="inventoryCheckBox"
+                                            checked={selectedInventoryRows.includes(item.id)}
+                                            onChange={(e) => handleInventoryCheckboxChange(e, item.id)}
+                                        />
+                                    </div>
+                                    <div className="inventoryProductsTableListItemsDivs" style={{ width: "100%" }}>
+                                        <img 
+                                            src={item.imageSrc} 
+                                            alt={item.variant} 
+                                            style={{ width: "60px", border: "#888888 1px solid" }} 
+                                        />
+                                    </div>
+                                    <div className="inventoryProductsTableListItemsDivs">{item.sku}</div>
+                                    <div className="inventoryProductsTableListItemsDivs">{item.supplier}</div>
+                                    <div className="inventoryProductsTableListItemsDivs">{item.category}</div>
+                                    <div className="inventoryProductsTableListItemsDivs">{item.itemName}</div>
+                                    <div className="inventoryProductsTableListItemsDivs">{item.variant}</div>
+                                    <div className="inventoryProductsTableListItemsDivs">{item.amountUnit}</div>
+                                    <div className="inventoryProductsTableListItemsDivs">{item.price}</div>
+                                    <div className="inventoryProductsTableListItemsDivs">{item.stockQty}</div>
+                                    <div className="inventoryProductsTableListItemsDivs">{item.totalPrice}</div>
                                 </div>
-                                <div className="inventoryProductsTableListItemsDivs">{item.sku}</div>
-                                <div className="inventoryProductsTableListItemsDivs">{item.supplier}</div>
-                                <div className="inventoryProductsTableListItemsDivs">{item.category}</div>
-                                <div className="inventoryProductsTableListItemsDivs">
-                                    {typeof item.item === "object" ? item.item.itemName || "" : item.item} {/* ✅ Converts object to string */}
-                                </div>
-                                <div className="inventoryProductsTableListItemsDivs">{item.variant}</div>
-                                <div className="inventoryProductsTableListItemsDivs">{item.amountUnit}</div>
-                                <div className="inventoryProductsTableListItemsDivs">{item.price}</div>
-                                <div className="inventoryProductsTableListItemsDivs">{item.stockQty}</div>
-                                <div className="inventoryProductsTableListItemsDivs">{item.totalPrice}</div>
-                            </div>
-                        ))}
-
-
+                            ))}
+                        </div>
 
                     </div>
+
+
+                    <div className="inventoryResponsiveProductsTable">
+                        
+                        <div className="inventoryProductsTableListColumn">
+                            {inventoryItems.map((item) => (
+                                <div style={{display: "flex", flexDirection: "row", gap: "5px", alignItems: "center"}}>
+                                    <div className="inventoryCheckBoxContainer">
+                                        <Checkbox
+                                            className="inventoryCheckBox"
+                                            checked={selectedInventoryRows.includes(item.id)}
+                                            onChange={(e) => handleInventoryCheckboxChange(e, item.id)}
+                                        />
+                                    </div>
+                                    <Button 
+                                        key={item.id} 
+                                        className="inventoryProductsTableListItems"
+                                        style={{height: "fit-content", padding: "10px", width: "fit-content"}}
+                                        onClick={() => handleInventoryRowClick(item)}
+                                    >
+
+                                        <div className="inventoryProductsTableListItemsDivs" style={{ width: "fit-content" }}>
+                                            <img 
+                                                src={item.imageSrc} 
+                                                alt={item.variant} 
+                                                style={{ width: "60px", border: "#888888 1px solid" }} 
+                                            />
+                                        </div>
+
+                                        <div style={{flexDirection: "column", width: "fit-content"}}>
+                                            <div className="inventoryProductsTableListItemsDivs">{item.itemName}</div>
+
+                                            <div className="inventoryProductsTableListItemsDivs">{item.variant}</div>
+
+                                            <div className="inventoryProductsTableListItemsDivs">{item.sku}</div>
+                                        </div>
+
+                                        <div style={{flexDirection: "column", width: "fit-content"}}>
+                                            <div className="inventoryProductsTableListItemsDivs">Qty: {item.stockQty}</div>
+                                        </div>
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+
+                    </div>
+
+                    <Modal
+                        title="Item Details"
+                        visible={inventoryItemModalOpen}
+                        onCancel={() => setInventoryItemModalOpen(false)}
+                        footer={null}
+                    >
+                        <div style={{display: "flex", flexDirection: "column", gap: "10px", overflowY: "auto",}}>
+                            <div style={{display: "flex", flexDirection: "column"}}>
+                                <img src={selectedInventoryItem?.imageSrc} alt={selectedInventoryItem?.variant} style={{ width: "100px", border: "#888888 1px solid" }} />
+                            </div>
+                            <div style={{display: "flex", flexDirection: "column"}}>
+                                <p style={{fontSize: "20px", fontWeight: "bold"}}>{selectedInventoryItem?.itemName}</p>
+                                <p style={{fontSize: "16px"}}>{selectedInventoryItem?.variant}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Stock Keeping Unit (SKU)</p>
+                                <p style={{marginLeft: "auto"}}>{selectedInventoryItem?.sku}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Supplier</p>
+                                <p style={{marginLeft: "auto"}}>{selectedInventoryItem?.supplier}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Category</p>
+                                <p style={{marginLeft: "auto"}}>{selectedInventoryItem?.category}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Stock Quantity</p>
+                                <p style={{marginLeft: "auto"}}>{selectedInventoryItem?.stockQty}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Amount per Unit</p>
+                                <p style={{marginLeft: "auto"}}>{selectedInventoryItem?.amountUnit}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Price</p>
+                                <p style={{marginLeft: "auto"}}>{selectedInventoryItem?.price}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Total Price</p>
+                                <p style={{marginLeft: "auto"}}>{selectedInventoryItem?.totalPrice}</p>
+                            </div>
+                        </div>
+                    </Modal>
 
                 </div>
 

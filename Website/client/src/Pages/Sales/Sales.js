@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import "./Sales.css";
-import { Button, Checkbox, Dropdown, Form, Image, Input, InputNumber, Modal, Select, Space, Upload } from "antd";
+import { Button, Checkbox, DatePicker, Dropdown, Form, Image, Input, InputNumber, Modal, Select, Space, Upload } from "antd";
 import { BarcodeOutlined, CloseOutlined, DeleteOutlined, DingtalkCircleFilled, DownOutlined, EditOutlined, MinusCircleOutlined, MoreOutlined, PlusOutlined, SearchOutlined, ShoppingCartOutlined } from "@ant-design/icons";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import { Option } from "antd/es/mentions";
 import '@ant-design/v5-patch-for-react-19';
 import { v4 as uuidv4 } from 'uuid';
+import dayjs from "dayjs";
+import TopBar from "../../Components/TopBar";
 
 
 const salesOnSearch = (value) => {
@@ -36,6 +38,14 @@ const Sales = () => {
     const [selectedSalesCheckboxes, setSelectedSalesCheckboxes] = useState([]);
     const [selectedSalesRows, setSelectedSalesRows] = useState([]);
 
+    const [selectedSalesItem, setSelectedSalesItem] = useState(null);
+    const [salesItemModalOpen, setSalesItemModalOpen] = useState(false);
+
+    const handleSalesRowClick = (item) => {
+        setSelectedSalesItem(item);
+        setSalesItemModalOpen(true);
+    };
+
     const handleSalesCheckboxChange = (event, rowSalesId) => {
         setSelectedSalesRows(prevSalesSelected => {
             const newSalesSelection = event.target.checked
@@ -56,7 +66,7 @@ const Sales = () => {
     };
     
     
-    const [newSalesProductModalOpen, setNewSalesProductModalOpen] = useState(false);
+    const [newSalesOrderModalOpen, setNewSalesOrderModalOpen] = useState(false);
 
     const [salesItems, setSalesItems] = useState([
         {
@@ -81,14 +91,14 @@ const Sales = () => {
     };
     
 
-    const handleAddProduct = () => {
+    const handleAddOrder = () => {
         const newItem = {
             id: uuidv4(),
             orderId: getNextOrderId(), 
             name: name || "Unknown",
             shippedTo: shippedTo || "Unknown",
-            orderDate: orderDate || "Unknown",
-            expectedDelivery: expectedDelivery || "Unknown",
+            orderDate: orderDate ? dayjs(orderDate) : dayjs(),
+            expectedDelivery: expectedDelivery ? dayjs(expectedDelivery) : dayjs(),
             status: status || "Unknown",
             shippingAddress: shippingAddress || "Unknown",
             totalCost: totalCost || "Unknown",
@@ -97,7 +107,7 @@ const Sales = () => {
     
         setSalesItems([...salesItems, newItem]); 
         resetInputs();
-        setNewSalesProductModalOpen(false);
+        setNewSalesOrderModalOpen(false);
     };
     
     
@@ -105,12 +115,16 @@ const Sales = () => {
     const [orderId, setOrderId] = useState("");
     const [name, setName] = useState("");
     const [shippedTo, setShippedTo] = useState("");
-    const [orderDate, setOrderDate] = useState("");
-    const [expectedDelivery, setExpectedDelivery] = useState("");
+    const [orderDate, setOrderDate] = useState(dayjs(null));
+    const [expectedDelivery, setExpectedDelivery] = useState(null);
     const [status, setStatus] = useState("");
     const [shippingAddress, setShippingAddress] = useState("");
     const [totalCost, setTotalCost] = useState("");
     const [remarks, setRemarks] = useState("");
+
+    console.log("🚀 Saved Order Date:", orderDate);
+    console.log("🚀 Saved Expected Delivery:", expectedDelivery);
+
 
     const resetInputs = () => {
         setOrderId("");
@@ -126,32 +140,33 @@ const Sales = () => {
 
     const [editingSalesRowId, setSalesEditingRowId] = useState(null);
 
-    const handleEditProduct = () => {
+
+    const handleEditOrder = () => {
         if (selectedSalesRows.length === 0) return; 
         
         const selectedSalesItem = salesItems.find(item => item.id === selectedSalesRows[0]);
-    
+
         if (!selectedSalesItem) {
             console.error("Error: No selected item found.");
             return;
         }
-    
+
         setOrderId(selectedSalesItem.orderId);
         setName(selectedSalesItem.name);
         setShippedTo(selectedSalesItem.shippedTo);
-        setOrderDate(selectedSalesItem.orderDate);
-        setExpectedDelivery(selectedSalesItem.expectedDelivery);
+        setOrderDate(dayjs(selectedSalesItem.orderDate));
+        setExpectedDelivery(selectedSalesItem.expectedDelivery && dayjs(selectedSalesItem.expectedDelivery).isValid() ? dayjs(selectedSalesItem.expectedDelivery) : null);
         setStatus(selectedSalesItem.status);
         setShippingAddress(selectedSalesItem.shippingAddress);
         setTotalCost(selectedSalesItem.totalCost);
         setRemarks(selectedSalesItem.remarks);
-    
+
         setSalesEditingRowId(selectedSalesItem.id);
-        setNewSalesProductModalOpen(true);
-    };    
+        setNewSalesOrderModalOpen(true);
+    };
+
     
-    
-    const handleSaveChanges = () => {
+    const handleSalesSaveChanges = () => {
         const updatedSalesItems = salesItems.map(item =>
             item.id === editingSalesRowId
                 ? { 
@@ -159,13 +174,13 @@ const Sales = () => {
                     orderId, 
                     name, 
                     shippedTo, 
-                    orderDate,
-                    expectedDelivery, 
+                    orderDate: orderDate ? orderDate.format("YYYY-MM-DD") : "",
+                    expectedDelivery: expectedDelivery ? expectedDelivery.format("YYYY-MM-DD") : "", 
                     status, 
                     shippingAddress, 
-                    totalCost: (parseFloat(totalCost) * parseInt(totalCost)).toFixed(2) || "0.00",
+                    totalCost,
                     remarks,
-                  }
+                }
                 : item
         );
     
@@ -176,16 +191,15 @@ const Sales = () => {
         setSalesEditingRowId(null);
         resetInputs();
     
-        setNewSalesProductModalOpen(false);
-    };
-    
+        setNewSalesOrderModalOpen(false);
+    };    
     
     useEffect(() => {
         console.log("Sales Updated:", salesItems);
     }, [salesItems]);    
     
 
-    const handleDeleteProducts = () => {
+    const handleDeleteOrder = () => {
         Modal.confirm({
             title: "Delete Products",
             content: `Are you sure you want to delete ${selectedSalesRows.length} selected products?`,
@@ -211,29 +225,89 @@ const Sales = () => {
             <div className="salesSubContainer2">
 
                 <div className="salesTopBar">
-                    topBar
+                    <TopBar />
                 </div>
 
                 <div className="salesContentContainer1">
 
-                    <div className="salesButtonRow">
-                    <Button
-                        type="primary"
-                        className="salesEditButton"
-                        disabled={selectedSalesRows.length === 0}
-                        onClick={handleEditProduct}
-                    >
-                        <EditOutlined /> Edit
-                    </Button>
+                <div className="salesResponsiveButtonRow" style={{gap: "5px", marginLeft: "10px"}}>
+                    <div style={{display: "flex", flexDirection: "row", gap: "5px"}}>
+                        <Button
+                            type="primary"
+                            className="salesEditButton"
+                            disabled={selectedSalesRows.length === 0}
+                            onClick={handleEditOrder}
+                            style={{width: "50px", fontSize: "10px", borderRadius: "5px", marginLeft: 0}}
+                        >
+                            <EditOutlined /> Edit
+                        </Button>
 
-                    <Button
-                        type="primary"
-                        className="salesDeleteButton"
-                        disabled={selectedSalesRows.length === 0}
-                        onClick={handleDeleteProducts}
-                    >
-                        <DeleteOutlined /> Delete
-                    </Button>
+                        <Button
+                            type="primary"
+                            className="salesDeleteButton"
+                            disabled={selectedSalesRows.length === 0}
+                            onClick={handleDeleteOrder}
+                            style={{width: "60px", fontSize: "10px", borderRadius: "5px"}}
+                        >
+                            <DeleteOutlined /> Delete
+                        </Button>
+                        <Button
+                            type="primary"
+                            className="salesCreateOrderButton"
+                            style={{marginLeft: 0, width: "90px", fontSize: "10px", borderRadius: "5px"}}
+                        >
+                            <ShoppingCartOutlined />Create Order
+                        </Button>
+
+                        <Button
+                            type="primary"
+                            className="salesAddOrderButton"
+                            onClick={() => {
+                                setSalesEditingRowId(null);
+                                setSelectedSalesRows([]);
+                                resetInputs();
+                                setNewSalesOrderModalOpen(true);
+                            }}
+                            style={{marginLeft: 0, width: "90px", fontSize: "10px", borderRadius: "5px"}}
+                        >
+                            Add Product<PlusOutlined />
+                        </Button>
+                    </div>
+                        {selectedSalesRows.length > 0 && (
+                            <div className="salesSelectedDiv" style={{display: "flex", marginLeft: "0px"}}>
+                                <div style={{ display: "flex", flexDirection: "row", gap: "5px", width: "100%" }}>
+                                    <p>{selectedSalesRows.length}</p>
+                                    <p>Selected</p>
+                                </div>
+                                <Button
+                                    className="salesSelectedDivCloseButton"
+                                    style={{ border: "none" }}
+                                    onClick={handleSalesSelectedCountClose}
+                                >
+                                    <CloseOutlined />
+                                </Button>
+                            </div>
+                        )}
+                </div>
+
+                    <div className="salesButtonRow">
+                        <Button
+                            type="primary"
+                            className="salesEditButton"
+                            disabled={selectedSalesRows.length === 0}
+                            onClick={handleEditOrder}
+                        >
+                            <EditOutlined /> Edit
+                        </Button>
+
+                        <Button
+                            type="primary"
+                            className="salesDeleteButton"
+                            disabled={selectedSalesRows.length === 0}
+                            onClick={handleDeleteOrder}
+                        >
+                            <DeleteOutlined /> Delete
+                        </Button>
                         <Button
                             type="primary"
                             className="salesCreateOrderButton"
@@ -259,32 +333,32 @@ const Sales = () => {
 
                         <Button
                             type="primary"
-                            className="salesAddProductButton"
+                            className="salesAddOrderButton"
                             onClick={() => {
                                 setSalesEditingRowId(null);
                                 setSelectedSalesRows([]);
                                 resetInputs();
-                                setNewSalesProductModalOpen(true);
+                                setNewSalesOrderModalOpen(true);
                             }}
                         >
-                            Add Product<PlusOutlined />
+                            Add Order<PlusOutlined />
                         </Button>
 
                         <Modal
-                            title={editingSalesRowId ? "Edit Item" : "New Item"}
+                            title={editingSalesRowId ? "Edit Order" : "New Order"}
                             centered
-                            open={newSalesProductModalOpen}
-                            onCancel={() => { setNewSalesProductModalOpen(false); setSalesEditingRowId(null); }}
+                            open={newSalesOrderModalOpen}
+                            onCancel={() => { setNewSalesOrderModalOpen(false); setSalesEditingRowId(null); }}
                             footer={[
-                                <Button key="cancel" onClick={() => { setNewSalesProductModalOpen(false); setSalesEditingRowId(null); }}>
+                                <Button key="cancel" onClick={() => { setNewSalesOrderModalOpen(false); setSalesEditingRowId(null); }}>
                                     Cancel
                                 </Button>,
                                 <Button
-                                    key={editingSalesRowId ? "saveProduct" : "addProduct"}
+                                    key={editingSalesRowId ? "saveOrder" : "addOrder"}
                                     type="primary"
-                                    onClick={editingSalesRowId ? handleSaveChanges : handleAddProduct}
+                                    onClick={editingSalesRowId ? handleSalesSaveChanges : handleAddOrder}
                                 >
-                                    {editingSalesRowId ? "Save Changes" : "Add Product"}
+                                    {editingSalesRowId ? "Save Changes" : "Add Order"}
                                 </Button>,
                             ]}
                         >
@@ -371,14 +445,77 @@ const Sales = () => {
                                         )}
                                         </Form.List>
                                     </Form>
+                                </div>
 
+                                <div style={{display: "flex", flexDirection: "column"}}>
+                                    <p style={{fontSize: "16px"}}>Order Date</p>
+                                    <DatePicker
+                                        placeholder="Enter Order Date"
+                                        style={{ width: 470 }}
+                                        required
+                                        value={orderDate}
+                                        onChange={(date) => setOrderDate(date)}
+                                    />
+                                </div>
 
-                                    <p style={{fontSize: "24px"}}>Address Details</p>
+                                <div style={{display: "flex", flexDirection: "column"}}>
+                                    <p style={{fontSize: "16px"}}>Expected Delivery</p>
+                                    <DatePicker
+                                        placeholder="Enter Delivery Date"
+                                        style={{ width: 470 }}
+                                        required
+                                        value={expectedDelivery}
+                                        onChange={(date) => setExpectedDelivery(date)}
+                                    />
+                                </div>
 
-                                    <div style={{display: "flex", flexDirection: "column"}}>
-                                    <p style={{fontSize: "16px"}}>Province</p>
+                                <div style={{display: "flex", flexDirection: "column"}}>
+                                    <p style={{fontSize: "16px"}}>Status</p>
+                                    <Select
+                                        placeholder="Select Status"
+                                        allowClear
+                                        value={status || ""}
+                                        onChange={(value) => setStatus(value || "")}
+                                    >
+                                        <Select.Option value="salesCompleted">salesCompleted</Select.Option>
+                                        <Select.Option value="salesPacked">salesPacked</Select.Option>
+                                        <Select.Option value="salesWaiting">salesWaiting</Select.Option>
+                                    </Select>
+                                </div>
+
+                                <div style={{display: "flex", flexDirection: "column"}}>
+                                    <p style={{fontSize: "16px"}}>Total Cost</p>
+                                    <InputNumber
+                                        min={1}
+                                        placeholder="Enter Total Cost"
+                                        style={{ width: 470 }}
+                                        value={totalCost}
+                                        onChange={(value) => setTotalCost(value)}
+                                    />
+                                </div>
+
+                                <div style={{display: "flex", flexDirection: "column"}}>
+                                    <p style={{fontSize: "16px"}}>Remarks</p>
                                     <Input
-                                        placeholder="Enter Province"
+                                        placeholder="Enter Remarks"
+                                        style={{ width: 470 }}
+                                        required
+                                        value={remarks}
+                                        onChange={(e) => setRemarks(e.target.value)}
+                                    />
+                                </div>
+
+                                <p style={{fontSize: "24px"}}>Address Details</p>
+
+                                <div style={{display: "flex", flexDirection: "row", gap: "5px"}}>
+                                    <Checkbox />
+                                    <p style={{fontSize: "16px"}}>Use Customer's Saved Address</p>
+                                </div>
+
+                                <div style={{display: "flex", flexDirection: "column"}}>
+                                    <p style={{fontSize: "16px"}}>Shipping Address</p>
+                                    <Input
+                                        placeholder="Enter Shipping Address"
                                         style={{ width: 470 }}
                                         required
                                         value={shippingAddress}
@@ -386,14 +523,45 @@ const Sales = () => {
                                     />
                                 </div>
 
-                                </div>
-
-                                
-
                             </div>
                             
 
                         </Modal>
+                    </div>
+
+                    <div className="salesResponsiveTotalProductsRow">
+                        <div
+                            style={{display: "flex",
+                                flexDirection: "row",
+                                marginRight: "auto",
+                            }}
+                        >
+                            <p
+                                style={{
+                                    fontSize: "14px",
+                                    fontWeight: "bold",
+                            }}
+                            >
+                                Total Sales:
+                            </p>
+                            <p
+                                style={{
+                                    fontSize: "14px",
+                                    marginLeft: "10px",
+                            }}
+                            >
+                                {salesItems.length}
+                            </p>
+                        </div>
+
+                        <div style={{display: "flex", flexDirection: "row", gap: "10px"}}>
+                            <Input
+                                placeholder="Search"
+                                onSearch={salesOnSearch}
+                                addonAfter={<SearchOutlined style={{ cursor: "pointer" }} />}
+                                className="salesSearchBar"
+                            />
+                        </div>
                     </div>
 
                     <div className="salesTotalProductsRow">
@@ -489,8 +657,12 @@ const Sales = () => {
                                 <div className="salesProductsTableListItemsDivs">{item.orderId}</div>
                                 <div className="salesProductsTableListItemsDivs">{item.name}</div>
                                 <div className="salesProductsTableListItemsDivs">{item.shippedTo}</div>
-                                <div className="salesProductsTableListItemsDivs">{item.orderDate}</div>
-                                <div className="salesProductsTableListItemsDivs">{item.expectedDelivery}</div>
+                                <div className="salesProductsTableListItemsDivs">
+                                    {item.orderDate ? dayjs(item.orderDate).format("YYYY-MM-DD") : "N/A"}
+                                </div>
+                                <div className="salesProductsTableListItemsDivs">
+                                    {item.expectedDelivery ? dayjs(item.expectedDelivery).format("YYYY-MM-DD") : "N/A"}
+                                </div>
                                 <div className="salesProductsTableListItemsDivs">{item.status}</div>
                                 <div className="salesProductsTableListItemsDivs">{item.shippingAddress}</div>
                                 <div className="salesProductsTableListItemsDivs">{item.totalCost}</div>
@@ -498,9 +670,96 @@ const Sales = () => {
                             </div>
                         ))}
 
+                    </div>
 
+
+
+                    <div className="salesResponsiveProductsTable">
+                        
+                        <div className="salesProductsTableListColumn">
+                            {salesItems.map((item) => (
+                                <div style={{display: "flex", flexDirection: "row", gap: "5px", alignItems: "center"}}>
+                                    <div className="salesCheckBoxContainer">
+                                        <Checkbox
+                                            className="salesCheckBox"
+                                            checked={selectedSalesRows.includes(item.id)}
+                                            onChange={(e) => handleSalesCheckboxChange(e, item.id)}
+                                        />
+                                    </div>
+                                    <Button 
+                                        key={item.id} 
+                                        className="salesProductsTableListItems"
+                                        style={{height: "fit-content", padding: "10px", width: "fit-content"}}
+                                        onClick={() => handleSalesRowClick(item)}
+                                    >
+                                        <div style={{flexDirection: "column", width: "fit-content"}}>
+                                            <div className="salesProductsTableListItemsDivs">{item.shippedTo}</div>
+
+                                            <div className="salesProductsTableListItemsDivs">{item.orderId}</div>
+
+                                            <div className="salesProductsTableListItemsDivs">{item.expectedDelivery ? dayjs(item.expectedDelivery).format("YYYY-MM-DD") : "N/A"}</div>
+                                        </div>
+
+                                        <div style={{flexDirection: "column", width: "fit-content"}}>
+                                            <div className="salesProductsTableListItemsDivs">{item.status}</div>
+                                            <div className="salesProductsTableListItemsDivs">{item.totalCost}</div>
+                                        </div>
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
 
                     </div>
+
+
+
+                    <Modal
+                        title="Order Details"
+                        visible={salesItemModalOpen}
+                        onCancel={() => setSalesItemModalOpen(false)}
+                        footer={null}
+                    >
+                        <div style={{display: "flex", flexDirection: "column", gap: "10px", overflowY: "auto",}}>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Order ID</p>
+                                <p style={{marginLeft: "auto"}}>{selectedSalesItem?.orderId}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Name</p>
+                                <p style={{marginLeft: "auto"}}>{selectedSalesItem?.name}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Shipped To</p>
+                                <p style={{marginLeft: "auto"}}>{selectedSalesItem?.shippedTo}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Order Date</p>
+                                <p style={{marginLeft: "auto"}}>{selectedSalesItem?.orderDate ? dayjs(selectedSalesItem.orderDate).format("YYYY-MM-DD") : "N/A"}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Expected Delivery</p>
+                                <p style={{marginLeft: "auto"}}>{selectedSalesItem?.expectedDelivery && dayjs(selectedSalesItem.expectedDelivery).isValid() ? dayjs(selectedSalesItem.expectedDelivery).format("YYYY-MM-DD") : "N/A"}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Status</p>
+                                <p style={{marginLeft: "auto"}}>{selectedSalesItem?.status}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Shipping Address</p>
+                                <p style={{marginLeft: "auto"}}>{selectedSalesItem?.shippingAddress}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Total Cost</p>
+                                <p style={{marginLeft: "auto"}}>{selectedSalesItem?.totalCost}</p>
+                            </div>
+                            <div style={{display: "flex", flexDirection: "row"}}>
+                                <p style={{color: "#888888"}}>Remarks</p>
+                                <p style={{marginLeft: "auto"}}>{selectedSalesItem?.remarks}</p>
+                            </div>
+                        </div>
+                    </Modal>
+
+
 
                 </div>
 

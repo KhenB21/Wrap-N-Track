@@ -21,7 +21,8 @@
 .inventoryTopBar {
     background-color: #FDFDFD;
     width: 100%;
-    height: 10%;
+    height: fit-content;
+    padding: 10px;
 }
 
 .inventoryContentContainer1 {
@@ -35,6 +36,12 @@
     display: flex;
     flex-direction: row;
     padding: 30px 20px 0px 20px;
+}
+
+.inventoryResponsiveButtonRow{
+    display: none;
+    flex-direction: column;
+    padding: 10px 0px 0px 0px;
 }
 
 .inventoryEditButton, .inventoryDeleteButton, .inventoryCreateOrderButton, .inventoryAddProductButton {
@@ -102,6 +109,15 @@
     align-items: center;
     padding: 10px 20px 10px 20px;
     background-color: #FDFDFD;
+}
+
+.inventoryResponsiveTotalProductsRow {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 20px 10px 20px;
+    background-color: #FDFDFD;
+    gap: 5px;
 }
 
 #inventoryDropDowns, .inventorySearchBar {
@@ -193,3 +209,62 @@
     height: 70px;
     align-items: center;
 }
+
+.inventoryResponsiveProductsTable {
+    display: none;
+    flex-direction: column;
+}
+
+.inventoryResponsiveProductsTableListColumn div {
+    display: none;
+    flex-direction: column;
+}
+
+
+@media (max-width: 768px) {
+    .inventoryButtonRow {
+        display: none;
+    }
+    .inventoryResponsiveButtonRow {
+        display: flex;
+    }
+    .inventoryTotalProductsRow {
+        display: none;
+    }
+    .inventoryResponsiveTotalProductsRow {
+        display: flex;
+    }
+    .inventorySearchBar {
+        margin-left: -40px;
+    }
+    #inventoryAddProductsModalFields {
+        width: 325px;
+    }
+    .inventoryCheckBox .ant-checkbox-inner {
+        width: 15px;
+        height: 15px;
+        margin-left: 10px;
+    }
+    .inventoryProductsTable {
+        display: none;
+    }
+    .inventoryResponsiveProductsTable {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+    .inventoryProductsTableListItemsDivs {
+        font-size: 12px;
+        height: fit-content;
+        width: 100px;
+        padding-right: 5px;
+    }
+    .inventoryProductsTableListItems div {
+        display: flex;
+        flex-direction: row;
+    }
+    .inventoryProductsTableListColumn {
+        flex-direction: column;
+    }
+  }
+  
