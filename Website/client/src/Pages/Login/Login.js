@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import "./Login.css";
 
 function LoginPage() {
   const [formData, setFormData] = useState({
-    email: "",
+    username: "",
     password: "",
   });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -15,16 +19,53 @@ function LoginPage() {
       ...prev,
       [name]: value,
     }));
+    setError(""); // Clear any previous errors
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login submitted:", formData);
-    // navigate('/dashboard');
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await axios.post('http://localhost:3001/api/auth/login', {
+        username: formData.username,
+        password: formData.password
+      });
+
+      if (response.data.success) {
+        // Store the token in localStorage
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        // Show success animation
+        setShowSuccess(true);
+        
+        // Wait for 1.5 seconds before redirecting
+        setTimeout(() => {
+          navigate('/');
+        }, 1500);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="login-container">
+      {/* Success Animation Overlay */}
+      {showSuccess && (
+        <div className="success-overlay">
+          <div className="success-content">
+            <div className="success-icon">✓</div>
+            <h2>Login Successful!</h2>
+            <p>Redirecting to dashboard...</p>
+          </div>
+        </div>
+      )}
+
       {/* Background Image */}
       <div className="background-image" />
 
@@ -43,17 +84,19 @@ function LoginPage() {
         {/* Right Section - Login Form */}
         <div className="right-section">
           <h3>Login</h3>
+          {error && <div className="error-message">{error}</div>}
           <form onSubmit={handleSubmit}>
             <div className="input-container">
-              <label htmlFor="email">Email:</label>
+              <label htmlFor="username">Username:</label>
               <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
                 onChange={handleChange}
-                placeholder="Enter your email"
+                placeholder="Enter your username"
                 required
+                disabled={loading}
               />
             </div>
             <div className="input-container">
@@ -66,10 +109,15 @@ function LoginPage() {
                 onChange={handleChange}
                 placeholder="Enter your password"
                 required
+                disabled={loading}
               />
             </div>
-            <button type="submit" className="login-button">
-              Login
+            <button 
+              type="submit" 
+              className="login-button"
+              disabled={loading}
+            >
+              {loading ? "Logging in..." : "Login"}
             </button>
             <div className="forgot-password">
               <a href="/register">Forgot password?</a>

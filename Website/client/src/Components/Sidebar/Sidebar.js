@@ -1,9 +1,26 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./Sidebar.css"; // We'll create this next
 
 const Sidebar = () => {
   const [reportsOpen, setReportsOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Optionally clear all localStorage:
+    // localStorage.clear();
+    navigate('/login');
+  };
+
+  const getProfilePictureUrl = () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user || !user.profile_picture_path) return "/placeholder-profile.png";
+    if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
+    return `http://localhost:3001${user.profile_picture_path}`;
+  };
 
   return (
     <div className="sidebar">
@@ -68,7 +85,7 @@ const Sidebar = () => {
       </nav>
 
       <div className="sidebar-footer">
-        <button className="logout-btn">
+        <button className="logout-btn" onClick={handleLogout}>
           <span className="icon">🚪</span>
           <span className="text">Log Out</span>
         </button>

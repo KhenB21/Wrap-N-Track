@@ -1,0 +1,13 @@
+{
+  "name": "wrap-n-track",
+  "version": "1.0.0",
+  "description": "Wrap-N-Track application with server and client",
+  "scripts": {
+    "server": "cd Website/server && npm run dev",
+    "client": "cd Website/client && npm start",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 
