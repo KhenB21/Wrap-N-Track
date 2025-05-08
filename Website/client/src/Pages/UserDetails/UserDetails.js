@@ -10,7 +10,8 @@ export default function UserDetails() {
     email: '',
     role: '',
     created_at: '',
-    profile_picture_path: ''
+    profile_picture_path: '',
+    profile_picture_data: ''
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -54,13 +55,10 @@ export default function UserDetails() {
 
   // Function to get the full profile picture URL
   const getProfilePictureUrl = () => {
-    if (!userData.profile_picture_path) {
-      return '/placeholder-profile.png';
+    if (userData.profile_picture_data) {
+      return `data:image/jpeg;base64,${userData.profile_picture_data}`;
     }
-    if (userData.profile_picture_path.startsWith('http')) {
-      return userData.profile_picture_path;
-    }
-    return `http://localhost:3001${userData.profile_picture_path}`;
+    return '/placeholder-profile.png';
   };
 
   const handlePencilClick = () => {

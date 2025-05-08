@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
@@ -6,6 +6,8 @@ import "./Dashboard.css";
 
 function Dashboard() {
   const navigate = useNavigate();
+  const [inventory, setInventory] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -16,7 +18,19 @@ function Dashboard() {
       navigate('/login');
       return;
     }
-    // No need to set user state for avatar
+    // Fetch inventory data
+    const fetchInventory = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch('http://localhost:3001/api/inventory');
+        const data = await res.json();
+        setInventory(data);
+      } catch (err) {
+        setInventory([]);
+      }
+      setLoading(false);
+    };
+    fetchInventory();
   }, [navigate]);
 
   const getProfilePictureUrl = () => {
@@ -31,6 +45,10 @@ function Dashboard() {
     return <div>Loading...</div>;
   }
 
+  // Calculate totals
+  const totalProducts = inventory.length;
+  const totalProductUnits = inventory.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+
   return (
     <div className="dashboard-container">
       <Sidebar />
@@ -42,11 +60,11 @@ function Dashboard() {
           <div className="dashboard-cards-row">
             <div className="dashboard-card card-red">
               <div className="card-title">Total Products</div>
-              <div className="card-value">789</div>
+              <div className="card-value">{loading ? '...' : totalProducts}</div>
             </div>
             <div className="dashboard-card card-orange">
               <div className="card-title">Total Product Units</div>
-              <div className="card-value">14,552</div>
+              <div className="card-value">{loading ? '...' : totalProductUnits.toLocaleString()}</div>
             </div>
             <div className="dashboard-card card-green">
               <div className="card-title">Low in Stock</div>

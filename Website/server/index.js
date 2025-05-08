@@ -42,10 +42,31 @@ const upload = multer({
   }
 });
 
+// Configure multer for inventory image upload
+const inventoryStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'inventory-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const inventoryUpload = multer({
+  storage: inventoryStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: function (req, file, cb) {
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+      return cb(new Error('Only image files are allowed!'), false);
+    }
+    cb(null, true);
+  }
+});
+
 // CORS configuration
 app.use(cors({
   origin: 'http://localhost:3000', // Your React app's URL
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
 app.use(express.json());
@@ -110,11 +131,14 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// Registration endpoint with file upload
+// Registration endpoint with file upload (store profile picture in DB)
 app.post('/api/auth/register', upload.single('profilePicture'), async (req, res) => {
   const { name, email, password, role } = req.body;
-  const profilePicturePath = req.file ? `/uploads/${req.file.filename}` : null;
-
+  let profilePictureData = null;
+  if (req.file) {
+    profilePictureData = fs.readFileSync(req.file.path);
+    fs.unlinkSync(req.file.path);
+  }
   try {
     // Check if email already exists
     const emailCheck = await pool.query(
@@ -123,7 +147,6 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
     );
 
     if (emailCheck.rows.length > 0) {
-      // If registration fails and a file was uploaded, delete it
       if (req.file) {
         fs.unlinkSync(req.file.path);
       }
@@ -137,10 +160,10 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // Insert new user with profile picture
+    // Insert new user with profile picture data
     const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role, profile_picture_path) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email, role, profile_picture_path',
-      [name, email, passwordHash, role, profilePicturePath]
+      'INSERT INTO users (name, email, password_hash, role, profile_picture_data) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email, role',
+      [name, email, passwordHash, role, profilePictureData]
     );
 
     const newUser = result.rows[0];
@@ -165,12 +188,11 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
-        profile_picture_path: newUser.profile_picture_path
+        profile_picture_data: profilePictureData ? profilePictureData.toString('base64') : null
       }
     });
 
   } catch (error) {
-    // If registration fails and a file was uploaded, delete it
     if (req.file) {
       fs.unlinkSync(req.file.path);
     }
@@ -244,11 +266,11 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// User details endpoint
+// User details endpoint (return profile_picture_data as base64)
 app.get('/api/user/details', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT user_id, name, email, role, created_at, profile_picture_path FROM users WHERE user_id = $1',
+      'SELECT user_id, name, email, role, created_at, profile_picture_data FROM users WHERE user_id = $1',
       [req.user.user_id]
     );
 
@@ -258,8 +280,9 @@ app.get('/api/user/details', verifyToken, async (req, res) => {
         message: 'User not found'
       });
     }
-
-    res.json(result.rows[0]);
+    const user = result.rows[0];
+    user.profile_picture_data = user.profile_picture_data ? user.profile_picture_data.toString('base64') : null;
+    res.json(user);
   } catch (error) {
     console.error('Error fetching user details:', error);
     res.status(500).json({
@@ -269,38 +292,114 @@ app.get('/api/user/details', verifyToken, async (req, res) => {
   }
 });
 
-// Upload or change profile picture endpoint
+// Upload or change profile picture endpoint (store in DB)
 app.post('/api/user/profile-picture', verifyToken, upload.single('profilePicture'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, message: 'No file uploaded' });
   }
-  const profilePicturePath = `/uploads/${req.file.filename}`;
+  const profilePictureData = fs.readFileSync(req.file.path);
+  fs.unlinkSync(req.file.path);
   try {
-    // Get the old profile picture path to delete the old file if needed
-    const userResult = await pool.query(
-      'SELECT profile_picture_path FROM users WHERE user_id = $1',
-      [req.user.user_id]
-    );
-    const oldPath = userResult.rows[0]?.profile_picture_path;
-    // Update the user's profile picture path in the database
     await pool.query(
-      'UPDATE users SET profile_picture_path = $1 WHERE user_id = $2',
-      [profilePicturePath, req.user.user_id]
+      'UPDATE users SET profile_picture_data = $1 WHERE user_id = $2',
+      [profilePictureData, req.user.user_id]
     );
-    // Optionally delete the old file (if it exists and is not null)
-    if (oldPath && oldPath !== profilePicturePath) {
-      const oldFile = path.join(__dirname, oldPath);
-      if (fs.existsSync(oldFile)) {
-        fs.unlinkSync(oldFile);
-      }
-    }
-    res.json({ success: true, profile_picture_path: profilePicturePath });
+    res.json({ success: true, profile_picture_data: profilePictureData.toString('base64') });
   } catch (error) {
-    // If upload fails, delete the new file
     if (req.file) {
       fs.unlinkSync(req.file.path);
     }
     console.error('Profile picture upload error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Add a new inventory item (with image upload to DB)
+app.post('/api/inventory', inventoryUpload.single('image'), async (req, res) => {
+  const { sku, name, description, quantity, unit_price, category } = req.body;
+  let image_data = null;
+  if (req.file) {
+    image_data = fs.readFileSync(req.file.path);
+    fs.unlinkSync(req.file.path); // Remove temp file
+  }
+  try {
+    const result = await pool.query(
+      'INSERT INTO inventory_items (sku, name, description, quantity, unit_price, category, image_data) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [sku, name, description, quantity, unit_price, category, image_data]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error adding inventory item:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Edit an inventory item (with optional image upload to DB)
+app.put('/api/inventory/:sku', inventoryUpload.single('image'), async (req, res) => {
+  const { sku } = req.params;
+  const { name, description, quantity, unit_price, category } = req.body;
+  let image_data = null;
+  if (req.file) {
+    image_data = fs.readFileSync(req.file.path);
+    fs.unlinkSync(req.file.path);
+  }
+  try {
+    let updateQuery = 'UPDATE inventory_items SET name=$1, description=$2, quantity=$3, unit_price=$4, category=$5';
+    let params = [name, description, quantity, unit_price, category];
+    if (image_data) {
+      updateQuery += ', image_data=$6';
+      params.push(image_data);
+    }
+    updateQuery += ', last_updated=NOW() WHERE sku=$7 RETURNING *';
+    params.push(sku);
+    const result = await pool.query(updateQuery, params);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error editing inventory item:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Get all inventory items (return image_data as base64)
+app.get('/api/inventory', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM inventory_items ORDER BY last_updated DESC');
+    const data = result.rows.map(row => ({
+      ...row,
+      image_data: row.image_data ? row.image_data.toString('base64') : null
+    }));
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching inventory:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Delete an inventory item
+app.delete('/api/inventory/:sku', async (req, res) => {
+  const { sku } = req.params;
+  try {
+    await pool.query('DELETE FROM inventory_items WHERE sku = $1', [sku]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting inventory item:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Get a single inventory item by SKU (return image_data as base64)
+app.get('/api/inventory/:sku', async (req, res) => {
+  const { sku } = req.params;
+  try {
+    const result = await pool.query('SELECT * FROM inventory_items WHERE sku = $1', [sku]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    const row = result.rows[0];
+    row.image_data = row.image_data ? row.image_data.toString('base64') : null;
+    res.json(row);
+  } catch (error) {
+    console.error('Error fetching inventory item:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
