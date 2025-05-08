@@ -9,9 +9,11 @@ import SalesScreen from '../Screens/BottomTabNavigation/SalesScreen';
 import ReportsScreen from '../Screens/BottomTabNavigation/ReportsScreen';
 import InventoryForm from '../Screens/StackNavigation/InventoryForm';
 import InventoryItemDetails from '../Screens/StackNavigation/InventoryItemDetails';
+import { useTheme } from '../Screens/DrawerNavigation/ThemeContect';
 
 const BottomTabNavigation = () => {
     const Tab = createBottomTabNavigator();
+    const { themeStyles } = useTheme();
 
     return (
         <Tab.Navigator
@@ -26,7 +28,7 @@ const BottomTabNavigation = () => {
                     left: 0,
                     elevation: 0,
                     height: Platform.OS === 'ios' ? 90 : 60, 
-                    backgroundColor: '#FDFDFD'
+                    backgroundColor: themeStyles.containerColor
                 },
                 tabBarItemStyle: {
                     height: 50, 

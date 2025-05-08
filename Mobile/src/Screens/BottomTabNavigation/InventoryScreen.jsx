@@ -7,11 +7,13 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import ItemToolBar from '../../Components/ItemToolBar';
+import { useTheme } from '../../Screens/DrawerNavigation/ThemeContect';
 
 
 const InventoryScreen = ({ route }) => {
   const { pageTitle } = route.params;
   const navigation = useNavigation();
+  const { themeStyles } = useTheme();
 
   // State for page
   const [focused, setFocused] = useState('all');
@@ -40,7 +42,7 @@ const InventoryScreen = ({ route }) => {
     <View style={{ flex: 1, alignItems: 'center' }}>
 
       {/* Header */}
-      <View style={{width: '100%', height: 233, backgroundColor: '#696A8F', paddingHorizontal: 10}}>
+      <View style={{width: '100%', height: 233, backgroundColor: themeStyles.headerColor, paddingHorizontal: 10}}>
 
         {/* Menu button, Menu title, and Notification button */}
         <MenuTitle pageTitle={pageTitle}/>
@@ -51,16 +53,16 @@ const InventoryScreen = ({ route }) => {
         {/* Header navbar */}
         <View style={{flexDirection: 'row', height: 40, width: '100%'}}>
           <TouchableOpacity style={{flex: 1, alignItems: 'center', justifyContent: 'center', borderColor: '#F0F0F0', borderBottomWidth: focused === 'all' ? 4 : 0}} onPress={() => setFocused('all')}>
-            <Text style={{fontWeight: 500, fontSize: 14, color: '#F0F0F0'}}>All</Text>
+            <Text style={{fontWeight: 500, fontSize: 14, color: 'white'}}>All</Text>
           </TouchableOpacity>  
           <TouchableOpacity style={{flex: 1, alignItems: 'center', justifyContent: 'center', borderColor: '#F0F0F0', borderBottomWidth: focused === 'inactive' ? 4 : 0}} onPress={() => setFocused('inactive')}>
-            <Text style={{fontWeight: 500, fontSize: 14, color: '#F0F0F0'}}>Inactive</Text>
+            <Text style={{fontWeight: 500, fontSize: 14, color: 'white'}}>Inactive</Text>
           </TouchableOpacity>  
         </View>           
       </View>
 
       {/* Main Content */}
-      <View style={{ flex: 3, width: '100%', backgroundColor: '#F0F0F0', paddingHorizontal: 10}}>
+      <View style={{ flex: 3, width: '100%', backgroundColor: themeStyles.backgroundColor, paddingHorizontal: 10}}>
 
         {/* Tool bar that will show once the user longpresses an item */}
         {isLongpress &&

@@ -7,17 +7,19 @@ import SupplierItem from '../../Components/SupplierItem';
 import SupplierOrderItem from '../../Components/SupplierOrderItem';
 import Ionicons from 'react-native-vector-icons/Ionicons'
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../../Screens/DrawerNavigation/ThemeContect';
 
 const SuppliersScreen = ({route}) => {
     const { pageTitle } = route.params;
     const [focused, setFocused] = useState('all');
     const navigation = useNavigation();
+    const { themeStyles } = useTheme();
 
     return (
       <View style={{ flex: 1, alignItems: 'center'}}>
 
       {/* Header */}
-      <View style={{width: '100%', height: 233, backgroundColor: '#696A8F', paddingHorizontal: 10}}>
+      <View style={{width: '100%', height: 233, backgroundColor:themeStyles.headerColor, paddingHorizontal: 10}}>
 
         {/* Menu button, Menu title, and Notification button */}
         <MenuTitle pageTitle={pageTitle}/>
@@ -36,7 +38,7 @@ const SuppliersScreen = ({route}) => {
         </View>           
       </View>
 
-      <View style={{ flex: 3, width: '100%', backgroundColor: '#F0F0F0', paddingHorizontal: 10}}>
+      <View style={{ flex: 3, width: '100%', backgroundColor: themeStyles.backgroundColor, paddingHorizontal: 10}}>
         <ScrollView 
           contentContainerStyle={{ paddingBottom: 63 }} 
           showsVerticalScrollIndicator={false} 

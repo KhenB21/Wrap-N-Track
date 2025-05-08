@@ -26,17 +26,17 @@ const InventoryItemDetails = () => {
                     </View>
                 </View>
                 <View style={{width: '92%', backgroundColor: '#FDFDFD', marginTop: 10, borderRadius: 10, alignItems: 'center'}}>
-                    <Image source={require('../../../assets/Inventory Images/oolong-tea.jpg')} style={{width: '100%', height: 350, borderTopLeftRadius: 10, borderTopRightRadius: 10}}></Image>
+                    <Image source={require('../../../assets/inventory/oolong-tea.jpg')} style={{width: '100%', height: 350, borderTopLeftRadius: 10, borderTopRightRadius: 10}}></Image>
                     <View style={{width: '100%', padding: 15}}>
                         <View style={{flexDirection: 'row', height: 60, width: '100%', alignItems: 'center'}}>
                             <TouchableOpacity onPress={() => setFocused('image2')}>
-                                <Image source={require('../../../assets/Inventory Images/oolong-tea2.jpg')} style={{height: 60, width: 60}}></Image>
+                                <Image source={require('../../../assets/inventory/oolong-tea2.jpg')} style={{height: 60, width: 60}}></Image>
                             </TouchableOpacity>
                             <TouchableOpacity onPress={() => setFocused('image2')}>
-                                <Image source={require('../../../assets/Inventory Images/oolong-tea3.jpg')} style={{height: 60, width: 60, marginLeft: 10}}></Image>
+                                <Image source={require('../../../assets/inventory/oolong-tea3.jpg')} style={{height: 60, width: 60, marginLeft: 10}}></Image>
                             </TouchableOpacity>
                             <TouchableOpacity onPress={() => setFocused('image2')}>
-                                <Image source={require('../../../assets/Inventory Images/oolong-tea4.jpeg')} style={{height: 60, width: 60, marginLeft: 10}}></Image>
+                                <Image source={require('../../../assets/inventory/oolong-tea4.jpeg')} style={{height: 60, width: 60, marginLeft: 10}}></Image>
                             </TouchableOpacity>
                         </View>
                         <Text style={{color:'black', fontSize: 22, fontWeight: 'bold', paddingVertical: 20}}>Artisan Teas</Text>

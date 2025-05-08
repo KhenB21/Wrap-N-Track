@@ -7,11 +7,13 @@ import { useNavigation } from '@react-navigation/native'
 import { useState } from 'react'
 import OrderItem from '../../Components/OrderItem'
 import ItemToolBar from '../../Components/ItemToolBar'
+import { useTheme } from '../../Screens/DrawerNavigation/ThemeContect'
 
 const SalesScreen = ({route}) => {
   const {pageTitle} = route.params;
   const navigation = useNavigation();
   const [focused, setFocused] = useState('all');
+  const { themeStyles } = useTheme();
 
   // State for long press
     const [isLongpress, setLongpress] = useState(false);
@@ -37,7 +39,7 @@ const SalesScreen = ({route}) => {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
       {/* Header */}
-      <View style={{width: '100%', height: 233, backgroundColor: '#696A8F', paddingHorizontal: 10}}>
+      <View style={{width: '100%', height: 233, backgroundColor: themeStyles.headerColor, paddingHorizontal: 10}}>
 
         {/* Menu button, Menu title, and Notification button */}
         <MenuTitle pageTitle={pageTitle}/>
@@ -56,7 +58,7 @@ const SalesScreen = ({route}) => {
         </View>           
       </View>
 
-      <View style={{ flex: 3, width: '100%', alignItems: 'center', backgroundColor: '#F0F0F0', paddingHorizontal: 10}}>
+      <View style={{ flex: 3, width: '100%', alignItems: 'center', backgroundColor: themeStyles.backgroundColor, paddingHorizontal: 10}}>
 
         {/* Tool bar that will show once the user longpresses an item */}
         {isLongpress &&

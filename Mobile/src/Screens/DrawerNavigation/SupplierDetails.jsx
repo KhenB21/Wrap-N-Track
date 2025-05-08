@@ -6,13 +6,15 @@ import { useNavigation } from '@react-navigation/native'
 import SearchBar from '../../Components/SearchBar'
 import InventoryItem from '../../Components/InventoryItem'
 import SupplierTransactionItem from '../../Components/SupplierOrderItem'
+import { useTheme } from '../../Screens/DrawerNavigation/ThemeContect'
 
 const SupplierDetails = () => {
     const [focused, setFocused] = useState('all');
     const navigation = useNavigation();
+    const { themeStyles } = useTheme();
 
     return (
-        <View style={{flex: 1, alignItems: 'center'}}>
+        <View style={{flex: 1, alignItems: 'center', backgroundColor: themeStyles.backgroundColor}}>
             <View style={{width: '100%', height: 366, backgroundColor: '#696A8F', paddingRight: 15, paddingLeft: 15, paddingTop: 40}}>
                 <TouchableOpacity style={{height: 28, width: 28, marginBottom: 5}} onPress={() => navigation.goBack()}>
                     <Ionicons name='chevron-back' size={28} color={'#FDFDFD'}/>

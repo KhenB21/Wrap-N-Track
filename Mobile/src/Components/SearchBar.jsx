@@ -13,7 +13,7 @@ const SearchBar = () => {
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
         style={{
-          backgroundColor: (isFocused ? '#F0F0F0' : '#8586AC'), 
+          backgroundColor: (isFocused ? '#F0F0F0' : 'white'), 
           height: '75%', 
           width: '85%', 
           borderRadius: 6, 
@@ -24,7 +24,7 @@ const SearchBar = () => {
       >
         <TextInput 
           placeholder='Search' 
-          placeholderTextColor={(isFocused ? 'gray' : '#F0F0F0')}
+          placeholderTextColor={( 'gray')}
           color={(isFocused ? '#000' : '#F0F0F0')} 
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -34,7 +34,7 @@ const SearchBar = () => {
             fontSize: 16, 
           }}
         />
-        <Ionicons name='search-outline' size={24} color={isFocused ? '#8586AC' : '#F0F0F0'} />
+        <Ionicons name='search-outline' size={24} color={'grey'} />
       </KeyboardAvoidingView>
       <View style={{ position: 'relative'}}>
         <Menu

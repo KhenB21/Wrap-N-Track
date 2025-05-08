@@ -4,9 +4,14 @@ import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawe
 import Ionicons from 'react-native-vector-icons/Ionicons'
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../Screens/DrawerNavigation/ThemeContect';
+
 
 const CustomDrawerContent = (props) => {
   const navigation = useNavigation();
+  const { themeStyles } = useTheme();
+  const styles = createStyles(themeStyles);
+  
 
   const handleLogout = () => {
     Alert.alert(
@@ -23,11 +28,11 @@ const CustomDrawerContent = (props) => {
   };
 
   return (
-    <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: 0, paddingStart: 0, paddingEnd: 0, flex: 1, paddingBottom: 200}}>
-      <View style={styles.profileContainer}>
+    <DrawerContentScrollView {...props} contentContainerStyle={{...styles.drawerContentContainer }}>
+      <View style={{...styles.profileContainer, backgroundColor: themeStyles.headerColor}}>
         <Image
           source={require('../../assets/Profile/person.jpg')}
-          style={styles.profileImage}
+          style={styles.profileImage} 
         />
         <Text style={styles.userName}>Marc Khenneth Bolima</Text>
         <Text style={{fontSize: 14, color: '#FDFDFD'}}>bolimarc@gmail.com</Text>
@@ -47,13 +52,18 @@ const CustomDrawerContent = (props) => {
   )
 }
 
-const styles = StyleSheet.create({
-  profileContainer: {
-    padding: 20,
-    height: 200,
-    backgroundColor: '#696A8F',
-    justifyContent: 'flex-end'
-  },
+const createStyles = (themeStyles) =>
+  StyleSheet.create({
+    drawerContentContainer: {
+      paddingTop: 0, paddingStart: 0, paddingEnd: 0, flex: 1, paddingBottom: 200,
+      backgroundColor: themeStyles.backgroundColor,
+    },
+    profileContainer: {
+      padding: 20,
+      height: 200,
+      backgroundColor: themeStyles.headerColor, 
+      justifyContent: 'flex-end',
+    },
   profileImage: {
     width: 80,
     height: 80,
