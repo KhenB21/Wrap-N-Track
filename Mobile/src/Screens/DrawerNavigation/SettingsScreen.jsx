@@ -12,7 +12,7 @@ const SettingsScreen = ({ route }) => {
   
 
   return (
-    <View style={{ flex: 1, alignItems: "center", backgroundColor: themeStyles.backgroundColor }}>
+    <View style={{ flex: 1, alignItems: "center", backgroundColor:themeStyles.backgroundColor}}>
       <View style={{ width: "100%", alignItems: "center", height: 150, backgroundColor: themeStyles.headerColor }}>
         <View style={{ width: "92%", flex: 1 }}>
           <MenuTitle pageTitle={pageTitle} />

@@ -29,6 +29,8 @@ export const ThemeProvider = ({ children }) => {
     iconColor: isDarkMode ? "white" : "#1C1C1D",
     headerColor: isDarkMode ? "#3C3C3C" : "#696A8F",
     containerColor: isDarkMode ? "#3C3C3C" : "#FDFDFD",
+    buttonColor: isDarkMode ? "#1C1C1D" : "#696A8F",
+    imageButtonColor: isDarkMode ? "#DEDCDC" : "#DEDCDC",
   };
 
   return (
