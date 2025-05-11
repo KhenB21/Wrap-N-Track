@@ -792,9 +792,17 @@ app.post('/api/orders/:order_id/archive', verifyToken, async (req, res) => {
 
     // Get order products
     const productsResult = await client.query(
-      'SELECT op.*, p.name as product_name, p.unit_price FROM order_products op JOIN inventory_items p ON op.sku = p.sku WHERE op.order_id = $1',
+      'SELECT op.*, p.name as product_name, COALESCE(p.unit_price, 0) as unit_price FROM order_products op JOIN inventory_items p ON op.sku = p.sku WHERE op.order_id = $1',
       [req.params.order_id]
     );
+
+    // Optional: throw error if unit_price is still null (should not happen with COALESCE, but for safety)
+    for (const product of productsResult.rows) {
+      if (product.unit_price === null) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: `Product ${product.sku} is missing a unit price.` });
+      }
+    }
 
     // Insert into order_history
     await client.query(
