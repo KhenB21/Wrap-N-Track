@@ -7,8 +7,10 @@ import CustomerDetails from "./Pages/CustomerDetails/CustomerDetails";
 import SupplierDetails from "./Pages/SupplierDetails/SupplierDetails";
 import UserDetails from "./Pages/UserDetails/UserDetails";
 import Inventory from "./Pages/Inventory/Inventory";
+import UserManagement from "./Pages/UserManagement/UserManagement";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Register from "./Pages/Register/Register";
+import OrderHistory from "./Pages/OrderHistory/OrderHistory";
 
 function App() {
   return (
@@ -24,6 +26,10 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/user-details" element={<UserDetails />} />
         <Route path="/inventory" element={<Inventory />} />
+        <Route path="/user-management" element={<UserManagement />} />
+        <Route path="/orders" element={<OrderDetails />} />
+        <Route path="/orders/:orderId" element={<OrderDetails />} />
+        <Route path="/order-history" element={<OrderHistory />} />
       </Routes>
     </Router>
   );

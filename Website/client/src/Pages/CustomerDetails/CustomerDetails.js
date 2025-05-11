@@ -34,9 +34,11 @@ const tabs = ["Overview", "Order History", "Ongoing orders"];
 
 function getProfilePictureUrl() {
   const user = JSON.parse(localStorage.getItem('user'));
-  if (!user || !user.profile_picture_path) return "/placeholder-profile.png";
-  if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
-  return `http://localhost:3001${user.profile_picture_path}`;
+  if (!user) return "/placeholder-profile.png";
+  if (user.profile_picture_data) {
+    return `data:image/jpeg;base64,${user.profile_picture_data}`;
+  }
+  return "/placeholder-profile.png";
 }
 
 export default function CustomerDetails() {

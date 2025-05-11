@@ -83,7 +83,12 @@ export default function ProductDetails() {
                 onClick={() => navigate(`/product-details/${p.sku}`)}
               >
                 <input type="checkbox" checked={!!selected[p.sku]} onChange={e => { e.stopPropagation(); handleCheckbox(p.sku); }} />
-                <img src={p.image_path ? `http://localhost:3001${p.image_path}` : ''} alt={p.name} className="product-img-thumb" style={{ width: 38, height: 38, borderRadius: 6, objectFit: 'cover', border: '1px solid #eee', background: '#e0e0e0' }} />
+                <img 
+                  src={p.image_data ? `data:image/jpeg;base64,${p.image_data}` : ''} 
+                  alt={p.name} 
+                  className="product-img-thumb" 
+                  style={{ width: 38, height: 38, borderRadius: 6, objectFit: 'cover', border: '1px solid #eee', background: '#e0e0e0' }} 
+                />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{p.name}</div>
                   <div style={{ fontSize: 13, color: '#888' }}>{p.description}</div>
@@ -133,10 +138,14 @@ export default function ProductDetails() {
                     </div>
                   </div>
                   <div style={{ minWidth: 220, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
-                    {product.image_path ? (
-                      <img src={`http://localhost:3001${product.image_path}`} alt={product.name} style={{ width: 220, height: 160, objectFit: 'cover', borderRadius: 10, border: '1px solid #eee' }} />
+                    {product.image_data ? (
+                      <img 
+                        src={`data:image/jpeg;base64,${product.image_data}`} 
+                        alt={product.name} 
+                        style={{ width: 220, height: 160, objectFit: 'cover', borderRadius: 10, border: '1px solid #eee' }} 
+                      />
                     ) : (
-                      <div className="img-placeholder" style={{ width: 220, height: 160 }} />
+                      <div className="img-placeholder" style={{ width: 220, height: 160, borderRadius: 10, border: '1px solid #eee' }} />
                     )}
                     <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
                       {/* Thumbnails placeholder */}

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Notifications from "./Notifications/Notifications";
 import "./TopBar.css";
 
-export default function TopBar({ searchPlaceholder = "Search", avatarUrl = "https://randomuser.me/api/portraits/men/1.jpg" }) {
+export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef();
@@ -51,6 +51,18 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl = "http
     };
   }, [dropdownOpen]);
 
+  const getProfilePictureUrl = () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) return "/placeholder-profile.png";
+    
+    // If we have base64 data, use that
+    if (user.profile_picture_data) {
+      return `data:image/jpeg;base64,${user.profile_picture_data}`;
+    }
+    
+    return "/placeholder-profile.png";
+  };
+
   return (
     <div className="dashboard-topbar">
       <input className="dashboard-search" type="text" placeholder={searchPlaceholder} />
@@ -80,9 +92,12 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl = "http
           ref={dropdownRef}
         >
           <img 
-            src={avatarUrl} 
+            src={avatarUrl || getProfilePictureUrl()} 
             alt="User" 
-            onError={e => { e.target.onerror = null; e.target.src = '/placeholder-profile.png'; }}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = '/placeholder-profile.png';
+            }}
           />
           {dropdownOpen && (
             <div className="avatar-dropdown">

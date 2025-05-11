@@ -1,21 +1,26 @@
 .order-action-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 16px;
+  margin-bottom: 18px;
+  background: #f8f9fb;
+  border-radius: 8px;
+  padding: 12px 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
 }
 .btn-edit, .btn-delete, .btn-create {
   background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 7px 18px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 8px 22px;
   font-size: 15px;
   font-weight: 500;
   cursor: pointer;
   margin-right: 4px;
-  transition: background 0.2s;
+  transition: background 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
-.btn-edit:hover { background: #f5f5f5; }
+.btn-edit:hover { background: #f3f6fa; }
 .btn-delete { color: #e53935; border-color: #e53935; }
 .btn-delete:hover { background: #ffeaea; }
 .btn-create { background: #6c63ff; color: #fff; border: none; }
@@ -25,54 +30,56 @@
 .order-filters {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 14px;
+  margin-bottom: 20px;
 }
 .order-filters select, .order-filters input[type="text"] {
-  padding: 7px 12px;
-  border-radius: 6px;
-  border: 1px solid #ddd;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
   font-size: 15px;
   background: #fff;
 }
 .order-filters input[type="text"] {
-  width: 180px;
+  width: 200px;
 }
 
 .order-details-layout {
   display: flex;
-  gap: 18px;
-  min-height: 480px;
+  gap: 24px;
+  min-height: 420px;
 }
 .order-list {
   background: #fff;
-  border-radius: 12px;
-  padding: 16px 0 0 0;
-  min-width: 260px;
-  max-width: 260px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  border-radius: 14px;
+  padding: 18px 0 0 0;
+  min-width: 240px;
+  max-width: 240px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   display: flex;
   flex-direction: column;
 }
 .order-list-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #888;
-  padding: 0 18px 10px 18px;
-  border-bottom: 1px solid #eee;
-  margin-bottom: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #6c63ff;
+  padding: 0 20px 12px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
 }
 .order-list-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 18px;
-  border-bottom: 1px solid #f0f0f0;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #f5f5f5;
   cursor: pointer;
   transition: background 0.2s;
+  border-radius: 6px;
 }
 .order-list-item.selected, .order-list-item:hover {
-  background: #f6f6f8;
+  background: #f3f6fa;
 }
 .order-info {
   flex: 1;
@@ -98,6 +105,8 @@
   margin-left: 8px;
   min-width: 60px;
   text-align: center;
+  background: #f0f0f0;
+  color: #6c63ff;
 }
 .status-invoiced {
   background: #e53935;
@@ -118,12 +127,63 @@
 
 .order-details-panel {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 14px;
   flex: 1;
-  padding: 24px 24px 18px 24px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 48px 48px 32px 48px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   display: flex;
   flex-direction: column;
+  min-height: 320px;
+  font-size: 18px;
+  overflow-y: auto;
+}
+.order-details-panel h2, .order-details-panel .section-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #222;
+}
+.order-details-panel hr {
+  border: none;
+  border-top: 1.5px solid #eee;
+  margin: 24px 0;
+}
+.order-details-panel .order-status-badge {
+  display: inline-block;
+  font-size: 18px;
+  font-weight: 600;
+  padding: 6px 22px;
+  border-radius: 8px;
+  margin-left: 18px;
+  background: #e0e7ff;
+  color: #5146c7;
+  text-transform: capitalize;
+}
+.order-details-panel .status-to-be-pack { background: #ffe082; color: #7c6f00; }
+.order-details-panel .status-ready-to-ship { background: #b2f0e6; color: #00796b; }
+.order-details-panel .status-completed { background: #b2dfdb; color: #00695c; }
+.order-details-panel .status-invoice { background: #ffd6d6; color: #b71c1c; }
+.order-details-panel .status-cancelled { background: #e0e0e0; color: #888; }
+.order-details-panel .section-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  margin-top: 24px;
+  color: #444;
+}
+.order-details-panel .details-row {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 6px;
+}
+.order-details-panel .details-label {
+  min-width: 120px;
+  color: #888;
+  font-weight: 500;
+}
+.order-details-panel .details-value {
+  font-weight: 500;
+  color: #222;
 }
 .order-details-header {
   display: flex;
@@ -142,13 +202,13 @@
 }
 .order-details-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 .icon-btn {
-  background: #f6f6f8;
+  background: #f3f6fa;
   border: none;
-  border-radius: 6px;
-  padding: 6px 10px;
+  border-radius: 8px;
+  padding: 7px 12px;
   font-size: 18px;
   cursor: pointer;
   transition: background 0.2s;
@@ -156,41 +216,11 @@
 .icon-btn:hover {
   background: #e0e7ff;
 }
-.order-status-badge {
-  font-size: 15px;
-  font-weight: 600;
-  padding: 4px 18px;
-  border-radius: 6px;
-  border: none;
-  margin-bottom: 12px;
-  margin-top: 4px;
-  background: #e53935;
-  color: #fff;
-}
 .order-details-content {
   display: flex;
   flex-direction: column;
   gap: 18px;
-}
-.details-section {
-  margin-bottom: 8px;
-}
-.details-label {
-  font-size: 13px;
-  color: #888;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-.details-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 15px;
-  margin-bottom: 2px;
-}
-.details-row span:last-child {
-  text-align: right;
-  max-width: 320px;
-  word-break: break-word;
+  min-height: 180px;
 }
 
 @media (max-width: 1100px) {
@@ -201,11 +231,38 @@
 
 @media (max-width: 800px) {
   .order-details-panel {
-    padding: 12px 4px 8px 4px;
+    padding: 14px 4px 8px 4px;
   }
   .order-list {
-    min-width: 120px;
-    max-width: 120px;
-    padding: 8px 0 0 0;
+    min-width: 100px;
+    max-width: 100px;
+    padding: 6px 0 0 0;
   }
+}
+
+/* Modal input styles */
+.modal-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 7px;
+  border: 1px solid #d1d5db;
+  font-size: 15px;
+  margin-top: 6px;
+  margin-bottom: 2px;
+  background: #f8f9fb;
+  transition: border 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+.modal-input:focus {
+  outline: none;
+  border: 1.5px solid #6c63ff;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(108,99,255,0.08);
+}
+
+.modal label {
+  margin-bottom: 2px;
+  display: flex;
+  flex-direction: column;
+  font-size: 15px;
 } 

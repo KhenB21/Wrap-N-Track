@@ -1,0 +1,117 @@
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.dashboard-main {
+  flex: 1;
+  background: #f8f9fa;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.order-filters {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.order-search {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.order-details-layout {
+  display: flex;
+  gap: 20px;
+  height: calc(100vh - 180px);
+}
+
+.order-list {
+  width: 360px;
+  min-width: 300px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  overflow-y: auto;
+}
+
+.order-list-title {
+  padding: 16px;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 1px;
+  border-bottom: 1px solid #eee;
+}
+
+.order-list-item {
+  padding: 16px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.order-list-item:hover {
+  background: #f8f9fa;
+}
+
+.order-list-item.selected {
+  background: #f0f7ff;
+}
+
+.order-info {
+  margin-bottom: 8px;
+}
+
+.order-name {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.order-code {
+  font-size: 13px;
+  color: #888;
+}
+
+.order-price {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.order-date {
+  font-size: 13px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.order-details-panel {
+  flex: 1;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  overflow-y: auto;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: #6c63ff;
+  box-shadow: 0 0 0 2px rgba(108,99,255,0.1);
+} 

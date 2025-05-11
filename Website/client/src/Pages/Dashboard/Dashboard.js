@@ -33,11 +33,25 @@ function Dashboard() {
     fetchInventory();
   }, [navigate]);
 
+  useEffect(() => {
+    const fetchAndSyncUser = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const res = await fetch('http://localhost:3001/api/user/details', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const user = await res.json();
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+    };
+    fetchAndSyncUser();
+  }, []);
+
   const getProfilePictureUrl = () => {
     const user = JSON.parse(localStorage.getItem('user'));
-    if (!user || !user.profile_picture_path) return "/placeholder-profile.png";
-    if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
-    return `http://localhost:3001${user.profile_picture_path}`;
+    if (!user || !user.profile_picture_data) return "/placeholder-profile.png";
+    return `data:image/jpeg;base64,${user.profile_picture_data}`;
   };
 
   // Optionally, check authentication before rendering
@@ -48,6 +62,7 @@ function Dashboard() {
   // Calculate totals
   const totalProducts = inventory.length;
   const totalProductUnits = inventory.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  const lowStockProducts = inventory.filter(item => Number(item.quantity || 0) < 10).length;
 
   return (
     <div className="dashboard-container">
@@ -68,7 +83,7 @@ function Dashboard() {
             </div>
             <div className="dashboard-card card-green">
               <div className="card-title">Low in Stock</div>
-              <div className="card-value card-low">39</div>
+              <div className="card-value card-low">{loading ? '...' : lowStockProducts}</div>
             </div>
             <div className="dashboard-card card-blue">
               <div className="card-title">Replenishment Pending</div>
