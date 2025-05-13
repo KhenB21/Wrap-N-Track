@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   Image,
   Alert,
+  Modal,
 } from "react-native";
 import React, { useState, useContext } from "react";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -17,6 +18,7 @@ import RadioGroup from "react-native-radio-buttons-group";
 import { InventoryContext } from "../../Context/InventoryContext";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useTheme } from "../../Screens/DrawerNavigation/ThemeContect";
+import { Camera } from "expo-camera";
 
 const InventoryForm = () => {
   const [itemName, setItemName] = useState("");
@@ -30,6 +32,8 @@ const InventoryForm = () => {
   const [photos, setPhotos] = useState([]);
   const [selectedValue, setSelectedValue] = useState("");
   const [selectedId, setSelectedId] = useState(null);
+  const [hasPermission, setHasPermission] = useState(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
 
   const { themeStyles } = useTheme();
 
@@ -41,7 +45,44 @@ const InventoryForm = () => {
     { id: "2", label: "Inactive", value: "option2" },
   ];
 
-  // Function to handle photo selection
+  const requestCameraPermission = async () => {
+    const { status } = await Camera.requestCameraPermissionsAsync();
+    setHasPermission(status === "granted");
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Denied",
+        "Camera access is required to scan barcodes."
+      );
+    }
+  };
+
+  const handleBarCodeScanned = ({ type, data }) => {
+    setIsCameraOpen(false);
+    setSku(data);
+    Alert.alert("Barcode Scanned", `Type: ${type}\nData: ${data}`);
+  };
+
+  const openCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Denied",
+        "We need access to your camera to proceed."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setPhotos((prevPhotos) => [...prevPhotos, result.assets[0].uri]);
+    }
+  };
+
   const handleAddPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -64,6 +105,12 @@ const InventoryForm = () => {
   };
 
   const handleAddItem = () => {
+    console.log("Selected ID:", selectedId); // Debugging
+    if (!selectedId) {
+      Alert.alert("Error", "Please select a status (Active or Inactive).");
+      return;
+    }
+
     const newItem = {
       itemName,
       variant,
@@ -77,6 +124,8 @@ const InventoryForm = () => {
       dateAdded: new Date().toLocaleDateString(),
       status: selectedId === "1" ? "Active" : "Inactive",
     };
+
+    console.log("New Item:", newItem); // Debugging
     addItem(newItem);
     navigation.goBack({ newItem });
   };
@@ -133,7 +182,6 @@ const InventoryForm = () => {
               General Information
             </Text>
             <View style={{ width: "100%", alignItems: "center" }}>
-              {/* Add Photos Button */}
               <TouchableOpacity
                 onPress={handleAddPhoto}
                 style={{
@@ -158,7 +206,6 @@ const InventoryForm = () => {
                 </View>
               </TouchableOpacity>
 
-              {/* Display Selected Photos */}
               <View
                 style={{
                   width: "100%",
@@ -183,12 +230,11 @@ const InventoryForm = () => {
                 ))}
               </View>
 
-              {/* Input Fields */}
               <TextInput
                 placeholder="Item Name"
                 placeholderTextColor={themeStyles.textColor}
-                value={itemName} // Bind to state
-                onChangeText={setItemName} // Update state on text change
+                value={itemName}
+                onChangeText={setItemName}
                 style={{
                   borderWidth: 1,
                   width: "100%",
@@ -203,8 +249,8 @@ const InventoryForm = () => {
               <TextInput
                 placeholder="Variant"
                 placeholderTextColor={themeStyles.textColor}
-                value={variant} // Bind to state
-                onChangeText={setVariant} // Update state on text change
+                value={variant}
+                onChangeText={setVariant}
                 style={{
                   borderWidth: 1,
                   borderColor: "#ccc",
@@ -219,8 +265,8 @@ const InventoryForm = () => {
               <TextInput
                 placeholder="Description"
                 placeholderTextColor={themeStyles.textColor}
-                value={description} // Bind to state
-                onChangeText={setDescription} // Update state on text change
+                value={description}
+                onChangeText={setDescription}
                 style={{
                   borderWidth: 1,
                   width: "100%",
@@ -287,9 +333,9 @@ const InventoryForm = () => {
               >
                 <TextInput
                   placeholder="SKU (Stock Keeping Unit)"
-                  placeholderTextColor={themeStyles.textColor} // Apply themeStyles.textColor to the placeholder
-                  value={sku} // Bind to state
-                  onChangeText={setSku} // Update state on text change
+                  placeholderTextColor={themeStyles.textColor}
+                  value={sku}
+                  onChangeText={setSku}
                   style={{
                     borderWidth: 1,
                     borderColor: "#ccc",
@@ -297,10 +343,10 @@ const InventoryForm = () => {
                     padding: 10,
                     flex: 1,
                     marginRight: 10,
-                    color: themeStyles.textColor, // Apply themeStyles.textColor to the text
+                    color: themeStyles.textColor,
                   }}
                 />
-                <TouchableOpacity>
+                <TouchableOpacity onPress={openCamera}>
                   <MaterialCommunityIcons
                     name="barcode-scan"
                     size={30}
@@ -308,12 +354,40 @@ const InventoryForm = () => {
                   />
                 </TouchableOpacity>
               </View>
+              {isCameraOpen && (
+                <Modal
+                  animationType="slide"
+                  transparent={false}
+                  visible={isCameraOpen}
+                  onRequestClose={() => setIsCameraOpen(false)}
+                >
+                  <Camera
+                    style={{ flex: 1 }}
+                    onBarCodeScanned={handleBarCodeScanned}
+                  />
+                  <TouchableOpacity
+                    style={{
+                      position: "absolute",
+                      bottom: 50,
+                      alignSelf: "center",
+                      backgroundColor: themeStyles.buttonColor,
+                      padding: 10,
+                      borderRadius: 5,
+                    }}
+                    onPress={() => setIsCameraOpen(false)}
+                  >
+                    <Text style={{ color: "#FFF", fontSize: 16 }}>
+                      Close Camera
+                    </Text>
+                  </TouchableOpacity>
+                </Modal>
+              )}
               <View style={{ width: "100%", marginTop: 20 }}>
                 <RadioGroup
                   radioButtons={radioButtons.map((button) => ({
                     ...button,
-                    labelStyle: { color: themeStyles.textColor }, // Apply themeStyles.textColor to the label
-                    color: themeStyles.textColor, // Apply themeStyles.textColor to the actual radio button
+                    labelStyle: { color: themeStyles.textColor },
+                    color: themeStyles.textColor,
                   }))}
                   onPress={setSelectedId}
                   selectedId={selectedId}
@@ -345,8 +419,8 @@ const InventoryForm = () => {
               <TextInput
                 placeholder="Quantity"
                 placeholderTextColor={themeStyles.textColor}
-                value={quantity} // Bind to state
-                onChangeText={setQuantity} // Update state on text change
+                value={quantity}
+                onChangeText={setQuantity}
                 style={{
                   borderWidth: 1,
                   borderColor: "#ccc",
@@ -460,8 +534,8 @@ const InventoryForm = () => {
             <TextInput
               placeholder="Item Price"
               placeholderTextColor={themeStyles.textColor}
-              value={price} // Bind to state
-              onChangeText={setPrice} // Update state on text change
+              value={price}
+              onChangeText={setPrice}
               style={{
                 borderWidth: 1,
                 borderColor: "#ccc",
