@@ -1,0 +1,217 @@
+/* UserManagement.css */
+
+.dashboard-container {
+    display: flex;
+    min-height: 100vh;
+    background: #f6f7fb;
+  }
+  
+  .dashboard-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #f6f7fb;
+  }
+  
+  .user-management-container {
+    margin: 32px auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    padding: 24px 18px 18px 18px;
+    max-width: 1100px;
+    width: 100%;
+  }
+  
+  .user-management-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  
+  .user-management-header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #222;
+  }
+  
+  .register-user-btn {
+    padding: 7px 16px;
+    border: none;
+    border-radius: 5px;
+    font-size: 15px;
+    cursor: pointer;
+    background: #007bff;
+    color: #fff;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+  
+  .register-user-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  .user-cards-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    gap: 18px;
+    margin-top: 10px;
+  }
+  
+  .user-card {
+    background: #fafbfc;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    padding: 18px 14px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: box-shadow 0.18s;
+  }
+  
+  .user-card:hover {
+    box-shadow: 0 4px 18px rgba(0,0,0,0.10);
+  }
+  
+  .user-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  
+  .user-profile-pic-large {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #e3eeff;
+    border: 1.5px solid #e0e0e0;
+  }
+  
+  .user-card-name {
+    font-size: 1.08rem;
+    font-weight: 600;
+    color: #222;
+  }
+  
+  .user-card-role {
+    font-size: 0.97rem;
+    color: #888;
+    margin-top: 1px;
+  }
+  
+  .user-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 0.98rem;
+  }
+  
+  .user-card-label {
+    font-weight: 500;
+    color: #007bff;
+    margin-right: 4px;
+  }
+  
+  .loading,
+  .error {
+    font-size: 1.05rem;
+    color: #888;
+    text-align: center;
+    margin: 24px 0;
+    background: #fff0f0;
+    border-radius: 6px;
+    border: 1px solid #ffd6d6;
+    padding: 18px 0;
+  }
+  
+  @media (max-width: 700px) {
+    .user-management-container {
+      padding: 8px 2px;
+    }
+    .user-management-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+  }
+
+.user-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.user-modal {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  padding: 28px 24px 18px 24px;
+  min-width: 320px;
+  max-width: 95vw;
+  width: 370px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.user-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.user-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.6rem;
+  color: #888;
+  cursor: pointer;
+}
+.user-modal-fields label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.98rem;
+  color: #444;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.user-modal-fields input,
+.user-modal-fields select {
+  margin-top: 3px;
+  padding: 7px 10px;
+  border: 1.2px solid #e0e0e0;
+  border-radius: 5px;
+  font-size: 1rem;
+  background: #fafbfc;
+}
+.user-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+.user-modal-save {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 7px 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.user-modal-delete {
+  background: #e66465;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 7px 16px;
+  font-weight: 500;
+  cursor: pointer;
+}

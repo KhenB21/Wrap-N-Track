@@ -1,9 +1,45 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./Sidebar.css"; // We'll create this next
 
 const Sidebar = () => {
   const [reportsOpen, setReportsOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Optionally clear all localStorage:
+    // localStorage.clear();
+    navigate('/login');
+  };
+
+  const getProfilePictureUrl = () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) return "/placeholder-profile.png";
+    
+    // If we have base64 data, use that
+    if (user.profile_picture_data) {
+      return `data:image/jpeg;base64,${user.profile_picture_data}`;
+    }
+    
+    // If we have a path, use that
+    if (user.profile_picture_path) {
+      if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
+      return `http://localhost:3001${user.profile_picture_path}`;
+    }
+    
+    return "/placeholder-profile.png";
+  };
+
+  // Get user role from localStorage
+  const getUserRole = () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    return user ? user.role : null;
+  };
+
+  const isAdmin = getUserRole() === 'admin';
 
   return (
     <div className="sidebar">
@@ -64,11 +100,31 @@ const Sidebar = () => {
               <span className="text">Suppliers</span>
             </Link>
           </li>
+          <li>
+            <Link to="/orders" className="sidebar-link">
+              <i className="fas fa-shopping-cart"></i>
+              <span>Orders</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/order-history" className="sidebar-link">
+              <i className="fas fa-history"></i>
+              <span>Order History</span>
+            </Link>
+          </li>
+          {isAdmin && (
+            <li>
+              <Link to="/user-management">
+                <span className="icon">👤</span>
+                <span className="text">Account Management</span>
+              </Link>
+            </li>
+          )}
         </ul>
       </nav>
 
       <div className="sidebar-footer">
-        <button className="logout-btn">
+        <button className="logout-btn" onClick={handleLogout}>
           <span className="icon">🚪</span>
           <span className="text">Log Out</span>
         </button>

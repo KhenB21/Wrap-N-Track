@@ -1,0 +1,130 @@
+.inventory-container {
+  background: #f6f6f8;
+  /* min-height: 100vh; */
+  padding: 32px 40px 0 40px;
+  height: 100%;
+}
+
+.inventory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.inventory-header h2 {
+  font-size: 2rem;
+  color: #333;
+  font-weight: 700;
+}
+
+.add-product-btn {
+  background: #696a8f;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 22px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.add-product-btn:hover {
+  background: #4d4e6a;
+}
+
+.inventory-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+
+.inventory-table th, .inventory-table td {
+  padding: 16px 20px;
+  text-align: center;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  border-right: 1px solid #e0e0e0;
+  vertical-align: middle;
+}
+
+.inventory-table th:last-child, .inventory-table td:last-child {
+  border-right: none;
+}
+
+.inventory-table th {
+  background: #f3f3f7;
+  color: #333;
+  font-weight: 600;
+  font-size: 1.1rem;
+  padding: 20px;
+  text-align: center;
+}
+
+.inventory-table tr {
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+.inventory-table tr:hover {
+  background: #f7f7fa;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.img-placeholder {
+  width: 60px;
+  height: 60px;
+  background: #e0e0e0;
+  border-radius: 8px;
+  display: block;
+  margin: 0 auto;
+}
+
+.product-img-thumb {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #eee;
+  transition: transform 0.2s ease;
+  display: block;
+  margin: 0 auto;
+}
+
+.product-img-thumb:hover {
+  transform: scale(1.05);
+}
+
+.edit-btn {
+  background: #e6f0ff;
+  color: #007bff;
+  border: 1px solid #007bff;
+  border-radius: 4px;
+  padding: 5px 14px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: background 0.2s;
+}
+.edit-btn:hover {
+  background: #cce0ff;
+}
+
+.delete-btn {
+  background: #fdecea;
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+  border-radius: 4px;
+  padding: 5px 14px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.delete-btn:hover {
+  background: #f8d7da;
+} 

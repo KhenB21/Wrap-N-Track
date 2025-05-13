@@ -32,13 +32,22 @@ const customers = [
 
 const tabs = ["Overview", "Order History", "Ongoing orders"];
 
+function getProfilePictureUrl() {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (!user) return "/placeholder-profile.png";
+  if (user.profile_picture_data) {
+    return `data:image/jpeg;base64,${user.profile_picture_data}`;
+  }
+  return "/placeholder-profile.png";
+}
+
 export default function CustomerDetails() {
   const [activeTab, setActiveTab] = useState(0);
   return (
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar />
+        <TopBar avatarUrl={getProfilePictureUrl()} />
         {/* Action Bar */}
         <div className="customer-action-bar">
           <button className="btn-edit">Edit</button>
