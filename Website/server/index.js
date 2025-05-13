@@ -414,12 +414,20 @@ app.get('/api/inventory', async (req, res) => {
 // Delete an inventory item
 app.delete('/api/inventory/:sku', async (req, res) => {
   const { sku } = req.params;
+  const client = await pool.connect();
   try {
-    await pool.query('DELETE FROM inventory_items WHERE sku = $1', [sku]);
+    await client.query('BEGIN');
+    await client.query('DELETE FROM order_products WHERE sku = $1', [sku]);
+    // Do NOT delete from order_history_products to preserve archived order data
+    await client.query('DELETE FROM inventory_items WHERE sku = $1', [sku]);
+    await client.query('COMMIT');
     res.json({ success: true });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error deleting inventory item:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
@@ -863,12 +871,18 @@ app.post('/api/orders/:order_id/archive', verifyToken, async (req, res) => {
 app.get('/api/orders/history', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT oh.*, u.name as archived_by_name 
+      SELECT oh.*, u.name as archived_by_name, u.profile_picture_data as archived_by_profile_picture
       FROM order_history oh
       LEFT JOIN users u ON oh.archived_by = u.user_id
       ORDER BY oh.archived_at DESC
     `);
-    res.json(result.rows);
+    
+    const orders = result.rows.map(order => ({
+      ...order,
+      archived_by_profile_picture: order.archived_by_profile_picture ? order.archived_by_profile_picture.toString('base64') : null
+    }));
+    
+    res.json(orders);
   } catch (err) {
     console.error('Error fetching order history:', err);
     res.status(500).json({ message: 'Failed to fetch order history' });
