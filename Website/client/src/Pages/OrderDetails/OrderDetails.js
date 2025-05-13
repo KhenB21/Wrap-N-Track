@@ -62,7 +62,7 @@ export default function OrderDetails() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({
     order_id: '', name: '', shipped_to: '', order_date: '', expected_delivery: '', status: '',
-    shipping_address: '', total_cost: '', payment_type: '', payment_method: '', account_name: '', remarks: '',
+    shipping_address: '', total_cost: '0.00', payment_type: '', payment_method: '', account_name: '', remarks: '',
     telephone: '', cellphone: '', email_address: ''
   });
   const [loading, setLoading] = useState(false);
@@ -146,13 +146,36 @@ export default function OrderDetails() {
     }
   };
 
-  const handleAddOrder = () => {
+  const handleAddOrder = async () => {
     setForm({
       order_id: '', name: '', shipped_to: '', order_date: '', expected_delivery: '', status: '',
-      shipping_address: '', total_cost: '', payment_type: '', payment_method: '', account_name: '', remarks: '',
+      shipping_address: '', total_cost: '0.00', payment_type: '', payment_method: '', account_name: '', remarks: '',
       telephone: '', cellphone: '', email_address: ''
     });
-    setShowModal(true);
+    setProductSelection({});
+    setProfitMargins({});
+    setProductError("");
+    try {
+      const res = await axios.get('http://localhost:3001/api/inventory');
+      setInventory(res.data);
+      setShowModal(true);
+    } catch (err) {
+      alert('Failed to fetch inventory');
+    }
+  };
+
+  const calculateTotalCost = (selection) => {
+    return inventory.reduce((total, item) => {
+      const quantity = Number(selection[item.sku] || 0);
+      const unitPrice = Number(item.unit_price || 0);
+      return total + (unitPrice * quantity);
+    }, 0).toFixed(2);
+  };
+
+  const handleProductSelection = (sku, value) => {
+    const newSelection = { ...productSelection, [sku]: value };
+    setProductSelection(newSelection);
+    setForm(prev => ({ ...prev, total_cost: calculateTotalCost(newSelection) }));
   };
 
   const handleFormChange = (e) => {
@@ -161,12 +184,37 @@ export default function OrderDetails() {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    setProductError("");
+
+    // Check if at least one product is selected
+    const selectedProducts = Object.entries(productSelection)
+      .filter(([sku, qty]) => Number(qty) > 0)
+      .map(([sku, quantity]) => ({ sku, quantity: Number(quantity) }));
+
+    if (selectedProducts.length === 0) {
+      setProductError("Please select at least one product");
+      return;
+    }
+
     try {
-      await axios.post('http://localhost:3001/api/orders', form);
-      setShowModal(false);
-      fetchOrders();
+      // Create order with products in a single request
+      const orderData = {
+        ...form,
+        products: selectedProducts
+      };
+
+      const response = await axios.post('http://localhost:3001/api/orders', orderData);
+      
+      if (response.data.success) {
+        setShowModal(false);
+        setProductSelection({});
+        setProfitMargins({});
+        fetchOrders();
+      } else {
+        setProductError(response.data.message || 'Failed to create order');
+      }
     } catch (err) {
-      alert('Failed to add order');
+      setProductError(err?.response?.data?.message || 'Failed to create order');
     }
   };
 
@@ -411,34 +459,6 @@ export default function OrderDetails() {
                       </div>
                     </div>
                   </div>
-                  {/* RIGHT COLUMN: PRODUCTS CARD */}
-                  <div style={{width:340,minWidth:260,background:'#fafbfc',borderRadius:10,padding:'18px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
-                    <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                      <span>PRODUCTS</span>
-                      <div style={{display:'flex',gap:8}}>
-                        <button onClick={handleEditProducts} style={{padding:'4px 8px',borderRadius:4,border:'1px solid #ddd',background:'#fff',cursor:'pointer',fontSize:13}}>Edit</button>
-                        <button onClick={openProductModal} style={{padding:'4px 8px',borderRadius:4,border:'1px solid #ddd',background:'#fff',cursor:'pointer',fontSize:13}}>Add</button>
-                      </div>
-                    </div>
-                    {orderProducts.length === 0 ? (
-                      <div style={{color:'#aaa'}}>No products added to this order yet.</div>
-                    ) : (
-                      <div>
-                        {orderProducts.map((p, idx) => (
-                          <div key={p.sku} style={{display:'flex',alignItems:'center',gap:16,padding:'10px 0',borderBottom:idx!==orderProducts.length-1?'1px solid #eee':'none'}}>
-                            {p.image_data ? <img src={`data:image/jpeg;base64,${p.image_data}`} alt={p.name} style={{width:44,height:44,borderRadius:8,objectFit:'cover',border:'1px solid #eee'}} /> : <div style={{width:44,height:44,background:'#eee',borderRadius:8}} />}
-                            <div style={{flex:1}}>
-                              <div style={{fontWeight:600,fontSize:15}}>{p.name}</div>
-                            </div>
-                            <div style={{display:'flex',alignItems:'center',gap:8}}>
-                              <div style={{color:'#888',fontWeight:500,fontSize:15}}>Qty: {p.quantity}</div>
-                              <button onClick={() => handleRemoveProduct(p.sku)} style={{padding:4,border:'none',background:'none',cursor:'pointer',color:'#e74c3c'}}><FaTrash size={14} /></button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             )}
@@ -448,67 +468,139 @@ export default function OrderDetails() {
         {/* Modal for Add Order */}
         {showModal && (
           <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#0008',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <div className="modal" style={{background:'#fff',padding:32,borderRadius:12,minWidth:800,maxWidth:900,width:'90vw',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
+            <div className="modal" style={{background:'#fff',padding:32,borderRadius:12,minWidth:1100,maxWidth:'95vw',width:'95vw',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
               <h2 style={{marginBottom:20}}>Add Order</h2>
-              <form onSubmit={handleFormSubmit} style={{display:'flex',flexDirection:'column',gap:24}}>
-                {/* Order Info */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Order ID<input name="order_id" value={form.order_id} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Name<input name="name" value={form.name} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Status
-                    <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">
-                      <option value="">Select status</option>
-                      <option value="To be pack">To be pack</option>
-                      <option value="Ready to ship">Ready to ship</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Invoice">Invoice</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
-                  </label>
+              <form onSubmit={handleFormSubmit} style={{display:'flex',flexDirection:'row',gap:40,alignItems:'flex-start'}}>
+                {/* Left: Order Details */}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order ID<input name="order_id" value={form.order_id} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Name<input name="name" value={form.name} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Status
+                      <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">
+                        <option value="">Select status</option>
+                        <option value="To be pack">To be pack</option>
+                        <option value="Ready to ship">Ready to ship</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Invoice">Invoice</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Expected Delivery<input name="expected_delivery" type="date" value={form.expected_delivery} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Shipped To (Receiver name) <input name="shipped_to" value={form.shipped_to} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Shipping Address<input name="shipping_address" value={form.shipping_address} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Telephone<input name="telephone" value={form.telephone} onChange={handleFormChange} className="modal-input" placeholder="(optional)" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Cellphone<input name="cellphone" value={form.cellphone} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Email Address<input name="email_address" value={form.email_address} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Total Cost
+                      <input 
+                        name="total_cost" 
+                        type="number" 
+                        step="0.01" 
+                        value={form.total_cost} 
+                        readOnly 
+                        className="modal-input" 
+                        style={{backgroundColor:'#f5f5f5'}}
+                      />
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Payment Type
+                      <select name="payment_type" value={form.payment_type} onChange={handleFormChange} className="modal-input" required>
+                        <option value="">Select payment type</option>
+                        <option value="50% paid">50% paid</option>
+                        <option value="70% paid">70% paid</option>
+                        <option value="100% Paid">100% Paid</option>
+                      </select>
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Payment Method
+                      <select name="payment_method" value={form.payment_method} onChange={handleFormChange} className="modal-input" required>
+                        <option value="">Select payment method</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Online Banking">Online Banking</option>
+                        <option value="E-Wallet">E-Wallet</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                      </select>
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Account Name<input name="account_name" value={form.account_name} onChange={handleFormChange} className="modal-input" /></label>
+                    {/* Remarks - span both columns */}
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6,gridColumn:'1 / span 2'}}>Remarks<input name="remarks" value={form.remarks} onChange={handleFormChange} className="modal-input" /></label>
+                  </div>
+                  {/* Form buttons */}
+                  <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:24}}>
+                    <button type="button" onClick={()=>setShowModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}>Cancel</button>
+                    <button type="submit" style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#6c63ff',color:'#fff',fontWeight:600,cursor:'pointer'}}>Save</button>
+                  </div>
                 </div>
-                {/* Dates */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Expected Delivery<input name="expected_delivery" type="date" value={form.expected_delivery} onChange={handleFormChange} required className="modal-input" /></label>
-                </div>
-                {/* Shipping */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Shipped To (Receiver name) <input name="shipped_to" value={form.shipped_to} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Shipping Address<input name="shipping_address" value={form.shipping_address} onChange={handleFormChange} required className="modal-input" /></label>
-                </div>
-                {/* Contact */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Telephone<input name="telephone" value={form.telephone} onChange={handleFormChange} className="modal-input" placeholder="(optional)" /></label>
-                  <label style={{fontWeight:500}}>Cellphone<input name="cellphone" value={form.cellphone} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Email Address<input name="email_address" value={form.email_address} onChange={handleFormChange} required className="modal-input" /></label>
-                </div>
-                {/* Payment */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Total Cost<input name="total_cost" type="number" step="0.01" value={form.total_cost} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Payment Type
-                    <select name="payment_type" value={form.payment_type} onChange={handleFormChange} className="modal-input" required>
-                      <option value="">Select payment type</option>
-                      <option value="50% paid">50% paid</option>
-                      <option value="70% paid">70% paid</option>
-                      <option value="100% Paid">100% Paid</option>
-                    </select>
-                  </label>
-                  <label style={{fontWeight:500}}>Payment Method
-                    <select name="payment_method" value={form.payment_method} onChange={handleFormChange} className="modal-input" required>
-                      <option value="">Select payment method</option>
-                      <option value="Cash">Cash</option>
-                      <option value="Online Banking">Online Banking</option>
-                      <option value="E-Wallet">E-Wallet</option>
-                      <option value="Bank Transfer">Bank Transfer</option>
-                    </select>
-                  </label>
-                  <label style={{fontWeight:500}}>Account Name<input name="account_name" value={form.account_name} onChange={handleFormChange} className="modal-input" /></label>
-                </div>
-                {/* Remarks */}
-                <label style={{fontWeight:500}}>Remarks<input name="remarks" value={form.remarks} onChange={handleFormChange} className="modal-input" /></label>
-                <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
-                  <button type="button" onClick={()=>setShowModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}>Cancel</button>
-                  <button type="submit" style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#6c63ff',color:'#fff',fontWeight:600,cursor:'pointer'}}>Save</button>
+                {/* Right: Products Section */}
+                <div style={{flex:1.2,minWidth:0}}>
+                  <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
+                  <div style={{maxHeight:400,overflowY:'auto',marginBottom:18,border:'1px solid #eee',borderRadius:8,padding:16}}>
+                    <table style={{width:'100%',borderCollapse:'collapse'}}>
+                      <thead style={{position:'sticky',top:0,background:'#f8f8f8',zIndex:1}}>
+                        <tr>
+                          <th style={{textAlign:'left',padding:'8px'}}>Image</th>
+                          <th style={{textAlign:'left',padding:'8px'}}>Name</th>
+                          <th style={{textAlign:'right',padding:'8px'}}>Unit Price</th>
+                          <th style={{textAlign:'right',padding:'8px'}}>Available</th>
+                          <th style={{textAlign:'right',padding:'8px'}}>Profit Margin %</th>
+                          <th style={{textAlign:'right',padding:'8px'}}>Est. Profit</th>
+                          <th style={{textAlign:'right',padding:'8px'}}>Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {inventory.map(item => {
+                          const quantity = Number(productSelection[item.sku] || 0);
+                          const margin = Number(profitMargins[item.sku] || 0);
+                          const unitPrice = Number(item.unit_price || 0);
+                          const estimatedProfit = (unitPrice * quantity * (margin / 100)).toFixed(2);
+                          return (
+                            <tr key={item.sku}>
+                              <td style={{padding:'8px'}}>{item.image_data ? <img src={`data:image/jpeg;base64,${item.image_data}`} alt={item.name} style={{width:40,height:40,borderRadius:6,objectFit:'cover'}} /> : <div style={{width:40,height:40,background:'#eee',borderRadius:6}} />}</td>
+                              <td style={{padding:'8px'}}>{item.name}</td>
+                              <td style={{padding:'8px',textAlign:'right'}}>₱{unitPrice.toFixed(2)}</td>
+                              <td style={{padding:'8px',textAlign:'right'}}>{item.quantity}</td>
+                              <td style={{padding:'8px',textAlign:'right'}}>
+                                <input 
+                                  type="number" 
+                                  min={0} 
+                                  max={100}
+                                  value={profitMargins[item.sku] || ''} 
+                                  onChange={e => setProfitMargins(pm => ({...pm, [item.sku]: e.target.value}))} 
+                                  style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
+                                />
+                              </td>
+                              <td style={{padding:'8px',textAlign:'right'}}>
+                                {quantity > 0 && margin > 0 ? `₱${estimatedProfit}` : '-'}
+                              </td>
+                              <td style={{padding:'8px',textAlign:'right'}}>
+                                <input 
+                                  type="number" 
+                                  min={0} 
+                                  max={item.quantity} 
+                                  value={productSelection[item.sku] || ''} 
+                                  onChange={e => handleProductSelection(item.sku, e.target.value)} 
+                                  style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+                    <div style={{fontWeight:500}}>
+                      Total Estimated Profit: ₱{
+                        inventory.reduce((total, item) => {
+                          const quantity = Number(productSelection[item.sku] || 0);
+                          const margin = Number(profitMargins[item.sku] || 0);
+                          const unitPrice = Number(item.unit_price || 0);
+                          return total + (unitPrice * quantity * (margin / 100));
+                        }, 0).toFixed(2)
+                      }
+                    </div>
+                  </div>
+                  {productError && <div style={{color:'red',marginBottom:8}}>{productError}</div>}
                 </div>
               </form>
             </div>
@@ -565,7 +657,7 @@ export default function OrderDetails() {
                               min={0} 
                               max={item.quantity} 
                               value={productSelection[item.sku] || ''} 
-                              onChange={e => setProductSelection(ps => ({...ps, [item.sku]: e.target.value}))} 
+                              onChange={e => handleProductSelection(item.sku, e.target.value)} 
                               style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
                             />
                           </td>
@@ -635,7 +727,17 @@ export default function OrderDetails() {
                 </div>
                 {/* Payment */}
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Total Cost<input name="total_cost" type="number" step="0.01" value={form.total_cost} onChange={handleFormChange} required className="modal-input" /></label>
+                  <label style={{fontWeight:500}}>Total Cost
+                    <input 
+                      name="total_cost" 
+                      type="number" 
+                      step="0.01" 
+                      value={form.total_cost} 
+                      readOnly 
+                      className="modal-input" 
+                      style={{backgroundColor:'#f5f5f5'}}
+                    />
+                  </label>
                   <label style={{fontWeight:500}}>Payment Type
                     <select name="payment_type" value={form.payment_type} onChange={handleFormChange} className="modal-input" required>
                       <option value="">Select payment type</option>

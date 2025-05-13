@@ -113,7 +113,7 @@ function Dashboard() {
             </div>
             <div className="dashboard-card card-blue">
               <div className="card-title">Replenishment Pending</div>
-              <div className="card-value">46</div>
+              <div className="card-value">~~</div>
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const WebSocket = require('ws');
+const customersRouter = require('./routes/customers');
 require('dotenv').config();
 
 const app = express();
@@ -570,18 +571,48 @@ app.post('/api/orders', async (req, res) => {
   const {
     order_id, name, shipped_to, order_date, expected_delivery, status,
     shipping_address, total_cost, payment_type, payment_method, account_name, remarks,
-    telephone, cellphone, email_address
+    telephone, cellphone, email_address, products
   } = req.body;
+
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
+    await client.query('BEGIN');
+
+    // Create the order
+    const orderResult = await client.query(
       `INSERT INTO orders (order_id, name, shipped_to, order_date, expected_delivery, status, shipping_address, total_cost, payment_type, payment_method, account_name, remarks, telephone, cellphone, email_address)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
       [order_id, name, shipped_to, order_date, expected_delivery, status, shipping_address, total_cost, payment_type, payment_method, account_name, remarks, telephone, cellphone, email_address]
     );
-    res.status(201).json({ success: true, order: result.rows[0] });
+
+    // Add products to the order
+    if (products && products.length > 0) {
+      for (const { sku, quantity } of products) {
+        // Check inventory
+        const invRes = await client.query('SELECT quantity, name FROM inventory_items WHERE sku = $1', [sku]);
+        if (invRes.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ success: false, message: `Product with SKU ${sku} not found` });
+        }
+        if (invRes.rows[0].quantity < quantity) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ success: false, message: `Not enough stock for ${invRes.rows[0].name}` });
+        }
+        // Deduct inventory
+        await client.query('UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2', [quantity, sku]);
+        // Insert into order_products
+        await client.query('INSERT INTO order_products (order_id, sku, quantity) VALUES ($1, $2, $3)', [order_id, sku, quantity]);
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({ success: true, order: orderResult.rows[0] });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error creating order:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
@@ -910,6 +941,9 @@ app.get('/api/orders/history/:order_id/products', async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch archived order products' });
   }
 });
+
+// Routes
+app.use('/api/customers', customersRouter);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
