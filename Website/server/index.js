@@ -1,10 +1,9 @@
 const express = require('express');
-const { Pool } = require('pg');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
-const WebSocket = require('ws');
+const { pool, wss, notifyChange } = require('./db');
 const customersRouter = require('./routes/customers');
 require('dotenv').config();
 
@@ -40,15 +39,6 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// PostgreSQL connection configuration
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT || 5432,
-});
-
 // Test database connection
 pool.connect((err, client, release) => {
   if (err) {
@@ -58,9 +48,8 @@ pool.connect((err, client, release) => {
       host: process.env.DB_HOST,
       database: process.env.DB_NAME,
       port: process.env.DB_PORT || 5432,
-      // Not logging password for security
     });
-    process.exit(1); // Exit if we can't connect to the database
+    process.exit(1);
   }
   console.log('Successfully connected to PostgreSQL database');
   release();
@@ -104,6 +93,25 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
   if (req.file) {
     profilePictureData = req.file.buffer;
   }
+
+  // Validate role
+  const validRoles = [
+    'business_developer',
+    'creatives',
+    'director',
+    'admin',
+    'sales_manager',
+    'assistant_sales',
+    'packer'
+  ];
+
+  if (!validRoles.includes(role)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid role selected'
+    });
+  }
+
   try {
     // Check if email already exists
     const emailCheck = await pool.query(
@@ -124,7 +132,7 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
     // Insert new user with profile picture data
     const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role, profile_picture_data) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email, role',
+      'INSERT INTO users (name, email, password_hash, role, profile_picture_data, is_active) VALUES ($1, $2, $3, $4, $5, true) RETURNING user_id, name, email, role',
       [name, email, passwordHash, role, profilePictureData]
     );
 
@@ -156,10 +164,18 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
+    // Check for specific database errors
+    if (error.code === '23514') { // Check constraint violation
+      res.status(400).json({
+        success: false,
+        message: 'Invalid role selected'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
   }
 });
 
@@ -168,9 +184,9 @@ app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // Get user from database
+    // Get user from database - only allow active users to login
     const result = await pool.query(
-      'SELECT * FROM users WHERE name = $1',
+      'SELECT * FROM users WHERE name = $1 AND is_active = true',
       [username]
     );
 
@@ -453,21 +469,27 @@ app.get('/api/inventory/:sku', async (req, res) => {
 app.get('/api/users', verifyToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Forbidden' });
+      console.log('Access denied: User role is not admin', req.user);
+      return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
     }
+
+    console.log('Fetching users for admin:', req.user.user_id);
     const result = await pool.query(
-      'SELECT user_id, name, email, role, created_at, profile_picture_data FROM users'
+      'SELECT user_id, name, email, role, created_at, profile_picture_data, is_active, deleted_at FROM users WHERE is_active = true ORDER BY created_at DESC'
     );
+
+    console.log(`Found ${result.rows.length} active users`);
     const users = result.rows.map(user => ({
       ...user,
       profile_picture_data: user.profile_picture_data
         ? user.profile_picture_data.toString('base64')
         : null,
     }));
+
     res.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: 'Internal server error while fetching users' });
   }
 });
 
@@ -497,14 +519,20 @@ app.delete('/api/users/:user_id', verifyToken, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Forbidden' });
     }
     const { user_id } = req.params;
-    console.log('Attempting to delete user:', user_id);
-    const result = await pool.query('DELETE FROM users WHERE user_id = $1 RETURNING *', [user_id]);
+    console.log('Attempting to soft delete user:', user_id);
+    
+    // Instead of deleting, mark as inactive and set deleted_at timestamp
+    const result = await pool.query(
+      'UPDATE users SET is_active = false, deleted_at = CURRENT_TIMESTAMP WHERE user_id = $1 RETURNING *',
+      [user_id]
+    );
+    
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    res.json({ success: true });
+    res.json({ success: true, message: 'User deactivated successfully' });
   } catch (error) {
-    console.error('Error deleting user:', error);
+    console.error('Error deactivating user:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
@@ -514,23 +542,49 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is running!' });
 });
 
-// Create WebSocket server
-const wss = new WebSocket.Server({ port: 3002 });
+// Create HTTP server
+const server = app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
 
-// Store connected clients
-const clients = new Set();
+// Upgrade HTTP server to WebSocket server
+server.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
+});
 
+// WebSocket connection handling
 wss.on('connection', (ws) => {
-  clients.add(ws);
+  console.log('New WebSocket connection established');
+
+  ws.on('message', (message) => {
+    try {
+      const data = JSON.parse(message);
+      console.log('Received message:', data);
+      
+      // Handle different message types
+      switch (data.type) {
+        case 'barcode':
+          // Broadcast barcode to all connected clients
+          broadcastBarcode(data.barcode);
+          break;
+        default:
+          console.log('Unknown message type:', data.type);
+      }
+    } catch (error) {
+      console.error('Error processing message:', error);
+    }
+  });
 
   ws.on('close', () => {
-    clients.delete(ws);
+    console.log('Client disconnected');
   });
 });
 
 // Broadcast barcode to all connected clients
 const broadcastBarcode = (barcode) => {
-  clients.forEach(client => {
+  wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({
         type: 'barcode_scanned',
@@ -902,7 +956,10 @@ app.post('/api/orders/:order_id/archive', verifyToken, async (req, res) => {
 app.get('/api/orders/history', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT oh.*, u.name as archived_by_name, u.profile_picture_data as archived_by_profile_picture
+      SELECT 
+        oh.*,
+        COALESCE(u.name, 'Deleted User') as archived_by_name,
+        u.profile_picture_data as archived_by_profile_picture
       FROM order_history oh
       LEFT JOIN users u ON oh.archived_by = u.user_id
       ORDER BY oh.archived_at DESC
@@ -945,6 +1002,20 @@ app.get('/api/orders/history/:order_id/products', async (req, res) => {
 // Routes
 app.use('/api/customers', customersRouter);
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+// Example of how to use real-time updates in your routes
+app.post('/api/update-data', async (req, res) => {
+  try {
+    const { data } = req.body;
+    
+    // Update your database
+    await pool.query('UPDATE your_table SET data = $1 WHERE id = $2', [data, req.body.id]);
+    
+    // Notify all connected clients about the change
+    await notifyChange('data-update', { id: req.body.id, data });
+    
+    res.json({ success: true, message: 'Data updated successfully' });
+  } catch (error) {
+    console.error('Error updating data:', error);
+    res.status(500).json({ success: false, message: 'Error updating data' });
+  }
 }); 

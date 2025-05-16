@@ -20,22 +20,43 @@ const UserManagement = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const user = JSON.parse(localStorage.getItem('user'));
+      
+      if (!token) {
+        setError('No authentication token found. Please log in.');
+        setLoading(false);
+        return;
+      }
+
       if (!user || user.role !== 'admin') {
         setError('Access denied. Admins only.');
         setLoading(false);
         return;
       }
+
+      console.log('Fetching users with token:', token);
       const response = await fetch('http://localhost:3001/api/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
-      if (!response.ok) throw new Error('Failed to fetch users');
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch users');
+      }
+
       const data = await response.json();
+      console.log('Fetched users:', data);
+      
+      if (!Array.isArray(data)) {
+        throw new Error('Invalid data format received from server');
+      }
+
       setUsers(data);
       setError(null);
     } catch (err) {
+      console.error('Error fetching users:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -45,8 +66,6 @@ const UserManagement = () => {
   useEffect(() => {
     fetchUsers();
   }, []);
-
-  const currentUser = JSON.parse(localStorage.getItem('user'));
 
   const handleCardClick = (user) => {
     setSelectedUser(user);
@@ -120,14 +139,35 @@ const UserManagement = () => {
   };
 
   if (loading) {
-    return <div className="dashboard-container"><Sidebar /><div className="dashboard-main"><TopBar /><div className="user-management-container"><div className="loading">Loading users...</div></div></div></div>;
+    return (
+      <div className="dashboard-container">
+        <Sidebar />
+        <div className="dashboard-main">
+          <TopBar />
+          <div className="user-management-container">
+            <div className="loading">Loading users...</div>
+          </div>
+        </div>
+      </div>
+    );
   }
+
   if (error) {
-    return <div className="dashboard-container"><Sidebar /><div className="dashboard-main"><TopBar /><div className="user-management-container"><div className="error">{error}</div></div></div></div>;
+    return (
+      <div className="dashboard-container">
+        <Sidebar />
+        <div className="dashboard-main">
+          <TopBar />
+          <div className="user-management-container">
+            <div className="error">{error}</div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const admins = users.filter(u => u.role === 'admin');
-  const employees = users.filter(u => u.role === 'employee');
+  const employees = users.filter(u => u.role !== 'admin');
 
   return (
     <div className="dashboard-container">
@@ -139,69 +179,78 @@ const UserManagement = () => {
             <h1>Account Management</h1>
             <button className="register-user-btn" onClick={() => navigate('/register')}>Register Account</button>
           </div>
-          {admins.length > 0 && (
+          
+          {users.length === 0 ? (
+            <div className="no-users-message">No users found. Click "Register Account" to add a new user.</div>
+          ) : (
             <>
-              <h2 className="user-section-title">Admins</h2>
-              <div className="user-cards-list">
-                {admins.map((user) => (
-                  <div className="user-card" key={user.user_id} onClick={() => handleCardClick(user)}>
-                    <div className="user-card-header">
-                      <img
-                        src={user.profile_picture_data ? `data:image/jpeg;base64,${user.profile_picture_data}` : '/placeholder-profile.png'}
-                        alt="Profile"
-                        className="user-profile-pic-large"
-                      />
-                      <div>
-                        <div className="user-card-name">{user.name}</div>
-                        <div className="user-card-role">{user.role}</div>
+              {admins.length > 0 && (
+                <>
+                  <h2 className="user-section-title">Admins</h2>
+                  <div className="user-cards-list">
+                    {admins.map((user) => (
+                      <div className="user-card" key={user.user_id} onClick={() => handleCardClick(user)}>
+                        <div className="user-card-header">
+                          <img
+                            src={user.profile_picture_data ? `data:image/jpeg;base64,${user.profile_picture_data}` : '/placeholder-profile.png'}
+                            alt="Profile"
+                            className="user-profile-pic-large"
+                          />
+                          <div>
+                            <div className="user-card-name">{user.name}</div>
+                            <div className="user-card-role">{user.role}</div>
+                          </div>
+                        </div>
+                        <div className="user-card-info">
+                          <div><span className="user-card-label">User ID:</span> {user.user_id}</div>
+                          <div><span className="user-card-label">Email:</span> {user.email}</div>
+                          <div><span className="user-card-label">Role:</span> {user.role}</div>
+                          <div><span className="user-card-label">Created At:</span> {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</div>
+                          {user.mobile && <div><span className="user-card-label">Mobile:</span> {user.mobile}</div>}
+                          {user.department && <div><span className="user-card-label">Department:</span> {user.department}</div>}
+                          {user.status && <div><span className="user-card-label">Status:</span> {user.status}</div>}
+                        </div>
                       </div>
-                    </div>
-                    <div className="user-card-info">
-                      <div><span className="user-card-label">User ID:</span> {user.user_id}</div>
-                      <div><span className="user-card-label">Email:</span> {user.email}</div>
-                      <div><span className="user-card-label">Role:</span> {user.role}</div>
-                      <div><span className="user-card-label">Created At:</span> {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</div>
-                      {user.mobile && <div><span className="user-card-label">Mobile:</span> {user.mobile}</div>}
-                      {user.department && <div><span className="user-card-label">Department:</span> {user.department}</div>}
-                      {user.status && <div><span className="user-card-label">Status:</span> {user.status}</div>}
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </>
-          )}
-          {employees.length > 0 && (
-            <>
-              <h2 className="user-section-title">Employees</h2>
-              <div className="user-cards-list">
-                {employees.map((user) => (
-                  <div className="user-card" key={user.user_id} onClick={() => handleCardClick(user)}>
-                    <div className="user-card-header">
-                      <img
-                        src={user.profile_picture_data ? `data:image/jpeg;base64,${user.profile_picture_data}` : '/placeholder-profile.png'}
-                        alt="Profile"
-                        className="user-profile-pic-large"
-                      />
-                      <div>
-                        <div className="user-card-name">{user.name}</div>
-                        <div className="user-card-role">{user.role}</div>
+                </>
+              )}
+
+              {employees.length > 0 && (
+                <>
+                  <h2 className="user-section-title">Employees</h2>
+                  <div className="user-cards-list">
+                    {employees.map((user) => (
+                      <div className="user-card" key={user.user_id} onClick={() => handleCardClick(user)}>
+                        <div className="user-card-header">
+                          <img
+                            src={user.profile_picture_data ? `data:image/jpeg;base64,${user.profile_picture_data}` : '/placeholder-profile.png'}
+                            alt="Profile"
+                            className="user-profile-pic-large"
+                          />
+                          <div>
+                            <div className="user-card-name">{user.name}</div>
+                            <div className="user-card-role">{user.role}</div>
+                          </div>
+                        </div>
+                        <div className="user-card-info">
+                          <div><span className="user-card-label">User ID:</span> {user.user_id}</div>
+                          <div><span className="user-card-label">Email:</span> {user.email}</div>
+                          <div><span className="user-card-label">Role:</span> {user.role}</div>
+                          <div><span className="user-card-label">Created At:</span> {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</div>
+                          {user.mobile && <div><span className="user-card-label">Mobile:</span> {user.mobile}</div>}
+                          {user.department && <div><span className="user-card-label">Department:</span> {user.department}</div>}
+                          {user.status && <div><span className="user-card-label">Status:</span> {user.status}</div>}
+                        </div>
                       </div>
-                    </div>
-                    <div className="user-card-info">
-                      <div><span className="user-card-label">User ID:</span> {user.user_id}</div>
-                      <div><span className="user-card-label">Email:</span> {user.email}</div>
-                      <div><span className="user-card-label">Role:</span> {user.role}</div>
-                      <div><span className="user-card-label">Created At:</span> {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</div>
-                      {user.mobile && <div><span className="user-card-label">Mobile:</span> {user.mobile}</div>}
-                      {user.department && <div><span className="user-card-label">Department:</span> {user.department}</div>}
-                      {user.status && <div><span className="user-card-label">Status:</span> {user.status}</div>}
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              )}
             </>
           )}
         </div>
+
         {modalOpen && selectedUser && (
           <div className="user-modal-overlay" onClick={handleModalClose}>
             <div className="user-modal" onClick={e => e.stopPropagation()}>
@@ -238,6 +287,7 @@ const UserManagement = () => {
             </div>
           </div>
         )}
+
         {confirmation.open && (
           <div className="user-modal-overlay" onClick={handleConfirmationClose}>
             <div className="user-modal" onClick={e => e.stopPropagation()}>
