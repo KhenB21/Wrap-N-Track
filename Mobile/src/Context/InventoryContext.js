@@ -9,8 +9,12 @@ export const InventoryProvider = ({ children }) => {
     setItems((prevItems) => [...prevItems, newItem]);
   };
 
+  const removeItem = (itemToRemove) => {
+    setItems((prev) => prev.filter((item) => item !== itemToRemove));
+  };
+
   return (
-    <InventoryContext.Provider value={{ items, addItem }}>
+    <InventoryContext.Provider value={{ items, addItem, removeItem }}>
       {children}
     </InventoryContext.Provider>
   );

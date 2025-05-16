@@ -24,7 +24,7 @@ export const ThemeProvider = ({ children }) => {
   };
 
   const themeStyles = {
-    backgroundColor: isDarkMode ? "#1C1C1D" : "#00000",
+    backgroundColor: isDarkMode ? "#1C1C1D" : "#FFFFFF",
     textColor: isDarkMode ? "white" : "#1C1C1D",
     iconColor: isDarkMode ? "white" : "#1C1C1D",
     headerColor: isDarkMode ? "#3C3C3C" : "#696A8F",

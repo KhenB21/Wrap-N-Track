@@ -6,12 +6,11 @@ import {
   ToastAndroid,
   Image,
 } from "react-native";
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import MenuTitle from "../../Components/MenuTitle";
 import SearchBar from "../../Components/SearchBar";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
-import { useState } from "react";
 import ItemToolBar from "../../Components/ItemToolBar";
 import { InventoryContext } from "../../Context/InventoryContext";
 import { useTheme } from "../../Screens/DrawerNavigation/ThemeContect";
@@ -19,16 +18,18 @@ import { useTheme } from "../../Screens/DrawerNavigation/ThemeContect";
 const InventoryScreen = ({ route }) => {
   const { pageTitle } = route.params;
   const navigation = useNavigation();
-  const { items } = useContext(InventoryContext);
+  const { items, removeItem } = useContext(InventoryContext);
   const { themeStyles } = useTheme();
 
   // State for page
   const [focused, setFocused] = useState("all");
   // State for long press
   const [isLongpress, setLongpress] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   // Function for longpressing item
-  const handleItemLongpress = () => {
+  const handleItemLongpress = (item) => {
+    setSelectedItem(item);
     setLongpress(true);
   };
 
@@ -41,7 +42,18 @@ const InventoryScreen = ({ route }) => {
     }
   };
 
+  // When delete is pressed in the toolbar
+  const handleDeleteSelected = () => {
+    if (selectedItem) {
+      removeItem(selectedItem); // Implement this in your context
+      setSelectedItem(null);
+      setLongpress(false);
+    }
+  };
+
+  // When cancel is pressed in the toolbar
   const handleCancelSelectMode = () => {
+    setSelectedItem(null);
     setLongpress(false);
   };
 
@@ -113,7 +125,11 @@ const InventoryScreen = ({ route }) => {
       >
         {/* Tool bar that will show once the user longpresses an item */}
         {isLongpress && (
-          <ItemToolBar handleCancelSelectMode={handleCancelSelectMode} />
+          <ItemToolBar
+            handleCancelSelectMode={handleCancelSelectMode}
+            onDelete={handleDeleteSelected}
+            selectedCount={selectedItem ? 1 : 0}
+          />
         )}
 
         {/* Products */}
@@ -129,11 +145,11 @@ const InventoryScreen = ({ route }) => {
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    backgroundColor: themeStyles.containerColor,
+                    backgroundColor: "white",
                     marginVertical: 5,
                     marginHorizontal: 10,
                     borderRadius: 10,
-                    padding: 10,
+                    padding: 15,
                     shadowColor: "#000",
                     shadowOpacity: 0.1,
                     shadowRadius: 5,
@@ -142,18 +158,18 @@ const InventoryScreen = ({ route }) => {
                   onPress={() =>
                     navigation.navigate("InventoryItemDetails", { item })
                   }
-                  onLongPress={handleItemLongpress}
+                  onLongPress={() => handleItemLongpress(item)}
                 >
                   {/* Item Image */}
                   <Image
                     source={{
-                      uri: item.photos[0] || "https://via.placeholder.com/50",
+                      uri: item.photos[0] || "https://via.placeholder.com/80",
                     }}
                     style={{
-                      width: 50,
-                      height: 50,
-                      borderRadius: 5,
-                      marginRight: 10,
+                      width: 80,
+                      height: 80,
+                      borderRadius: 8,
+                      marginRight: 15,
                     }}
                   />
 
@@ -161,50 +177,54 @@ const InventoryScreen = ({ route }) => {
                   <View style={{ flex: 1 }}>
                     <Text
                       style={{
-                        fontWeight: "bold",
-                        fontSize: 16,
-                        color: themeStyles.textColor,
+                        fontWeight: "600",
+                        fontSize: 18,
+                        color: "#000000",
+                        marginBottom: 4,
                       }}
                     >
                       {item.itemName}
                     </Text>
                     <Text
-                      style={{ color: themeStyles.textColor, fontSize: 14 }}
+                      style={{
+                        color: "#666666",
+                        fontSize: 14,
+                        marginBottom: 4,
+                      }}
                     >
                       {item.variant}
                     </Text>
                     <Text
-                      style={{ color: themeStyles.textColor, fontSize: 14 }}
+                      style={{
+                        color: "#888888",
+                        fontSize: 14,
+                      }}
                     >
-                      Qty: {item.quantity}
+                      {item.sku}
                     </Text>
                   </View>
 
-                  {/* Item Price */}
-                  <Text
-                    style={{
-                      fontWeight: "bold",
-                      fontSize: 16,
-                      color: themeStyles.textColor,
-                    }}
-                  >
-                    ₱{item.price}
-                  </Text>
+                  {/* Quantity */}
+                  <View style={{ alignItems: "flex-end", marginLeft: 10 }}>
+                    <Text style={{ color: "#666666", fontSize: 14 }}>
+                      Qty: {item.quantity}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               ))
             : items
-                .filter((item) => item.status === "Inactive") // Filter inactive items
+                .filter((item) => item.status.toLowerCase() === "inactive") // Normalize status check
                 .map((item, index) => (
                   <TouchableOpacity
                     key={index}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      backgroundColor: themeStyles.containerColor,
+                      backgroundColor: "white",
                       marginVertical: 5,
                       marginHorizontal: 10,
                       borderRadius: 10,
-                      padding: 10,
+                      padding: 15,
                       shadowColor: "#000",
                       shadowOpacity: 0.1,
                       shadowRadius: 5,
@@ -213,18 +233,18 @@ const InventoryScreen = ({ route }) => {
                     onPress={() =>
                       navigation.navigate("InventoryItemDetails", { item })
                     }
-                    onLongPress={handleItemLongpress}
+                    onLongPress={() => handleItemLongpress(item)}
                   >
                     {/* Item Image */}
                     <Image
                       source={{
-                        uri: item.photos[0] || "https://via.placeholder.com/50",
+                        uri: item.photos[0] || "https://via.placeholder.com/80",
                       }}
                       style={{
-                        width: 50,
-                        height: 50,
-                        borderRadius: 5,
-                        marginRight: 10,
+                        width: 80,
+                        height: 80,
+                        borderRadius: 8,
+                        marginRight: 15,
                       }}
                     />
 
@@ -232,35 +252,39 @@ const InventoryScreen = ({ route }) => {
                     <View style={{ flex: 1 }}>
                       <Text
                         style={{
-                          fontWeight: "bold",
-                          fontSize: 16,
-                          color: themeStyles.textColor,
+                          fontWeight: "600",
+                          fontSize: 18,
+                          color: "#000000",
+                          marginBottom: 4,
                         }}
                       >
                         {item.itemName}
                       </Text>
                       <Text
-                        style={{ color: themeStyles.textColor, fontSize: 14 }}
+                        style={{
+                          color: "#666666",
+                          fontSize: 14,
+                          marginBottom: 4,
+                        }}
                       >
                         {item.variant}
                       </Text>
                       <Text
-                        style={{ color: themeStyles.textColor, fontSize: 14 }}
+                        style={{
+                          color: "#888888",
+                          fontSize: 14,
+                        }}
                       >
-                        Qty: {item.quantity}
+                        {item.sku}
                       </Text>
                     </View>
 
-                    {/* Item Price */}
-                    <Text
-                      style={{
-                        fontWeight: "bold",
-                        fontSize: 16,
-                        color: themeStyles.textColor,
-                      }}
-                    >
-                      ₱{item.price}
-                    </Text>
+                    {/* Quantity */}
+                    <View style={{ alignItems: "flex-end", marginLeft: 10 }}>
+                      <Text style={{ color: "#666666", fontSize: 14 }}>
+                        Qty: {item.quantity}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
         </ScrollView>

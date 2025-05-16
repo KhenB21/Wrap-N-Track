@@ -20,6 +20,7 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { useTheme } from "../../Screens/DrawerNavigation/ThemeContect";
 import { Camera } from "expo-camera";
 
+
 const InventoryForm = () => {
   const [itemName, setItemName] = useState("");
   const [variant, setVariant] = useState("");
