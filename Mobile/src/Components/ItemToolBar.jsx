@@ -1,10 +1,21 @@
-import { View, Text, TouchableOpacity} from 'react-native'
+import { View, Text, TouchableOpacity, Alert } from 'react-native'
 import React, { useState } from 'react'
 import { Checkbox } from 'react-native-paper'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 
 const ItemToolBar = ({ handleCancelSelectMode, onDelete, selectedCount = 1 }) => {
   const [isChecked, setChecked] = useState(false);
+
+  const handleDeletePress = () => {
+    Alert.alert(
+      "Remove Item",
+      "Are you sure you want to remove this item?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove", style: "destructive", onPress: onDelete }
+      ]
+    );
+  };
 
   return (
     <View style={{
@@ -31,7 +42,7 @@ const ItemToolBar = ({ handleCancelSelectMode, onDelete, selectedCount = 1 }) =>
           onPress={() => setChecked(!isChecked)}
         />
       </View>
-      <TouchableOpacity onPress={onDelete}>
+      <TouchableOpacity onPress={handleDeletePress}>
         <Icon name='trash-can' size={24} color={'#888888'} />
       </TouchableOpacity>
     </View>

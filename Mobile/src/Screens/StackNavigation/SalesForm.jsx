@@ -7,20 +7,20 @@ import {
   Alert,
   Modal,
   FlatList,
+  TextInput,
 } from "react-native";
 import React, { useState, useContext } from "react";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
-import TextInputForm from "../../Components/TextInputForm";
 import ButtonTextInput from "../../Components/ButtonTextInput";
-import { SalesContext } from "../../Context/SalesContext"; // Import SalesContext
-import { InventoryContext } from "../../Context/InventoryContext"; // Import InventoryContext
+import { SalesContext } from "../../Context/SalesContext";
+import { InventoryContext } from "../../Context/InventoryContext";
 
 const SalesForm = () => {
   const navigation = useNavigation();
-  const { addOrder } = useContext(SalesContext); // Access addOrder function from context
-  const { items } = useContext(InventoryContext); // Access inventory items from context
+  const { addOrder } = useContext(SalesContext);
+  const { items } = useContext(InventoryContext);
 
   // Form state variables
   const [customerName, setCustomerName] = useState("");
@@ -35,11 +35,66 @@ const SalesForm = () => {
   const [zipCode, setZipCode] = useState("");
   const [dateOrdered, setDateOrdered] = useState("");
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState("");
-  const [selectedItem, setSelectedItem] = useState(null); // State for selected item
-  const [isModalVisible, setIsModalVisible] = useState(false); // State for modal visibility
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   const handleAddOrder = () => {
-    // Create a new order object
+    if (!customerName.trim()) {
+      Alert.alert("Missing Field", "Please enter the customer name.");
+      return;
+    }
+    if (!salesOrderNumber.trim()) {
+      Alert.alert("Missing Field", "Please enter the sales order number.");
+      return;
+    }
+    if (!selectedItem) {
+      Alert.alert("Missing Field", "Please select an item.");
+      return;
+    }
+    if (!paymentMethod.trim()) {
+      Alert.alert("Missing Field", "Please enter the payment method.");
+      return;
+    }
+    if (!paymentType.trim()) {
+      Alert.alert("Missing Field", "Please enter the payment type.");
+      return;
+    }
+    if (!referenceNo.trim()) {
+      Alert.alert("Missing Field", "Please enter the reference number.");
+      return;
+    }
+    if (!province.trim()) {
+      Alert.alert("Missing Field", "Please enter the province.");
+      return;
+    }
+    if (!city.trim()) {
+      Alert.alert("Missing Field", "Please enter the city/municipality.");
+      return;
+    }
+    if (!barangay.trim()) {
+      Alert.alert("Missing Field", "Please enter the barangay.");
+      return;
+    }
+    if (!street.trim()) {
+      Alert.alert(
+        "Missing Field",
+        "Please enter the house/building number & street."
+      );
+      return;
+    }
+    if (!zipCode.trim()) {
+      Alert.alert("Missing Field", "Please enter the ZIP code.");
+      return;
+    }
+    if (!dateOrdered.trim()) {
+      Alert.alert("Missing Field", "Please enter the date ordered.");
+      return;
+    }
+    if (!expectedDeliveryDate.trim()) {
+      Alert.alert("Missing Field", "Please enter the expected delivery date.");
+      return;
+    }
+
     const newOrder = {
       customerName,
       salesOrderNumber,
@@ -55,19 +110,16 @@ const SalesForm = () => {
       },
       dateOrdered,
       expectedDeliveryDate,
-      item: selectedItem, // Include the selected item
+      item: selectedItem,
     };
 
-    // Add the order to the context
     addOrder(newOrder);
-
-    // Navigate to SalesScreen
-    navigation.goBack({ newOrder });
+    navigation.goBack();
   };
 
   const handleSelectItem = (item) => {
-    setSelectedItem(item); // Set the selected item
-    setIsModalVisible(false); // Close the modal
+    setSelectedItem(item);
+    setIsModalVisible(false);
   };
 
   return (
@@ -114,21 +166,41 @@ const SalesForm = () => {
               Order Details
             </Text>
             <View style={{ width: "100%", alignItems: "center" }}>
-              <TextInputForm
-                label={"Customer Name"}
-                value={customerName}
-                onChangeText={setCustomerName}
-              />
-              <TextInputForm
-                label={"Sales Order Number"}
-                value={salesOrderNumber}
-                onChangeText={setSalesOrderNumber}
-              />
+              <View style={{ width: "100%", marginBottom: 10 }}>
+                <Text style={{ marginBottom: 4 }}>Customer Name</Text>
+                <TextInput
+                  value={customerName}
+                  onChangeText={setCustomerName}
+                  placeholder="Enter customer name"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#ccc",
+                    borderRadius: 5,
+                    padding: 10,
+                    backgroundColor: "#fff",
+                  }}
+                />
+              </View>
+              <View style={{ width: "100%", marginBottom: 10 }}>
+                <Text style={{ marginBottom: 4 }}>Sales Order Number</Text>
+                <TextInput
+                  value={salesOrderNumber}
+                  onChangeText={setSalesOrderNumber}
+                  placeholder="Enter sales order number"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#ccc",
+                    borderRadius: 5,
+                    padding: 10,
+                    backgroundColor: "#fff",
+                  }}
+                />
+              </View>
               <View style={{ width: "100%", marginTop: 20 }}>
                 <Text
                   style={{
                     fontSize: 14,
-                    fontWeight: 500,
+                    fontWeight: "500",
                     marginBottom: 5,
                   }}
                 >
@@ -145,7 +217,7 @@ const SalesForm = () => {
                     alignItems: "center",
                     paddingHorizontal: 10,
                   }}
-                  onPress={() => setIsModalVisible(true)} // Open modal
+                  onPress={() => setIsModalVisible(true)}
                 >
                   <Text style={{ flex: 1, color: "#888888" }}>
                     {selectedItem ? selectedItem.itemName : "Select Item"}
@@ -171,21 +243,51 @@ const SalesForm = () => {
             <Text style={{ fontSize: 16, fontWeight: "bold" }}>
               Payment Information
             </Text>
-            <TextInputForm
-              label={"Payment Method"}
-              value={paymentMethod}
-              onChangeText={setPaymentMethod}
-            />
-            <TextInputForm
-              label={"Payment Type"}
-              value={paymentType}
-              onChangeText={setPaymentType}
-            />
-            <TextInputForm
-              label={"Reference no."}
-              value={referenceNo}
-              onChangeText={setReferenceNo}
-            />
+            <View style={{ width: "100%", marginBottom: 10 }}>
+              <Text style={{ marginBottom: 4 }}>Payment Method</Text>
+              <TextInput
+                value={paymentMethod}
+                onChangeText={setPaymentMethod}
+                placeholder="Enter payment method"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#ccc",
+                  borderRadius: 5,
+                  padding: 10,
+                  backgroundColor: "#fff",
+                }}
+              />
+            </View>
+            <View style={{ width: "100%", marginBottom: 10 }}>
+              <Text style={{ marginBottom: 4 }}>Payment Type</Text>
+              <TextInput
+                value={paymentType}
+                onChangeText={setPaymentType}
+                placeholder="Enter payment type"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#ccc",
+                  borderRadius: 5,
+                  padding: 10,
+                  backgroundColor: "#fff",
+                }}
+              />
+            </View>
+            <View style={{ width: "100%", marginBottom: 10 }}>
+              <Text style={{ marginBottom: 4 }}>Reference No.</Text>
+              <TextInput
+                value={referenceNo}
+                onChangeText={setReferenceNo}
+                placeholder="Enter reference number"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#ccc",
+                  borderRadius: 5,
+                  padding: 10,
+                  backgroundColor: "#fff",
+                }}
+              />
+            </View>
           </View>
           <View
             style={{
@@ -199,31 +301,83 @@ const SalesForm = () => {
             <Text style={{ fontSize: 16, fontWeight: "bold" }}>
               Address Details
             </Text>
-            <TextInputForm
-              label={"Province"}
-              value={province}
-              onChangeText={setProvince}
-            />
-            <TextInputForm
-              label={"City/Municipality"}
-              value={city}
-              onChangeText={setCity}
-            />
-            <TextInputForm
-              label={"Barangay"}
-              value={barangay}
-              onChangeText={setBarangay}
-            />
-            <TextInputForm
-              label={"House/Building Number & Street"}
-              value={street}
-              onChangeText={setStreet}
-            />
-            <TextInputForm
-              label={"ZIP code"}
-              value={zipCode}
-              onChangeText={setZipCode}
-            />
+            <View style={{ width: "100%", marginBottom: 10 }}>
+              <Text style={{ marginBottom: 4 }}>Province</Text>
+              <TextInput
+                value={province}
+                onChangeText={setProvince}
+                placeholder="Enter province"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#ccc",
+                  borderRadius: 5,
+                  padding: 10,
+                  backgroundColor: "#fff",
+                }}
+              />
+            </View>
+            <View style={{ width: "100%", marginBottom: 10 }}>
+              <Text style={{ marginBottom: 4 }}>City/Municipality</Text>
+              <TextInput
+                value={city}
+                onChangeText={setCity}
+                placeholder="Enter city/municipality"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#ccc",
+                  borderRadius: 5,
+                  padding: 10,
+                  backgroundColor: "#fff",
+                }}
+              />
+            </View>
+            <View style={{ width: "100%", marginBottom: 10 }}>
+              <Text style={{ marginBottom: 4 }}>Barangay</Text>
+              <TextInput
+                value={barangay}
+                onChangeText={setBarangay}
+                placeholder="Enter barangay"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#ccc",
+                  borderRadius: 5,
+                  padding: 10,
+                  backgroundColor: "#fff",
+                }}
+              />
+            </View>
+            <View style={{ width: "100%", marginBottom: 10 }}>
+              <Text style={{ marginBottom: 4 }}>
+                House/Building Number & Street
+              </Text>
+              <TextInput
+                value={street}
+                onChangeText={setStreet}
+                placeholder="Enter house/building number & street"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#ccc",
+                  borderRadius: 5,
+                  padding: 10,
+                  backgroundColor: "#fff",
+                }}
+              />
+            </View>
+            <View style={{ width: "100%", marginBottom: 10 }}>
+              <Text style={{ marginBottom: 4 }}>ZIP code</Text>
+              <TextInput
+                value={zipCode}
+                onChangeText={setZipCode}
+                placeholder="Enter ZIP code"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#ccc",
+                  borderRadius: 5,
+                  padding: 10,
+                  backgroundColor: "#fff",
+                }}
+              />
+            </View>
           </View>
           <View
             style={{
@@ -237,18 +391,36 @@ const SalesForm = () => {
             <Text style={{ fontSize: 16, fontWeight: "bold" }}>
               Delivery Information
             </Text>
-            <ButtonTextInput
-              label={"Date Ordered"}
-              icon={"calendar-month"}
-              value={dateOrdered}
-              onChangeText={setDateOrdered}
-            />
-            <ButtonTextInput
-              label={"Expected Delivery Date"}
-              icon={"calendar-month"}
-              value={expectedDeliveryDate}
-              onChangeText={setExpectedDeliveryDate}
-            />
+            <View style={{ width: "100%", marginBottom: 10 }}>
+              <Text style={{ marginBottom: 4 }}>Date Ordered</Text>
+              <TextInput
+                value={dateOrdered}
+                onChangeText={setDateOrdered}
+                placeholder="Enter date ordered"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#ccc",
+                  borderRadius: 5,
+                  padding: 10,
+                  backgroundColor: "#fff",
+                }}
+              />
+            </View>
+            <View style={{ width: "100%", marginBottom: 10 }}>
+              <Text style={{ marginBottom: 4 }}>Expected Delivery Date</Text>
+              <TextInput
+                value={expectedDeliveryDate}
+                onChangeText={setExpectedDeliveryDate}
+                placeholder="Enter expected delivery date"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#ccc",
+                  borderRadius: 5,
+                  padding: 10,
+                  backgroundColor: "#fff",
+                }}
+              />
+            </View>
           </View>
           <TouchableOpacity
             style={{
@@ -267,7 +439,6 @@ const SalesForm = () => {
         </View>
       </ScrollView>
 
-      {/* Modal for selecting items */}
       <Modal visible={isModalVisible} animationType="slide">
         <SafeAreaView style={{ flex: 1 }}>
           <FlatList

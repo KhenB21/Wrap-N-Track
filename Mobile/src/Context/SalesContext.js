@@ -9,8 +9,15 @@ export const SalesProvider = ({ children }) => {
     setOrders((prevOrders) => [...prevOrders, order]);
   };
 
+  // Delete order by index or by unique id (if you have one)
+  const deleteOrder = (orderToDelete) => {
+    setOrders((prevOrders) =>
+      prevOrders.filter((order) => order !== orderToDelete)
+    );
+  };
+
   return (
-    <SalesContext.Provider value={{ orders, addOrder }}>
+    <SalesContext.Provider value={{ orders, addOrder, deleteOrder }}>
       {children}
     </SalesContext.Provider>
   );

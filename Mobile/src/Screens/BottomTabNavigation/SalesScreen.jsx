@@ -1,31 +1,31 @@
+import React, { useContext, useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   ToastAndroid,
 } from "react-native";
-import React from "react";
 import MenuTitle from "../../Components/MenuTitle";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import SearchBar from "../../Components/SearchBar";
 import { useNavigation } from "@react-navigation/native";
-import { useState } from "react";
 import OrderItem from "../../Components/OrderItem";
 import ItemToolBar from "../../Components/ItemToolBar";
 import { useTheme } from "../../Screens/DrawerNavigation/ThemeContect";
+import { SalesContext } from "../../Context/SalesContext"; // <-- Import SalesContext
 
 const SalesScreen = ({ route }) => {
   const { pageTitle } = route.params;
   const navigation = useNavigation();
   const [focused, setFocused] = useState("all");
   const { themeStyles } = useTheme();
+  const { orders } = useContext(SalesContext); // <-- Get orders from context
 
   // State for long press
   const [isLongpress, setLongpress] = useState(false);
 
-  // FUnction for longpressing item
+  // Function for longpressing item
   const handleItemLongpress = () => {
     setLongpress(true);
   };
@@ -54,13 +54,8 @@ const SalesScreen = ({ route }) => {
           paddingHorizontal: 10,
         }}
       >
-        {/* Menu button, Menu title, and Notification button */}
         <MenuTitle pageTitle={pageTitle} />
-
-        {/* Search bar */}
         <SearchBar />
-
-        {/* Header navbar */}
         <View style={{ flexDirection: "row", height: 40, width: "100%" }}>
           <TouchableOpacity
             style={{
@@ -102,33 +97,144 @@ const SalesScreen = ({ route }) => {
           paddingHorizontal: 10,
         }}
       >
-        {/* Tool bar that will show once the user longpresses an item */}
         {isLongpress && (
           <ItemToolBar handleCancelSelectMode={handleCancelSelectMode} />
         )}
 
         <ScrollView
-          contentContainerStyle={{ paddingBottom: 63, alignItems: "center" }}
+          contentContainerStyle={{ paddingBottom: 63 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View>
-            {focused === "all" ? (
-              <>
-                <OrderItem
-                  isLongpress={isLongpress}
-                  handleItemLongpress={handleItemLongpress}
-                  handleItemPress={handleItemPress}
-                />
-              </>
-            ) : (
-              <View style={{ alignItems: "center" }}>
-                <Text style={{ color: "#888888", fontSize: 18, marginTop: 20 }}>
-                  Completed orders is empty
-                </Text>
-              </View>
-            )}
-          </View>
+          {focused === "all"
+            ? orders.map((order, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={{
+                    width: "100%",
+                    backgroundColor: themeStyles.containerColor,
+                    marginTop: 4,
+                    borderRadius: 5,
+                    flexDirection: "row",
+                    padding: 8,
+                    justifyContent: "space-between",
+                  }}
+                  onPress={() => {
+                    /* handle order press if needed */
+                  }}
+                  onLongPress={() => handleItemLongpress(order)}
+                >
+                  <View style={{ flexDirection: "row" }}>
+                    <View
+                      style={{
+                        height: 90,
+                        width: 90,
+                        borderRadius: 3,
+                        backgroundColor: "#F0F0F0",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Ionicons name="cart-outline" size={40} color="#888888" />
+                    </View>
+                    <View style={{ marginLeft: 8 }}>
+                      <Text
+                        style={{
+                          fontWeight: "bold",
+                          color: themeStyles.textColor,
+                        }}
+                      >
+                        {order.customerName}
+                      </Text>
+                      <Text style={{ color: themeStyles.textColor }}>
+                        Order #: {order.salesOrderNumber}
+                      </Text>
+                      <Text style={{ color: themeStyles.textColor }}>
+                        Item: {order.item?.itemName || "N/A"}
+                      </Text>
+                      <Text style={{ color: themeStyles.textColor }}>
+                        Qty: {order.item?.quantity || "N/A"}
+                      </Text>
+                    </View>
+                  </View>
+                  <View>
+                    <Text
+                      style={{
+                        fontWeight: "bold",
+                        textAlign: "right",
+                        color: themeStyles.textColor,
+                      }}
+                    >
+                      {order.dateOrdered}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            : orders
+                .filter((order) => order.status?.toLowerCase() === "completed")
+                .map((order, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={{
+                      width: "100%",
+                      backgroundColor: themeStyles.containerColor,
+                      marginTop: 4,
+                      borderRadius: 5,
+                      flexDirection: "row",
+                      padding: 8,
+                      justifyContent: "space-between",
+                    }}
+                    onPress={() => {
+                      /* handle order press if needed */
+                    }}
+                    onLongPress={() => handleItemLongpress(order)}
+                  >
+                    <View style={{ flexDirection: "row" }}>
+                      <View
+                        style={{
+                          height: 90,
+                          width: 90,
+                          borderRadius: 3,
+                          backgroundColor: "#F0F0F0",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Ionicons name="cart-outline" size={40} color="#888888" />
+                      </View>
+                      <View style={{ marginLeft: 8 }}>
+                        <Text
+                          style={{
+                            fontWeight: "bold",
+                            color: themeStyles.textColor,
+                          }}
+                        >
+                          {order.customerName}
+                        </Text>
+                        <Text style={{ color: themeStyles.textColor }}>
+                          Order #: {order.salesOrderNumber}
+                        </Text>
+                        <Text style={{ color: themeStyles.textColor }}>
+                          Item: {order.item?.itemName || "N/A"}
+                        </Text>
+                        <Text style={{ color: themeStyles.textColor }}>
+                          Qty: {order.item?.quantity || "N/A"}
+                        </Text>
+                      </View>
+                    </View>
+                    <View>
+                      <Text
+                        style={{
+                          fontWeight: "bold",
+                          textAlign: "right",
+                          color: themeStyles.textColor,
+                        }}
+                      >
+                        {order.dateOrdered}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
         </ScrollView>
       </View>
 

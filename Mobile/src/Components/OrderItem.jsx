@@ -1,41 +1,70 @@
-import { View, Text, TouchableOpacity } from 'react-native';
-import React from 'react';
+import React from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+import Ionicons from "react-native-vector-icons/Ionicons";
 import { useTheme } from "../Screens/DrawerNavigation/ThemeContect";
 
-const OrderItem = ({handleItemLongpress, handleItemPress, isLongpress}) => {
-    const { themeStyles } = useTheme();
-    
-    return (
-        <TouchableOpacity 
-            style={{
-                width: '100%', 
-                backgroundColor: themeStyles.containerColor, 
-                marginTop: 4, padding: 8, 
-                borderRadius: 5, 
-                flexDirection: 'row', 
-                justifyContent: 'space-between'
-            }} 
-            onPress={() => handleItemPress()}
-            onLongPress={() => handleItemLongpress()}
+const OrderItem = ({
+  order,
+  isLongpress,
+  handleItemLongpress,
+  handleItemPress,
+}) => {
+  const { themeStyles } = useTheme();
+
+  return (
+    <TouchableOpacity
+      onLongPress={handleItemLongpress}
+      onPress={handleItemPress}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: themeStyles.containerColor,
+        marginVertical: 6,
+        marginHorizontal: 4,
+        borderRadius: 10,
+        padding: 14,
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+        width: 340,
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: "#F0F0F0",
+          borderRadius: 8,
+          width: 50,
+          height: 50,
+          justifyContent: "center",
+          alignItems: "center",
+          marginRight: 14,
+        }}
+      >
+        <Ionicons name="cart-outline" size={28} color="#888" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            fontWeight: "bold",
+            fontSize: 16,
+            color: themeStyles.textColor,
+          }}
         >
-            {/* Order details - customer name, order number, expected delivery, total items */}
-            <View style={{marginBottom: 16}}>
-                <Text style={{fontWeight: 'bold', color: themeStyles.textColor}}>John Terence Auyong</Text>
-                <Text style={{fontWeight: 400, color: themeStyles.textColor}}>Order number</Text>
-                <Text style={{fontWeight: 400, color: themeStyles.textColor}}>Expected Delivery: 01/23/25</Text>
-                <Text style={{fontWeight: 400, color: themeStyles.textColor}}>Total Items: 124</Text>
-            </View>
-            
-            <View style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-
-                {/* order status */}
-                <Text style={{ fontWeight: 'bold', color: 'red' }}>Invoiced</Text>
-
-                {/* order amount */}
-                <Text style={{ fontWeight: 'bold', color: themeStyles.textColor}}>₱17,456.00</Text> 
-            </View>
-        </TouchableOpacity>
-    )
-}
+          {order.customerName}
+        </Text>
+        <Text style={{ color: "#666", fontSize: 13 }}>
+          Order #: {order.salesOrderNumber}
+        </Text>
+        <Text style={{ color: "#888", fontSize: 13 }}>
+          Item: {order.item?.itemName || "N/A"}
+        </Text>
+        <Text style={{ color: "#aaa", fontSize: 12 }}>
+          Date: {order.dateOrdered}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 export default OrderItem;

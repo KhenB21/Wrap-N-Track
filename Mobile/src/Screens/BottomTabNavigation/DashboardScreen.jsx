@@ -14,12 +14,14 @@ import { useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../Screens/DrawerNavigation/ThemeContect";
 import { InventoryContext } from "../../Context/InventoryContext";
+import { SalesContext } from "../../Context/SalesContext";
 
 const DashboardScreen = ({ route }) => {
   const { pageTitle } = route.params;
   const navigation = useNavigation();
   const { themeStyles } = useTheme();
   const { items } = useContext(InventoryContext);
+  const { orders } = useContext(SalesContext);
 
   // Calculate inventory statistics
   const totalProducts = items.length;
@@ -34,11 +36,21 @@ const DashboardScreen = ({ route }) => {
     (item) => (parseInt(item.quantity) || 0) < 20
   ).length;
 
-  // Calculate sales statistics (initialize to 0 for now)
-  const totalRevenue = 0;
-  const totalOrders = 0;
-  const totalUnitsSold = 0;
-  const totalCustomers = 0;
+  // Calculate sales statistics
+  const totalOrders = orders.length;
+  const totalRevenue = orders.reduce(
+    (sum, order) =>
+      sum +
+      (parseFloat(order.item?.price) || 0) *
+        (parseInt(order.item?.quantity) || 0),
+    0
+  );
+  const totalUnitsSold = orders.reduce(
+    (sum, order) => sum + (parseInt(order.item?.quantity) || 0),
+    0
+  );
+  const totalCustomers = new Set(orders.map((order) => order.customerName))
+    .size;
 
   useEffect(() => {
     const backAction = () => {

@@ -20,7 +20,6 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { useTheme } from "../../Screens/DrawerNavigation/ThemeContect";
 import { Camera } from "expo-camera";
 
-
 const InventoryForm = () => {
   const [itemName, setItemName] = useState("");
   const [variant, setVariant] = useState("");
@@ -106,9 +105,48 @@ const InventoryForm = () => {
   };
 
   const handleAddItem = () => {
-    console.log("Selected ID:", selectedId); // Debugging
+    if (!itemName.trim()) {
+      Alert.alert("Missing Field", "Please enter the item name.");
+      return;
+    }
+    if (!variant.trim()) {
+      Alert.alert("Missing Field", "Please enter the variant.");
+      return;
+    }
+    if (!description.trim()) {
+      Alert.alert("Missing Field", "Please enter the description.");
+      return;
+    }
+    if (!category.trim()) {
+      Alert.alert("Missing Field", "Please select a category.");
+      return;
+    }
+    if (!sku.trim()) {
+      Alert.alert("Missing Field", "Please enter the SKU.");
+      return;
+    }
     if (!selectedId) {
-      Alert.alert("Error", "Please select a status (Active or Inactive).");
+      Alert.alert("Missing Field", "Please select the status.");
+      return;
+    }
+    if (photos.length === 0) {
+      Alert.alert("Missing Field", "Please add at least one photo.");
+      return;
+    }
+    if (!quantity.trim()) {
+      Alert.alert("Missing Field", "Please enter the quantity.");
+      return;
+    }
+    if (!unit.trim()) {
+      Alert.alert("Missing Field", "Please enter the weight/volume.");
+      return;
+    }
+    if (!selectedValue.trim()) {
+      Alert.alert("Missing Field", "Please select the unit.");
+      return;
+    }
+    if (!price.trim()) {
+      Alert.alert("Missing Field", "Please enter the item price.");
       return;
     }
 
@@ -126,7 +164,6 @@ const InventoryForm = () => {
       status: selectedId === "1" ? "Active" : "Inactive",
     };
 
-    console.log("New Item:", newItem); // Debugging
     addItem(newItem);
     navigation.goBack({ newItem });
   };
