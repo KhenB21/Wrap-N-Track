@@ -640,27 +640,26 @@ app.post('/api/orders', async (req, res) => {
     );
 
     // Add products to the order
+    let stock_issue_products = [];
     if (products && products.length > 0) {
       for (const { sku, quantity } of products) {
         // Check inventory
         const invRes = await client.query('SELECT quantity, name FROM inventory_items WHERE sku = $1', [sku]);
         if (invRes.rows.length === 0) {
-          await client.query('ROLLBACK');
-          return res.status(404).json({ success: false, message: `Product with SKU ${sku} not found` });
+          stock_issue_products.push(`SKU ${sku} not found`);
+          // Still insert with 0 inventory
+        } else {
+          if (invRes.rows[0].quantity < quantity) {
+            stock_issue_products.push(invRes.rows[0].name);
+          }
         }
-        if (invRes.rows[0].quantity < quantity) {
-          await client.query('ROLLBACK');
-          return res.status(400).json({ success: false, message: `Not enough stock for ${invRes.rows[0].name}` });
-        }
-        // Deduct inventory
-        await client.query('UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2', [quantity, sku]);
-        // Insert into order_products
+        // Insert into order_products (do NOT deduct inventory here)
         await client.query('INSERT INTO order_products (order_id, sku, quantity) VALUES ($1, $2, $3)', [order_id, sku, quantity]);
       }
     }
 
     await client.query('COMMIT');
-    res.status(201).json({ success: true, order: orderResult.rows[0] });
+    res.status(201).json({ success: true, order: orderResult.rows[0], stock_issue_products });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error creating order:', error);
@@ -1017,5 +1016,28 @@ app.post('/api/update-data', async (req, res) => {
   } catch (error) {
     console.error('Error updating data:', error);
     res.status(500).json({ success: false, message: 'Error updating data' });
+  }
+});
+
+// Search inventory item by name (case-insensitive, partial match)
+app.get('/api/inventory/search', async (req, res) => {
+  const { name } = req.query;
+  if (!name) {
+    return res.status(400).json({ success: false, message: 'Missing name query parameter' });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT * FROM inventory_items WHERE LOWER(name) LIKE LOWER($1) LIMIT 1`,
+      [`%${name}%`]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'No matching product found' });
+    }
+    const row = result.rows[0];
+    row.image_data = row.image_data ? row.image_data.toString('base64') : null;
+    res.json(row);
+  } catch (error) {
+    console.error('Error searching inventory by name:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 }); 

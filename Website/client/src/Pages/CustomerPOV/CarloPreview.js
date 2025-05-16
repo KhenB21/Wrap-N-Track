@@ -21,11 +21,54 @@ export default function CarloPreview() {
     eventDate: '',
     shippingLocation: ''
   });
+  const [inventory, setInventory] = useState([]);
+  const [error, setError] = useState("");
+
+  React.useEffect(() => {
+    // Fetch inventory on mount
+    axios.get('http://localhost:3001/api/inventory').then(res => setInventory(res.data)).catch(() => setInventory([]));
+  }, []);
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    const orderQty = Number(form.orderQuantity);
+    if (!orderQty || orderQty < 1) {
+      setError("Order Quantity must be a positive number.");
+      return;
+    }
+    // List of default product names
+    const defaultProductNames = [
+      'Signature box',
+      'Envelope',
+      'Wellsmith sprinkle',
+      'Palapa seasoning',
+      'Wine'
+    ];
+    // Find SKUs for these products in inventory
+    const missingProducts = [];
+    const products = defaultProductNames.map(name => {
+      const item = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+      if (!item) {
+        missingProducts.push(name);
+        return null;
+      }
+      return {
+        sku: item.sku,
+        quantity: orderQty
+      };
+    }).filter(Boolean);
+    if (missingProducts.length > 0) {
+      setError(`The following products are missing from inventory: ${missingProducts.join(', ')}`);
+      return;
+    }
+    if (products.length === 0) {
+      setError('No valid products found for this order.');
+      return;
+    }
     try {
       const order_id = generateOrderId();
       const order = {
@@ -44,13 +87,13 @@ export default function CarloPreview() {
         telephone: '',
         cellphone: form.contact,
         email_address: form.email,
-        products: [] // No products for this simple order
+        products
       };
       await axios.post('http://localhost:3001/api/orders', order);
       setModalOpen(false);
-      alert('Order submitted!');
+      window.location.href = '/orders';
     } catch (err) {
-      alert('Failed to submit order');
+      setError('Failed to submit order. Please try again.');
     }
   };
   return (
@@ -77,6 +120,7 @@ export default function CarloPreview() {
               <div className="order-modal-form-col">
                 <h2>Order Form</h2>
                 <form className="order-form" onSubmit={handleSubmit}>
+                  {error && <div style={{color:'red',marginBottom:12}}>{error}</div>}
                   <label>Name*
                     <input name="name" value={form.name} onChange={handleChange} required />
                   </label>

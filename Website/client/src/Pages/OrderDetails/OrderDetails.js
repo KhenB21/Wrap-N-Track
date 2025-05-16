@@ -226,6 +226,9 @@ export default function OrderDetails() {
   const [editingProducts, setEditingProducts] = useState({}); // { sku: quantity }
   const [editingProductsError, setEditingProductsError] = useState("");
   const [updatingProducts, setUpdatingProducts] = useState(false);
+  const [productDetailsByName, setProductDetailsByName] = useState({}); // { name: { image_data, name } }
+  const [loadingProductDetails, setLoadingProductDetails] = useState(false);
+  const [orderStockIssues, setOrderStockIssues] = useState({}); // { order_id: [product names] }
 
   useEffect(() => {
     fetchOrders();
@@ -234,6 +237,46 @@ export default function OrderDetails() {
   useEffect(() => {
     if (selectedOrderId) fetchOrderProducts(selectedOrderId);
   }, [selectedOrderId]);
+
+  useEffect(() => {
+    async function fetchProductDetails() {
+      if (!orderProducts || orderProducts.length === 0) return;
+      setLoadingProductDetails(true);
+      const details = { ...productDetailsByName };
+      const fetches = orderProducts.map(async (p) => {
+        const nameKey = p.name || p.product_name || '';
+        if (!nameKey || details[nameKey]) return;
+        try {
+          const res = await axios.get(`http://localhost:3001/api/inventory/search?name=${encodeURIComponent(nameKey)}`);
+          details[nameKey] = res.data;
+        } catch (err) {
+          details[nameKey] = null;
+        }
+      });
+      await Promise.all(fetches);
+      setProductDetailsByName(details);
+      setLoadingProductDetails(false);
+    }
+    fetchProductDetails();
+    // eslint-disable-next-line
+  }, [orderProducts]);
+
+  // Fetch stock issues for all orders after fetching orders
+  useEffect(() => {
+    async function fetchStockIssues() {
+      if (!orders.length) return;
+      const issues = {};
+      for (const order of orders) {
+        // Try to get stock_issue_products from backend (if available)
+        // For demo, assume backend returns this in the order object (if not, skip)
+        if (order.stock_issue_products && order.stock_issue_products.length > 0) {
+          issues[order.order_id] = order.stock_issue_products;
+        }
+      }
+      setOrderStockIssues(issues);
+    }
+    fetchStockIssues();
+  }, [orders]);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -529,6 +572,11 @@ export default function OrderDetails() {
                     <span>{order.order_id}</span>
                     <span>₱{Number(order.total_cost).toLocaleString()}</span>
                   </div>
+                  {orderStockIssues[order.order_id] && orderStockIssues[order.order_id].length > 0 && (
+                    <div style={{color:'#b94a48',background:'#fff3cd',border:'1px solid #ffeeba',borderRadius:6,padding:'6px 10px',marginTop:8,fontSize:13}}>
+                      ⚠️ Not enough stock for: {orderStockIssues[order.order_id].join(', ')}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1046,6 +1094,11 @@ export default function OrderDetails() {
               <div className="order-details-modal-content" style={{display:'flex',flexDirection:'row',width:'100%'}}>
                 <div className="order-details-modal-info-col" style={{flex:1.2,padding:'40px 36px 40px 48px'}}>
                   <h2 style={{marginBottom:24,fontFamily:'Cormorant Garamond,serif',fontWeight:700,fontSize:32,color:'#2c3e50'}}>Order Details</h2>
+                  {orderStockIssues[selectedOrder.order_id] && orderStockIssues[selectedOrder.order_id].length > 0 && (
+                    <div style={{color:'#b94a48',background:'#fff3cd',border:'1px solid #ffeeba',borderRadius:6,padding:'8px 12px',marginBottom:18,fontSize:15}}>
+                      ⚠️ Not enough stock for: {orderStockIssues[selectedOrder.order_id].join(', ')}
+                    </div>
+                  )}
                   <div style={{marginBottom:12}}><b>Name:</b> {selectedOrder.name}</div>
                   <div style={{marginBottom:12}}><b>Email Address:</b> {selectedOrder.email_address || '-'}</div>
                   <div style={{marginBottom:12}}><b>Contact Number:</b> {selectedOrder.cellphone || '-'}</div>
@@ -1059,19 +1112,22 @@ export default function OrderDetails() {
                 </div>
                 <div className="order-details-modal-products-col" style={{flex:1,background:'#f8f9fa',borderLeft:'1.5px solid #ececec',borderRadius:'0 18px 18px 0',padding:'40px 32px 40px 32px',display:'flex',flexDirection:'column',alignItems:'flex-start',minWidth:220,maxWidth:340}}>
                   <h3 style={{fontSize:22,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50',marginBottom:14,fontWeight:700,letterSpacing:'0.04em',borderBottom:'1.5px solid #ece9e6',paddingBottom:6,width:'100%'}}>What's Inside</h3>
-                  {orderProducts && orderProducts.length > 0 ? (
+                  {loadingProductDetails ? (
+                    <div style={{color:'#888',fontSize:16}}>Loading products...</div>
+                  ) : orderProducts && orderProducts.length > 0 ? (
                     <ul style={{listStyle:'none',padding:0,margin:0,width:'100%'}}>
                       {orderProducts.map((p, idx) => {
-                        const inventoryItem = inventory.find(item => String(item.sku) === String(p.sku));
+                        const nameKey = p.name || p.product_name || '';
+                        const inventoryItem = productDetailsByName[nameKey];
                         return (
-                          <li key={p.sku} style={{display:'flex',alignItems:'center',gap:14,marginBottom:18}}>
+                          <li key={p.sku || nameKey + idx} style={{display:'flex',alignItems:'center',gap:14,marginBottom:18}}>
                             {inventoryItem && inventoryItem.image_data ? (
                               <img src={`data:image/jpeg;base64,${inventoryItem.image_data}`} alt={inventoryItem.name} style={{width:48,height:48,borderRadius:8,objectFit:'cover',background:'#eee',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}} />
                             ) : (
-                              <div style={{width:48,height:48,background:'#eee',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',color:'#bbb',fontSize:22}}>?</div>
+                              <div style={{width:48,height:48,background:'#eee',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',color:'#bbb',fontSize:22}}>{loadingProductDetails ? <span className="spinner" /> : '?'}</div>
                             )}
                             <div style={{flex:1}}>
-                              <div style={{fontWeight:600,fontSize:16,fontFamily:'Lora,serif',color:'#333'}}>{inventoryItem ? inventoryItem.name : p.name || 'Unknown Product'}</div>
+                              <div style={{fontWeight:600,fontSize:16,fontFamily:'Lora,serif',color:'#333'}}>{inventoryItem ? inventoryItem.name : nameKey || 'Unknown Product'}</div>
                               <div style={{fontSize:14,color:'#888'}}>Qty: {p.quantity}</div>
                             </div>
                           </li>
