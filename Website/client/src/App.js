@@ -12,6 +12,11 @@ import UserManagement from "./Pages/UserManagement/UserManagement";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Register from "./Pages/Register/Register";
 import OrderHistory from "./Pages/OrderHistory/OrderHistory";
+import CustomerPOV from "./Pages/CustomerPOV/CustomerPOV";
+import OrderProcess from "./Pages/CustomerPOV/OrderProcess";
+import CarloPreview from "./Pages/CustomerPOV/CarloPreview";
+import CustomerHome from "./Pages/CustomerPOV/CustomerHome";
+import CustomerCorporate from "./Pages/CustomerCorporate/CustomerCorporate";
 
 function App() {
   return (
@@ -21,6 +26,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/product-details" element={<ProductDetails />} />
         <Route path="/product-details/:sku" element={<ProductDetails />} />
+        <Route path="/product/1" element={<CarloPreview />} />
+        <Route path="/customer-home" element={<CustomerHome />} />
         <Route path="/order-details" element={<OrderDetails />} />
         <Route path="/customer-details" element={<CustomerDetails />} /> 
         <Route path="/supplier-details" element={<SupplierDetails />} />
@@ -32,6 +39,9 @@ function App() {
         <Route path="/orders" element={<OrderDetails />} />
         <Route path="/orders/:orderId" element={<OrderDetails />} />
         <Route path="/order-history" element={<OrderHistory />} />
+        <Route path="/wedding" element={<CustomerPOV />} />
+        <Route path="/order" element={<OrderProcess />} />
+        <Route path="/corporate" element={<CustomerCorporate />} />
       </Routes>
     </Router>
   );

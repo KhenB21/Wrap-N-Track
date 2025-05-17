@@ -1,0 +1,141 @@
+/* TopbarCustomer Styles */
+@font-face {
+  font-family: Cinder;
+  src: url("../../../client/public/Assets/Fonts/Cinzel-Regular.ttf");
+}
+body{
+  font-family: Cinder;
+}
+.topbar-customer {
+  width: 100%;
+  background: #f1f0e2;
+  padding: 0;
+  border-bottom: 1px solid #f0e9d2;
+  z-index: 100;
+}
+
+.topbar-customer-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 1600px;
+  margin: 0 auto;
+  height: 90px;
+  position: relative;
+}
+
+.topbar-customer-links {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  flex: 1;
+  justify-content: center;
+}
+
+.topbar-customer-links.left {
+  justify-content: flex-end;
+}
+.topbar-customer-links.right {
+  justify-content: flex-start;
+}
+
+.topbar-customer-link {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14px;
+  color: #7a7a8c;
+  text-decoration: none;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 500;
+  position: relative;
+  padding: 2px 0;
+  transition: color 0.2s;
+}
+
+.topbar-customer-link.active,
+.topbar-customer-link:hover {
+  color: #4a4a6a;
+}
+
+.topbar-customer-link.active::after {
+  content: '';
+  display: block;
+  margin: 6px auto 0 auto;
+  width: 70%;
+  height: 2px;
+  background: #4a4a6a;
+  border-radius: 1px;
+}
+
+.topbar-customer-logo-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 160px;
+  margin: 0 32px;
+}
+
+.topbar-customer-logo {
+  max-width: 80px;
+  max-height: 80px;
+  margin-bottom: 2px;
+  display: block;
+}
+
+.topbar-customer-logo-text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14px;
+  color: #7a7a8c;
+  text-align: center;
+  line-height: 1.1;
+  margin-top: 0;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.topbar-customer-logo-sub {
+  font-size: 12px;
+  font-family: 'Cormorant Garamond', serif;
+  color: #b0b0b0;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+}
+
+@media (max-width: 900px) {
+  .topbar-customer-nav {
+    flex-direction: column;
+    height: auto;
+    padding: 12px 0;
+  }
+  .topbar-customer-links {
+    gap: 24px;
+    flex: unset;
+  }
+  .topbar-customer-logo-block {
+    margin: 12px 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar-customer-nav {
+    flex-direction: column;
+    height: auto;
+    padding: 8px 0;
+  }
+  .topbar-customer-links {
+    gap: 12px;
+    font-size: 14px;
+  }
+  .topbar-customer-logo-block {
+    min-width: 100px;
+    margin: 8px 0;
+  }
+  .topbar-customer-logo {
+    max-width: 36px;
+    max-height: 36px;
+  }
+  .topbar-customer-logo-text {
+    font-size: 14px;
+  }
+} 

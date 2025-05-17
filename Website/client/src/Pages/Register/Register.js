@@ -133,8 +133,19 @@ function Register() {
               onChange={handleChange}
               required
             >
-              <option value="employee">Employee</option>
-              <option value="admin">Admin</option>
+              <optgroup label="Heads">
+                <option value="business_developer">Business Developer</option>
+                <option value="creatives">Creatives</option>
+                <option value="director">Director</option>
+                <option value="admin">Admin</option>
+              </optgroup>
+              <optgroup label="Sales">
+                <option value="sales_manager">Sales Manager</option>
+                <option value="assistant_sales">Assistant Sales</option>
+              </optgroup>
+              <optgroup label="Operations">
+                <option value="packer">Packer</option>
+              </optgroup>
             </select>
           </div>
 

@@ -62,9 +62,9 @@ const Sidebar = () => {
             </Link>
           </li>
           <li>
-            <Link to="/sales">
+            <Link to="/orders">
               <span className="icon">💰</span>
-              <span className="text">Sales</span>
+              <span className="text">Orders</span>
             </Link>
           </li>
           <li className={`dropdown ${reportsOpen ? "open" : ""}`}>
@@ -100,16 +100,17 @@ const Sidebar = () => {
               <span className="text">Suppliers</span>
             </Link>
           </li>
-          <li>
+          {/* <li>
             <Link to="/orders" className="sidebar-link">
               <i className="fas fa-shopping-cart"></i>
               <span>Orders</span>
             </Link>
-          </li>
+          </li> */}
           <li>
             <Link to="/order-history" className="sidebar-link">
               <i className="fas fa-history"></i>
-              <span>Order History</span>
+              <span className="icon">📅</span>
+              <span className="text">Order History</span>
             </Link>
           </li>
           {isAdmin && (

@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "migrate": "node scripts/migrate.js migrate",
+    "migrate:rollback": "node scripts/migrate.js rollback"
   },
   "dependencies": {
     "axios": "^1.9.0",
@@ -17,6 +19,7 @@
     "multer": "^1.4.5-lts.2",
     "pg": "^8.11.3",
     "pg-hstore": "^2.3.4",
+    "wrap-n-track-server": "file:",
     "ws": "^8.18.2"
   },
   "devDependencies": {

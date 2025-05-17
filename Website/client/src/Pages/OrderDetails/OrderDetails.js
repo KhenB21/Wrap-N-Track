@@ -57,12 +57,155 @@ function getProfilePictureUrl() {
   return "/placeholder-profile.png";
 }
 
+// Add these styles at the top of the file
+const styles = {
+  actionBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px 24px',
+    background: '#fff',
+    borderBottom: '1px solid #eee',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+  },
+  button: {
+    padding: '8px 16px',
+    borderRadius: '6px',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: 600,
+    transition: 'all 0.2s ease'
+  },
+  primaryButton: {
+    background: '#4a90e2',
+    color: '#fff',
+    '&:hover': {
+      background: '#357abd'
+    }
+  },
+  secondaryButton: {
+    background: '#f5f5f5',
+    color: '#333',
+    '&:hover': {
+      background: '#e8e8e8'
+    }
+  },
+  columnsContainer: {
+    display: 'flex',
+    gap: '24px',
+    padding: '24px',
+    height: 'calc(100vh - 180px)',
+    background: '#f8f9fa'
+  },
+  column: {
+    flex: 1,
+    background: '#fff',
+    borderRadius: '12px',
+    padding: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  columnHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+    paddingBottom: '12px',
+    borderBottom: '2px solid #f0f0f0'
+  },
+  columnTitle: {
+    margin: 0,
+    color: '#2c3e50',
+    fontSize: '18px',
+    fontWeight: 600
+  },
+  orderCount: {
+    background: '#e9ecef',
+    padding: '4px 12px',
+    borderRadius: '20px',
+    fontSize: '13px',
+    color: '#495057',
+    fontWeight: 500
+  },
+  orderList: {
+    overflowY: 'auto',
+    height: 'calc(100% - 40px)',
+    paddingRight: '8px',
+    '&::-webkit-scrollbar': {
+      width: '6px'
+    },
+    '&::-webkit-scrollbar-track': {
+      background: '#f1f1f1',
+      borderRadius: '3px'
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: '#c1c1c1',
+      borderRadius: '3px'
+    }
+  },
+  orderCard: {
+    background: '#fff',
+    border: '1px solid #e9ecef',
+    borderRadius: '8px',
+    padding: '16px',
+    marginBottom: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+      borderColor: '#4a90e2'
+    }
+  },
+  orderName: {
+    fontWeight: 600,
+    color: '#2c3e50',
+    marginBottom: '4px'
+  },
+  orderInfo: {
+    color: '#6c757d',
+    fontSize: '13px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  modal: {
+    background: '#fff',
+    padding: '32px',
+    borderRadius: '12px',
+    minWidth: '800px',
+    maxWidth: '900px',
+    width: '90vw',
+    boxShadow: '0 4px 24px rgba(0,0,0,0.15)'
+  },
+  modalHeader: {
+    marginBottom: '24px',
+    paddingBottom: '16px',
+    borderBottom: '2px solid #f0f0f0'
+  },
+  modalTitle: {
+    margin: 0,
+    color: '#2c3e50',
+    fontSize: '24px',
+    fontWeight: 600
+  },
+  statusBadge: {
+    padding: '4px 12px',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: 500,
+    display: 'inline-block'
+  }
+};
+
 export default function OrderDetails() {
   const [orders, setOrders] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showMoreModal, setShowMoreModal] = useState(false);
   const [form, setForm] = useState({
     order_id: '', name: '', shipped_to: '', order_date: '', expected_delivery: '', status: '',
-    shipping_address: '', total_cost: '', payment_type: '', payment_method: '', account_name: '', remarks: '',
+    shipping_address: '', total_cost: '0.00', payment_type: '', payment_method: '', account_name: '', remarks: '',
     telephone: '', cellphone: '', email_address: ''
   });
   const [loading, setLoading] = useState(false);
@@ -83,6 +226,9 @@ export default function OrderDetails() {
   const [editingProducts, setEditingProducts] = useState({}); // { sku: quantity }
   const [editingProductsError, setEditingProductsError] = useState("");
   const [updatingProducts, setUpdatingProducts] = useState(false);
+  const [productDetailsByName, setProductDetailsByName] = useState({}); // { name: { image_data, name } }
+  const [loadingProductDetails, setLoadingProductDetails] = useState(false);
+  const [orderStockIssues, setOrderStockIssues] = useState({}); // { order_id: [product names] }
 
   useEffect(() => {
     fetchOrders();
@@ -91,6 +237,46 @@ export default function OrderDetails() {
   useEffect(() => {
     if (selectedOrderId) fetchOrderProducts(selectedOrderId);
   }, [selectedOrderId]);
+
+  useEffect(() => {
+    async function fetchProductDetails() {
+      if (!orderProducts || orderProducts.length === 0) return;
+      setLoadingProductDetails(true);
+      const details = { ...productDetailsByName };
+      const fetches = orderProducts.map(async (p) => {
+        const nameKey = p.name || p.product_name || '';
+        if (!nameKey || details[nameKey]) return;
+        try {
+          const res = await axios.get(`http://localhost:3001/api/inventory/search?name=${encodeURIComponent(nameKey)}`);
+          details[nameKey] = res.data;
+        } catch (err) {
+          details[nameKey] = null;
+        }
+      });
+      await Promise.all(fetches);
+      setProductDetailsByName(details);
+      setLoadingProductDetails(false);
+    }
+    fetchProductDetails();
+    // eslint-disable-next-line
+  }, [orderProducts]);
+
+  // Fetch stock issues for all orders after fetching orders
+  useEffect(() => {
+    async function fetchStockIssues() {
+      if (!orders.length) return;
+      const issues = {};
+      for (const order of orders) {
+        // Try to get stock_issue_products from backend (if available)
+        // For demo, assume backend returns this in the order object (if not, skip)
+        if (order.stock_issue_products && order.stock_issue_products.length > 0) {
+          issues[order.order_id] = order.stock_issue_products;
+        }
+      }
+      setOrderStockIssues(issues);
+    }
+    fetchStockIssues();
+  }, [orders]);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -146,13 +332,36 @@ export default function OrderDetails() {
     }
   };
 
-  const handleAddOrder = () => {
+  const handleAddOrder = async () => {
     setForm({
       order_id: '', name: '', shipped_to: '', order_date: '', expected_delivery: '', status: '',
-      shipping_address: '', total_cost: '', payment_type: '', payment_method: '', account_name: '', remarks: '',
+      shipping_address: '', total_cost: '0.00', payment_type: '', payment_method: '', account_name: '', remarks: '',
       telephone: '', cellphone: '', email_address: ''
     });
-    setShowModal(true);
+    setProductSelection({});
+    setProfitMargins({});
+    setProductError("");
+    try {
+      const res = await axios.get('http://localhost:3001/api/inventory');
+      setInventory(res.data);
+      setShowModal(true);
+    } catch (err) {
+      alert('Failed to fetch inventory');
+    }
+  };
+
+  const calculateTotalCost = (selection) => {
+    return inventory.reduce((total, item) => {
+      const quantity = Number(selection[item.sku] || 0);
+      const unitPrice = Number(item.unit_price || 0);
+      return total + (unitPrice * quantity);
+    }, 0).toFixed(2);
+  };
+
+  const handleProductSelection = (sku, value) => {
+    const newSelection = { ...productSelection, [sku]: value };
+    setProductSelection(newSelection);
+    setForm(prev => ({ ...prev, total_cost: calculateTotalCost(newSelection) }));
   };
 
   const handleFormChange = (e) => {
@@ -161,12 +370,37 @@ export default function OrderDetails() {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    setProductError("");
+
+    // Check if at least one product is selected
+    const selectedProducts = Object.entries(productSelection)
+      .filter(([sku, qty]) => Number(qty) > 0)
+      .map(([sku, quantity]) => ({ sku, quantity: Number(quantity) }));
+
+    if (selectedProducts.length === 0) {
+      setProductError("Please select at least one product");
+      return;
+    }
+
     try {
-      await axios.post('http://localhost:3001/api/orders', form);
-      setShowModal(false);
-      fetchOrders();
+      // Create order with products in a single request
+      const orderData = {
+        ...form,
+        products: selectedProducts
+      };
+
+      const response = await axios.post('http://localhost:3001/api/orders', orderData);
+      
+      if (response.data.success) {
+        setShowModal(false);
+        setProductSelection({});
+        setProfitMargins({});
+        fetchOrders();
+      } else {
+        setProductError(response.data.message || 'Failed to create order');
+      }
     } catch (err) {
-      alert('Failed to add order');
+      setProductError(err?.response?.data?.message || 'Failed to create order');
     }
   };
 
@@ -287,228 +521,327 @@ export default function OrderDetails() {
     }
   };
 
+  // Filter orders by status
+  const pendingOrders = orders.filter(order => order.status === 'Pending');
+  const toBePackOrders = orders.filter(order => order.status === 'To be pack');
+  const readyToDeliverOrders = orders.filter(order => order.status === 'Ready to ship');
+  const enRouteOrders = orders.filter(order => order.status === 'En Route');
+  const completedOrders = orders.filter(order => order.status === 'Completed');
+
   return (
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
         <TopBar avatarUrl={getProfilePictureUrl()} />
+        
         {/* Action Bar */}
-        <div className="order-action-bar">
-          <button className="btn-edit">Edit</button>
-          <button className="btn-delete">Delete</button>
-          <button className="btn-create" onClick={handleAddOrder}>Add Order</button>
-          <span className="selected-count">{orders.filter(o => o.selected).length} Selected</span>
-        </div>
-
-        {/* Filters */}
-        <div className="order-filters">
-          <span>Total Orders: {orders.length}</span>
-          <select><option>All</option></select>
-          <select><option>Category</option></select>
-          <select><option>Filter by</option></select>
-          <input className="order-search" type="text" placeholder="Search" />
-        </div>
-
-        <div className="order-details-layout">
-          {/* Order List */}
-          <div className="order-list">
-            <div className="order-list-title">ORDERS</div>
-            {loading ? <div>Loading...</div> : orders.map((o) => (
-              <div
-                className={`order-list-item${selectedOrderId === o.order_id ? " selected" : ""}`}
-                key={o.order_id}
-                onClick={() => setSelectedOrderId(o.order_id)}
-                style={{cursor:'pointer'}}
-              >
-                <input type="checkbox" checked={selectedOrderId === o.order_id} readOnly />
-                <div className="order-info">
-                  <div className="order-name">{o.name}</div>
-                  <div className="order-code">{o.order_id}</div>
-                </div>
-                <div className="order-price">{Number(o.total_cost).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
-                <div className={`order-status status-${(o.status || '').toLowerCase().replace(/ /g,'-')}`}>{o.status}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Order Details */}
-          <div className="order-details-panel">
-            {!selectedOrder ? (
-              <div style={{color:'#bbb',fontSize:22,display:'flex',alignItems:'center',justifyContent:'center',height:'100%'}}>Select an order to view details</div>
-            ) : (
-              <div style={{padding:'0 12px'}}>
-                <div style={{display:'flex',gap:32,alignItems:'flex-start'}}>
-                  {/* LEFT COLUMN: DETAILS */}
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:18}}>
-                      <div>
-                        <div style={{fontSize:28,fontWeight:700,marginBottom:2}}>{selectedOrder.name}</div>
-                        <div style={{fontSize:18,color:'#888'}}>{selectedOrder.order_id}</div>
-                        <span className={`order-status-badge status-${(selectedOrder.status||'').toLowerCase().replace(/ /g,'-')}`} style={{fontSize:18,marginTop:10,display:'inline-block'}}>{selectedOrder.status}</span>
-                      </div>
-                      <div style={{display:'flex',gap:12,alignItems:'center'}}>
-                        <button title="Edit Order" className="icon-btn" style={{background:'#f3f3f3',border:'none',borderRadius:6,padding:8,cursor:'pointer'}} onClick={handleEditOrder}><FaEdit size={20} /></button>
-                        <button title="Delete Order" className="icon-btn" style={{background:'#fbeaea',border:'none',borderRadius:6,padding:8,cursor:'pointer'}} onClick={()=>setShowDeleteConfirm(true)}><FaTrash size={20} color="#e74c3c" /></button>
-                        <button title="Mark as Completed" className="icon-btn" style={{background:'#eafbe9',border:'none',borderRadius:6,padding:8,cursor:'pointer'}} onClick={handleMarkCompleted}><FaCheckCircle size={20} color="#27ae60" /></button>
-                      </div>
-                    </div>
-                    <hr style={{margin:'18px 0'}}/>
-                    <div style={{marginBottom:18}}>
-                      <div style={{fontWeight:700,fontSize:16,marginBottom:8,letterSpacing:1}}>CONTACT DETAILS</div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Telephone</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.telephone || '-'}</div>
-                      </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Cellphone</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.cellphone || '-'}</div>
-                      </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Email Address</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.email_address || '-'}</div>
-                      </div>
-                    </div>
-                    <div style={{marginBottom:18}}>
-                      <div style={{fontWeight:700,fontSize:16,marginBottom:8,letterSpacing:1}}>SHIPPING DETAILS</div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Ship to</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.shipped_to}</div>
-                      </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Address</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.shipping_address}</div>
-                      </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Date Ordered</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.order_date}</div>
-                      </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Expected Delivery</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.expected_delivery}</div>
-                      </div>
-                    </div>
-                    <div style={{marginBottom:18}}>
-                      <div style={{fontWeight:700,fontSize:16,marginBottom:8,letterSpacing:1}}>PAYMENT DETAILS</div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Payment Type</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.payment_type}</div>
-                      </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Payment Method</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.payment_method}</div>
-                      </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Account Name</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.account_name}</div>
-                      </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Total Cost</div>
-                        <div style={{fontWeight:500}}>{Number(selectedOrder.total_cost).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
-                      </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Remarks</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.remarks}</div>
-                      </div>
-                    </div>
-                  </div>
-                  {/* RIGHT COLUMN: PRODUCTS CARD */}
-                  <div style={{width:340,minWidth:260,background:'#fafbfc',borderRadius:10,padding:'18px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
-                    <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                      <span>PRODUCTS</span>
-                      <div style={{display:'flex',gap:8}}>
-                        <button onClick={handleEditProducts} style={{padding:'4px 8px',borderRadius:4,border:'1px solid #ddd',background:'#fff',cursor:'pointer',fontSize:13}}>Edit</button>
-                        <button onClick={openProductModal} style={{padding:'4px 8px',borderRadius:4,border:'1px solid #ddd',background:'#fff',cursor:'pointer',fontSize:13}}>Add</button>
-                      </div>
-                    </div>
-                    {orderProducts.length === 0 ? (
-                      <div style={{color:'#aaa'}}>No products added to this order yet.</div>
-                    ) : (
-                      <div>
-                        {orderProducts.map((p, idx) => (
-                          <div key={p.sku} style={{display:'flex',alignItems:'center',gap:16,padding:'10px 0',borderBottom:idx!==orderProducts.length-1?'1px solid #eee':'none'}}>
-                            {p.image_data ? <img src={`data:image/jpeg;base64,${p.image_data}`} alt={p.name} style={{width:44,height:44,borderRadius:8,objectFit:'cover',border:'1px solid #eee'}} /> : <div style={{width:44,height:44,background:'#eee',borderRadius:8}} />}
-                            <div style={{flex:1}}>
-                              <div style={{fontWeight:600,fontSize:15}}>{p.name}</div>
-                            </div>
-                            <div style={{display:'flex',alignItems:'center',gap:8}}>
-                              <div style={{color:'#888',fontWeight:500,fontSize:15}}>Qty: {p.quantity}</div>
-                              <button onClick={() => handleRemoveProduct(p.sku)} style={{padding:4,border:'none',background:'none',cursor:'pointer',color:'#e74c3c'}}><FaTrash size={14} /></button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+        <div style={styles.actionBar}>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button 
+              style={{...styles.button, ...styles.primaryButton}} 
+              onClick={handleAddOrder}
+            >
+              Add Order
+            </button>
+            <button 
+              style={{...styles.button, ...styles.secondaryButton}} 
+              onClick={() => setShowMoreModal(true)}
+            >
+              More
+            </button>
           </div>
         </div>
+
+        {/* Main Order Columns */}
+        <div style={styles.columnsContainer}>
+          {/* Pending Orders Column */}
+          <div style={styles.column}>
+            <div style={styles.columnHeader}>
+              <h3 style={styles.columnTitle}>Pending Orders</h3>
+              <span style={styles.orderCount}>{pendingOrders.length}</span>
+            </div>
+            <div style={styles.orderList}>
+              {pendingOrders.map(order => (
+                <div 
+                  key={order.order_id} 
+                  style={styles.orderCard}
+                  onClick={() => setSelectedOrderId(order.order_id)}
+                >
+                  <div style={styles.orderName}>{order.name}</div>
+                  <div style={styles.orderInfo}>
+                    <span>{order.order_id}</span>
+                    <span>₱{Number(order.total_cost).toLocaleString()}</span>
+                  </div>
+                  {orderStockIssues[order.order_id] && orderStockIssues[order.order_id].length > 0 && (
+                    <div style={{color:'#b94a48',background:'#fff3cd',border:'1px solid #ffeeba',borderRadius:6,padding:'6px 10px',marginTop:8,fontSize:13}}>
+                      ⚠️ Not enough stock for: {orderStockIssues[order.order_id].join(', ')}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* To Be Pack Column */}
+          <div style={styles.column}>
+            <div style={styles.columnHeader}>
+              <h3 style={styles.columnTitle}>To Be Pack</h3>
+              <span style={styles.orderCount}>{toBePackOrders.length}</span>
+            </div>
+            <div style={styles.orderList}>
+              {toBePackOrders.map(order => (
+                <div 
+                  key={order.order_id} 
+                  style={styles.orderCard}
+                  onClick={() => setSelectedOrderId(order.order_id)}
+                >
+                  <div style={styles.orderName}>{order.name}</div>
+                  <div style={styles.orderInfo}>
+                    <span>{order.order_id}</span>
+                    <span>₱{Number(order.total_cost).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Ready to Deliver Column */}
+          <div style={styles.column}>
+            <div style={styles.columnHeader}>
+              <h3 style={styles.columnTitle}>Ready to Deliver</h3>
+              <span style={styles.orderCount}>{readyToDeliverOrders.length}</span>
+            </div>
+            <div style={styles.orderList}>
+              {readyToDeliverOrders.map(order => (
+                <div 
+                  key={order.order_id} 
+                  style={styles.orderCard}
+                  onClick={() => setSelectedOrderId(order.order_id)}
+                >
+                  <div style={styles.orderName}>{order.name}</div>
+                  <div style={styles.orderInfo}>
+                    <span>{order.order_id}</span>
+                    <span>₱{Number(order.total_cost).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* More Modal */}
+        {showMoreModal && (
+          <div className="modal-backdrop" style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div style={styles.modal}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>Additional Order Statuses</h2>
+              </div>
+              
+              {/* En Route Orders */}
+              <div style={{ marginBottom: '32px' }}>
+                <h3 style={{ marginBottom: '16px', color: '#2c3e50', fontSize: '18px' }}>En Route Orders</h3>
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {enRouteOrders.map(order => (
+                    <div 
+                      key={order.order_id} 
+                      style={styles.orderCard}
+                      onClick={() => {
+                        setSelectedOrderId(order.order_id);
+                        setShowMoreModal(false);
+                      }}
+                    >
+                      <div style={styles.orderName}>{order.name}</div>
+                      <div style={styles.orderInfo}>
+                        <span>{order.order_id}</span>
+                        <span>₱{Number(order.total_cost).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Completed Orders */}
+              <div>
+                <h3 style={{ marginBottom: '16px', color: '#2c3e50', fontSize: '18px' }}>Completed Orders</h3>
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {completedOrders.map(order => (
+                    <div 
+                      key={order.order_id} 
+                      style={styles.orderCard}
+                      onClick={() => {
+                        setSelectedOrderId(order.order_id);
+                        setShowMoreModal(false);
+                      }}
+                    >
+                      <div style={styles.orderName}>{order.name}</div>
+                      <div style={styles.orderInfo}>
+                        <span>{order.order_id}</span>
+                        <span>₱{Number(order.total_cost).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button 
+                  onClick={() => setShowMoreModal(false)} 
+                  style={{...styles.button, ...styles.primaryButton}}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal for Add Order */}
         {showModal && (
           <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#0008',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <div className="modal" style={{background:'#fff',padding:32,borderRadius:12,minWidth:800,maxWidth:900,width:'90vw',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
+            <div className="modal" style={{background:'#fff',padding:32,borderRadius:12,minWidth:1100,maxWidth:'95vw',width:'95vw',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
               <h2 style={{marginBottom:20}}>Add Order</h2>
-              <form onSubmit={handleFormSubmit} style={{display:'flex',flexDirection:'column',gap:24}}>
-                {/* Order Info */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Order ID<input name="order_id" value={form.order_id} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Name<input name="name" value={form.name} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Status
-                    <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">
-                      <option value="">Select status</option>
-                      <option value="To be pack">To be pack</option>
-                      <option value="Ready to ship">Ready to ship</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Invoice">Invoice</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
-                  </label>
+              <form onSubmit={handleFormSubmit} style={{display:'flex',flexDirection:'row',gap:40,alignItems:'flex-start'}}>
+                {/* Left: Order Details */}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order ID<input name="order_id" value={form.order_id} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Name<input name="name" value={form.name} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Status
+                      <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">
+                        <option value="">Select status</option>
+                        <option value="To be pack">To be pack</option>
+                        <option value="Ready to ship">Ready to ship</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Invoice">Invoice</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Expected Delivery<input name="expected_delivery" type="date" value={form.expected_delivery} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Shipped To (Receiver name) <input name="shipped_to" value={form.shipped_to} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Shipping Address<input name="shipping_address" value={form.shipping_address} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Telephone<input name="telephone" value={form.telephone} onChange={handleFormChange} className="modal-input" placeholder="(optional)" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Cellphone<input name="cellphone" value={form.cellphone} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Email Address<input name="email_address" value={form.email_address} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Total Cost
+                      <input 
+                        name="total_cost" 
+                        type="number" 
+                        step="0.01" 
+                        value={form.total_cost} 
+                        readOnly 
+                        className="modal-input" 
+                        style={{backgroundColor:'#f5f5f5'}}
+                      />
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Payment Type
+                      <select name="payment_type" value={form.payment_type} onChange={handleFormChange} className="modal-input" required>
+                        <option value="">Select payment type</option>
+                        <option value="50% paid">50% paid</option>
+                        <option value="70% paid">70% paid</option>
+                        <option value="100% Paid">100% Paid</option>
+                      </select>
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Payment Method
+                      <select name="payment_method" value={form.payment_method} onChange={handleFormChange} className="modal-input" required>
+                        <option value="">Select payment method</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Online Banking">Online Banking</option>
+                        <option value="E-Wallet">E-Wallet</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                      </select>
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Account Name<input name="account_name" value={form.account_name} onChange={handleFormChange} className="modal-input" /></label>
+                    {/* Remarks - span both columns */}
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6,gridColumn:'1 / span 2'}}>Remarks<input name="remarks" value={form.remarks} onChange={handleFormChange} className="modal-input" /></label>
+                  </div>
+                  {/* Form buttons */}
+                  <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:24}}>
+                    <button type="button" onClick={()=>setShowModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}>Cancel</button>
+                    <button type="submit" style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#6c63ff',color:'#fff',fontWeight:600,cursor:'pointer'}}>Save</button>
+                  </div>
                 </div>
-                {/* Dates */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Expected Delivery<input name="expected_delivery" type="date" value={form.expected_delivery} onChange={handleFormChange} required className="modal-input" /></label>
-                </div>
-                {/* Shipping */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Shipped To (Receiver name) <input name="shipped_to" value={form.shipped_to} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Shipping Address<input name="shipping_address" value={form.shipping_address} onChange={handleFormChange} required className="modal-input" /></label>
-                </div>
-                {/* Contact */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Telephone<input name="telephone" value={form.telephone} onChange={handleFormChange} className="modal-input" placeholder="(optional)" /></label>
-                  <label style={{fontWeight:500}}>Cellphone<input name="cellphone" value={form.cellphone} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Email Address<input name="email_address" value={form.email_address} onChange={handleFormChange} required className="modal-input" /></label>
-                </div>
-                {/* Payment */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Total Cost<input name="total_cost" type="number" step="0.01" value={form.total_cost} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Payment Type
-                    <select name="payment_type" value={form.payment_type} onChange={handleFormChange} className="modal-input" required>
-                      <option value="">Select payment type</option>
-                      <option value="50% paid">50% paid</option>
-                      <option value="70% paid">70% paid</option>
-                      <option value="100% Paid">100% Paid</option>
-                    </select>
-                  </label>
-                  <label style={{fontWeight:500}}>Payment Method
-                    <select name="payment_method" value={form.payment_method} onChange={handleFormChange} className="modal-input" required>
-                      <option value="">Select payment method</option>
-                      <option value="Cash">Cash</option>
-                      <option value="Online Banking">Online Banking</option>
-                      <option value="E-Wallet">E-Wallet</option>
-                      <option value="Bank Transfer">Bank Transfer</option>
-                    </select>
-                  </label>
-                  <label style={{fontWeight:500}}>Account Name<input name="account_name" value={form.account_name} onChange={handleFormChange} className="modal-input" /></label>
-                </div>
-                {/* Remarks */}
-                <label style={{fontWeight:500}}>Remarks<input name="remarks" value={form.remarks} onChange={handleFormChange} className="modal-input" /></label>
-                <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
-                  <button type="button" onClick={()=>setShowModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}>Cancel</button>
-                  <button type="submit" style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#6c63ff',color:'#fff',fontWeight:600,cursor:'pointer'}}>Save</button>
+                {/* Right: Products Section */}
+                <div style={{flex:1.2,minWidth:0}}>
+                  <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
+                  <div style={{maxHeight:400,overflowY:'auto',marginBottom:18,border:'1px solid #eee',borderRadius:8,padding:16}}>
+                    <table style={{width:'100%',borderCollapse:'collapse'}}>
+                      <thead style={{position:'sticky',top:0,background:'#f8f8f8',zIndex:1}}>
+                        <tr>
+                          <th style={{textAlign:'left',padding:'8px'}}>Image</th>
+                          <th style={{textAlign:'left',padding:'8px'}}>Name</th>
+                          <th style={{textAlign:'right',padding:'8px'}}>Unit Price</th>
+                          <th style={{textAlign:'right',padding:'8px'}}>Available</th>
+                          <th style={{textAlign:'right',padding:'8px'}}>Profit Margin %</th>
+                          <th style={{textAlign:'right',padding:'8px'}}>Est. Profit</th>
+                          <th style={{textAlign:'right',padding:'8px'}}>Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {inventory.map(item => {
+                          const quantity = Number(productSelection[item.sku] || 0);
+                          const margin = Number(profitMargins[item.sku] || 0);
+                          const unitPrice = Number(item.unit_price || 0);
+                          const estimatedProfit = (unitPrice * quantity * (margin / 100)).toFixed(2);
+                          return (
+                            <tr key={item.sku}>
+                              <td style={{padding:'8px'}}>{item.image_data ? <img src={`data:image/jpeg;base64,${item.image_data}`} alt={item.name} style={{width:40,height:40,borderRadius:6,objectFit:'cover'}} /> : <div style={{width:40,height:40,background:'#eee',borderRadius:6}} />}</td>
+                              <td style={{padding:'8px'}}>{item.name}</td>
+                              <td style={{padding:'8px',textAlign:'right'}}>₱{unitPrice.toFixed(2)}</td>
+                              <td style={{padding:'8px',textAlign:'right'}}>{item.quantity}</td>
+                              <td style={{padding:'8px',textAlign:'right'}}>
+                                <input 
+                                  type="number" 
+                                  min={0} 
+                                  max={100}
+                                  value={profitMargins[item.sku] || ''} 
+                                  onChange={e => setProfitMargins(pm => ({...pm, [item.sku]: e.target.value}))} 
+                                  style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
+                                />
+                              </td>
+                              <td style={{padding:'8px',textAlign:'right'}}>
+                                {quantity > 0 && margin > 0 ? `₱${estimatedProfit}` : '-'}
+                              </td>
+                              <td style={{padding:'8px',textAlign:'right'}}>
+                                <input 
+                                  type="number" 
+                                  min={0} 
+                                  max={item.quantity} 
+                                  value={productSelection[item.sku] || ''} 
+                                  onChange={e => handleProductSelection(item.sku, e.target.value)} 
+                                  style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+                    <div style={{fontWeight:500}}>
+                      Total Estimated Profit: ₱{
+                        inventory.reduce((total, item) => {
+                          const quantity = Number(productSelection[item.sku] || 0);
+                          const margin = Number(profitMargins[item.sku] || 0);
+                          const unitPrice = Number(item.unit_price || 0);
+                          return total + (unitPrice * quantity * (margin / 100));
+                        }, 0).toFixed(2)
+                      }
+                    </div>
+                  </div>
+                  {productError && <div style={{color:'red',marginBottom:8}}>{productError}</div>}
                 </div>
               </form>
             </div>
@@ -565,7 +898,7 @@ export default function OrderDetails() {
                               min={0} 
                               max={item.quantity} 
                               value={productSelection[item.sku] || ''} 
-                              onChange={e => setProductSelection(ps => ({...ps, [item.sku]: e.target.value}))} 
+                              onChange={e => handleProductSelection(item.sku, e.target.value)} 
                               style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
                             />
                           </td>
@@ -635,7 +968,17 @@ export default function OrderDetails() {
                 </div>
                 {/* Payment */}
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Total Cost<input name="total_cost" type="number" step="0.01" value={form.total_cost} onChange={handleFormChange} required className="modal-input" /></label>
+                  <label style={{fontWeight:500}}>Total Cost
+                    <input 
+                      name="total_cost" 
+                      type="number" 
+                      step="0.01" 
+                      value={form.total_cost} 
+                      readOnly 
+                      className="modal-input" 
+                      style={{backgroundColor:'#f5f5f5'}}
+                    />
+                  </label>
                   <label style={{fontWeight:500}}>Payment Type
                     <select name="payment_type" value={form.payment_type} onChange={handleFormChange} className="modal-input" required>
                       <option value="">Select payment type</option>
@@ -738,6 +1081,63 @@ export default function OrderDetails() {
                 <button type="button" onClick={handleCompleteConfirm} style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#27ae60',color:'#fff',fontWeight:600,cursor:'pointer'}} disabled={archivingOrder}>
                   {archivingOrder ? 'Processing...' : 'Complete & Archive'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Order Details Modal for selectedOrder */}
+        {selectedOrder && (
+          <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#0008',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <div className="modal order-details-modal-two-col" style={{background:'#fff',padding:0,borderRadius:18,minWidth:600,maxWidth:900,width:'98vw',boxShadow:'0 8px 32px rgba(44,62,80,0.10), 0 2px 12px rgba(74,144,226,0.06)',position:'relative',display:'flex',gap:0}}>
+              <button onClick={()=>setSelectedOrderId(null)} className="order-modal-close" style={{position:'absolute',top:18,right:24,fontSize:26,color:'#aaa',background:'none',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'color 0.2s, background 0.2s',zIndex:2}}>&times;</button>
+              <div className="order-details-modal-content" style={{display:'flex',flexDirection:'row',width:'100%'}}>
+                <div className="order-details-modal-info-col" style={{flex:1.2,padding:'40px 36px 40px 48px'}}>
+                  <h2 style={{marginBottom:24,fontFamily:'Cormorant Garamond,serif',fontWeight:700,fontSize:32,color:'#2c3e50'}}>Order Details</h2>
+                  {orderStockIssues[selectedOrder.order_id] && orderStockIssues[selectedOrder.order_id].length > 0 && (
+                    <div style={{color:'#b94a48',background:'#fff3cd',border:'1px solid #ffeeba',borderRadius:6,padding:'8px 12px',marginBottom:18,fontSize:15}}>
+                      ⚠️ Not enough stock for: {orderStockIssues[selectedOrder.order_id].join(', ')}
+                    </div>
+                  )}
+                  <div style={{marginBottom:12}}><b>Name:</b> {selectedOrder.name}</div>
+                  <div style={{marginBottom:12}}><b>Email Address:</b> {selectedOrder.email_address || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Contact Number:</b> {selectedOrder.cellphone || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Order Quantity:</b> {selectedOrder.orderQuantity || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Approximate Budget per Gift Box:</b> {selectedOrder.budget || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Date of Event:</b> {selectedOrder.expected_delivery || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Shipping Location:</b> {selectedOrder.shipping_address || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Status:</b> {selectedOrder.status}</div>
+                  <div style={{marginBottom:12}}><b>Order ID:</b> {selectedOrder.order_id}</div>
+                  <div style={{marginBottom:12}}><b>Date Ordered:</b> {selectedOrder.order_date}</div>
+                </div>
+                <div className="order-details-modal-products-col" style={{flex:1,background:'#f8f9fa',borderLeft:'1.5px solid #ececec',borderRadius:'0 18px 18px 0',padding:'40px 32px 40px 32px',display:'flex',flexDirection:'column',alignItems:'flex-start',minWidth:220,maxWidth:340}}>
+                  <h3 style={{fontSize:22,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50',marginBottom:14,fontWeight:700,letterSpacing:'0.04em',borderBottom:'1.5px solid #ece9e6',paddingBottom:6,width:'100%'}}>What's Inside</h3>
+                  {loadingProductDetails ? (
+                    <div style={{color:'#888',fontSize:16}}>Loading products...</div>
+                  ) : orderProducts && orderProducts.length > 0 ? (
+                    <ul style={{listStyle:'none',padding:0,margin:0,width:'100%'}}>
+                      {orderProducts.map((p, idx) => {
+                        const nameKey = p.name || p.product_name || '';
+                        const inventoryItem = productDetailsByName[nameKey];
+                        return (
+                          <li key={p.sku || nameKey + idx} style={{display:'flex',alignItems:'center',gap:14,marginBottom:18}}>
+                            {inventoryItem && inventoryItem.image_data ? (
+                              <img src={`data:image/jpeg;base64,${inventoryItem.image_data}`} alt={inventoryItem.name} style={{width:48,height:48,borderRadius:8,objectFit:'cover',background:'#eee',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}} />
+                            ) : (
+                              <div style={{width:48,height:48,background:'#eee',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',color:'#bbb',fontSize:22}}>{loadingProductDetails ? <span className="spinner" /> : '?'}</div>
+                            )}
+                            <div style={{flex:1}}>
+                              <div style={{fontWeight:600,fontSize:16,fontFamily:'Lora,serif',color:'#333'}}>{inventoryItem ? inventoryItem.name : nameKey || 'Unknown Product'}</div>
+                              <div style={{fontSize:14,color:'#888'}}>Qty: {p.quantity}</div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <div style={{color:'#666',fontSize:15}}>No products added to this order yet.</div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
