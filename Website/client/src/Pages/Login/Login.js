@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from '../../api/axios';
+import config from '../../config';
 import "./Login.css";
 
 function LoginPage() {
@@ -13,13 +14,16 @@ function LoginPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const navigate = useNavigate();
 
+  // Log the API URL being used
+  console.log('Login component using API URL:', config.API_URL);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
-    setError(""); // Clear any previous errors
+    setError("");
   };
 
   const handleSubmit = async (e) => {
@@ -28,26 +32,34 @@ function LoginPage() {
     setError("");
 
     try {
+      console.log('Attempting login with API URL:', config.API_URL);
       const response = await api.post('/api/auth/login', {
         username: formData.username,
         password: formData.password
       });
 
+      console.log('Login response:', response.data);
+
       if (response.data.success) {
-        // Store the token in localStorage
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
-        
-        // Show success animation
         setShowSuccess(true);
-        
-        // Wait for 1.5 seconds before redirecting
         setTimeout(() => {
           navigate('/');
         }, 1500);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed. Please try again.");
+      console.error('Login error:', err);
+      if (err.response) {
+        console.error('Error response:', err.response.data);
+        setError(err.response.data.message || "Login failed. Please try again.");
+      } else if (err.request) {
+        console.error('No response received:', err.request);
+        setError("No response from server. Please check your connection.");
+      } else {
+        console.error('Error setting up request:', err.message);
+        setError("An error occurred. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
