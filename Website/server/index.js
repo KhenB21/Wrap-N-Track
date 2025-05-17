@@ -33,27 +33,11 @@ app.use((err, req, res, next) => {
 
 // CORS configuration
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: ['http://localhost:3000', 'https://wrap-n-track.onrender.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
 app.use(express.json());
-
-// Test database connection
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('Error acquiring client', err.stack);
-    console.error('Database connection details:', {
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      port: process.env.DB_PORT || 5432,
-    });
-    process.exit(1);
-  }
-  console.log('Successfully connected to PostgreSQL database');
-  release();
-});
 
 // Add error handler for pool
 pool.on('error', (err, client) => {
