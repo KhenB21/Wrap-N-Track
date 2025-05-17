@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 import "./OrderDetails.css";
-import axios from "axios";
+import api from "../../api/axios";
+import config from "../../config";
 import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
 
 const orders = [
@@ -52,7 +53,7 @@ function getProfilePictureUrl() {
   }
   if (user.profile_picture_path) {
     if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
-    return `http://localhost:3001${user.profile_picture_path}`;
+    return `${config.API_URL}${user.profile_picture_path}`;
   }
   return "/placeholder-profile.png";
 }
@@ -247,7 +248,7 @@ export default function OrderDetails() {
         const nameKey = p.name || p.product_name || '';
         if (!nameKey || details[nameKey]) return;
         try {
-          const res = await axios.get(`http://localhost:3001/api/inventory/search?name=${encodeURIComponent(nameKey)}`);
+          const res = await api.get(`/api/inventory/search?name=${encodeURIComponent(nameKey)}`);
           details[nameKey] = res.data;
         } catch (err) {
           details[nameKey] = null;
@@ -281,7 +282,7 @@ export default function OrderDetails() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:3001/api/orders');
+      const res = await api.get('/api/orders');
       setOrders(res.data);
     } catch (err) {
       alert('Failed to fetch orders');
@@ -291,7 +292,7 @@ export default function OrderDetails() {
 
   const fetchOrderProducts = useCallback(async (orderId) => {
     try {
-      const res = await axios.get(`http://localhost:3001/api/orders/${orderId}/products`);
+      const res = await api.get(`/api/orders/${orderId}/products`);
       setOrderProducts(res.data);
     } catch (err) {
       setOrderProducts([]);
@@ -310,7 +311,7 @@ export default function OrderDetails() {
       return;
     }
     try {
-      await axios.post(`http://localhost:3001/api/orders/${selectedOrderId}/products`, { products });
+      await api.post(`/api/orders/${selectedOrderId}/products`, { products });
       setShowProductModal(false);
       setProductSelection({});
       fetchOrderProducts(selectedOrderId);
@@ -324,7 +325,7 @@ export default function OrderDetails() {
     setProductError("");
     setProductSelection({});
     try {
-      const res = await axios.get('http://localhost:3001/api/inventory');
+      const res = await api.get('/api/inventory');
       setInventory(res.data);
       setShowProductModal(true);
     } catch (err) {
@@ -342,7 +343,7 @@ export default function OrderDetails() {
     setProfitMargins({});
     setProductError("");
     try {
-      const res = await axios.get('http://localhost:3001/api/inventory');
+      const res = await api.get('/api/inventory');
       setInventory(res.data);
       setShowModal(true);
     } catch (err) {
@@ -389,7 +390,7 @@ export default function OrderDetails() {
         products: selectedProducts
       };
 
-      const response = await axios.post('http://localhost:3001/api/orders', orderData);
+      const response = await api.post('/api/orders', orderData);
       
       if (response.data.success) {
         setShowModal(false);
@@ -415,7 +416,7 @@ export default function OrderDetails() {
   const handleEditOrderSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`http://localhost:3001/api/orders/${form.order_id}`, form);
+      await api.put(`/api/orders/${form.order_id}`, form);
       setShowEditModal(false);
       fetchOrders();
     } catch (err) {
@@ -427,7 +428,7 @@ export default function OrderDetails() {
   const handleDeleteOrder = async () => {
     if (!selectedOrder) return;
     try {
-      await axios.delete(`http://localhost:3001/api/orders/${selectedOrder.order_id}`);
+      await api.delete(`/api/orders/${selectedOrder.order_id}`);
       setShowDeleteConfirm(false);
       setSelectedOrderId(null);
       fetchOrders();
@@ -453,7 +454,7 @@ export default function OrderDetails() {
       }
 
       // First mark as completed
-      await axios.put(`http://localhost:3001/api/orders/${selectedOrder.order_id}`, 
+      await api.put(`/api/orders/${selectedOrder.order_id}`, 
         { ...selectedOrder, status: 'Completed' },
         {
           headers: {
@@ -464,8 +465,8 @@ export default function OrderDetails() {
       
       // Then archive the order
       setArchivingOrder(true);
-      await axios.post(
-        `http://localhost:3001/api/orders/${selectedOrder.order_id}/archive`,
+      await api.post(
+        `/api/orders/${selectedOrder.order_id}/archive`,
         {},
         {
           headers: {
@@ -502,7 +503,7 @@ export default function OrderDetails() {
         .filter(([sku, qty]) => Number(qty) > 0)
         .map(([sku, quantity]) => ({ sku, quantity: Number(quantity) }));
       
-      await axios.put(`http://localhost:3001/api/orders/${selectedOrderId}/products`, { products });
+      await api.put(`/api/orders/${selectedOrderId}/products`, { products });
       setShowEditProductsModal(false);
       fetchOrderProducts(selectedOrderId);
     } catch (err) {
@@ -514,7 +515,7 @@ export default function OrderDetails() {
   const handleRemoveProduct = async (sku) => {
     if (!selectedOrder) return;
     try {
-      await axios.delete(`http://localhost:3001/api/orders/${selectedOrderId}/products/${sku}`);
+      await api.delete(`/api/orders/${selectedOrderId}/products/${sku}`);
       fetchOrderProducts(selectedOrderId);
     } catch (err) {
       alert('Failed to remove product');
