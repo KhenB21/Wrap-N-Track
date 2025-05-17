@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "description": "Backend server for Wrap-N-Track application",
   "main": "index.js",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
+    "preinstall": "npm rebuild bcrypt --build-from-source",
     "start": "node index.js",
     "dev": "nodemon index.js",
     "migrate": "node scripts/migrate.js migrate",
