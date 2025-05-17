@@ -7,6 +7,22 @@ const dbUrl = process.env.DATABASE_URL;
 console.log('Database URL:', dbUrl ? 'Present' : 'Missing');
 console.log('Database Host:', process.env.DB_HOST || 'Not set');
 
+// Parse and log connection details (safely)
+if (dbUrl) {
+  try {
+    const url = new URL(dbUrl);
+    console.log('Connection details:', {
+      protocol: url.protocol,
+      hostname: url.hostname,
+      port: url.port,
+      database: url.pathname.split('/')[1],
+      user: url.username
+    });
+  } catch (err) {
+    console.error('Error parsing DATABASE_URL:', err.message);
+  }
+}
+
 if (!dbUrl) {
   console.error('DATABASE_URL environment variable is not set!');
   process.exit(1);
