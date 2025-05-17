@@ -33,7 +33,7 @@ app.use((err, req, res, next) => {
 
 // CORS configuration
 const allowedOrigins = [
-  'http://localhost:3000',
+  // 'http://localhost:3000',
   'https://wrap-n-track.vercel.app',
   'https://wrap-n-track-git-main-khenb21s-projects.vercel.app',
   'https://wrap-n-track.onrender.com'
