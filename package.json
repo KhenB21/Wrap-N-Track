@@ -2,7 +2,11 @@
   "name": "wrap-n-track",
   "version": "1.0.0",
   "description": "Wrap-N-Track application with server and client",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
+    "start": "cd Website/server && npm start",
     "server": "cd Website/server && npm run dev",
     "client": "cd Website/client && npm start",
     "dev": "concurrently \"npm run server\" \"npm run client\""
