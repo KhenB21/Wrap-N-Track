@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import './CustomerPOV.css';
-import axios from 'axios';
+import api from '../../api/axios';
+import config from '../../config';
 
 function generateOrderId() {
   // Example: #CO + timestamp + random 3 digits
@@ -26,7 +27,7 @@ export default function CarloPreview() {
 
   React.useEffect(() => {
     // Fetch inventory on mount
-    axios.get('http://localhost:3001/api/inventory').then(res => setInventory(res.data)).catch(() => setInventory([]));
+    api.get('/api/inventory').then(res => setInventory(res.data)).catch(() => setInventory([]));
   }, []);
 
   const handleChange = (e) => {
@@ -89,7 +90,7 @@ export default function CarloPreview() {
         email_address: form.email,
         products
       };
-      await axios.post('http://localhost:3001/api/orders', order);
+      await api.post('/api/orders', order);
       setModalOpen(false);
       window.location.href = '/orders';
     } catch (err) {
