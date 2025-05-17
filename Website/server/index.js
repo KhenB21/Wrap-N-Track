@@ -35,6 +35,7 @@ app.use((err, req, res, next) => {
 const allowedOrigins = [
   'http://localhost:3000',
   'https://wrap-n-track.vercel.app',
+  'https://wrap-n-track-git-main-khenb21s-projects.vercel.app',
   'https://wrap-n-track.onrender.com'
 ];
 
@@ -44,9 +45,11 @@ app.use(cors({
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) === -1) {
+      console.log('Blocked by CORS:', origin);
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }
+    console.log('Allowed by CORS:', origin);
     return callback(null, true);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
+import api from '../../api/axios';
 import "./Dashboard.css";
-import config from '../../config';
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -21,37 +21,28 @@ function Dashboard() {
       navigate("/login");
       return;
     }
-    // Fetch inventory data
+
+    // Fetch data
     const fetchData = async () => {
       setLoading(true);
       try {
         // Fetch inventory
-        const inventoryRes = await fetch(`${config.API_URL}/api/inventory`);
-        const inventoryData = await inventoryRes.json();
-        setInventory(inventoryData);
+        const inventoryRes = await api.get('/api/inventory');
+        setInventory(inventoryRes.data);
 
         // Fetch user details
-        const userRes = await fetch(`${config.API_URL}/api/user/details`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        const userData = await userRes.json();
-        setUser(userData);
+        const userRes = await api.get('/api/user/details');
+        setUser(userRes.data);
 
         // Fetch order history
-        const historyRes = await fetch(`${config.API_URL}/api/orders/history`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        const historyData = await historyRes.json();
-        setOrderHistory(historyData);
+        const historyRes = await api.get('/api/orders/history');
+        setOrderHistory(historyRes.data);
       } catch (error) {
         console.error('Failed to fetch data:', error);
       }
       setLoading(false);
     };
+
     fetchData();
   }, [navigate]);
 
