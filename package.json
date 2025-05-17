@@ -6,7 +6,6 @@
     "node": "18.x"
   },
   "scripts": {
-    "preinstall": "cd Website/server && npm rebuild bcrypt --build-from-source",
     "start": "cd Website/server && npm start",
     "server": "cd Website/server && npm run dev",
     "client": "cd Website/client && npm start",
