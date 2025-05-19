@@ -3,16 +3,18 @@ import React, { useState } from 'react'
 import Ionicons from 'react-native-vector-icons/Ionicons'
 import { useNavigation } from '@react-navigation/native'
 import { Menu } from 'react-native-paper';
+import { useTheme } from '../Screens/DrawerNavigation/ThemeContect';
 
 const SupplierItem = () => {
   const navigation = useNavigation();
   const [visible, setVisible] = useState(false);
+  const { themeStyles } = useTheme(); 
 
   return (
     <TouchableOpacity 
       style={{
         padding: 10, 
-        backgroundColor: '#FDFDFD', 
+        backgroundColor:themeStyles.containerColor, 
         width: '100%', 
         marginTop: 4, 
         borderRadius: 5, 
@@ -25,9 +27,9 @@ const SupplierItem = () => {
         style={{ height: 60, width: 60, borderRadius: 5, marginRight: 15, borderRadius: 40 }} 
       />
       <View>
-        <Text style={{fontWeight: 'bold'}}>Celestea</Text>
-        <Text style={{color: '#888888'}}>celetea@gmail.com</Text>
-        <Text style={{color: '#888888'}}>0965 4567 890</Text>
+        <Text style={{fontWeight: 'bold',color:themeStyles.textColor}}>Celestea</Text>
+        <Text style={{color:themeStyles.textColor}}>celetea@gmail.com</Text>
+        <Text style={{color:themeStyles.textColor}}>0965 4567 890</Text>
       </View>
       
     </TouchableOpacity>

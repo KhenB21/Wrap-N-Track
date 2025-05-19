@@ -1,15 +1,23 @@
-import { View, Text, TextInput } from 'react-native'
-import React from 'react'
+import React from "react";
+import { TextInput, View, Text } from "react-native";
 
-const TextInputForm = ({label, numberOfLines}) => {
-  return (
-    <View  style={{width: '100%', marginTop: 20}}>
-      <Text style={{ fontSize: 14, fontWeight: 500, marginBottom: 5}}>{label}</Text>
-      <View style={{borderWidth: 1, borderColor: '#ccc', borderRadius: 5}}>
-        <TextInput style={{ height: 50, borderRadius: 6, paddingHorizontal: 10, width: '100%' }} numberOfLines={numberOfLines}/>
-      </View>
-    </View>
-  )
-}
+const TextInputForm = ({ label, value, onChangeText, ...props }) => (
+  <View style={{ width: "100%", marginBottom: 10 }}>
+    <Text style={{ marginBottom: 4 }}>{label}</Text>
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      style={{
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 5,
+        padding: 10,
+        backgroundColor: "#fff",
+      }}
+      {...props}
+    />
+  </View>
+);
 
-export default TextInputForm
+
+export default TextInputForm;

@@ -9,14 +9,16 @@ import InventoryItem from '../../Components/InventoryItem';
 import SalesOrder from '../../Components/OrderItem';
 import { Menu } from 'react-native-paper';
 import CustomerOrder from '../../Components/CustomerOrder';
+import { useTheme } from '../../Screens/DrawerNavigation/ThemeContect';
 
 const CustomerDetails = () => {
     const [focused, setFocused] = useState('all');
     const [visible, setVisible] = useState(false);
     const navigation = useNavigation();
+    const { themeStyles } = useTheme();
 
     return (
-        <View style={{flex: 1, alignItems: 'center'}}>
+        <View style={{ flex: 1, alignItems: "center", backgroundColor: themeStyles.backgroundColor }}>
             <View style={{width: '100%', height: 349, backgroundColor: '#696A8F', paddingRight: 15, paddingLeft: 15, paddingTop: 40}}>
                 <TouchableOpacity style={{height: 28, width: 28, marginBottom: 5}} onPress={() => navigation.goBack()}>
                     <Ionicons name='chevron-back' size={28} color={'#FDFDFD'}/>

@@ -10,6 +10,7 @@ import SupplierForm from '../Screens/StackNavigation/SupplierForm';
 import LoginScreen from '../Screens/StackNavigation/LoginScreen';
 import SupplierOrderForm from '../Screens/StackNavigation/SupplierOrderForm'
 
+
 const Navbar = () => {
     const Stack = createStackNavigator();
 
