@@ -4,6 +4,7 @@ import TopBar from "../../Components/TopBar";
 import "./OrderDetails.css";
 import axios from "axios";
 import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
+import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
 
 const orders = [
   {
@@ -206,13 +207,16 @@ export default function OrderDetails() {
   const [form, setForm] = useState({
     order_id: '', name: '', shipped_to: '', order_date: '', expected_delivery: '', status: '',
     shipping_address: '', total_cost: '0.00', payment_type: '', payment_method: '', account_name: '', remarks: '',
-    telephone: '', cellphone: '', email_address: ''
+    telephone: '', cellphone: '', email_address: '', package_name: '', carlo_products: [], 
+    order_quantity: 0,
+    approximate_budget: 0.00
   });
   const [loading, setLoading] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const selectedOrder = orders.find(o => o.order_id === selectedOrderId);
   const [showProductModal, setShowProductModal] = useState(false);
   const [inventory, setInventory] = useState([]);
+  const [carloProducts, setCarloProducts] = useState([]);
   const [orderProducts, setOrderProducts] = useState([]);
   const [productSelection, setProductSelection] = useState({}); // { sku: quantity }
   const [profitMargins, setProfitMargins] = useState({}); // { sku: margin }
@@ -235,31 +239,103 @@ export default function OrderDetails() {
   }, []);
 
   useEffect(() => {
-    if (selectedOrderId) fetchOrderProducts(selectedOrderId);
-  }, [selectedOrderId]);
+    if (selectedOrderId) {
+        fetchOrderProducts(selectedOrderId);
+        // If the selected order has package_name "Carlo", set the carloProducts
+        const selectedOrder = orders.find(o => o.order_id === selectedOrderId);
+        if (selectedOrder && selectedOrder.package_name === "Carlo") {
+            // Fetch inventory to get product details for Carlo products
+            axios.get('http://localhost:3001/api/inventory')
+                .then(res => {
+                    const inventoryItems = res.data;
+                    const matchedProducts = defaultProductNames.map(name => {
+                        // Try to find a match using case-insensitive partial matching
+                        const matchingItem = inventoryItems.find(item => 
+                            item.name.toLowerCase().includes(name.toLowerCase()) ||
+                            name.toLowerCase().includes(item.name.toLowerCase())
+                        );
+                        
+                        return matchingItem ? {
+                            name: matchingItem.name,
+                            image_data: matchingItem.image_data,
+                            quantity: selectedOrder.order_quantity,
+                            sku: matchingItem.sku
+                        } : {
+                            name: name,
+                            quantity: selectedOrder.order_quantity
+                        };
+                    });
+                    setCarloProducts(matchedProducts);
+                })
+                .catch(err => {
+                    console.error('Failed to fetch inventory:', err);
+                    // Fallback to just names if inventory fetch fails
+                    setCarloProducts(defaultProductNames.map(name => ({
+                        name: name,
+                        quantity: selectedOrder.order_quantity
+                    })));
+                });
+        } else {
+            setCarloProducts([]);
+        }
+    }
+  }, [selectedOrderId, orders]);
 
   useEffect(() => {
     async function fetchProductDetails() {
-      if (!orderProducts || orderProducts.length === 0) return;
-      setLoadingProductDetails(true);
-      const details = { ...productDetailsByName };
-      const fetches = orderProducts.map(async (p) => {
-        const nameKey = p.name || p.product_name || '';
-        if (!nameKey || details[nameKey]) return;
-        try {
-          const res = await axios.get(`http://localhost:3001/api/inventory/search?name=${encodeURIComponent(nameKey)}`);
-          details[nameKey] = res.data;
-        } catch (err) {
-          details[nameKey] = null;
+        if (!orderProducts || orderProducts.length === 0) {
+            console.log("No order products found, exiting useEffect.");
+            return;
         }
-      });
-      await Promise.all(fetches);
-      setProductDetailsByName(details);
-      setLoadingProductDetails(false);
+
+        setLoadingProductDetails(true);
+        console.log("Fetching product details now...");
+
+        try {
+            // First, get all inventory items
+            const inventoryResponse = await axios.get('http://localhost:3001/api/inventory');
+            const allInventoryItems = inventoryResponse.data;
+            console.log("Fetched all inventory items:", allInventoryItems);
+
+            const details = { ...productDetailsByName };
+            
+            // For each product in the order, try to find a match in inventory
+            orderProducts.forEach(p => {
+                const nameKey = p.name || p.product_name || '';
+                if (!nameKey || details[nameKey]) return;
+
+                // Try to find a match using case-insensitive partial matching
+                const matchingItem = allInventoryItems.find(item => 
+                    item.name.toLowerCase().includes(nameKey.toLowerCase()) ||
+                    nameKey.toLowerCase().includes(item.name.toLowerCase())
+                );
+
+                if (matchingItem) {
+                    console.log(`Found matching inventory item for ${nameKey}:`, matchingItem);
+                    details[nameKey] = matchingItem;
+                } else {
+                    console.log(`No matching inventory item found for ${nameKey}`);
+                    details[nameKey] = null;
+                }
+            });
+
+            setProductDetailsByName(details);
+            console.log("Updated Product Details:", details);
+        } catch (err) {
+            console.error("Error fetching inventory:", err);
+        } finally {
+            setLoadingProductDetails(false);
+        }
     }
+
     fetchProductDetails();
-    // eslint-disable-next-line
-  }, [orderProducts]);
+}, [orderProducts]);
+
+
+useEffect(() => {
+    console.log("Checking structure of orderProducts after API fetch:", JSON.stringify(orderProducts, null, 2));
+}, [orderProducts]);
+
 
   // Fetch stock issues for all orders after fetching orders
   useEffect(() => {
@@ -289,14 +365,17 @@ export default function OrderDetails() {
     setLoading(false);
   };
 
-  const fetchOrderProducts = useCallback(async (orderId) => {
+const fetchOrderProducts = async (orderId) => {
     try {
-      const res = await axios.get(`http://localhost:3001/api/orders/${orderId}/products`);
-      setOrderProducts(res.data);
+        const res = await axios.get(`http://localhost:3001/api/orders/${orderId}?includeProducts=true`);
+        setOrderProducts(res.data.products || []);
+        console.log("Final orderProducts:", JSON.stringify(res.data.products, null, 2));
+        console.log("API Order Response:", JSON.stringify(res.data, null, 2));
     } catch (err) {
-      setOrderProducts([]);
+        setOrderProducts([]);
     }
-  }, []);
+};
+
 
   const handleAddProductToOrder = async () => {
     setProductError("");
@@ -372,22 +451,24 @@ export default function OrderDetails() {
     e.preventDefault();
     setProductError("");
 
-    // Check if at least one product is selected
+    // Filter products that have both quantity and profit margin
     const selectedProducts = Object.entries(productSelection)
-      .filter(([sku, qty]) => Number(qty) > 0)
-      .map(([sku, quantity]) => ({ sku, quantity: Number(quantity) }));
-
-    if (selectedProducts.length === 0) {
-      setProductError("Please select at least one product");
-      return;
-    }
+      .filter(([sku, qty]) => Number(qty) > 0 && Number(profitMargins[sku] || 0) > 0)
+      .map(([sku, quantity]) => ({ 
+        sku, 
+        quantity: Number(quantity),
+        profit_margin: Number(profitMargins[sku])
+      }));
 
     try {
       // Create order with products in a single request
       const orderData = {
         ...form,
-        products: selectedProducts
+        products: selectedProducts,
+        total_cost: calculateTotalCost(productSelection)
       };
+
+      console.log("Submitting order data:", orderData);
 
       const response = await axios.post('http://localhost:3001/api/orders', orderData);
       
@@ -395,11 +476,12 @@ export default function OrderDetails() {
         setShowModal(false);
         setProductSelection({});
         setProfitMargins({});
-        fetchOrders();
+        fetchOrders(); // Refresh the orders list
       } else {
         setProductError(response.data.message || 'Failed to create order');
       }
     } catch (err) {
+      console.error("Order submission error:", err);
       setProductError(err?.response?.data?.message || 'Failed to create order');
     }
   };
@@ -725,6 +807,13 @@ export default function OrderDetails() {
                         <option value="Completed">Completed</option>
                         <option value="Invoice">Invoice</option>
                         <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Package Name
+                      <select name="package_name" value={form.package_name} onChange={handleFormChange} required className="modal-input">
+                        <option value="">Select package</option>
+                        <option value="Carlo">Carlo</option>
+                        <option value="Custom">Custom</option>
                       </select>
                     </label>
                     <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
@@ -1102,33 +1191,103 @@ export default function OrderDetails() {
                   <div style={{marginBottom:12}}><b>Name:</b> {selectedOrder.name}</div>
                   <div style={{marginBottom:12}}><b>Email Address:</b> {selectedOrder.email_address || '-'}</div>
                   <div style={{marginBottom:12}}><b>Contact Number:</b> {selectedOrder.cellphone || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Order Quantity:</b> {selectedOrder.orderQuantity || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Approximate Budget per Gift Box:</b> {selectedOrder.budget || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Order Quantity:</b> {selectedOrder.order_quantity || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Approximate Budget per Gift Box:</b> {selectedOrder.approximate_budget ? `₱${selectedOrder.approximate_budget}` : '-'}</div>
                   <div style={{marginBottom:12}}><b>Date of Event:</b> {selectedOrder.expected_delivery || '-'}</div>
                   <div style={{marginBottom:12}}><b>Shipping Location:</b> {selectedOrder.shipping_address || '-'}</div>
                   <div style={{marginBottom:12}}><b>Status:</b> {selectedOrder.status}</div>
                   <div style={{marginBottom:12}}><b>Order ID:</b> {selectedOrder.order_id}</div>
                   <div style={{marginBottom:12}}><b>Date Ordered:</b> {selectedOrder.order_date}</div>
+                  <div style={{marginBottom:12}}><b>Package Name:</b> {selectedOrder.package_name || '-'}</div>
                 </div>
+
                 <div className="order-details-modal-products-col" style={{flex:1,background:'#f8f9fa',borderLeft:'1.5px solid #ececec',borderRadius:'0 18px 18px 0',padding:'40px 32px 40px 32px',display:'flex',flexDirection:'column',alignItems:'flex-start',minWidth:220,maxWidth:340}}>
                   <h3 style={{fontSize:22,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50',marginBottom:14,fontWeight:700,letterSpacing:'0.04em',borderBottom:'1.5px solid #ece9e6',paddingBottom:6,width:'100%'}}>What's Inside</h3>
                   {loadingProductDetails ? (
                     <div style={{color:'#888',fontSize:16}}>Loading products...</div>
+                  ) : selectedOrder.package_name === "Carlo" ? (
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
+                      {carloProducts.map((product, idx) => (
+                        <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+                          {product.image_data ? (
+                            <img 
+                              src={`data:image/jpeg;base64,${product.image_data}`} 
+                              alt={product.name} 
+                              style={{ 
+                                width: 48, 
+                                height: 48, 
+                                borderRadius: 8, 
+                                objectFit: 'cover', 
+                                background: '#eee', 
+                                boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
+                              }} 
+                            />
+                          ) : (
+                            <div style={{ 
+                              width: 48, 
+                              height: 48, 
+                              background: '#eee', 
+                              borderRadius: 8, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              color: '#bbb', 
+                              fontSize: 22 
+                            }}>
+                              ?
+                            </div>
+                          )}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
+                              {product.name}
+                            </div>
+                            <div style={{ fontSize: 14, color: '#888' }}>Qty: {product.quantity}</div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   ) : orderProducts && orderProducts.length > 0 ? (
-                    <ul style={{listStyle:'none',padding:0,margin:0,width:'100%'}}>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
                       {orderProducts.map((p, idx) => {
                         const nameKey = p.name || p.product_name || '';
                         const inventoryItem = productDetailsByName[nameKey];
+                        console.log(`Rendering product ${nameKey}:`, inventoryItem);
+
                         return (
-                          <li key={p.sku || nameKey + idx} style={{display:'flex',alignItems:'center',gap:14,marginBottom:18}}>
+                          <li key={p.sku || nameKey + idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
                             {inventoryItem && inventoryItem.image_data ? (
-                              <img src={`data:image/jpeg;base64,${inventoryItem.image_data}`} alt={inventoryItem.name} style={{width:48,height:48,borderRadius:8,objectFit:'cover',background:'#eee',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}} />
+                              <img 
+                                src={`data:image/jpeg;base64,${inventoryItem.image_data}`} 
+                                alt={inventoryItem.name} 
+                                style={{ 
+                                  width: 48, 
+                                  height: 48, 
+                                  borderRadius: 8, 
+                                  objectFit: 'cover', 
+                                  background: '#eee', 
+                                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
+                                }} 
+                              />
                             ) : (
-                              <div style={{width:48,height:48,background:'#eee',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',color:'#bbb',fontSize:22}}>{loadingProductDetails ? <span className="spinner" /> : '?'}</div>
+                              <div style={{ 
+                                width: 48, 
+                                height: 48, 
+                                background: '#eee', 
+                                borderRadius: 8, 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                color: '#bbb', 
+                                fontSize: 22 
+                              }}>
+                                ?
+                              </div>
                             )}
-                            <div style={{flex:1}}>
-                              <div style={{fontWeight:600,fontSize:16,fontFamily:'Lora,serif',color:'#333'}}>{inventoryItem ? inventoryItem.name : nameKey || 'Unknown Product'}</div>
-                              <div style={{fontSize:14,color:'#888'}}>Qty: {p.quantity}</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
+                                {inventoryItem ? inventoryItem.name : nameKey || 'Unknown Product'}
+                              </div>
+                              <div style={{ fontSize: 14, color: '#888' }}>Qty: {p.quantity}</div>
                             </div>
                           </li>
                         );

@@ -611,13 +611,42 @@ app.post('/api/inventory/scanned-barcode', (req, res) => {
 // --- ORDER ENDPOINTS START ---
 // Get all orders
 app.get('/api/orders', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM orders ORDER BY order_date DESC');
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
+    const client = await pool.connect();
+
+    try {
+        const result = await client.query(`
+SELECT 
+    o.order_id, o.name, o.shipped_to, o.order_date, o.expected_delivery, o.status, 
+    o.shipping_address, o.total_cost, o.payment_type, o.payment_method, o.account_name, 
+    o.remarks, o.telephone, o.cellphone, o.email_address, o.package_name, 
+    COALESCE(o.order_quantity, 0) AS order_quantity, -- ✅ Ensure non-null values
+    COALESCE(o.approximate_budget, 0.00) AS approximate_budget, -- ✅ Ensure non-null values
+    COALESCE(
+        JSON_AGG(
+            JSON_BUILD_OBJECT(
+                'sku', op.sku, 
+                'quantity', op.quantity, 
+                'name', inv.name, 
+                'image_data', ENCODE(inv.image_data, 'base64')
+            )
+        ) FILTER (WHERE op.sku IS NOT NULL), '[]'
+    ) AS products
+FROM orders o
+LEFT JOIN order_products op ON o.order_id = op.order_id
+LEFT JOIN inventory_items inv ON op.sku = inv.sku
+GROUP BY o.order_id
+ORDER BY o.order_date DESC;
+
+        `);
+
+        console.log("Final Orders Response with Corrected Product Data:", JSON.stringify(result.rows, null, 2));
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching orders:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
 });
 
 // Create a new order
@@ -625,45 +654,51 @@ app.post('/api/orders', async (req, res) => {
   const {
     order_id, name, shipped_to, order_date, expected_delivery, status,
     shipping_address, total_cost, payment_type, payment_method, account_name, remarks,
-    telephone, cellphone, email_address, products
+    telephone, cellphone, email_address, package_name, carlo_products, order_quantity, approximate_budget,
+    products
   } = req.body;
+
+  console.log("Received order data:", JSON.stringify(req.body, null, 2));
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    // Create the order
     const orderResult = await client.query(
-      `INSERT INTO orders (order_id, name, shipped_to, order_date, expected_delivery, status, shipping_address, total_cost, payment_type, payment_method, account_name, remarks, telephone, cellphone, email_address)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
-      [order_id, name, shipped_to, order_date, expected_delivery, status, shipping_address, total_cost, payment_type, payment_method, account_name, remarks, telephone, cellphone, email_address]
+      `INSERT INTO orders (
+        order_id, name, shipped_to, order_date, expected_delivery, status, 
+        shipping_address, total_cost, payment_type, payment_method, account_name, 
+        remarks, telephone, cellphone, email_address, package_name,
+        order_quantity, approximate_budget
+      ) 
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+      [
+        order_id, name, shipped_to, order_date, expected_delivery, status,
+        shipping_address, total_cost, payment_type, payment_method, account_name,
+        remarks, telephone, cellphone, email_address, package_name,
+        order_quantity, approximate_budget
+      ]
     );
 
-    // Add products to the order
-    let stock_issue_products = [];
-    if (products && products.length > 0) {
+    console.log("Order inserted successfully:", orderResult.rows[0]);
+
+    // Check if products array exists and has items
+    if (products && Array.isArray(products) && products.length > 0) {
       for (const { sku, quantity } of products) {
-        // Check inventory
-        const invRes = await client.query('SELECT quantity, name FROM inventory_items WHERE sku = $1', [sku]);
-        if (invRes.rows.length === 0) {
-          stock_issue_products.push(`SKU ${sku} not found`);
-          // Still insert with 0 inventory
-        } else {
-          if (invRes.rows[0].quantity < quantity) {
-            stock_issue_products.push(invRes.rows[0].name);
-          }
-        }
-        // Insert into order_products (do NOT deduct inventory here)
         await client.query('INSERT INTO order_products (order_id, sku, quantity) VALUES ($1, $2, $3)', [order_id, sku, quantity]);
       }
+      console.log("Products inserted successfully");
+    } else {
+      console.log("No products to insert");
     }
 
     await client.query('COMMIT');
-    res.status(201).json({ success: true, order: orderResult.rows[0], stock_issue_products });
+
+    res.status(201).json({ success: true, order: orderResult.rows[0] });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error creating order:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   } finally {
     client.release();
   }
@@ -1041,3 +1076,33 @@ app.get('/api/inventory/search', async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 }); 
+
+
+app.get('/api/orders/:orderId', async (req, res) => {
+    const { orderId } = req.params;
+    const client = await pool.connect();
+
+    try {
+        // ✅ Fetch order details
+        const orderRes = await client.query("SELECT * FROM orders WHERE order_id = $1", [orderId]);
+        if (orderRes.rows.length === 0) {
+            return res.status(404).json({ error: "Order not found" });
+        }
+        const order = orderRes.rows[0];
+
+        // ✅ Fetch products related to this order
+        const productsRes = await client.query(
+            "SELECT op.sku, op.quantity, inv.name, inv.image_data FROM order_products op JOIN inventory_items inv ON op.sku = inv.sku WHERE op.order_id = $1",
+            [orderId]
+        );
+        order.products = productsRes.rows;
+
+        console.log("Final Order Response:", JSON.stringify(order, null, 2)); // ✅ Debug step
+        res.json(order);
+    } catch (error) {
+        console.error("Error fetching order:", error);
+        res.status(500).json({ error: "Internal server error" });
+    } finally {
+        client.release();
+    }
+});
