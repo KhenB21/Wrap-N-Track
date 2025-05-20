@@ -27,7 +27,7 @@ export default function DanielPreview() {
     approximateBudget: "",
     eventDate: "",
     shippingLocation: "",
-    packageName: "Daniel",
+    packageName: "Eric & Mariel",
   });
   const [inventory, setInventory] = useState([]);
   const [error, setError] = useState("");
@@ -107,7 +107,7 @@ export default function DanielPreview() {
     <div className="carlo-preview-container">
       <TopbarCustomer />
       <div className="carlo-preview-header">
-        <h1 className="carlo-preview-title">Daniel</h1>
+        <h1 className="carlo-preview-title">Eric & Mariel</h1>
         <div className="carlo-preview-subtitle">
           THANK YOU GIFT BOXES FOR PRINCIPAL SPONSORS
         </div>
@@ -116,7 +116,7 @@ export default function DanielPreview() {
         <div className="carlo-preview-image-wrapper">
           <img
             src="/Assets/Images/Previews/carlo.png"
-            alt="Daniel Preview"
+            alt="EricMariel Preview"
             className="carlo-preview-image"
           />
         </div>
