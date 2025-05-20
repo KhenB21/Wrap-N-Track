@@ -20,6 +20,7 @@ import CustomerCorporate from "./Pages/CustomerCorporate/CustomerCorporate";
 import EricMarielPreview from "./Pages/CustomerPOV/EricMarielPreview";
 import DanielPreview from "./Pages/CustomerPOV/EricMarielPreview";
 import CustomerBespoke from "./Pages/CustomerBespoke";
+import CustomerAboutUs from "./Pages/CustomerAboutUs.js/CustomerAboutUs";
 
 function App() {
   return (
@@ -34,7 +35,7 @@ function App() {
         <Route path="/product/3" element={<DanielPreview />} />
         <Route path="/customer-home" element={<CustomerHome />} />
         <Route path="/order-details" element={<OrderDetails />} />
-        <Route path="/customer-details" element={<CustomerDetails />} /> 
+        <Route path="/customer-details" element={<CustomerDetails />} />
         <Route path="/supplier-details" element={<SupplierDetails />} />
         <Route path="/supplier-form" element={<SupplierForm />} />
         <Route path="/register" element={<Register />} />
@@ -48,7 +49,7 @@ function App() {
         <Route path="/order" element={<OrderProcess />} />
         <Route path="/corporate" element={<CustomerCorporate />} />
         <Route path="/bespoke" element={<CustomerBespoke />} />
-
+        <Route path="/about" element={<CustomerAboutUs />} />
       </Routes>
     </Router>
   );
