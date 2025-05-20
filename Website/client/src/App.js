@@ -17,6 +17,8 @@ import OrderProcess from "./Pages/CustomerPOV/OrderProcess";
 import CarloPreview from "./Pages/CustomerPOV/CarloPreview";
 import CustomerHome from "./Pages/CustomerPOV/CustomerHome";
 import CustomerCorporate from "./Pages/CustomerCorporate/CustomerCorporate";
+import EricMarielPreview from "./Pages/CustomerPOV/EricMarielPreview";
+import DanielPreview from "./Pages/CustomerPOV/EricMarielPreview";
 
 function App() {
   return (
@@ -27,6 +29,8 @@ function App() {
         <Route path="/product-details" element={<ProductDetails />} />
         <Route path="/product-details/:sku" element={<ProductDetails />} />
         <Route path="/product/1" element={<CarloPreview />} />
+        <Route path="/product/2" element={<EricMarielPreview />} />
+        <Route path="/product/3" element={<DanielPreview />} />
         <Route path="/customer-home" element={<CustomerHome />} />
         <Route path="/order-details" element={<OrderDetails />} />
         <Route path="/customer-details" element={<CustomerDetails />} /> 
