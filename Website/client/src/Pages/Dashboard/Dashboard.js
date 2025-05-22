@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 import "./Dashboard.css";
+import axios from 'axios';
 
 function Dashboard() {
   const navigate = useNavigate();
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [orderHistory, setOrderHistory] = useState([]);
+  const [currentOrders, setCurrentOrders] = useState([]);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -63,6 +65,20 @@ function Dashboard() {
     fetchOrderHistory();
   }, []);
 
+  useEffect(() => {
+    const fetchCurrentOrders = async () => {
+      try {
+        const res = await axios.get('http://localhost:3001/api/orders');
+        console.log('Fetched current orders:', res.data);
+        setCurrentOrders(res.data);
+      } catch (err) {
+        console.error('Failed to fetch current orders:', err);
+        setCurrentOrders([]);
+      }
+    };
+    fetchCurrentOrders();
+  }, []);
+
   const getProfilePictureUrl = () => {
     const user = JSON.parse(localStorage.getItem("user"));
     if (!user || !user.profile_picture_data) return "/placeholder-profile.png";
@@ -84,6 +100,12 @@ function Dashboard() {
     (item) => Number(item.quantity || 0) < 10
   ).length;
 
+  // Calculate sales activity counts
+  const toBePackedCount = currentOrders.filter(order => order.status === 'To be pack').length;
+  const readyToShipCount = currentOrders.filter(order => order.status === 'Ready to ship').length;
+  const outForDeliveryCount = currentOrders.filter(order => order.status === 'En Route' || order.status === 'Out for Delivery').length;
+  const pendingOrdersCount = currentOrders.filter(order => order.status === 'Pending').length;
+
   return (
     <div className="dashboard-container">
       <Sidebar />
@@ -93,19 +115,19 @@ function Dashboard() {
         <div className="dashboard-section">
           <h3>Inventory Overview</h3>
           <div className="dashboard-cards-row">
-            <div className="dashboard-card card-red">
+            <div className="dashboard-card card-red" onClick={() => navigate('/inventory')}>
               <div className="card-title">Total Products</div>
               <div className="card-value">
                 {loading ? "..." : totalProducts}
               </div>
             </div>
-            <div className="dashboard-card card-orange">
+            <div className="dashboard-card card-orange" onClick={() => navigate('/inventory')}>
               <div className="card-title">Total Product Units</div>
               <div className="card-value">
                 {loading ? "..." : totalProductUnits.toLocaleString()}
               </div>
             </div>
-            <div className="dashboard-card card-green">
+            <div className="dashboard-card card-green" onClick={() => navigate('/inventory?filter=lowstock')}>
               <div className="card-title">Low in Stock</div>
               <div className="card-value card-low">
                 {loading ? "..." : lowStockProducts}
@@ -148,19 +170,24 @@ function Dashboard() {
           <div className="dashboard-activity">
             <h4>Sales Activity</h4>
             <div className="activity-list">
+              <div className="activity-card activity-blue">
+                <div>Pending Orders</div>
+                <div className="activity-value">{pendingOrdersCount}</div>
+                <span className="activity-icon">📄</span>
+              </div>
               <div className="activity-card activity-red">
                 <div>To be Packed</div>
-                <div className="activity-value">0</div>
+                <div className="activity-value">{toBePackedCount}</div>
                 <span className="activity-icon">📦</span>
               </div>
               <div className="activity-card activity-orange">
                 <div>To be Shipped</div>
-                <div className="activity-value">0</div>
+                <div className="activity-value">{readyToShipCount}</div>
                 <span className="activity-icon">🛒</span>
               </div>
               <div className="activity-card activity-green">
                 <div>Out for Delivery</div>
-                <div className="activity-value">0</div>
+                <div className="activity-value">{outForDeliveryCount}</div>
                 <span className="activity-icon">🚚</span>
               </div>
             </div>

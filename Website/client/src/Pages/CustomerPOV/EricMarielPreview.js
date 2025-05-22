@@ -24,7 +24,6 @@ export default function DanielPreview() {
     email: "",
     contact: "",
     orderQuantity: "",
-    approximateBudget: "",
     eventDate: "",
     shippingLocation: "",
     packageName: "Eric & Mariel",
@@ -49,13 +48,6 @@ export default function DanielPreview() {
     const orderQty = Number(form.orderQuantity);
     if (!orderQty || orderQty < 1) {
       setError("Order Quantity must be a positive number.");
-      return;
-    }
-    const approximateBudget = form.approximateBudget
-      ? Number(form.approximateBudget)
-      : 0;
-    if (approximateBudget < 0) {
-      setError("Approximate Budget cannot be negative.");
       return;
     }
     const products = defaultProductNames
@@ -88,7 +80,6 @@ export default function DanielPreview() {
       package_name: form.packageName,
       daniel_products: defaultProductNames,
       order_quantity: orderQty,
-      approximate_budget: approximateBudget.toFixed(2),
       products: products,
     };
     try {
@@ -115,7 +106,7 @@ export default function DanielPreview() {
       <div className="carlo-preview-main">
         <div className="carlo-preview-image-wrapper">
           <img
-            src="/Assets/Images/Previews/carlo.png"
+            src="/Assets/Images/Previews/eric.png"
             alt="EricMariel Preview"
             className="carlo-preview-image"
           />
@@ -172,6 +163,7 @@ export default function DanielPreview() {
                     Contact Number*
                     <input
                       name="contact"
+                      type="number"
                       value={form.contact}
                       onChange={handleChange}
                       required
@@ -186,17 +178,6 @@ export default function DanielPreview() {
                       value={form.orderQuantity}
                       onChange={handleChange}
                       required
-                    />
-                  </label>
-                  <label>
-                    Approximate Budget per Gift Box
-                    <input
-                      name="approximateBudget"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={form.approximateBudget}
-                      onChange={handleChange}
                     />
                   </label>
                   <label>

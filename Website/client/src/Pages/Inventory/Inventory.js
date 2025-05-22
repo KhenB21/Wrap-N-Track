@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import './Inventory.css';
-import AddProductModal from './AddProductModal';
+import AddProductModal, { CATEGORIES as PREDEFINED_CATEGORIES } from './AddProductModal';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import { useNavigate } from 'react-router-dom';
+import Barcode from 'react-barcode';
 
 export default function Inventory() {
+  const [allProducts, setAllProducts] = useState([]);
   const [products, setProducts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const [categories, setCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -14,15 +19,41 @@ export default function Inventory() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Format date function
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    
+    // Format time
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // the hour '0' should be '12'
+    
+    return `${month} ${day}, ${year}. ${hours}:${minutes}${ampm}`;
+  };
+
   // Fetch products from backend
   const fetchProducts = async () => {
     setLoading(true);
     try {
       const res = await fetch('http://localhost:3001/api/inventory');
       const data = await res.json();
-      setProducts(data);
+      setAllProducts(data);
+      // Combine predefined categories with categories from products, ensure uniqueness, and sort alphabetically
+      const productCategories = data.map(product => product.category);
+      const allUniqueCategories = [...new Set([...PREDEFINED_CATEGORIES, ...productCategories])]
+        .filter(category => category) // Remove any empty categories
+        .sort((a, b) => a.localeCompare(b)); // Sort alphabetically
+      setCategories(['All Categories', ...allUniqueCategories]); // Add 'All Categories' at the beginning
     } catch (err) {
-      setProducts([]);
+      console.error('Error fetching products:', err);
+      setAllProducts([]);
+      setCategories(['All Categories']); // Ensure 'All Categories' is always an option
     }
     setLoading(false);
   };
@@ -30,6 +61,35 @@ export default function Inventory() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    // Filter and sort products whenever allProducts, searchTerm, or selectedCategory changes
+    const filteredBySearch = allProducts.filter(product =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.category.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const filteredByCategory = selectedCategory === 'All Categories'
+      ? filteredBySearch
+      : filteredBySearch.filter(product => product.category === selectedCategory);
+
+    // Sort by status (LOW first) then by name
+    const sorted = filteredByCategory.sort((a, b) => {
+      const statusA = a.quantity < 300 ? 0 : a.quantity <= 700 ? 1 : 2;
+      const statusB = b.quantity < 300 ? 0 : b.quantity <= 700 ? 1 : 2;
+
+      if (statusA !== statusB) {
+        return statusA - statusB; // LOW (0) < MEDIUM (1) < HIGH (2)
+      }
+
+      // Secondary sort by name if status is the same
+      return a.name.localeCompare(b.name);
+    });
+
+    setProducts(sorted);
+  }, [allProducts, searchTerm, selectedCategory]);
 
   const handleAddProduct = async (formData) => {
     try {
@@ -121,7 +181,13 @@ export default function Inventory() {
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar />
+        <TopBar 
+          searchPlaceholder="Search Inventory" 
+          onSearchChange={setSearchTerm} 
+          categories={categories}
+          onCategoryChange={setSelectedCategory}
+          selectedCategory={selectedCategory}
+        />
         <div className="inventory-container">
           <div className="inventory-header">
             <h2>Inventory</h2>
@@ -137,7 +203,8 @@ export default function Inventory() {
                   <th>SKU</th>
                   <th>Name</th>
                   <th>Description</th>
-                  <th>Quantity</th>
+                  <th>Stock on Hand</th>
+                  <th>Status</th>
                   <th>Unit Price</th>
                   <th>Category</th>
                   <th>Last Updated</th>
@@ -162,13 +229,34 @@ export default function Inventory() {
                         <div className="img-placeholder" />
                       )}
                     </td>
-                    <td>{product.sku}</td>
-                    <td>{product.name}</td>
+                    <td>
+                      <Barcode value={product.sku.replace('BC', '')} width={1} height={30} displayValue={true} />
+                    </td>
+                    <td style={{ fontWeight: 'bold' }}>{product.name}</td>
                     <td>{product.description}</td>
-                    <td>{product.quantity}</td>
+                    <td style={{ fontWeight: 'bold' }}>{product.quantity}</td>
+                    <td>
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontWeight: '500',
+                        backgroundColor: 
+                          product.quantity < 300 ? '#ffebee' :
+                          product.quantity <= 700 ? '#fff3e0' :
+                          '#e8f5e9',
+                        color: 
+                          product.quantity < 300 ? '#c62828' :
+                          product.quantity <= 700 ? '#ef6c00' :
+                          '#2e7d32'
+                      }}>
+                        {product.quantity < 300 ? 'LOW' :
+                         product.quantity <= 700 ? 'MEDIUM' :
+                         'HIGH'}
+                      </span>
+                    </td>
                     <td>{product.unit_price}</td>
-                    <td>{product.category}</td>
-                    <td>{product.last_updated}</td>
+                    <td style={{ fontWeight: 'bold' }}>{product.category}</td>
+                    <td>{formatDate(product.last_updated)}</td>
                     <td>
                       <button className="edit-btn" onClick={e => { e.stopPropagation(); handleEdit(product); }}>Edit</button>
                       <button className="delete-btn" onClick={e => { e.stopPropagation(); handleDelete(product); }}>Delete</button>

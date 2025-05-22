@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS orders (
     remarks TEXT,
     telephone VARCHAR(20) NOT NULL,
     cellphone VARCHAR(20) NOT NULL,
-    email_address VARCHAR(100) NOT NULL
+    email_address VARCHAR(100) NOT NULL,
+    package_name VARCHAR(100)
 );
 
 CREATE TABLE IF NOT EXISTS order_products (

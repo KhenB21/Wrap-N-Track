@@ -526,41 +526,18 @@ const fetchOrderProducts = async (orderId) => {
 
   const handleCompleteConfirm = async () => {
     if (!selectedOrder) return;
+    setArchivingOrder(true); // Assuming completing an order archives it or marks it as complete
     try {
-      // Get the token from localStorage
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Please log in to complete this action');
-        return;
-      }
-
-      // First mark as completed
-      await axios.put(`http://localhost:3001/api/orders/${selectedOrder.order_id}`, 
-        { ...selectedOrder, status: 'Completed' },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      
-      // Then archive the order
-      setArchivingOrder(true);
-      await axios.post(
-        `http://localhost:3001/api/orders/${selectedOrder.order_id}/archive`,
-        {},
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
+      // API call to archive the order
+      await axios.post(`http://localhost:3001/api/orders/${selectedOrder.order_id}/archive`);
       
       setShowCompleteConfirm(false);
-      setSelectedOrderId(null);
-      fetchOrders();
+      setSelectedOrderId(null); // Close modal
+      fetchOrders(); // Refresh order list
+      // Optionally, trigger inventory update or other post-completion logic here
     } catch (err) {
-      alert(err?.response?.data?.message || 'Failed to complete and archive order');
+      alert('Failed to complete order.');
+      setShowCompleteConfirm(false);
     }
     setArchivingOrder(false);
   };
@@ -1177,126 +1154,46 @@ const fetchOrderProducts = async (orderId) => {
 
         {/* Order Details Modal for selectedOrder */}
         {selectedOrder && (
-          <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#0008',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <div className="modal order-details-modal-two-col" style={{background:'#fff',padding:0,borderRadius:18,minWidth:600,maxWidth:900,width:'98vw',boxShadow:'0 8px 32px rgba(44,62,80,0.10), 0 2px 12px rgba(74,144,226,0.06)',position:'relative',display:'flex',gap:0}}>
-              <button onClick={()=>setSelectedOrderId(null)} className="order-modal-close" style={{position:'absolute',top:18,right:24,fontSize:26,color:'#aaa',background:'none',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'color 0.2s, background 0.2s',zIndex:2}}>&times;</button>
-              <div className="order-details-modal-content" style={{display:'flex',flexDirection:'row',width:'100%'}}>
-                <div className="order-details-modal-info-col" style={{flex:1.2,padding:'40px 36px 40px 48px'}}>
-                  <h2 style={{marginBottom:24,fontFamily:'Cormorant Garamond,serif',fontWeight:700,fontSize:32,color:'#2c3e50'}}>Order Details</h2>
-                  {orderStockIssues[selectedOrder.order_id] && orderStockIssues[selectedOrder.order_id].length > 0 && (
-                    <div style={{color:'#b94a48',background:'#fff3cd',border:'1px solid #ffeeba',borderRadius:6,padding:'8px 12px',marginBottom:18,fontSize:15}}>
-                      ⚠️ Not enough stock for: {orderStockIssues[selectedOrder.order_id].join(', ')}
-                    </div>
+          <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#0008',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={() => setSelectedOrderId(null)}>
+            <div className="order-details-modal" style={{background:'#fff',borderRadius:18,width:900,maxWidth:'95vw',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 6px 24px rgba(0,0,0,0.1)'}} onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div style={{padding:'24px 48px',borderBottom:'1.5px solid #ececec',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <h2 style={{margin:0,fontSize:26,fontFamily:'Cormorant Garamond,serif',fontWeight:700,color:'#2c3e50'}}>Order: {selectedOrder.order_id}</h2>
+                <div style={{display:'flex',alignItems:'center',gap:12}}>
+                  <span style={{fontSize:18,fontWeight:600,padding:'4px 12px',borderRadius:20,background:'#e0e7ff',color:'#5146c7',textTransform:'capitalize'}} className={`order-details-panel status-${selectedOrder.status.toLowerCase().replace(/ /g, '-')}`}>{selectedOrder.status}</span>
+                  
+                  {/* Action Buttons */}
+                  {selectedOrder.status === 'To be pack' && (
+                    <button 
+                      style={{padding:'8px 20px',borderRadius:6,border:'none',background:'#2196F3',color:'#fff',fontWeight:600,cursor:'pointer'}}
+                      onClick={() => setShowCompleteConfirm(true)}
+                    >
+                      Complete Order
+                    </button>
                   )}
-                  <div style={{marginBottom:12}}><b>Name:</b> {selectedOrder.name}</div>
-                  <div style={{marginBottom:12}}><b>Email Address:</b> {selectedOrder.email_address || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Contact Number:</b> {selectedOrder.cellphone || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Order Quantity:</b> {selectedOrder.order_quantity || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Approximate Budget per Gift Box:</b> {selectedOrder.approximate_budget ? `₱${selectedOrder.approximate_budget}` : '-'}</div>
-                  <div style={{marginBottom:12}}><b>Date of Event:</b> {selectedOrder.expected_delivery || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Shipping Location:</b> {selectedOrder.shipping_address || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Status:</b> {selectedOrder.status}</div>
-                  <div style={{marginBottom:12}}><b>Order ID:</b> {selectedOrder.order_id}</div>
-                  <div style={{marginBottom:12}}><b>Date Ordered:</b> {selectedOrder.order_date}</div>
-                  <div style={{marginBottom:12}}><b>Package Name:</b> {selectedOrder.package_name || '-'}</div>
-                </div>
 
-                <div className="order-details-modal-products-col" style={{flex:1,background:'#f8f9fa',borderLeft:'1.5px solid #ececec',borderRadius:'0 18px 18px 0',padding:'40px 32px 40px 32px',display:'flex',flexDirection:'column',alignItems:'flex-start',minWidth:220,maxWidth:340}}>
-                  <h3 style={{fontSize:22,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50',marginBottom:14,fontWeight:700,letterSpacing:'0.04em',borderBottom:'1.5px solid #ece9e6',paddingBottom:6,width:'100%'}}>What's Inside</h3>
-                  {loadingProductDetails ? (
-                    <div style={{color:'#888',fontSize:16}}>Loading products...</div>
-                  ) : selectedOrder.package_name === "Carlo" ? (
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
-                      {carloProducts.map((product, idx) => (
-                        <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-                          {product.image_data ? (
-                            <img 
-                              src={`data:image/jpeg;base64,${product.image_data}`} 
-                              alt={product.name} 
-                              style={{ 
-                                width: 48, 
-                                height: 48, 
-                                borderRadius: 8, 
-                                objectFit: 'cover', 
-                                background: '#eee', 
-                                boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
-                              }} 
-                            />
-                          ) : (
-                            <div style={{ 
-                              width: 48, 
-                              height: 48, 
-                              background: '#eee', 
-                              borderRadius: 8, 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
-                              color: '#bbb', 
-                              fontSize: 22 
-                            }}>
-                              ?
-                            </div>
-                          )}
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
-                              {product.name}
-                            </div>
-                            <div style={{ fontSize: 14, color: '#888' }}>Qty: {product.quantity}</div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : orderProducts && orderProducts.length > 0 ? (
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
-                      {orderProducts.map((p, idx) => {
-                        const nameKey = p.name || p.product_name || '';
-                        const inventoryItem = productDetailsByName[nameKey];
-                        console.log(`Rendering product ${nameKey}:`, inventoryItem);
-
-                        return (
-                          <li key={p.sku || nameKey + idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-                            {inventoryItem && inventoryItem.image_data ? (
-                              <img 
-                                src={`data:image/jpeg;base64,${inventoryItem.image_data}`} 
-                                alt={inventoryItem.name} 
-                                style={{ 
-                                  width: 48, 
-                                  height: 48, 
-                                  borderRadius: 8, 
-                                  objectFit: 'cover', 
-                                  background: '#eee', 
-                                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
-                                }} 
-                              />
-                            ) : (
-                              <div style={{ 
-                                width: 48, 
-                                height: 48, 
-                                background: '#eee', 
-                                borderRadius: 8, 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                color: '#bbb', 
-                                fontSize: 22 
-                              }}>
-                                ?
-                              </div>
-                            )}
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
-                                {inventoryItem ? inventoryItem.name : nameKey || 'Unknown Product'}
-                              </div>
-                              <div style={{ fontSize: 14, color: '#888' }}>Qty: {p.quantity}</div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <div style={{color:'#666',fontSize:15}}>No products added to this order yet.</div>
-                  )}
+                  <button style={{background:'none',border:'none',fontSize:24,cursor:'pointer',color:'#888'}} onClick={() => setSelectedOrderId(null)} aria-label="Close order details">&times;</button>
                 </div>
+              </div>
+
+              {/* Content */}
+              <div style={{padding:'48px 48px 48px 48px'}}>
+                {orderStockIssues[selectedOrder.order_id] && orderStockIssues[selectedOrder.order_id].length > 0 && (
+                  <div style={{color:'#b94a48',background:'#fff3cd',border:'1px solid #ffeeba',borderRadius:6,padding:'8px 12px',marginBottom:18,fontSize:15}}>
+                    ⚠️ Not enough stock for: {orderStockIssues[selectedOrder.order_id].join(', ')}
+                  </div>
+                )}
+                <div style={{marginBottom:12}}><b>Name:</b> {selectedOrder.name}</div>
+                <div style={{marginBottom:12}}><b>Email Address:</b> {selectedOrder.email_address || '-'}</div>
+                <div style={{marginBottom:12}}><b>Contact Number:</b> {selectedOrder.cellphone || '-'}</div>
+                <div style={{marginBottom:12}}><b>Order Quantity:</b> {selectedOrder.order_quantity || '-'}</div>
+                <div style={{marginBottom:12}}><b>Approximate Budget per Gift Box:</b> {selectedOrder.approximate_budget ? `₱${selectedOrder.approximate_budget}` : '-'}</div>
+                <div style={{marginBottom:12}}><b>Date of Event:</b> {selectedOrder.expected_delivery || '-'}</div>
+                <div style={{marginBottom:12}}><b>Shipping Location:</b> {selectedOrder.shipping_address || '-'}</div>
+                <div style={{marginBottom:12}}><b>Status:</b> {selectedOrder.status}</div>
+                <div style={{marginBottom:12}}><b>Order ID:</b> {selectedOrder.order_id}</div>
+                <div style={{marginBottom:12}}><b>Date Ordered:</b> {selectedOrder.order_date}</div>
+                <div style={{marginBottom:12}}><b>Package Name:</b> {selectedOrder.package_name || '-'}</div>
               </div>
             </div>
           </div>

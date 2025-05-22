@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Notifications from "./Notifications/Notifications";
 import "./TopBar.css";
 
-export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
+export default function TopBar({ searchPlaceholder = "Search", avatarUrl, onSearchChange, categories = [], onCategoryChange, selectedCategory, searchTerm }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef();
@@ -65,7 +65,24 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
 
   return (
     <div className="dashboard-topbar">
-      <input className="dashboard-search" type="text" placeholder={searchPlaceholder} />
+      <input 
+        className="dashboard-search" 
+        type="text" 
+        placeholder={searchPlaceholder} 
+        onChange={(e) => onSearchChange(e.target.value)}
+        value={searchTerm}
+      />
+      {categories.length > 0 && (
+        <select 
+          className="dashboard-category-select"
+          onChange={(e) => onCategoryChange(e.target.value)}
+          value={selectedCategory}
+        >
+          {categories.map(category => (
+            <option key={category} value={category}>{category}</option>
+          ))}
+        </select>
+      )}
       <div className="dashboard-topbar-icons">
         <span 
           className="dashboard-bell" 

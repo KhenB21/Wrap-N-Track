@@ -26,7 +26,6 @@ export default function CarloPreview() {
     email: '',
     contact: '',
     orderQuantity: '',
-    approximateBudget: '',
     eventDate: '',
     shippingLocation: '',
     packageName: 'Carlo'
@@ -59,14 +58,6 @@ const handleSubmit = async (e) => {
         return;
     }
 
-    // Validate approximate budget
-    const approximateBudget = form.approximateBudget ? Number(form.approximateBudget) : 0;
-    console.log("Approximate Budget:", approximateBudget);
-    if (approximateBudget < 0) {
-        setError("Approximate Budget cannot be negative.");
-        return;
-    }
-
     // Create products array with sku and quantity
     const products = defaultProductNames.map(name => {
         // Find matching inventory item to get SKU
@@ -96,7 +87,6 @@ const handleSubmit = async (e) => {
         package_name: form.packageName,
         carlo_products: defaultProductNames,
         order_quantity: orderQty,
-        approximate_budget: approximateBudget.toFixed(2),
         products: products
     };
 
@@ -146,13 +136,10 @@ const handleSubmit = async (e) => {
                     <input name="email" type="email" value={form.email} onChange={handleChange} required />
                   </label>
                   <label>Contact Number*
-                    <input name="contact" value={form.contact} onChange={handleChange} required />
+                    <input name="contact" type="number" value={form.contact} onChange={handleChange} required />
                   </label>
                   <label>Order Quantity*
                     <input name="orderQuantity" type="number" min="1" value={form.orderQuantity} onChange={handleChange} required />
-                  </label>
-                  <label>Approximate Budget per Gift Box
-                    <input name="approximateBudget" type="number" step="0.01" min="0" value={form.approximateBudget} onChange={handleChange} />
                   </label>
                   <label>Date of Event*
                     <input name="eventDate" type="date" value={form.eventDate} onChange={handleChange} required />
