@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './AddProductModal.css';
 
-export const CATEGORIES = [
+const CATEGORIES = [
   'Electronics',
   'Clothing & Apparel',
   'Home & Garden',
@@ -53,27 +53,6 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredCategories, setFilteredCategories] = useState([]);
 
-  // Generate a random 12-digit number
-  const generateSKU = () => {
-    const min = 100000000000; // 12 digits starting with 1
-    const max = 999999999999; // 12 digits
-    return `BC${Math.floor(Math.random() * (max - min + 1)) + min}`;
-  };
-
-  // Check if SKU is unique
-  const isUniqueSKU = (sku) => {
-    return !existingProducts.some(product => product.sku === sku);
-  };
-
-  // Generate a unique SKU
-  const generateUniqueSKU = () => {
-    let sku;
-    do {
-      sku = generateSKU();
-    } while (!isUniqueSKU(sku));
-    return sku;
-  };
-
   useEffect(() => {
     // Fetch existing products for validation
     const fetchProducts = async () => {
@@ -81,12 +60,6 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         const response = await fetch('http://localhost:3001/api/inventory');
         const data = await response.json();
         setExistingProducts(data);
-        
-        // If this is a new product (not edit mode), generate a unique SKU
-        if (!isEdit && !initialData.sku) {
-          const newSKU = generateUniqueSKU();
-          setForm(prev => ({ ...prev, sku: newSKU }));
-        }
       } catch (error) {
         console.error('Error fetching products:', error);
       }
@@ -99,12 +72,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'barcode_scanned') {
-        // Validate scanned barcode is 12 digits
-        if (/^\d{12}$/.test(data.barcode)) {
-          setForm(prev => ({ ...prev, sku: `BC${data.barcode}` }));
-        } else {
-          alert('Invalid barcode format. Must be 12 digits.');
-        }
+        setForm(prev => ({ ...prev, sku: data.barcode }));
       }
     };
 
@@ -133,15 +101,6 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
   const validateForm = () => {
     const newErrors = {};
     
-    // Validate SKU only if it's a new product or the SKU has been changed in edit mode
-    if (!isEdit || (isEdit && form.sku !== initialData.sku)) {
-      if (!/^BC\d{12}$/.test(form.sku)) {
-        newErrors.sku = 'SKU must start with BC followed by exactly 12 digits';
-      } else if (!isUniqueSKU(form.sku)) {
-        newErrors.sku = 'SKU must be unique';
-      }
-    }
-
     // Check for duplicate name
     const duplicateName = existingProducts.find(
       product => product.name.toLowerCase() === form.name.toLowerCase() && 
@@ -225,7 +184,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -233,14 +192,28 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     }
 
     const formData = new FormData();
-    Object.keys(form).forEach(key => {
-      formData.append(key, form[key]);
+    
+    // Convert numeric fields to numbers and validate
+    const numericFields = ['quantity', 'unit_price'];
+    
+    Object.entries(form).forEach(([key, value]) => {
+      if (numericFields.includes(key)) {
+        const numValue = Number(value);
+        if (isNaN(numValue)) {
+          setErrors({ ...errors, [key]: `${key} must be a valid number` });
+          return;
+        }
+        formData.append(key, numValue);
+      } else {
+        formData.append(key, value);
+      }
     });
+    
     if (image) {
       formData.append('image', image);
     }
-
-    await onAdd(formData);
+    
+    onAdd(formData);
   };
 
   return (
@@ -254,26 +227,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
             {preview && <img src={preview} alt="Preview" style={{ width: 60, height: 60, marginTop: 8, borderRadius: 6, objectFit: 'cover' }} />}
           </label>
           <label>SKU
-            <input 
-              name="sku" 
-              value={form.sku} 
-              onChange={handleChange} 
-              required 
-              disabled={isEdit}
-              pattern="BC\d{12}"
-              title="SKU must start with BC followed by exactly 12 digits"
-              className={errors.sku ? 'error' : ''}
-            />
-            {errors.sku && <span className="error-message">{errors.sku}</span>}
-            {!isEdit && (
-              <button 
-                type="button" 
-                onClick={() => setForm(prev => ({ ...prev, sku: generateUniqueSKU() }))}
-                style={{ marginTop: '8px', padding: '4px 8px' }}
-              >
-                Generate New SKU
-              </button>
-            )}
+            <input name="sku" value={form.sku} onChange={handleChange} required disabled={isEdit} />
           </label>
           <label>Name
             <input 

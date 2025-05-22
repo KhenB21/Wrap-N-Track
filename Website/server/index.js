@@ -1,6 +1,3 @@
-// Add a unique log to confirm this file is being executed
-// console.log('--- Website/server/index.js version 1.1 is starting ---');
-
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
@@ -40,7 +37,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Test database connection
 pool.connect((err, client, release) => {
@@ -932,12 +930,6 @@ app.post('/api/orders/:order_id/archive', verifyToken, async (req, res) => {
         await client.query('ROLLBACK');
         return res.status(400).json({ message: `Product ${product.sku} is missing a unit price.` });
       }
-      
-      // *** Deduct quantity from inventory ***
-      await client.query(
-        'UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2',
-        [product.quantity, product.sku]
-      );
     }
 
     // Insert into order_history
@@ -1114,130 +1106,4 @@ app.get('/api/orders/:orderId', async (req, res) => {
     } finally {
         client.release();
     }
-});
-
-// Update an order's status
-app.put('/api/orders/:order_id/status', async (req, res) => {
-  const { order_id } = req.params;
-  const { status } = req.body;
-
-  const client = await pool.connect();
-  try {
-    const result = await client.query(
-      'UPDATE orders SET status = $1 WHERE order_id = $2 RETURNING *',
-      [status, order_id]
-    );
-
-    if (result.rows.length > 0) {
-      res.json({ success: true, order: result.rows[0] });
-    } else {
-      res.status(404).json({ success: false, message: 'Order not found.' });
-    }
-  } catch (err) {
-    console.error('Error updating order status:', err);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  } finally {
-    client.release();
-  }
-});
-
-// Archive an order
-app.post('/api/orders/:order_id/archive', async (req, res) => {
-  const { order_id } = req.params;
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    // Get order details
-    const orderResult = await client.query(
-      'SELECT * FROM orders WHERE order_id = $1',
-      [order_id]
-    );
-
-    if (orderResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Order not found' });
-    }
-
-    const order = orderResult.rows[0];
-
-    // Check if order is completed
-    if (order.status !== 'Completed') {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ message: 'Only completed orders can be archived' });
-    }
-
-    // Get order products
-    const productsResult = await client.query(
-      'SELECT op.*, p.name as product_name, COALESCE(p.unit_price, 0) as unit_price FROM order_products op JOIN inventory_items p ON op.sku = p.sku WHERE op.order_id = $1',
-      [order_id]
-    );
-
-    // Optional: throw error if unit_price is still null (should not happen with COALESCE, but for safety)
-    for (const product of productsResult.rows) {
-      if (product.unit_price === null) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ message: `Product ${product.sku} is missing a unit price.` });
-      }
-      
-      // *** Deduct quantity from inventory ***
-      await client.query(
-        'UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2',
-        [product.quantity, product.sku]
-      );
-    }
-
-    // Insert into order_history
-    await client.query(
-      `INSERT INTO order_history (
-        order_id, customer_name, name, shipped_to, order_date, expected_delivery,
-        status, shipping_address, total_cost, payment_type, payment_method,
-        account_name, remarks, telephone, cellphone, email_address, archived_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-      [
-        order.order_id,
-        order.name, // Using name as customer_name since it's the customer's name
-        order.name,
-        order.shipped_to,
-        order.order_date,
-        order.expected_delivery,
-        order.status,
-        order.shipping_address,
-        order.total_cost,
-        order.payment_type,
-        order.payment_method,
-        order.account_name,
-        order.remarks,
-        order.telephone,
-        order.cellphone,
-        order.email_address,
-        req.user.user_id // Get the user_id from the authenticated user
-      ]
-    );
-
-    // Insert order products into order_history_products
-    for (const product of productsResult.rows) {
-      await client.query(
-        `INSERT INTO order_history_products (order_id, sku, quantity, unit_price)
-         VALUES ($1, $2, $3, $4)`,
-        [order.order_id, product.sku, product.quantity, product.unit_price]
-      );
-    }
-
-    // Delete from order_products first (due to foreign key constraint)
-    await client.query('DELETE FROM order_products WHERE order_id = $1', [req.params.order_id]);
-
-    // Delete from orders
-    await client.query('DELETE FROM orders WHERE order_id = $1', [req.params.order_id]);
-
-    await client.query('COMMIT');
-    res.json({ message: 'Order archived successfully' });
-
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Error archiving order:', err);
-    res.status(500).json({ message: 'Failed to archive order' });
-  } finally {
-    client.release();
-  }
 });
