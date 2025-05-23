@@ -7,22 +7,27 @@ import LoginScreen from "./src/Screens/LoginScreen";
 import SignUpScreen from "./src/Screens/SignUpScreen";
 import HomeScreen from "./src/Screens/HomeScreen";
 import ItemPreviewScreen from "./src/Screens/ItemPreviewScreen";
-import { ThemeProvider } from "./src/context/ThemeContext";
+import MyCartScreen from "./src/Screens/MyCartScreen";
+import { ThemeProvider } from "./src/Context/ThemeContext";
+import { CartProvider } from "./src/Context/CartContext";
 const Stack = createStackNavigator();
 
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <NavigationContainer>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Splash" component={SplashScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignUpScreen} />
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="ItemPreview" component={ItemPreviewScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
+        <CartProvider>
+          <NavigationContainer>
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="Splash" component={SplashScreen} />
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Signup" component={SignUpScreen} />
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="ItemPreview" component={ItemPreviewScreen} />
+              <Stack.Screen name="MyCart" component={MyCartScreen} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </CartProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

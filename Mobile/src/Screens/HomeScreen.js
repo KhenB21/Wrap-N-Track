@@ -110,7 +110,7 @@ export default function HomeScreen() {
         logoType="text"
         title={"Pensée\nGifting Studio"}
         onMenuPress={() => setMenuVisible(true)}
-        onCartPress={() => {}}
+        onCartPress={() => navigation.navigate("MyCart")}
         darkMode={darkMode}
       />
       <ScrollView contentContainerStyle={styles.scrollContent}>

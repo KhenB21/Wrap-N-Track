@@ -14,12 +14,14 @@ import Header from "../Components/Header";
 import AddToCartButton from "../Components/AddToCartButton";
 import SideMenu from "../Components/SideMenu";
 import { useTheme } from "../Context/ThemeContext";
+import { useCart } from "../Context/CartContext";
 
 const { width } = Dimensions.get("window");
 
 export default function ItemPreviewScreen({ navigation, route }) {
   const [menuVisible, setMenuVisible] = useState(false);
   const { darkMode } = useTheme();
+  const { cartItems, setCartItems } = useCart();
   const product = route.params?.product || {};
   const colors = {
     bg: darkMode ? "#18191A" : "#fff",
@@ -42,6 +44,27 @@ export default function ItemPreviewScreen({ navigation, route }) {
     product.image,
     product.image,
   ];
+  const handleAddToCart = () => {
+    let productToAdd = { ...product };
+    if (!productToAdd.id) {
+      // Generate a unique id if missing
+      productToAdd.id = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    }
+    // Always set a valid price string for the cart item
+    productToAdd.price = product.price || "₱1,500";
+    const exists = cartItems.find((item) => item.id === productToAdd.id);
+    if (exists) {
+      setCartItems(
+        cartItems.map((item) =>
+          item.id === productToAdd.id
+            ? { ...item, quantity: (item.quantity > 0 ? item.quantity : 1) + 1 }
+            : item
+        )
+      );
+    } else {
+      setCartItems([...cartItems, { ...productToAdd, quantity: 1 }]);
+    }
+  };
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       {/* Header: logo and cart only */}
@@ -122,8 +145,9 @@ export default function ItemPreviewScreen({ navigation, route }) {
           </Text>
           <View style={styles.actionRow}>
             <AddToCartButton
-              disabled
+              enabled
               style={[styles.actionBtnLeft, { backgroundColor: colors.price }]}
+              onPress={handleAddToCart}
             />
             <TouchableOpacity
               style={[

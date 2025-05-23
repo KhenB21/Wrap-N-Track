@@ -21,7 +21,7 @@ export default function AddToCartButton({
           color="#fff"
           style={{ marginRight: 6 }}
         />
-        <Text style={styles.text}>{children || "ADD TO BAG"}</Text>
+        <Text style={styles.text}>{children || "ADD TO CART"}</Text>
       </View>
     </TouchableOpacity>
   );

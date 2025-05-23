@@ -10,7 +10,7 @@ import {
   Pressable,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useTheme } from "../context/ThemeContext";
+import { useTheme } from "../Context/ThemeContext";
 
 const { width, height } = Dimensions.get("window");
 const MENU_WIDTH = width * 0.7;
