@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,14 +13,21 @@ import Header from "../Components/Header";
 import AddToCartButton from "../Components/AddToCartButton";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCart } from "../Context/CartContext";
+import { useTheme } from "../Context/ThemeContext";
 
 const { width } = Dimensions.get("window");
 
 export default function MyCartScreen({ navigation }) {
-  const { cartItems, setCartItems } = useCart();
+  const {
+    cartItems,
+    setCartItems,
+    favoriteItems,
+    setFavoriteItems,
+    toggleFavorite,
+  } = useCart();
   const [activeTab, setActiveTab] = useState("cart");
-  const [favoriteItems, setFavoriteItems] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
+  const { darkMode } = useTheme();
 
   const handleQuantityChange = (id, value, isCart) => {
     if (isCart) {
@@ -44,6 +51,11 @@ export default function MyCartScreen({ navigation }) {
     );
   };
 
+  // Add a useEffect to clear selected items when switching tabs
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [activeTab]);
+
   const handleRemoveItem = (id) => {
     Alert.alert("Remove Item", "Do you really want to remove this item?", [
       { text: "Cancel", style: "cancel" },
@@ -52,39 +64,60 @@ export default function MyCartScreen({ navigation }) {
         style: "destructive",
         onPress: () => {
           setCartItems((prev) => prev.filter((item) => item.id !== id));
+          setFavoriteItems((prev) => prev.filter((item) => item.id !== id));
           setSelectedIds((prev) => prev.filter((sid) => sid !== id));
         },
       },
     ]);
   };
 
+  const itemCardBg = darkMode ? "#242526" : "#F5F4FA";
+
   const renderItem = (item, isCart) => (
-    <View key={item.id} style={styles.itemCard}>
-      {isCart && (
+    <View
+      key={item.id}
+      style={[styles.itemCard, { backgroundColor: itemCardBg }]}
+    >
+      <TouchableOpacity
+        style={styles.removeBtn}
+        onPress={() => handleRemoveItem(item.id)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.removeBtnText}>×</Text>
+      </TouchableOpacity>
+      <View style={styles.itemRow}>
         <TouchableOpacity
-          style={styles.removeBtn}
-          onPress={() => handleRemoveItem(item.id)}
+          style={styles.radioCircle}
+          onPress={() => handleSelect(item.id)}
           activeOpacity={0.7}
         >
-          <Text style={styles.removeBtnText}>×</Text>
+          {selectedIds.includes(item.id) && <View style={styles.radioDot} />}
         </TouchableOpacity>
-      )}
-      <View style={styles.itemRow}>
-        {isCart && (
-          <TouchableOpacity
-            style={styles.radioCircle}
-            onPress={() => handleSelect(item.id)}
-            activeOpacity={0.7}
-          >
-            {selectedIds.includes(item.id) && <View style={styles.radioDot} />}
-          </TouchableOpacity>
-        )}
         <Image source={item.image} style={styles.itemImage} />
         <View style={styles.itemInfo}>
-          <Text style={styles.itemTitle}>{item.title}</Text>
-          <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
-          <Text style={styles.itemDesc}>{item.desc}</Text>
-          <Text style={styles.itemPrice}>{item.price}</Text>
+          <Text
+            style={[styles.itemTitle, { color: darkMode ? "#E4E6EB" : "#222" }]}
+          >
+            {item.title}
+          </Text>
+          <Text
+            style={[
+              styles.itemSubtitle,
+              { color: darkMode ? "#B0B3B8" : "#6B6593" },
+            ]}
+          >
+            {item.subtitle}
+          </Text>
+          <Text
+            style={[styles.itemDesc, { color: darkMode ? "#B0B3B8" : "#888" }]}
+          >
+            {item.desc}
+          </Text>
+          <Text
+            style={[styles.itemPrice, { color: darkMode ? "#fff" : "#222" }]}
+          >
+            {item.price || "₱1,499"}
+          </Text>
         </View>
         <View style={styles.quantityBox}>
           <Text style={styles.quantityLabel}>QUANTITY</Text>
@@ -93,7 +126,7 @@ export default function MyCartScreen({ navigation }) {
               onPress={() =>
                 handleQuantityChange(
                   item.id,
-                  Math.max(1, item.quantity - 1),
+                  Math.max(1, (item.quantity || 1) - 1),
                   isCart
                 )
               }
@@ -102,10 +135,10 @@ export default function MyCartScreen({ navigation }) {
             >
               <MaterialCommunityIcons name="minus" size={18} color="#6B6593" />
             </TouchableOpacity>
-            <Text style={styles.quantityValue}>{item.quantity}</Text>
+            <Text style={styles.quantityValue}>{item.quantity || 1}</Text>
             <TouchableOpacity
               onPress={() =>
-                handleQuantityChange(item.id, item.quantity + 1, isCart)
+                handleQuantityChange(item.id, (item.quantity || 1) + 1, isCart)
               }
               style={styles.quantityBtn}
               activeOpacity={0.7}
@@ -123,7 +156,11 @@ export default function MyCartScreen({ navigation }) {
   const selectedCartItems = cartItems.filter((item) =>
     selectedIds.includes(item.id)
   );
-  const total = selectedCartItems.reduce((sum, item) => {
+  const selectedItems =
+    activeTab === "cart"
+      ? selectedCartItems
+      : favoriteItems.filter((item) => selectedIds.includes(item.id));
+  const total = selectedItems.reduce((sum, item) => {
     const price = item.price
       ? parseInt(item.price.replace(/[^\d]/g, ""), 10)
       : 0;
@@ -131,38 +168,59 @@ export default function MyCartScreen({ navigation }) {
   }, 0);
 
   return (
-    <View style={styles.root}>
+    <View
+      style={[
+        styles.root,
+        { backgroundColor: darkMode ? "#18191A" : "#F5F4FA" },
+      ]}
+    >
       <Header
-        showMenu
+        showBack
         showCart
-        logoType="text"
-        title={"Pensée\nGifting Studio"}
-        onMenuPress={() => navigation?.openDrawer?.()}
+        logoType="image"
+        onBackPress={() => navigation.navigate("Home")}
         onCartPress={() => {}}
-        darkMode={false}
+        darkMode={darkMode}
       />
-      <View style={styles.tabRow}>
+      <View
+        style={[
+          styles.tabRow,
+          { backgroundColor: darkMode ? "#242526" : "#EDECF3" },
+        ]}
+      >
         <TouchableOpacity
-          style={[styles.tab, activeTab === "cart" && styles.tabActive]}
+          style={[
+            styles.tab,
+            activeTab === "cart" && styles.tabActive,
+            activeTab === "cart" &&
+              (darkMode ? { backgroundColor: "#393A3B" } : styles.tabActive),
+          ]}
           onPress={() => setActiveTab("cart")}
         >
           <Text
             style={[
               styles.tabText,
               activeTab === "cart" && styles.tabTextActive,
+              { color: darkMode ? "#E4E6EB" : "#6B6593" },
             ]}
           >
             MY CART
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === "favorite" && styles.tabActive]}
+          style={[
+            styles.tab,
+            activeTab === "favorite" && styles.tabActive,
+            activeTab === "favorite" &&
+              (darkMode ? { backgroundColor: "#393A3B" } : styles.tabActive),
+          ]}
           onPress={() => setActiveTab("favorite")}
         >
           <Text
             style={[
               styles.tabText,
               activeTab === "favorite" && styles.tabTextActive,
+              { color: darkMode ? "#E4E6EB" : "#6B6593" },
             ]}
           >
             MY FAVORITE
@@ -177,7 +235,7 @@ export default function MyCartScreen({ navigation }) {
             <Text
               style={{
                 textAlign: "center",
-                color: "#6B6593",
+                color: darkMode ? "#B0B3B8" : "#6B6593",
                 marginTop: 16,
                 fontFamily: "serif",
               }}
@@ -186,11 +244,32 @@ export default function MyCartScreen({ navigation }) {
             </Text>
           )}
       </ScrollView>
-      {activeTab === "cart" && selectedIds.length > 0 && (
-        <View style={styles.bottomBar}>
-          <Text style={styles.totalText}>TOTAL: ₱{total.toLocaleString()}</Text>
-          <TouchableOpacity style={styles.buyNowBarBtn}>
-            <Text style={styles.buyNowBarText}>BUY NOW</Text>
+      {selectedIds.length > 0 && (
+        <View
+          style={[
+            styles.bottomBar,
+            { backgroundColor: darkMode ? "#393A3B" : "#6B6593" },
+          ]}
+        >
+          <Text
+            style={[styles.totalText, { color: darkMode ? "#fff" : "#fff" }]}
+          >
+            TOTAL: ₱{total.toLocaleString()}
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.buyNowBarBtn,
+              { backgroundColor: darkMode ? "#6B6593" : "#B6B3C6" },
+            ]}
+          >
+            <Text
+              style={[
+                styles.buyNowBarText,
+                { color: darkMode ? "#fff" : "#fff" },
+              ]}
+            >
+              BUY NOW
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -201,11 +280,9 @@ export default function MyCartScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#F5F4FA",
   },
   tabRow: {
     flexDirection: "row",
-    backgroundColor: "#EDECF3",
     marginHorizontal: 10,
     marginTop: 10,
     borderRadius: 8,
@@ -221,7 +298,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   tabText: {
-    fontSize: 22,
+    fontSize: 16,
     color: "#6B6593",
     fontFamily: "serif",
     letterSpacing: 1,
@@ -349,7 +426,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#6B6593",
     paddingVertical: 18,
     paddingHorizontal: 24,
     borderTopLeftRadius: 8,

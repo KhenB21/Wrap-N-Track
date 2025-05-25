@@ -132,10 +132,10 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
     // Insert new user with profile picture data
-    const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role, profile_picture_data, is_active) VALUES ($1, $2, $3, $4, $5, true) RETURNING user_id, name, email, role',
-      [name, email, passwordHash, role, profilePictureData]
-    );
+    // const result = await pool.query(
+    //   'INSERT INTO users (name, email, password_hash, role, profile_picture_data, is_active) VALUES ($1, $2, $3, $4, $5, true) RETURNING user_id, name, email, role',
+    //   [name, email, passwordHash, role, profilePictureData]
+    // );
 
     const newUser = result.rows[0];
 

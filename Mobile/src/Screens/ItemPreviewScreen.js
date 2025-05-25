@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Dimensions,
   FlatList,
+  Alert,
+  ToastAndroid,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Header from "../Components/Header";
@@ -21,8 +23,20 @@ const { width } = Dimensions.get("window");
 export default function ItemPreviewScreen({ navigation, route }) {
   const [menuVisible, setMenuVisible] = useState(false);
   const { darkMode } = useTheme();
-  const { cartItems, setCartItems } = useCart();
+  const { cartItems, setCartItems, favoriteItems, toggleFavorite } = useCart();
   const product = route.params?.product || {};
+  // Compute the price to display
+  const displayedPrice =
+    product.price ||
+    `₱${Math.floor(Math.random() * 2) === 0 ? "1,499" : "1,900"}`;
+
+  const productWithId = {
+    ...product,
+    id:
+      product.id ||
+      `product-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    price: displayedPrice,
+  };
   const colors = {
     bg: darkMode ? "#18191A" : "#fff",
     card: darkMode ? "#242526" : "#fff",
@@ -45,13 +59,7 @@ export default function ItemPreviewScreen({ navigation, route }) {
     product.image,
   ];
   const handleAddToCart = () => {
-    let productToAdd = { ...product };
-    if (!productToAdd.id) {
-      // Generate a unique id if missing
-      productToAdd.id = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    }
-    // Always set a valid price string for the cart item
-    productToAdd.price = product.price || "₱1,500";
+    let productToAdd = { ...productWithId };
     const exists = cartItems.find((item) => item.id === productToAdd.id);
     if (exists) {
       setCartItems(
@@ -64,6 +72,7 @@ export default function ItemPreviewScreen({ navigation, route }) {
     } else {
       setCartItems([...cartItems, { ...productToAdd, quantity: 1 }]);
     }
+    ToastAndroid.show("Item added to cart!", ToastAndroid.SHORT);
   };
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
@@ -71,8 +80,7 @@ export default function ItemPreviewScreen({ navigation, route }) {
       <Header
         showMenu
         showCart
-        logoType="text"
-        title={"Pensée\nGifting Studio"}
+        logoType="image"
         onMenuPress={() => setMenuVisible(true)}
         onCartPress={() => {}}
         darkMode={darkMode}
@@ -121,16 +129,29 @@ export default function ItemPreviewScreen({ navigation, route }) {
           </Text>
           <View style={styles.priceRow}>
             <View style={[styles.priceBox, { backgroundColor: colors.price }]}>
-              <Text style={styles.priceText}>
-                {product.price || "₱1,500 - 2,000"}
-              </Text>
+              <Text style={styles.priceText}>{displayedPrice}</Text>
             </View>
-            <TouchableOpacity style={styles.favoriteBtn}>
+            <TouchableOpacity
+              style={styles.favoriteBtn}
+              onPress={() => {
+                toggleFavorite(productWithId);
+                ToastAndroid.show(
+                  "Item added to favorites!",
+                  ToastAndroid.SHORT
+                );
+              }}
+            >
               <Text style={[styles.favoriteText, { color: colors.subText }]}>
                 Add to favorite
               </Text>
               <MaterialCommunityIcons
-                name="heart-outline"
+                name={
+                  favoriteItems.some(
+                    (favItem) => favItem.id === productWithId.id
+                  )
+                    ? "heart"
+                    : "heart-outline"
+                }
                 size={20}
                 color={colors.subText}
               />

@@ -36,8 +36,8 @@ export default function Header({
       <View style={styles.headerCenter}>
         {logoType === "image" ? (
           <Image
-            source={require("../Images/Logo/pensee-logo-with-name-horizontal.png")}
-            style={styles.logo}
+            source={require("../Images/Logo/pensee-name-only-white.png")}
+            style={[styles.logo, { width: 180, height: 60 }]}
             resizeMode="contain"
           />
         ) : (
@@ -80,8 +80,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logo: {
-    width: 120,
-    height: 40,
+    width: 180,
+    height: 60,
     alignSelf: "center",
   },
   logoText: {

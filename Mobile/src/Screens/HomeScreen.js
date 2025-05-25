@@ -107,8 +107,7 @@ export default function HomeScreen() {
       <Header
         showMenu
         showCart
-        logoType="text"
-        title={"Pensée\nGifting Studio"}
+        logoType="image"
         onMenuPress={() => setMenuVisible(true)}
         onCartPress={() => navigation.navigate("MyCart")}
         darkMode={darkMode}
