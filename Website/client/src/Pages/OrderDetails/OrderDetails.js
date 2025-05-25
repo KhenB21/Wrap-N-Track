@@ -200,6 +200,13 @@ const styles = {
   }
 };
 
+function generateOrderId() {
+  // Example: #CO + timestamp + random 3 digits
+  const now = Date.now();
+  const rand = Math.floor(Math.random() * 900) + 100;
+  return `#CO${now}${rand}`;
+}
+
 export default function OrderDetails() {
   const [orders, setOrders] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -413,9 +420,21 @@ const fetchOrderProducts = async (orderId) => {
 
   const handleAddOrder = async () => {
     setForm({
-      order_id: '', name: '', shipped_to: '', order_date: '', expected_delivery: '', status: '',
-      shipping_address: '', total_cost: '0.00', payment_type: '', payment_method: '', account_name: '', remarks: '',
-      telephone: '', cellphone: '', email_address: ''
+      order_id: generateOrderId(), // Generate order ID automatically
+      name: '', 
+      shipped_to: '', 
+      order_date: '', 
+      expected_delivery: '', 
+      status: '',
+      shipping_address: '', 
+      total_cost: '0.00', 
+      payment_type: '', 
+      payment_method: '', 
+      account_name: '', 
+      remarks: '',
+      telephone: '', 
+      cellphone: '', 
+      email_address: ''
     });
     setProductSelection({});
     setProfitMargins({});
@@ -797,7 +816,16 @@ const fetchOrderProducts = async (orderId) => {
                 {/* Left: Order Details */}
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order ID<input name="order_id" value={form.order_id} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>
+                      Order ID
+                      <input 
+                        name="order_id" 
+                        value={form.order_id} 
+                        readOnly 
+                        className="modal-input" 
+                        style={{backgroundColor: '#f8f9fa'}}
+                      />
+                    </label>
                     <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Name<input name="name" value={form.name} onChange={handleFormChange} required className="modal-input" /></label>
                     <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Status
                       <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">

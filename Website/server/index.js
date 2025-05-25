@@ -86,13 +86,73 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+// Add this test endpoint before the registration endpoint
+app.get('/api/test/roles', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT conname, pg_get_constraintdef(oid) 
+      FROM pg_constraint 
+      WHERE conrelid = 'users'::regclass 
+      AND conname = 'users_role_check'
+    `);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error checking constraint:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add this before the registration endpoint
+app.post('/api/fix-role-constraint', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // First, update any existing rows with invalid roles to 'director'
+    await client.query(`
+      UPDATE users 
+      SET role = 'director' 
+      WHERE role NOT IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer')
+    `);
+    
+    // Then update the constraint
+    await client.query(`
+      ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+      ALTER TABLE users ADD CONSTRAINT users_role_check 
+      CHECK (role IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer'));
+    `);
+    
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Role constraint updated successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error updating constraint:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
 // Registration endpoint with file upload (store profile picture in DB)
 app.post('/api/auth/register', upload.single('profilePicture'), async (req, res) => {
+  console.log('Registration request received:', {
+    body: req.body,
+    role: req.body.role,
+    roleType: typeof req.body.role
+  });
+
   const { name, email, password, role } = req.body;
   let profilePictureData = null;
   if (req.file) {
     profilePictureData = req.file.buffer;
   }
+
+  // Convert role to lowercase for validation
+  const roleLower = role.toLowerCase();
+  console.log('Role after conversion:', {
+    original: role,
+    converted: roleLower
+  });
 
   // Validate role
   const validRoles = [
@@ -105,7 +165,13 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
     'packer'
   ];
 
-  if (!validRoles.includes(role)) {
+  console.log('Validating role:', {
+    roleLower,
+    isValid: validRoles.includes(roleLower),
+    validRoles
+  });
+
+  if (!validRoles.includes(roleLower)) {
     return res.status(400).json({
       success: false,
       message: 'Invalid role selected'
@@ -130,10 +196,12 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // Insert new user with profile picture data
+    console.log('Attempting to insert user with role:', roleLower);
+
+    // Insert new user with profile picture data (using lowercase role)
     const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role, profile_picture_data, is_active) VALUES ($1, $2, $3, $4, $5, true) RETURNING user_id, name, email, role',
-      [name, email, passwordHash, role, profilePictureData]
+      'INSERT INTO users (name, email, password_hash, role, profile_picture_data) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email, role',
+      [name, email, passwordHash, roleLower, profilePictureData]
     );
 
     const newUser = result.rows[0];
@@ -164,6 +232,11 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
   } catch (error) {
     console.error('Registration error:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      detail: error.detail
+    });
     // Check for specific database errors
     if (error.code === '23514') { // Check constraint violation
       res.status(400).json({
@@ -184,9 +257,9 @@ app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // Get user from database - only allow active users to login
+    // Get user from database
     const result = await pool.query(
-      'SELECT * FROM users WHERE name = $1 AND is_active = true',
+      'SELECT * FROM users WHERE name = $1',
       [username]
     );
 
@@ -519,20 +592,20 @@ app.delete('/api/users/:user_id', verifyToken, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Forbidden' });
     }
     const { user_id } = req.params;
-    console.log('Attempting to soft delete user:', user_id);
+    console.log('Attempting to delete user:', user_id);
     
-    // Instead of deleting, mark as inactive and set deleted_at timestamp
+    // Actually delete the user
     const result = await pool.query(
-      'UPDATE users SET is_active = false, deleted_at = CURRENT_TIMESTAMP WHERE user_id = $1 RETURNING *',
+      'DELETE FROM users WHERE user_id = $1 RETURNING *',
       [user_id]
     );
     
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    res.json({ success: true, message: 'User deactivated successfully' });
+    res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
-    console.error('Error deactivating user:', error);
+    console.error('Error deleting user:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

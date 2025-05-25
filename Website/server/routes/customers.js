@@ -1,11 +1,41 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
+const { pool } = require('../db');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
+
+// Middleware to verify JWT token
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader) {
+    return res.status(401).json({
+      success: false,
+      message: 'No token provided'
+    });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid token'
+    });
+  }
+};
+
+// Apply authentication middleware to all routes
+router.use(verifyToken);
 
 // Get all customers
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM customer_details ORDER BY user_id');
+    const result = await pool.query('SELECT * FROM customer_details ORDER BY customer_id');
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -13,7 +43,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Add a customer
+// Add a new customer
 router.post('/', async (req, res) => {
   const { name, phone_number, email_address } = req.body;
   
@@ -48,7 +78,7 @@ router.put('/:id', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'UPDATE customer_details SET name = $1, phone_number = $2, email_address = $3 WHERE user_id = $4 RETURNING *',
+      'UPDATE customer_details SET name = $1, phone_number = $2, email_address = $3 WHERE customer_id = $4 RETURNING *',
       [name, phone_number, email_address, id]
     );
 
@@ -72,7 +102,7 @@ router.delete('/:id', async (req, res) => {
   const { id } = req.params;
 
   try {
-    const result = await pool.query('DELETE FROM customer_details WHERE user_id = $1 RETURNING *', [id]);
+    const result = await pool.query('DELETE FROM customer_details WHERE customer_id = $1 RETURNING *', [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Customer not found' });
