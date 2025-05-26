@@ -5,6 +5,34 @@ import "./OrderDetails.css";
 import api from "../../api/axios";
 import config from "../../config";
 import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
+import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
+
+// Add axios interceptor for authentication
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for handling 401 errors
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 const orders = [
   {
@@ -133,17 +161,8 @@ const styles = {
     overflowY: 'auto',
     height: 'calc(100% - 40px)',
     paddingRight: '8px',
-    '&::-webkit-scrollbar': {
-      width: '6px'
-    },
-    '&::-webkit-scrollbar-track': {
-      background: '#f1f1f1',
-      borderRadius: '3px'
-    },
-    '&::-webkit-scrollbar-thumb': {
-      background: '#c1c1c1',
-      borderRadius: '3px'
-    }
+    scrollbarWidth: 'thin',
+    scrollbarColor: '#c1c1c1 #f1f1f1'
   },
   orderCard: {
     background: '#fff',
@@ -200,6 +219,13 @@ const styles = {
   }
 };
 
+// Add this helper function at the top level
+const formatOrderId = (orderId) => {
+  if (!orderId) return null;
+  // Keep the # prefix if it exists, but encode it for URLs
+  return encodeURIComponent(orderId.trim());
+};
+
 export default function OrderDetails() {
   const [orders, setOrders] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -207,13 +233,16 @@ export default function OrderDetails() {
   const [form, setForm] = useState({
     order_id: '', name: '', shipped_to: '', order_date: '', expected_delivery: '', status: '',
     shipping_address: '', total_cost: '0.00', payment_type: '', payment_method: '', account_name: '', remarks: '',
-    telephone: '', cellphone: '', email_address: ''
+    telephone: '', cellphone: '', email_address: '', package_name: '', carlo_products: [], 
+    order_quantity: 0,
+    approximate_budget: 0.00
   });
   const [loading, setLoading] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const selectedOrder = orders.find(o => o.order_id === selectedOrderId);
   const [showProductModal, setShowProductModal] = useState(false);
   const [inventory, setInventory] = useState([]);
+  const [carloProducts, setCarloProducts] = useState([]);
   const [orderProducts, setOrderProducts] = useState([]);
   const [productSelection, setProductSelection] = useState({}); // { sku: quantity }
   const [profitMargins, setProfitMargins] = useState({}); // { sku: margin }
@@ -230,19 +259,65 @@ export default function OrderDetails() {
   const [productDetailsByName, setProductDetailsByName] = useState({}); // { name: { image_data, name } }
   const [loadingProductDetails, setLoadingProductDetails] = useState(false);
   const [orderStockIssues, setOrderStockIssues] = useState({}); // { order_id: [product names] }
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedOrder, setEditedOrder] = useState(null);
 
   useEffect(() => {
     fetchOrders();
   }, []);
 
   useEffect(() => {
-    if (selectedOrderId) fetchOrderProducts(selectedOrderId);
-  }, [selectedOrderId]);
+    if (selectedOrderId) {
+        fetchOrderProducts(selectedOrderId);
+        // If the selected order has package_name "Carlo", set the carloProducts
+        const selectedOrder = orders.find(o => o.order_id === selectedOrderId);
+        if (selectedOrder && selectedOrder.package_name === "Carlo") {
+            // Fetch inventory to get product details for Carlo products
+            axios.get('http://localhost:3001/api/inventory')
+                .then(res => {
+                    const inventoryItems = res.data;
+                    const matchedProducts = defaultProductNames.map(name => {
+                        // Try to find a match using case-insensitive partial matching
+                        const matchingItem = inventoryItems.find(item => 
+                            item.name.toLowerCase().includes(name.toLowerCase()) ||
+                            name.toLowerCase().includes(item.name.toLowerCase())
+                        );
+                        
+                        return matchingItem ? {
+                            name: matchingItem.name,
+                            image_data: matchingItem.image_data,
+                            quantity: selectedOrder.order_quantity,
+                            sku: matchingItem.sku
+                        } : {
+                            name: name,
+                            quantity: selectedOrder.order_quantity
+                        };
+                    });
+                    setCarloProducts(matchedProducts);
+                })
+                .catch(err => {
+                    console.error('Failed to fetch inventory:', err);
+                    // Fallback to just names if inventory fetch fails
+                    setCarloProducts(defaultProductNames.map(name => ({
+                        name: name,
+                        quantity: selectedOrder.order_quantity
+                    })));
+                });
+        } else {
+            setCarloProducts([]);
+        }
+    }
+  }, [selectedOrderId, orders]);
 
   useEffect(() => {
     async function fetchProductDetails() {
-      if (!orderProducts || orderProducts.length === 0) return;
+      if (!orderProducts || orderProducts.length === 0) {
+        console.log("No products to fetch details for");
+        return;
+      }
+
       setLoadingProductDetails(true);
+DREXYLL-chatbot
       const details = { ...productDetailsByName };
       const fetches = orderProducts.map(async (p) => {
         const nameKey = p.name || p.product_name || '';
@@ -257,9 +332,14 @@ export default function OrderDetails() {
       await Promise.all(fetches);
       setProductDetailsByName(details);
       setLoadingProductDetails(false);
+
     }
+
     fetchProductDetails();
-    // eslint-disable-next-line
+  }, [orderProducts]);
+
+  useEffect(() => {
+    console.log("Checking structure of orderProducts after API fetch:", JSON.stringify(orderProducts, null, 2));
   }, [orderProducts]);
 
   // Fetch stock issues for all orders after fetching orders
@@ -282,22 +362,38 @@ export default function OrderDetails() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
+DREXYLL-chatbot
       const res = await api.get('/api/orders');
+
       setOrders(res.data);
     } catch (err) {
-      alert('Failed to fetch orders');
+      console.error('Failed to fetch orders:', err);
+      if (err.response?.status === 401) {
+        window.location.href = '/login';
+      } else {
+        alert('Failed to fetch orders. Please try again later.');
+      }
     }
     setLoading(false);
   };
 
-  const fetchOrderProducts = useCallback(async (orderId) => {
+  const fetchOrderProducts = async (orderId) => {
     try {
+DREXYLL-chatbot
       const res = await api.get(`/api/orders/${orderId}/products`);
       setOrderProducts(res.data);
+
     } catch (err) {
-      setOrderProducts([]);
+      console.error('Failed to fetch order products:', err);
+      if (err.response?.status === 404) {
+        console.log('Order not found:', orderId);
+        setOrderProducts([]);
+      } else {
+        console.error('Error fetching order products:', err.message);
+        setOrderProducts([]);
+      }
     }
-  }, []);
+  };
 
   const handleAddProductToOrder = async () => {
     setProductError("");
@@ -373,34 +469,37 @@ export default function OrderDetails() {
     e.preventDefault();
     setProductError("");
 
-    // Check if at least one product is selected
+    // Filter products that have both quantity and profit margin
     const selectedProducts = Object.entries(productSelection)
-      .filter(([sku, qty]) => Number(qty) > 0)
-      .map(([sku, quantity]) => ({ sku, quantity: Number(quantity) }));
-
-    if (selectedProducts.length === 0) {
-      setProductError("Please select at least one product");
-      return;
-    }
+      .filter(([sku, qty]) => Number(qty) > 0 && Number(profitMargins[sku] || 0) > 0)
+      .map(([sku, quantity]) => ({ 
+        sku, 
+        quantity: Number(quantity),
+        profit_margin: Number(profitMargins[sku])
+      }));
 
     try {
       // Create order with products in a single request
       const orderData = {
         ...form,
-        products: selectedProducts
+        products: selectedProducts,
+        total_cost: calculateTotalCost(productSelection)
       };
 
+DREXYLL-chatbot
       const response = await api.post('/api/orders', orderData);
+
       
       if (response.data.success) {
         setShowModal(false);
         setProductSelection({});
         setProfitMargins({});
-        fetchOrders();
+        fetchOrders(); // Refresh the orders list
       } else {
         setProductError(response.data.message || 'Failed to create order');
       }
     } catch (err) {
+      console.error("Order submission error:", err);
       setProductError(err?.response?.data?.message || 'Failed to create order');
     }
   };
@@ -528,6 +627,90 @@ export default function OrderDetails() {
   const readyToDeliverOrders = orders.filter(order => order.status === 'Ready to ship');
   const enRouteOrders = orders.filter(order => order.status === 'En Route');
   const completedOrders = orders.filter(order => order.status === 'Completed');
+
+  const handleEditDetails = () => {
+    // Format dates to YYYY-MM-DD before setting edited order
+    const formattedOrder = {
+      ...selectedOrder,
+      order_date: selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '',
+      expected_delivery: selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : ''
+    };
+    setEditedOrder(formattedOrder);
+    setIsEditing(true);
+  };
+
+  const handleSaveDetails = async () => {
+    try {
+      if (!editedOrder || !selectedOrder) {
+        alert('No order selected for editing');
+        return;
+      }
+
+      const orderId = formatOrderId(selectedOrder.order_id);
+      if (!orderId) {
+        alert('Invalid order ID');
+        return;
+      }
+
+      // Debug logging
+      console.log('Original order ID:', selectedOrder.order_id);
+      console.log('Formatted order ID:', orderId);
+      console.log('Full order data being sent:', editedOrder);
+
+      // Format dates before sending to server
+      const orderToSave = {
+        ...editedOrder,
+        order_date: editedOrder.order_date ? editedOrder.order_date.split('T')[0] : '',
+        expected_delivery: editedOrder.expected_delivery ? editedOrder.expected_delivery.split('T')[0] : ''
+      };
+
+      console.log('Saving order details for order:', orderId);
+      console.log('Request URL:', `http://localhost:3001/api/orders/${orderId}`);
+      console.log('Request payload:', orderToSave);
+      
+      // Save the changes
+      const saveResponse = await axios.put(
+        `http://localhost:3001/api/orders/${orderId}`, 
+        orderToSave,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      // Refresh both orders and order products
+      await fetchOrders();
+      if (selectedOrderId) {
+        await fetchOrderProducts(selectedOrderId);
+      }
+      
+      setIsEditing(false);
+      alert('Order details updated successfully');
+    } catch (err) {
+      console.error('Save error:', err);
+      console.error('Error details:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        headers: err.response?.headers
+      });
+      
+      if (err.response?.status === 404) {
+        alert(`Order ${selectedOrder.order_id} not found. Please check the order ID format.`);
+      } else {
+        alert(err?.response?.data?.message || 'Failed to update order details. Please try again.');
+      }
+    }
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditedOrder(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   return (
     <div className="dashboard-container">
@@ -726,6 +909,13 @@ export default function OrderDetails() {
                         <option value="Completed">Completed</option>
                         <option value="Invoice">Invoice</option>
                         <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Package Name
+                      <select name="package_name" value={form.package_name} onChange={handleFormChange} required className="modal-input">
+                        <option value="">Select package</option>
+                        <option value="Carlo">Carlo</option>
+                        <option value="Custom">Custom</option>
                       </select>
                     </label>
                     <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
@@ -1094,42 +1284,241 @@ export default function OrderDetails() {
               <button onClick={()=>setSelectedOrderId(null)} className="order-modal-close" style={{position:'absolute',top:18,right:24,fontSize:26,color:'#aaa',background:'none',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'color 0.2s, background 0.2s',zIndex:2}}>&times;</button>
               <div className="order-details-modal-content" style={{display:'flex',flexDirection:'row',width:'100%'}}>
                 <div className="order-details-modal-info-col" style={{flex:1.2,padding:'40px 36px 40px 48px'}}>
-                  <h2 style={{marginBottom:24,fontFamily:'Cormorant Garamond,serif',fontWeight:700,fontSize:32,color:'#2c3e50'}}>Order Details</h2>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24}}>
+                    <h2 style={{fontFamily:'Cormorant Garamond,serif',fontWeight:700,fontSize:32,color:'#2c3e50',margin:0}}>Order Details</h2>
+                    {!isEditing ? (
+                      <button 
+                        onClick={handleEditDetails}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: 6,
+                          border: '1px solid #4a90e2',
+                          background: '#fff',
+                          color: '#4a90e2',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        Edit
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={handleSaveDetails}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: 6,
+                          border: 'none',
+                          background: '#4a90e2',
+                          color: '#fff',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        Save
+                      </button>
+                    )}
+                  </div>
                   {orderStockIssues[selectedOrder.order_id] && orderStockIssues[selectedOrder.order_id].length > 0 && (
                     <div style={{color:'#b94a48',background:'#fff3cd',border:'1px solid #ffeeba',borderRadius:6,padding:'8px 12px',marginBottom:18,fontSize:15}}>
                       ⚠️ Not enough stock for: {orderStockIssues[selectedOrder.order_id].join(', ')}
                     </div>
                   )}
-                  <div style={{marginBottom:12}}><b>Name:</b> {selectedOrder.name}</div>
-                  <div style={{marginBottom:12}}><b>Email Address:</b> {selectedOrder.email_address || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Contact Number:</b> {selectedOrder.cellphone || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Order Quantity:</b> {selectedOrder.orderQuantity || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Approximate Budget per Gift Box:</b> {selectedOrder.budget || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Date of Event:</b> {selectedOrder.expected_delivery || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Shipping Location:</b> {selectedOrder.shipping_address || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Status:</b> {selectedOrder.status}</div>
+                  <div style={{marginBottom:12}}>
+                    <b>Name:</b> {isEditing ? (
+                      <input
+                        type="text"
+                        name="name"
+                        value={editedOrder.name}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.name}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Email Address:</b> {isEditing ? (
+                      <input
+                        type="email"
+                        name="email_address"
+                        value={editedOrder.email_address}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.email_address || '-'}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Contact Number:</b> {isEditing ? (
+                      <input
+                        type="text"
+                        name="cellphone"
+                        value={editedOrder.cellphone}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.cellphone || '-'}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Order Quantity:</b> {isEditing ? (
+                      <input
+                        type="number"
+                        name="order_quantity"
+                        value={editedOrder.order_quantity}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.order_quantity || '-'}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Date of Event:</b> {isEditing ? (
+                      <input
+                        type="date"
+                        name="expected_delivery"
+                        value={editedOrder.expected_delivery ? editedOrder.expected_delivery.split('T')[0] : ''}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : '-'}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Shipping Location:</b> {isEditing ? (
+                      <input
+                        type="text"
+                        name="shipping_address"
+                        value={editedOrder.shipping_address}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.shipping_address || '-'}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Status:</b> {isEditing ? (
+                      <select
+                        name="status"
+                        value={editedOrder.status}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="To be pack">To Be Packed</option>
+                        <option value="Ready to ship">Ready to Deliver</option>
+                      </select>
+                    ) : selectedOrder.status}
+                  </div>
                   <div style={{marginBottom:12}}><b>Order ID:</b> {selectedOrder.order_id}</div>
-                  <div style={{marginBottom:12}}><b>Date Ordered:</b> {selectedOrder.order_date}</div>
+                  <div style={{marginBottom:12}}>
+                    <b>Date Ordered:</b> {isEditing ? (
+                      <input
+                        type="date"
+                        name="order_date"
+                        value={editedOrder.order_date ? editedOrder.order_date.split('T')[0] : ''}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '-'}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Package Name:</b> {isEditing ? (
+                      <select
+                        name="package_name"
+                        value={editedOrder.package_name}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      >
+                        <option value="Carlo">Carlo</option>
+                        <option value="Custom">Custom</option>
+                      </select>
+                    ) : selectedOrder.package_name || '-'}
+                  </div>
                 </div>
+
                 <div className="order-details-modal-products-col" style={{flex:1,background:'#f8f9fa',borderLeft:'1.5px solid #ececec',borderRadius:'0 18px 18px 0',padding:'40px 32px 40px 32px',display:'flex',flexDirection:'column',alignItems:'flex-start',minWidth:220,maxWidth:340}}>
                   <h3 style={{fontSize:22,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50',marginBottom:14,fontWeight:700,letterSpacing:'0.04em',borderBottom:'1.5px solid #ece9e6',paddingBottom:6,width:'100%'}}>What's Inside</h3>
                   {loadingProductDetails ? (
                     <div style={{color:'#888',fontSize:16}}>Loading products...</div>
+                  ) : selectedOrder.package_name === "Carlo" ? (
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
+                      {carloProducts.map((product, idx) => (
+                        <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+                          {product.image_data ? (
+                            <img 
+                              src={`data:image/jpeg;base64,${product.image_data}`} 
+                              alt={product.name} 
+                              style={{ 
+                                width: 48, 
+                                height: 48, 
+                                borderRadius: 8, 
+                                objectFit: 'cover', 
+                                background: '#eee', 
+                                boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
+                              }} 
+                            />
+                          ) : (
+                            <div style={{ 
+                              width: 48, 
+                              height: 48, 
+                              background: '#eee', 
+                              borderRadius: 8, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              color: '#bbb', 
+                              fontSize: 22 
+                            }}>
+                              ?
+                            </div>
+                          )}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
+                              {product.name}
+                            </div>
+                            <div style={{ fontSize: 14, color: '#888' }}>Qty: {product.quantity}</div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   ) : orderProducts && orderProducts.length > 0 ? (
-                    <ul style={{listStyle:'none',padding:0,margin:0,width:'100%'}}>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
                       {orderProducts.map((p, idx) => {
                         const nameKey = p.name || p.product_name || '';
                         const inventoryItem = productDetailsByName[nameKey];
+                        console.log(`Rendering product ${nameKey}:`, inventoryItem);
+
                         return (
-                          <li key={p.sku || nameKey + idx} style={{display:'flex',alignItems:'center',gap:14,marginBottom:18}}>
+                          <li key={p.sku || nameKey + idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
                             {inventoryItem && inventoryItem.image_data ? (
-                              <img src={`data:image/jpeg;base64,${inventoryItem.image_data}`} alt={inventoryItem.name} style={{width:48,height:48,borderRadius:8,objectFit:'cover',background:'#eee',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}} />
+                              <img 
+                                src={`data:image/jpeg;base64,${inventoryItem.image_data}`} 
+                                alt={inventoryItem.name} 
+                                style={{ 
+                                  width: 48, 
+                                  height: 48, 
+                                  borderRadius: 8, 
+                                  objectFit: 'cover', 
+                                  background: '#eee', 
+                                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
+                                }} 
+                              />
                             ) : (
-                              <div style={{width:48,height:48,background:'#eee',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',color:'#bbb',fontSize:22}}>{loadingProductDetails ? <span className="spinner" /> : '?'}</div>
+                              <div style={{ 
+                                width: 48, 
+                                height: 48, 
+                                background: '#eee', 
+                                borderRadius: 8, 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                color: '#bbb', 
+                                fontSize: 22 
+                              }}>
+                                ?
+                              </div>
                             )}
-                            <div style={{flex:1}}>
-                              <div style={{fontWeight:600,fontSize:16,fontFamily:'Lora,serif',color:'#333'}}>{inventoryItem ? inventoryItem.name : nameKey || 'Unknown Product'}</div>
-                              <div style={{fontSize:14,color:'#888'}}>Qty: {p.quantity}</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
+                                {inventoryItem ? inventoryItem.name : nameKey || 'Unknown Product'}
+                              </div>
+                              <div style={{ fontSize: 14, color: '#888' }}>Qty: {p.quantity}</div>
                             </div>
                           </li>
                         );
@@ -1146,4 +1535,4 @@ export default function OrderDetails() {
       </div>
     </div>
   );
-} 
+}

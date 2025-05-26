@@ -11,9 +11,19 @@ function generateOrderId() {
   return `#CO${now}${rand}`;
 }
 
+  // List of default product names
+  export const defaultProductNames = [
+    'Signature box',
+    'Envelope',
+    'Wellsmith sprinkle',
+    'Palapa seasoning',
+    'Wine'
+  ];
+
 export default function CarloPreview() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({
+DREXYLL-chatbot
     name: "",
     email: "",
     contact: "",
@@ -21,6 +31,7 @@ export default function CarloPreview() {
     budget: "",
     eventDate: "",
     shippingLocation: "",
+
   });
   const [inventory, setInventory] = useState([]);
   const [error, setError] = useState("");
@@ -36,11 +47,20 @@ export default function CarloPreview() {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
-  const handleSubmit = async (e) => {
+  
+const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Submit button clicked");
     setError("");
+
+    // Log form data
+    console.log("Form data:", form);
+
+    // Validate order quantity
     const orderQty = Number(form.orderQuantity);
+    console.log("Order Quantity:", orderQty);
     if (!orderQty || orderQty < 1) {
+DREXYLL-chatbot
       setError("Order Quantity must be a positive number.");
       return;
     }
@@ -80,13 +100,23 @@ export default function CarloPreview() {
     if (products.length === 0) {
       setError("No valid products found for this order.");
       return;
+
     }
-    try {
-      const order_id = generateOrderId();
-      const order = {
-        order_id,
+
+    // Create products array with sku and quantity
+    const products = defaultProductNames.map(name => {
+        // Find matching inventory item to get SKU
+        const inventoryItem = inventory.find(item => item.name.toLowerCase() === name.toLowerCase());
+        return {
+            sku: inventoryItem?.sku || null,
+            quantity: orderQty
+        };
+    }).filter(product => product.sku !== null); // Only include products with valid SKUs
+
+    const order = {
+        order_id: generateOrderId(),
         name: form.name,
-        shipped_to: form.name, // Assuming recipient is the same as name
+        shipped_to: form.name,
         order_date: new Date().toISOString().slice(0, 10),
         expected_delivery: form.eventDate,
         status: "Pending",
@@ -99,6 +129,7 @@ export default function CarloPreview() {
         telephone: "",
         cellphone: form.contact,
         email_address: form.email,
+DREXYLL-chatbot
         products,
       };
       await api.post("/api/orders", order);
@@ -135,6 +166,7 @@ export default function CarloPreview() {
       document.body.appendChild(bot);
     }
   }, []);
+
   return (
     <div className="carlo-preview-container">
       <TopbarCustomer />
@@ -221,6 +253,7 @@ export default function CarloPreview() {
                       required
                     />
                   </label>
+DREXYLL-chatbot
                   <label>
                     Approximate Budget per Gift Box
                     <input
@@ -228,6 +261,7 @@ export default function CarloPreview() {
                       value={form.budget}
                       onChange={handleChange}
                     />
+
                   </label>
                   <label>
                     Date of Event*
@@ -248,11 +282,16 @@ export default function CarloPreview() {
                       required
                     />
                   </label>
+                  <label>Package Name*
+                    <input name="packageName" value={form.packageName} required readOnly/>
+                  </label>
                   <div className="order-form-actions">
+DREXYLL-chatbot
                     <button type="submit">Submit</button>
                     <button type="button" onClick={() => setModalOpen(false)}>
                       Cancel
                     </button>
+
                   </div>
                 </form>
               </div>
@@ -291,4 +330,6 @@ export default function CarloPreview() {
       )}
     </div>
   );
+ DREXYLL-chatbot
 }
+
