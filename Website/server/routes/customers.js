@@ -35,10 +35,12 @@ router.use(verifyToken);
 // Get all customers
 router.get('/', async (req, res) => {
   try {
+    console.log('Attempting to fetch customers from database');
     const result = await pool.query('SELECT * FROM customer_details ORDER BY customer_id');
+    console.log('Database query result:', result.rows);
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error('Error fetching customers:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

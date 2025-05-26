@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 import axios from "axios";
 import "./CustomerDetails.css";
+
+const API_BASE_URL = 'http://localhost:3001';
 
 const tabs = ["Overview", "Order History", "Ongoing orders"];
 
@@ -27,7 +29,10 @@ export default function CustomerDetails() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [customerOrders, setCustomerOrders] = useState([]);
+  const [customerOrders, setCustomerOrders] = useState({
+    ongoing: [],
+    completed: []
+  });
   const [editForm, setEditForm] = useState({
     name: '',
     phone_number: '',
@@ -35,6 +40,28 @@ export default function CustomerDetails() {
   });
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+
+  const [orderProducts, setOrderProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  const handleOrderClick = useCallback(async (order) => {
+    setSelectedOrder(order);
+    setShowOrderModal(true);
+    
+    // Fetch products for the order
+    if (order.order_id) {
+      setLoadingProducts(true);
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/orders/${order.order_id}/products`);
+        setOrderProducts(response.data);
+      } catch (error) {
+        console.error('Error fetching order products:', error);
+        setOrderProducts([]);
+      } finally {
+        setLoadingProducts(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetchCustomers();
@@ -59,46 +86,69 @@ export default function CustomerDetails() {
     setFilteredCustomers(filtered);
   }, [customers, searchTerm, selectedCategory]);
 
-  useEffect(() => {
-    if (selectedCustomer) {
-      fetchCustomerOrders(selectedCustomer.customer_id);
-    }
-  }, [selectedCustomer]);
-
   const fetchCustomers = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:3001/api/customers', {
+      if (!token) {
+        console.log('No token found in localStorage');
+        setError('Not authenticated. Please log in.');
+        return;
+      }
+      
+      console.log('Fetching customers with token:', token);
+      const response = await axios.get(`${API_BASE_URL}/api/customers`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
+      console.log('API Response:', response.data);
+      console.log('Number of customers received:', response.data.length);
       setCustomers(response.data);
       setFilteredCustomers(response.data);
       setError(null);
     } catch (error) {
       console.error('Error fetching customers:', error);
-      setError('Failed to load customers. Please try again later.');
+      console.error('Error response:', error.response?.data);
+      setError(error.response?.data?.message || 'Failed to load customers. Please try again later.');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchCustomerOrders = async (customerId) => {
+  const fetchCustomerOrders = useCallback(async (customerId) => {
+    if (!selectedCustomer) {
+      console.log('No customer selected');
+      return;
+    }
+
+    console.log('Fetching orders for customer:', selectedCustomer.name);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:3001/api/orders?customer_id=${customerId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      // Fetch ongoing orders from orders table
+      const ongoingResponse = await axios.get(`${API_BASE_URL}/api/orders/customer/${encodeURIComponent(selectedCustomer.name)}`);
+      console.log('Ongoing orders response:', ongoingResponse.data);
+
+      // Fetch completed orders from order_history table
+      const completedResponse = await axios.get(`${API_BASE_URL}/api/order-history/customer/${encodeURIComponent(selectedCustomer.name)}`);
+      console.log('Completed orders response:', completedResponse.data);
+
+      // Set the orders in state
+      setCustomerOrders({
+        ongoing: ongoingResponse.data,
+        completed: completedResponse.data
       });
-      setCustomerOrders(response.data);
     } catch (error) {
       console.error('Error fetching customer orders:', error);
-      setError('Failed to load customer orders');
+      setError('Failed to fetch customer orders');
     }
-  };
+  }, [selectedCustomer]);
+
+  useEffect(() => {
+    if (selectedCustomer) {
+      console.log('Selected customer changed, fetching orders for:', selectedCustomer.name);
+      fetchCustomerOrders(selectedCustomer.customer_id);
+    }
+  }, [selectedCustomer, fetchCustomerOrders]);
 
   const handleAdd = () => {
     setIsAdding(true);
@@ -253,34 +303,27 @@ export default function CustomerDetails() {
   );
 
   const renderOrderHistory = () => {
-    const completedOrders = customerOrders.filter(order => order.status === 'Completed');
+    if (!customerOrders.completed.length) {
+      return <div className="text-center text-gray-500 mt-4">No order history found</div>;
+    }
+
     return (
-      <div className="details-section">
-        <div className="details-label">Order History</div>
-        {completedOrders.length === 0 ? (
-          <div className="details-row">No completed orders found.</div>
-        ) : (
-          completedOrders.map(order => (
-            <div 
-              key={order.order_id} 
-              className="order-item clickable"
-              onClick={() => {
-                setSelectedOrder(order);
-                setShowOrderModal(true);
-              }}
-            >
-              <div className="order-header">
-                <span className="order-id">Order #{order.order_id}</span>
-                <span className="order-date">{new Date(order.order_date).toLocaleDateString()}</span>
-              </div>
-              <div className="order-details">
-                <div>Status: {order.status}</div>
-                <div>Total: ${order.total_cost}</div>
-                <div>Payment: {order.payment_type}</div>
-              </div>
+      <div className="orders-grid">
+        {customerOrders.completed.map((order) => (
+          <div 
+            key={order.order_id} 
+            className="order-tab"
+            onClick={() => handleOrderClick(order)}
+          >
+            <div className="order-tab-header">
+              <div className="order-id">Order #{order.order_id}</div>
+              <div className="order-status completed">Completed</div>
             </div>
-          ))
-        )}
+            <div className="order-tab-content">
+              <div className="order-total">${order.total_cost}</div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   };
@@ -292,46 +335,72 @@ export default function CustomerDetails() {
       <div className="modal-overlay" onClick={() => setShowOrderModal(false)}>
         <div className="modal-content" onClick={e => e.stopPropagation()}>
           <div className="modal-header">
-            <h2>Order #{selectedOrder.order_id}</h2>
+            <h2 className="text-xl font-bold">Order #{selectedOrder.order_id}</h2>
             <button className="modal-close" onClick={() => setShowOrderModal(false)}>×</button>
           </div>
           <div className="modal-body">
-            <div className="order-info">
-              <div className="info-row">
-                <span>Order Date:</span>
-                <span>{new Date(selectedOrder.order_date).toLocaleDateString()}</span>
-              </div>
-              <div className="info-row">
-                <span>Status:</span>
-                <span>{selectedOrder.status}</span>
-              </div>
-              <div className="info-row">
-                <span>Total Cost:</span>
-                <span>${selectedOrder.total_cost}</span>
-              </div>
-              <div className="info-row">
-                <span>Payment Type:</span>
-                <span>{selectedOrder.payment_type}</span>
-              </div>
-              {selectedOrder.expected_delivery && (
-                <div className="info-row">
-                  <span>Expected Delivery:</span>
-                  <span>{new Date(selectedOrder.expected_delivery).toLocaleDateString()}</span>
+            <div className="modal-section">
+              <h3>Order Details</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p><span className="text-gray-600">Date:</span> {new Date(selectedOrder.order_date).toLocaleDateString()}</p>
+                  <p><span className="text-gray-600">Status:</span> {selectedOrder.status}</p>
+                  <p><span className="text-gray-600">Total Cost:</span> ₱{selectedOrder.total_cost}</p>
+                  <p><span className="text-gray-600">Payment Type:</span> {selectedOrder.payment_type}</p>
+                  {selectedOrder.expected_delivery && (
+                    <p><span className="text-gray-600">Expected Delivery:</span> {new Date(selectedOrder.expected_delivery).toLocaleDateString()}</p>
+                  )}
+                  <p><span className="text-gray-600">Package:</span> {selectedOrder.package_name}</p>
                 </div>
-              )}
+                <div>
+                  <h3>Customer Details</h3>
+                  <p><span className="text-gray-600">Name:</span> {selectedOrder.name}</p>
+                  <p><span className="text-gray-600">Email:</span> {selectedOrder.email_address}</p>
+                  <p><span className="text-gray-600">Phone:</span> {selectedOrder.telephone || selectedOrder.cellphone}</p>
+                  <p><span className="text-gray-600">Shipping Address:</span> {selectedOrder.shipping_address}</p>
+                </div>
+              </div>
             </div>
-            <div className="order-items">
-              <h3>Order Items</h3>
-              {selectedOrder.items?.map((item, index) => (
-                <div key={index} className="order-item-detail">
-                  <div className="item-info">
-                    <span className="item-name">{item.name}</span>
-                    <span className="item-quantity">x{item.quantity}</span>
+
+            <div className="modal-section">
+              <h3>Products</h3>
+              <div className="space-y-2">
+                {loadingProducts ? (
+                  <div className="text-center py-4">Loading products...</div>
+                ) : orderProducts.map((product, index) => (
+                  <div key={index} className="product-item">
+                    <div className="product-image-container">
+                      {product.image_data && (
+                        <img 
+                          src={`data:image/jpeg;base64,${product.image_data}`} 
+                          alt={product.name}
+                          className="w-12 h-12 object-cover rounded"
+                        />
+                      )}
+                    </div>
+                    <div className="product-details">
+                      <div className="product-info">
+                        <span className="product-name">{product.name}</span>
+                        <span className="product-sku">SKU: {product.sku}</span>
+                      </div>
+                      <div className="product-quantity">
+                        <div className="quantity">Qty: {product.quantity || 1}</div>
+                        {product.unit_price && (
+                          <div className="price">₱{product.unit_price} each</div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <span className="item-price">${item.price}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
+            {selectedOrder.remarks && (
+              <div className="modal-section">
+                <h3>Remarks</h3>
+                <p className="text-gray-600">{selectedOrder.remarks}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -339,27 +408,32 @@ export default function CustomerDetails() {
   };
 
   const renderOngoingOrders = () => {
-    const ongoingOrders = customerOrders.filter(order => order.status !== 'Completed');
+    if (!customerOrders.ongoing.length) {
+      return <div className="text-center text-gray-500 mt-4">No ongoing orders found</div>;
+    }
+
     return (
-      <div className="details-section">
-        <div className="details-label">Ongoing Orders</div>
-        {ongoingOrders.length === 0 ? (
-          <div className="details-row">No ongoing orders found.</div>
-        ) : (
-          ongoingOrders.map(order => (
-            <div key={order.order_id} className="order-item">
-              <div className="order-header">
-                <span className="order-id">Order #{order.order_id}</span>
-                <span className="order-date">{new Date(order.order_date).toLocaleDateString()}</span>
-              </div>
-              <div className="order-details">
-                <div>Status: {order.status}</div>
-                <div>Expected Delivery: {new Date(order.expected_delivery).toLocaleDateString()}</div>
-                <div>Total: ${order.total_cost}</div>
+      <div className="orders-grid">
+        {customerOrders.ongoing.map((order) => (
+          <div 
+            key={order.order_id} 
+            className="order-tab"
+            onClick={() => {
+              setSelectedOrder(order);
+              setShowOrderModal(true);
+            }}
+          >
+            <div className="order-tab-header">
+              <div className="order-id">Order {order.order_id}</div>
+              <div className={`order-status ${order.status.toLowerCase().replace(/\s+/g, '-')}`}>
+                {order.status}
               </div>
             </div>
-          ))
-        )}
+            <div className="order-tab-content">
+              <div className="order-total">₱{order.total_cost}</div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   };

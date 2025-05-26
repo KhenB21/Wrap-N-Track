@@ -1,13 +1,13 @@
 const { Pool } = require('pg');
 const WebSocket = require('ws');
-require('dotenv').config();
+require('dotenv').config({ path: __dirname + '/../.env' });
 
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'wrap_n_track',
-  password: process.env.DB_PASSWORD || '123qwe123!', 
-  port: process.env.DB_PORT || 5432,
+  user: 'postgres',
+  host: 'localhost',
+  database: 'WrapNTrack',
+  password: 'iamtheonlyhannah',
+  port: 5432,
 });
 
 // Create a WebSocket server instance

@@ -37,6 +37,18 @@
   width: 180px;
 }
 
+.supplier-details {
+  display: flex;
+  flex-direction: row;
+  width: 100vw;
+  background-color: white;
+}
+
+.supplier-details-main {
+  /* width: 100vw; */
+  padding: 20px;
+}
+
 .supplier-details-layout {
   display: flex;
   gap: 18px;
@@ -76,12 +88,12 @@
   flex: 1;
 }
 .supplier-code {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 0.875rem;
+  color: #6c757d;
 }
 .supplier-name {
-  font-size: 13px;
-  color: #888;
+  font-weight: 500;
+  color: #212529;
 }
 
 .supplier-details-panel {

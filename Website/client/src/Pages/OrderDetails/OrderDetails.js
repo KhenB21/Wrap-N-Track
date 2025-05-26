@@ -6,45 +6,6 @@ import axios from "axios";
 import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
 
-const orders = [
-  {
-    id: 1,
-    name: "Terence Auyong",
-    code: "#CO000002",
-    price: "₱125.00",
-    status: "Invoiced",
-    statusClass: "status-invoiced",
-    selected: true,
-  },
-  {
-    id: 2,
-    name: "Khen Bolima",
-    code: "#CO000002",
-    price: "₱125.00",
-    status: "Packed",
-    statusClass: "status-packed",
-    selected: false,
-  },
-  {
-    id: 3,
-    name: "Reinan Briones",
-    code: "#CO000002",
-    price: "₱315.00",
-    status: "Shipped",
-    statusClass: "status-shipped",
-    selected: false,
-  },
-  {
-    id: 4,
-    name: "Grant Nathan",
-    code: "#CO000002",
-    price: "₱315.00",
-    status: "Complete",
-    statusClass: "status-complete",
-    selected: false,
-  },
-];
-
 function getProfilePictureUrl() {
   const user = JSON.parse(localStorage.getItem('user'));
   if (!user) return "/placeholder-profile.png";
@@ -208,6 +169,10 @@ function generateOrderId() {
 }
 
 export default function OrderDetails() {
+
+
+
+
   const [orders, setOrders] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showMoreModal, setShowMoreModal] = useState(false);
@@ -234,6 +199,33 @@ export default function OrderDetails() {
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [archivingOrder, setArchivingOrder] = useState(false);
   const [showEditProductsModal, setShowEditProductsModal] = useState(false);
+
+  // Delete order: confirm and delete
+  const handleDeleteOrder = async () => {
+    if (!selectedOrder) return;
+    try {
+      const response = await axios.delete(`http://localhost:3001/api/orders/${selectedOrder.order_id}`);
+      if (response.data.success) {
+        setShowDeleteConfirm(false);
+        setSelectedOrderId(null); // Close the order details modal
+        fetchOrders();
+      } else {
+        alert('Failed to delete order: ' + response.data.message);
+      }
+    } catch (err) {
+      console.error('Delete order error:', err);
+      alert('Failed to delete order: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  // Mark as Completed and Archive
+  const handleMarkCompleted = async () => {
+    if (!selectedOrder) return;
+    setShowCompleteConfirm(true);
+    setSelectedOrderId(null); // Close the order details modal
+  };
+
+  
   const [editingProducts, setEditingProducts] = useState({}); // { sku: quantity }
   const [editingProductsError, setEditingProductsError] = useState("");
   const [updatingProducts, setUpdatingProducts] = useState(false);
@@ -241,50 +233,74 @@ export default function OrderDetails() {
   const [loadingProductDetails, setLoadingProductDetails] = useState(false);
   const [orderStockIssues, setOrderStockIssues] = useState({}); // { order_id: [product names] }
 
+  const fetchOrders = async () => {
+    try {
+      const response = await axios.get('http://localhost:3001/api/orders');
+      setOrders(response.data);
+      console.log('Orders fetched successfully:', response.data);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    }
+  };
+
+  const fetchOrderProducts = async (orderId) => {
+    try {
+      const response = await axios.get(`http://localhost:3001/api/orders/${orderId}/products`);
+      setOrderProducts(response.data);
+      console.log('Order products fetched successfully:', response.data);
+    } catch (error) {
+      console.error('Error fetching order products:', error);
+    }
+  };
+
+  // Initialize orders on component mount
   useEffect(() => {
     fetchOrders();
   }, []);
 
+  // Fetch order products when an order is selected
   useEffect(() => {
     if (selectedOrderId) {
-        fetchOrderProducts(selectedOrderId);
-        // If the selected order has package_name "Carlo", set the carloProducts
-        const selectedOrder = orders.find(o => o.order_id === selectedOrderId);
-        if (selectedOrder && selectedOrder.package_name === "Carlo") {
-            // Fetch inventory to get product details for Carlo products
-            axios.get('http://localhost:3001/api/inventory')
-                .then(res => {
-                    const inventoryItems = res.data;
-                    const matchedProducts = defaultProductNames.map(name => {
-                        // Try to find a match using case-insensitive partial matching
-                        const matchingItem = inventoryItems.find(item => 
-                            item.name.toLowerCase().includes(name.toLowerCase()) ||
-                            name.toLowerCase().includes(item.name.toLowerCase())
-                        );
-                        
-                        return matchingItem ? {
-                            name: matchingItem.name,
-                            image_data: matchingItem.image_data,
-                            quantity: selectedOrder.order_quantity,
-                            sku: matchingItem.sku
-                        } : {
-                            name: name,
-                            quantity: selectedOrder.order_quantity
-                        };
-                    });
-                    setCarloProducts(matchedProducts);
-                })
-                .catch(err => {
-                    console.error('Failed to fetch inventory:', err);
-                    // Fallback to just names if inventory fetch fails
-                    setCarloProducts(defaultProductNames.map(name => ({
-                        name: name,
-                        quantity: selectedOrder.order_quantity
-                    })));
-                });
-        } else {
-            setCarloProducts([]);
-        }
+      fetchOrderProducts(selectedOrderId);
+    }
+  }, [selectedOrderId]);
+
+  // Handle Carlo products when an order is selected
+  useEffect(() => {
+    if (selectedOrderId) {
+      const selectedOrder = orders.find(o => o.order_id === selectedOrderId);
+      if (selectedOrder && selectedOrder.package_name === "Carlo") {
+        axios.get('http://localhost:3001/api/inventory')
+          .then(res => {
+            const inventoryItems = res.data;
+            const matchedProducts = defaultProductNames.map(name => {
+              const matchingItem = inventoryItems.find(item => 
+                item.name.toLowerCase().includes(name.toLowerCase()) ||
+                name.toLowerCase().includes(item.name.toLowerCase())
+              );
+              
+              return matchingItem ? {
+                name: matchingItem.name,
+                image_data: matchingItem.image_data,
+                quantity: selectedOrder.order_quantity,
+                sku: matchingItem.sku
+              } : {
+                name: name,
+                quantity: selectedOrder.order_quantity
+              };
+            });
+            setCarloProducts(matchedProducts);
+          })
+          .catch(err => {
+            console.error('Failed to fetch inventory:', err);
+            setCarloProducts(defaultProductNames.map(name => ({
+              name: name,
+              quantity: selectedOrder.order_quantity
+            })))
+          });
+      } else {
+        setCarloProducts([]);
+      }
     }
   }, [selectedOrderId, orders]);
 
@@ -361,27 +377,7 @@ useEffect(() => {
     fetchStockIssues();
   }, [orders]);
 
-  const fetchOrders = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get('http://localhost:3001/api/orders');
-      setOrders(res.data);
-    } catch (err) {
-      alert('Failed to fetch orders');
-    }
-    setLoading(false);
-  };
 
-const fetchOrderProducts = async (orderId) => {
-    try {
-        const res = await axios.get(`http://localhost:3001/api/orders/${orderId}?includeProducts=true`);
-        setOrderProducts(res.data.products || []);
-        console.log("Final orderProducts:", JSON.stringify(res.data.products, null, 2));
-        console.log("API Order Response:", JSON.stringify(res.data, null, 2));
-    } catch (err) {
-        setOrderProducts([]);
-    }
-};
 
 
   const handleAddProductToOrder = async () => {
@@ -473,11 +469,20 @@ const fetchOrderProducts = async (orderId) => {
     // Filter products that have both quantity and profit margin
     const selectedProducts = Object.entries(productSelection)
       .filter(([sku, qty]) => Number(qty) > 0 && Number(profitMargins[sku] || 0) > 0)
-      .map(([sku, quantity]) => ({ 
-        sku, 
-        quantity: Number(quantity),
-        profit_margin: Number(profitMargins[sku])
-      }));
+      .map(([sku, quantity]) => {
+        const inventoryItem = inventory.find(item => item.sku === sku);
+        return {
+          sku,
+          name: inventoryItem?.name || '',
+          quantity: Number(quantity),
+          profit_margin: Number(profitMargins[sku])
+        };
+      });
+
+    if (selectedProducts.length === 0) {
+      setProductError("Please select at least one product with quantity and profit margin");
+      return;
+    }
 
     try {
       // Create order with products in a single request
@@ -508,40 +513,101 @@ const fetchOrderProducts = async (orderId) => {
   // Edit order: open modal with selected order's data
   const handleEditOrder = () => {
     if (!selectedOrder) return;
-    setForm({ ...selectedOrder });
+    // Preserve the dates in the correct format
+    const orderData = {
+      ...selectedOrder,
+      order_date: selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '',
+      expected_delivery: selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : ''
+    };
+    setForm(orderData);
     setShowEditModal(true);
+    setSelectedOrderId(null); // Close the order details modal
   };
 
   // Save edited order
   const handleEditOrderSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`http://localhost:3001/api/orders/${form.order_id}`, form);
+      // Only send the fields that can be edited
+      const orderData = {
+        order_id: form.order_id,
+        name: form.name,
+        shipped_to: form.shipped_to,
+        order_date: form.order_date,
+        expected_delivery: form.expected_delivery,
+        status: form.status,
+        shipping_address: form.shipping_address,
+        total_cost: form.total_cost,
+        payment_type: form.payment_type,
+        payment_method: form.payment_method,
+        account_name: form.account_name,
+        remarks: form.remarks,
+        telephone: form.telephone,
+        cellphone: form.cellphone,
+        email_address: form.email_address,
+        package_name: form.package_name,
+        order_quantity: form.order_quantity,
+        approximate_budget: form.approximate_budget
+      };
+
+      console.log("Updating order with ID:", form.order_id);
+      console.log("Order data being sent:", orderData);
+
+      const response = await axios.put(`http://localhost:3001/api/orders/${encodeURIComponent(form.order_id)}`, orderData);
+      
+      if (response.data.success) {
+        // Only archive if the order is being marked as completed for the first time
+        if (form.status === 'Completed' && selectedOrder?.status !== 'Completed') {
+          try {
+            // Add a small delay to ensure the update is processed
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Get the token from localStorage
+            const token = localStorage.getItem('token');
+            if (!token) {
+              alert('Please log in to complete this action');
+              return;
+            }
+
+            // Archive the order
+            await axios.post(
+              `http://localhost:3001/api/orders/${encodeURIComponent(form.order_id)}/archive`,
+              {},
+              {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              }
+            );
+          } catch (archiveErr) {
+            console.error('Error archiving order:', archiveErr);
+            alert('Order status was updated but failed to archive: ' + (archiveErr.response?.data?.message || archiveErr.message));
+          }
+        } else if (form.status === 'Completed' && selectedOrder?.status === 'Completed') {
+          console.log('Order is already completed, no need to archive again');
+        }
+      } else {
+        alert('Failed to update order: ' + response.data.message);
+      }
+    } catch (err) {
+      console.error('Update order error:', err);
+      if (err.response) {
+        console.error('Error response:', err.response.data);
+        alert('Failed to update order: ' + (err.response.data.message || err.message));
+      } else {
+        alert('Failed to update order: ' + err.message);
+      }
+    } finally {
       setShowEditModal(false);
       fetchOrders();
-    } catch (err) {
-      alert('Failed to update order');
+      // Refresh the order products if an order is selected
+      if (selectedOrderId) {
+        fetchOrderProducts(selectedOrderId);
+      }
     }
   };
 
-  // Delete order: confirm and delete
-  const handleDeleteOrder = async () => {
-    if (!selectedOrder) return;
-    try {
-      await axios.delete(`http://localhost:3001/api/orders/${selectedOrder.order_id}`);
-      setShowDeleteConfirm(false);
-      setSelectedOrderId(null);
-      fetchOrders();
-    } catch (err) {
-      alert('Failed to delete order');
-    }
-  };
 
-  // Mark as Completed and Archive
-  const handleMarkCompleted = async () => {
-    if (!selectedOrder) return;
-    setShowCompleteConfirm(true);
-  };
 
   const handleCompleteConfirm = async () => {
     if (!selectedOrder) return;
@@ -551,6 +617,23 @@ const fetchOrderProducts = async (orderId) => {
       if (!token) {
         alert('Please log in to complete this action');
         return;
+      }
+
+      // First check if we have enough stock for all products
+      const insufficientStock = [];
+      for (const product of orderProducts) {
+        const inventoryItem = inventory.find(i => i.sku === product.sku);
+        if (inventoryItem && inventoryItem.quantity < product.quantity) {
+          insufficientStock.push(product.name);
+        }
+      }
+
+      if (insufficientStock.length > 0) {
+        setOrderStockIssues(prev => ({
+          ...prev,
+          [selectedOrder.order_id]: insufficientStock
+        }));
+        throw new Error(`Not enough stock for: ${insufficientStock.join(', ')}`);
       }
 
       // First mark as completed
@@ -565,23 +648,30 @@ const fetchOrderProducts = async (orderId) => {
       
       // Then archive the order
       setArchivingOrder(true);
-      await axios.post(
-        `http://localhost:3001/api/orders/${selectedOrder.order_id}/archive`,
-        {},
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
+      try {
+        await axios.post(
+          `http://localhost:3001/api/orders/${selectedOrder.order_id}/archive`,
+          {},
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
           }
-        }
-      );
-      
-      setShowCompleteConfirm(false);
-      setSelectedOrderId(null);
-      fetchOrders();
+        );
+        
+        setShowCompleteConfirm(false);
+        setSelectedOrderId(null);
+        fetchOrders();
+      } catch (archiveErr) {
+        console.error('Error archiving order:', archiveErr);
+        alert('Failed to archive order: ' + (archiveErr.response?.data?.message || archiveErr.message));
+      }
     } catch (err) {
-      alert(err?.response?.data?.message || 'Failed to complete and archive order');
+      console.error('Error completing order:', err);
+      alert('Failed to complete order: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setArchivingOrder(false);
     }
-    setArchivingOrder(false);
   };
 
   const handleEditProducts = () => {
@@ -622,9 +712,12 @@ const fetchOrderProducts = async (orderId) => {
     }
   };
 
-  // Filter orders by status
+  // Filter orders by status with proper mapping
   const pendingOrders = orders.filter(order => order.status === 'Pending');
-  const toBePackOrders = orders.filter(order => order.status === 'To be pack');
+  const toBePackOrders = orders.filter(order => 
+    order.status === 'To be pack' || 
+    !['Pending', 'Ready to ship', 'En Route', 'Completed'].includes(order.status)
+  );
   const readyToDeliverOrders = orders.filter(order => order.status === 'Ready to ship');
   const enRouteOrders = orders.filter(order => order.status === 'En Route');
   const completedOrders = orders.filter(order => order.status === 'Completed');
@@ -673,11 +766,6 @@ const fetchOrderProducts = async (orderId) => {
                     <span>{order.order_id}</span>
                     <span>₱{Number(order.total_cost).toLocaleString()}</span>
                   </div>
-                  {orderStockIssues[order.order_id] && orderStockIssues[order.order_id].length > 0 && (
-                    <div style={{color:'#b94a48',background:'#fff3cd',border:'1px solid #ffeeba',borderRadius:6,padding:'6px 10px',marginTop:8,fontSize:13}}>
-                      ⚠️ Not enough stock for: {orderStockIssues[order.order_id].join(', ')}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -709,7 +797,7 @@ const fetchOrderProducts = async (orderId) => {
           {/* Ready to Deliver Column */}
           <div style={styles.column}>
             <div style={styles.columnHeader}>
-              <h3 style={styles.columnTitle}>Ready to Deliver</h3>
+              <h3 style={styles.columnTitle}>Ready for Deliver</h3>
               <span style={styles.orderCount}>{readyToDeliverOrders.length}</span>
             </div>
             <div style={styles.orderList}>
@@ -830,8 +918,10 @@ const fetchOrderProducts = async (orderId) => {
                     <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Status
                       <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">
                         <option value="">Select status</option>
+                        <option value="Pending">Pending</option>
                         <option value="To be pack">To be pack</option>
                         <option value="Ready to ship">Ready to ship</option>
+                        <option value="En Route">En Route</option>
                         <option value="Completed">Completed</option>
                         <option value="Invoice">Invoice</option>
                         <option value="Cancelled">Cancelled</option>
@@ -1059,8 +1149,10 @@ const fetchOrderProducts = async (orderId) => {
                   <label style={{fontWeight:500}}>Status
                     <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">
                       <option value="">Select status</option>
+                      <option value="Pending">Pending</option>
                       <option value="To be pack">To be pack</option>
                       <option value="Ready to ship">Ready to ship</option>
+                      <option value="En Route">En Route</option>
                       <option value="Completed">Completed</option>
                       <option value="Invoice">Invoice</option>
                       <option value="Cancelled">Cancelled</option>
@@ -1171,8 +1263,20 @@ const fetchOrderProducts = async (orderId) => {
               <h2 style={{marginBottom:20}}>Delete Order</h2>
               <div style={{marginBottom:18}}>Are you sure you want to delete this order?</div>
               <div style={{display:'flex',justifyContent:'flex-end',gap:10}}>
-                <button type="button" onClick={()=>setShowDeleteConfirm(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}>Cancel</button>
-                <button type="button" onClick={handleDeleteOrder} style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#e74c3c',color:'#fff',fontWeight:600,cursor:'pointer'}}>Delete</button>
+                <button 
+                  type="button" 
+                  onClick={() => setShowDeleteConfirm(false)} 
+                  style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  onClick={handleDeleteOrder} 
+                  style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#e74c3c',color:'#fff',fontWeight:600,cursor:'pointer'}}
+                >
+                  Delete
+                </button>
               </div>
             </div>
           </div>
@@ -1227,13 +1331,70 @@ const fetchOrderProducts = async (orderId) => {
                   <div style={{marginBottom:12}}><b>Order ID:</b> {selectedOrder.order_id}</div>
                   <div style={{marginBottom:12}}><b>Date Ordered:</b> {selectedOrder.order_date}</div>
                   <div style={{marginBottom:12}}><b>Package Name:</b> {selectedOrder.package_name || '-'}</div>
+                  
+                  {/* Action Buttons */}
+                  <div style={{display:'flex',gap:10,marginTop:24}}>
+                    <button 
+                      onClick={handleEditOrder}
+                      style={{
+                        padding:'7px 18px',
+                        borderRadius:6,
+                        border:'none',
+                        background:'#6c63ff',
+                        color:'#fff',
+                        fontWeight:600,
+                        cursor:'pointer',
+                        display:'flex',
+                        alignItems:'center',
+                        gap:6
+                      }}
+                    >
+                      <FaEdit /> Edit Order
+                    </button>
+                    <button 
+                      onClick={() => setShowDeleteConfirm(true)}
+                      style={{
+                        padding:'7px 18px',
+                        borderRadius:6,
+                        border:'1px solid #e74c3c',
+                        background:'#fff',
+                        color:'#e74c3c',
+                        fontWeight:600,
+                        cursor:'pointer',
+                        display:'flex',
+                        alignItems:'center',
+                        gap:6
+                      }}
+                    >
+                      <FaTrash /> Delete
+                    </button>
+                    {selectedOrder.status !== 'Completed' && (
+                      <button 
+                        onClick={handleMarkCompleted}
+                        style={{
+                          padding:'7px 18px',
+                          borderRadius:6,
+                          border:'none',
+                          background:'#27ae60',
+                          color:'#fff',
+                          fontWeight:600,
+                          cursor:'pointer',
+                          display:'flex',
+                          alignItems:'center',
+                          gap:6
+                        }}
+                      >
+                        <FaCheckCircle /> Complete
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="order-details-modal-products-col" style={{flex:1,background:'#f8f9fa',borderLeft:'1.5px solid #ececec',borderRadius:'0 18px 18px 0',padding:'40px 32px 40px 32px',display:'flex',flexDirection:'column',alignItems:'flex-start',minWidth:220,maxWidth:340}}>
                   <h3 style={{fontSize:22,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50',marginBottom:14,fontWeight:700,letterSpacing:'0.04em',borderBottom:'1.5px solid #ece9e6',paddingBottom:6,width:'100%'}}>What's Inside</h3>
                   {loadingProductDetails ? (
                     <div style={{color:'#888',fontSize:16}}>Loading products...</div>
-                  ) : selectedOrder.package_name === "Carlo" ? (
+                  ) : selectedOrder.package_name === "Carlo" && carloProducts.length > 0 ? (
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
                       {carloProducts.map((product, idx) => (
                         <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
@@ -1277,12 +1438,9 @@ const fetchOrderProducts = async (orderId) => {
                   ) : orderProducts && orderProducts.length > 0 ? (
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
                       {orderProducts.map((p, idx) => {
-                        const nameKey = p.name || p.product_name || '';
-                        const inventoryItem = productDetailsByName[nameKey];
-                        console.log(`Rendering product ${nameKey}:`, inventoryItem);
-
+                        const inventoryItem = inventory.find(item => item.sku === p.sku);
                         return (
-                          <li key={p.sku || nameKey + idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+                          <li key={p.sku || idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
                             {inventoryItem && inventoryItem.image_data ? (
                               <img 
                                 src={`data:image/jpeg;base64,${inventoryItem.image_data}`} 
@@ -1313,9 +1471,12 @@ const fetchOrderProducts = async (orderId) => {
                             )}
                             <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
-                                {inventoryItem ? inventoryItem.name : nameKey || 'Unknown Product'}
+                                {p.name || inventoryItem?.name || 'Unknown Product'}
                               </div>
-                              <div style={{ fontSize: 14, color: '#888' }}>Qty: {p.quantity}</div>
+                              <div style={{ fontSize: 14, color: '#888' }}>
+                                Qty: {p.quantity}
+                                {p.profit_margin && <span style={{ marginLeft: 8 }}>({p.profit_margin}% margin)</span>}
+                              </div>
                             </div>
                           </li>
                         );
