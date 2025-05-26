@@ -4,6 +4,8 @@ import AddProductModal from './AddProductModal';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import { useNavigate } from 'react-router-dom';
+import api from "../../api/axios";
+import config from "../../config";
 
 export default function Inventory() {
   const [products, setProducts] = useState([]);
@@ -12,19 +14,21 @@ export default function Inventory() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   // Fetch products from backend
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/inventory');
-      const data = await res.json();
-      setProducts(data);
+      const res = await api.get('/api/inventory');
+      setProducts(res.data);
     } catch (err) {
-      setProducts([]);
+      console.error('Error fetching inventory:', err);
+      setError('Failed to load inventory');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -33,31 +37,14 @@ export default function Inventory() {
 
   const handleAddProduct = async (formData) => {
     try {
-      console.log('Sending request to add product...');
-      const response = await fetch('http://localhost:3001/api/inventory', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      // Check if response is JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server returned non-JSON response');
+      const response = await api.post('/api/inventory', formData);
+      if (response.data.success) {
+        setShowModal(false);
+        fetchProducts();
       }
-      
-      const data = await response.json();
-      console.log('Server response:', data);
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to add product');
-      }
-      
-      console.log('Product added successfully, refreshing list...');
-      await fetchProducts();
-      setShowModal(false);
     } catch (err) {
       console.error('Error adding product:', err);
-      alert(err.message || 'Failed to add product. Please try again.');
+      setError('Failed to add product');
     }
   };
 
@@ -68,23 +55,14 @@ export default function Inventory() {
 
   const handleEditSubmit = async (formData) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/inventory/${selectedProduct.sku}`, {
-        method: 'PUT',
-        body: formData,
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to update product');
+      const response = await api.put(`/api/inventory/${selectedProduct.sku}`, formData);
+      if (response.data.success) {
+        setShowEditModal(false);
+        fetchProducts();
       }
-      
-      await fetchProducts();
-      setShowEditModal(false);
-      setSelectedProduct(null);
     } catch (err) {
       console.error('Error updating product:', err);
-      alert(err.message || 'Failed to update product. Please try again.');
+      setError('Failed to update product');
     }
   };
 
@@ -95,21 +73,13 @@ export default function Inventory() {
 
   const handleDeleteConfirm = async () => {
     try {
-      const response = await fetch(`http://localhost:3001/api/inventory/${selectedProduct.sku}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to delete product');
+      const response = await api.delete(`/api/inventory/${selectedProduct.sku}`);
+      if (response.data.success) {
+        fetchProducts();
       }
-      
-      await fetchProducts();
-      setShowDeleteDialog(false);
-      setSelectedProduct(null);
     } catch (err) {
       console.error('Error deleting product:', err);
-      alert(err.message || 'Failed to delete product. Please try again.');
+      setError('Failed to delete product');
     }
   };
 

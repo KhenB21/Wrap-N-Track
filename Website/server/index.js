@@ -32,29 +32,34 @@ app.use((err, req, res, next) => {
 });
 
 // CORS configuration
-app.use(cors({
-  origin: 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-}));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+const allowedOrigins = [
+  // 'http://localhost:3000',
+  'https://wrap-n-track.vercel.app',
+  'https://wrap-n-track-git-main-khenb21s-projects.vercel.app',
+  'https://wrap-n-track.onrender.com'
+];
 
-// Test database connection
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('Error acquiring client', err.stack);
-    console.error('Database connection details:', {
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      port: process.env.DB_PORT || 5432,
-    });
-    process.exit(1);
-  }
-  console.log('Successfully connected to PostgreSQL database');
-  release();
-});
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      console.log('Blocked by CORS:', origin);
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    console.log('Allowed by CORS:', origin);
+    return callback(null, true);
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+DREXYLL-chatbot
+
+
+app.use(express.json());
 
 // Add error handler for pool
 pool.on('error', (err, client) => {

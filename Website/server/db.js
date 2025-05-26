@@ -2,13 +2,49 @@ const { Pool } = require('pg');
 const WebSocket = require('ws');
 require('dotenv').config();
 
+// Debug: Log the database URL (with password masked)
+const dbUrl = process.env.DATABASE_URL;
+console.log('Database URL:', dbUrl ? 'Present' : 'Missing');
+console.log('Database Host:', process.env.DB_HOST || 'Not set');
+
+// Parse and log connection details (safely)
+if (dbUrl) {
+  try {
+    const url = new URL(dbUrl);
+    console.log('Connection details:', {
+      protocol: url.protocol,
+      hostname: url.hostname,
+      port: url.port,
+      database: url.pathname.split('/')[1],
+      user: url.username
+    });
+  } catch (err) {
+    console.error('Error parsing DATABASE_URL:', err.message);
+  }
+}
+
+if (!dbUrl) {
+  console.error('DATABASE_URL environment variable is not set!');
+  process.exit(1);
+}
+
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'wrap_n_track',
-  password: process.env.DB_PASSWORD || '123qwe123!', 
-  port: process.env.DB_PORT || 5432,
+  connectionString: dbUrl,
+  ssl: {
+    rejectUnauthorized: false // Required for Render's PostgreSQL
+  }
 });
+
+// Test the connection immediately
+pool.connect()
+  .then(client => {
+    console.log('Successfully connected to PostgreSQL database');
+    client.release();
+  })
+  .catch(err => {
+    console.error('Error connecting to PostgreSQL database:', err);
+    process.exit(1);
+  });
 
 // Create a WebSocket server instance
 const wss = new WebSocket.Server({ noServer: true });

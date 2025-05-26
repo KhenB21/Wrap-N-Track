@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 import "./OrderDetails.css";
-import axios from "axios";
+import api from "../../api/axios";
+import config from "../../config";
 import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
 
@@ -80,7 +81,7 @@ function getProfilePictureUrl() {
   }
   if (user.profile_picture_path) {
     if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
-    return `http://localhost:3001${user.profile_picture_path}`;
+    return `${config.API_URL}${user.profile_picture_path}`;
   }
   return "/placeholder-profile.png";
 }
@@ -316,38 +317,22 @@ export default function OrderDetails() {
       }
 
       setLoadingProductDetails(true);
-      console.log("Fetching product details for", orderProducts.length, "products");
+DREXYLL-chatbot
+      const details = { ...productDetailsByName };
+      const fetches = orderProducts.map(async (p) => {
+        const nameKey = p.name || p.product_name || '';
+        if (!nameKey || details[nameKey]) return;
+        try {
+          const res = await api.get(`/api/inventory/search?name=${encodeURIComponent(nameKey)}`);
+          details[nameKey] = res.data;
+        } catch (err) {
+          details[nameKey] = null;
+        }
+      });
+      await Promise.all(fetches);
+      setProductDetailsByName(details);
+      setLoadingProductDetails(false);
 
-      try {
-        const inventoryResponse = await axios.get('http://localhost:3001/api/inventory');
-        const allInventoryItems = inventoryResponse.data;
-        
-        const details = { ...productDetailsByName };
-        
-        orderProducts.forEach(p => {
-          const nameKey = p.name || p.product_name || '';
-          if (!nameKey || details[nameKey]) return;
-
-          const matchingItem = allInventoryItems.find(item => 
-            item.name.toLowerCase().includes(nameKey.toLowerCase()) ||
-            nameKey.toLowerCase().includes(item.name.toLowerCase())
-          );
-
-          if (matchingItem) {
-            console.log(`Found matching inventory item for ${nameKey}`);
-            details[nameKey] = matchingItem;
-          } else {
-            console.log(`No matching inventory item found for ${nameKey}`);
-            details[nameKey] = null;
-          }
-        });
-
-        setProductDetailsByName(details);
-      } catch (err) {
-        console.error("Error fetching inventory:", err);
-      } finally {
-        setLoadingProductDetails(false);
-      }
     }
 
     fetchProductDetails();
@@ -377,16 +362,9 @@ export default function OrderDetails() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        window.location.href = '/login';
-        return;
-      }
-      const res = await axios.get('http://localhost:3001/api/orders', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+DREXYLL-chatbot
+      const res = await api.get('/api/orders');
+
       setOrders(res.data);
     } catch (err) {
       console.error('Failed to fetch orders:', err);
@@ -401,23 +379,10 @@ export default function OrderDetails() {
 
   const fetchOrderProducts = async (orderId) => {
     try {
-      const cleanOrderId = formatOrderId(orderId);
-      if (!cleanOrderId) {
-        console.log("Invalid order ID provided");
-        setOrderProducts([]);
-        return;
-      }
+DREXYLL-chatbot
+      const res = await api.get(`/api/orders/${orderId}/products`);
+      setOrderProducts(res.data);
 
-      console.log("Fetching products for order:", cleanOrderId);
-      const res = await axios.get(`http://localhost:3001/api/orders/${cleanOrderId}/products`);
-      
-      if (res.data && Array.isArray(res.data)) {
-        console.log(`Found ${res.data.length} products for order ${cleanOrderId}`);
-        setOrderProducts(res.data);
-      } else {
-        console.log("No products found in response for order:", cleanOrderId);
-        setOrderProducts([]);
-      }
     } catch (err) {
       console.error('Failed to fetch order products:', err);
       if (err.response?.status === 404) {
@@ -442,7 +407,7 @@ export default function OrderDetails() {
       return;
     }
     try {
-      await axios.post(`http://localhost:3001/api/orders/${selectedOrderId}/products`, { products });
+      await api.post(`/api/orders/${selectedOrderId}/products`, { products });
       setShowProductModal(false);
       setProductSelection({});
       fetchOrderProducts(selectedOrderId);
@@ -456,7 +421,7 @@ export default function OrderDetails() {
     setProductError("");
     setProductSelection({});
     try {
-      const res = await axios.get('http://localhost:3001/api/inventory');
+      const res = await api.get('/api/inventory');
       setInventory(res.data);
       setShowProductModal(true);
     } catch (err) {
@@ -474,7 +439,7 @@ export default function OrderDetails() {
     setProfitMargins({});
     setProductError("");
     try {
-      const res = await axios.get('http://localhost:3001/api/inventory');
+      const res = await api.get('/api/inventory');
       setInventory(res.data);
       setShowModal(true);
     } catch (err) {
@@ -521,9 +486,9 @@ export default function OrderDetails() {
         total_cost: calculateTotalCost(productSelection)
       };
 
-      console.log("Submitting order data:", orderData);
+DREXYLL-chatbot
+      const response = await api.post('/api/orders', orderData);
 
-      const response = await axios.post('http://localhost:3001/api/orders', orderData);
       
       if (response.data.success) {
         setShowModal(false);
@@ -550,7 +515,7 @@ export default function OrderDetails() {
   const handleEditOrderSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`http://localhost:3001/api/orders/${form.order_id}`, form);
+      await api.put(`/api/orders/${form.order_id}`, form);
       setShowEditModal(false);
       fetchOrders();
     } catch (err) {
@@ -562,7 +527,7 @@ export default function OrderDetails() {
   const handleDeleteOrder = async () => {
     if (!selectedOrder) return;
     try {
-      await axios.delete(`http://localhost:3001/api/orders/${selectedOrder.order_id}`);
+      await api.delete(`/api/orders/${selectedOrder.order_id}`);
       setShowDeleteConfirm(false);
       setSelectedOrderId(null);
       fetchOrders();
@@ -588,7 +553,7 @@ export default function OrderDetails() {
       }
 
       // First mark as completed
-      await axios.put(`http://localhost:3001/api/orders/${selectedOrder.order_id}`, 
+      await api.put(`/api/orders/${selectedOrder.order_id}`, 
         { ...selectedOrder, status: 'Completed' },
         {
           headers: {
@@ -599,8 +564,8 @@ export default function OrderDetails() {
       
       // Then archive the order
       setArchivingOrder(true);
-      await axios.post(
-        `http://localhost:3001/api/orders/${selectedOrder.order_id}/archive`,
+      await api.post(
+        `/api/orders/${selectedOrder.order_id}/archive`,
         {},
         {
           headers: {
@@ -637,7 +602,7 @@ export default function OrderDetails() {
         .filter(([sku, qty]) => Number(qty) > 0)
         .map(([sku, quantity]) => ({ sku, quantity: Number(quantity) }));
       
-      await axios.put(`http://localhost:3001/api/orders/${selectedOrderId}/products`, { products });
+      await api.put(`/api/orders/${selectedOrderId}/products`, { products });
       setShowEditProductsModal(false);
       fetchOrderProducts(selectedOrderId);
     } catch (err) {
@@ -649,7 +614,7 @@ export default function OrderDetails() {
   const handleRemoveProduct = async (sku) => {
     if (!selectedOrder) return;
     try {
-      await axios.delete(`http://localhost:3001/api/orders/${selectedOrderId}/products/${sku}`);
+      await api.delete(`/api/orders/${selectedOrderId}/products/${sku}`);
       fetchOrderProducts(selectedOrderId);
     } catch (err) {
       alert('Failed to remove product');
