@@ -72,26 +72,41 @@ export default function MyCartScreen({ navigation }) {
   };
 
   const itemCardBg = darkMode ? "#242526" : "#F5F4FA";
+  const accent = darkMode ? "#fff" : "#6B6593";
+  const subText = darkMode ? "#B0B3B8" : "#6B6593";
+  const border = darkMode ? "#393A3B" : "#B6B3C6";
+  const quantityBg = darkMode ? "#242526" : "#F5F4FA";
+  const bottomBarBg = darkMode ? "#393A3B" : "#6B6593";
+  const buyNowBg = darkMode ? "#393A3B" : "#B6B3C6";
+  const radioDot = darkMode ? "#fff" : "#6B6593";
+  const removeBtnBg = darkMode ? "#393A3B" : "#ECECF2";
+  const removeBtnText = darkMode ? "#fff" : "#6B6593";
+  const quantityValueColor = darkMode ? "#fff" : "#6B6593";
 
   const renderItem = (item, isCart) => (
     <View
       key={item.id}
-      style={[styles.itemCard, { backgroundColor: itemCardBg }]}
+      style={[
+        styles.itemCard,
+        { backgroundColor: itemCardBg, borderColor: border },
+      ]}
     >
       <TouchableOpacity
-        style={styles.removeBtn}
+        style={[styles.removeBtn, { backgroundColor: removeBtnBg }]}
         onPress={() => handleRemoveItem(item.id)}
         activeOpacity={0.7}
       >
-        <Text style={styles.removeBtnText}>×</Text>
+        <Text style={[styles.removeBtnText, { color: removeBtnText }]}>×</Text>
       </TouchableOpacity>
       <View style={styles.itemRow}>
         <TouchableOpacity
-          style={styles.radioCircle}
+          style={[styles.radioCircle, { borderColor: border }]}
           onPress={() => handleSelect(item.id)}
           activeOpacity={0.7}
         >
-          {selectedIds.includes(item.id) && <View style={styles.radioDot} />}
+          {selectedIds.includes(item.id) && (
+            <View style={[styles.radioDot, { backgroundColor: radioDot }]} />
+          )}
         </TouchableOpacity>
         <Image source={item.image} style={styles.itemImage} />
         <View style={styles.itemInfo}>
@@ -100,12 +115,7 @@ export default function MyCartScreen({ navigation }) {
           >
             {item.title}
           </Text>
-          <Text
-            style={[
-              styles.itemSubtitle,
-              { color: darkMode ? "#B0B3B8" : "#6B6593" },
-            ]}
-          >
+          <Text style={[styles.itemSubtitle, { color: subText }]}>
             {item.subtitle}
           </Text>
           <Text
@@ -120,8 +130,15 @@ export default function MyCartScreen({ navigation }) {
           </Text>
         </View>
         <View style={styles.quantityBox}>
-          <Text style={styles.quantityLabel}>QUANTITY</Text>
-          <View style={styles.quantitySelectorRow}>
+          <Text style={[styles.quantityLabel, { color: subText }]}>
+            QUANTITY
+          </Text>
+          <View
+            style={[
+              styles.quantitySelectorRow,
+              { backgroundColor: quantityBg, borderColor: border },
+            ]}
+          >
             <TouchableOpacity
               onPress={() =>
                 handleQuantityChange(
@@ -133,9 +150,11 @@ export default function MyCartScreen({ navigation }) {
               style={styles.quantityBtn}
               activeOpacity={0.7}
             >
-              <MaterialCommunityIcons name="minus" size={18} color="#6B6593" />
+              <MaterialCommunityIcons name="minus" size={18} color={accent} />
             </TouchableOpacity>
-            <Text style={styles.quantityValue}>{item.quantity || 1}</Text>
+            <Text style={[styles.quantityValue, { color: quantityValueColor }]}>
+              {item.quantity || 1}
+            </Text>
             <TouchableOpacity
               onPress={() =>
                 handleQuantityChange(item.id, (item.quantity || 1) + 1, isCart)
@@ -143,7 +162,7 @@ export default function MyCartScreen({ navigation }) {
               style={styles.quantityBtn}
               activeOpacity={0.7}
             >
-              <MaterialCommunityIcons name="plus" size={18} color="#6B6593" />
+              <MaterialCommunityIcons name="plus" size={18} color={accent} />
             </TouchableOpacity>
           </View>
         </View>
@@ -245,29 +264,14 @@ export default function MyCartScreen({ navigation }) {
           )}
       </ScrollView>
       {selectedIds.length > 0 && (
-        <View
-          style={[
-            styles.bottomBar,
-            { backgroundColor: darkMode ? "#393A3B" : "#6B6593" },
-          ]}
-        >
-          <Text
-            style={[styles.totalText, { color: darkMode ? "#fff" : "#fff" }]}
-          >
+        <View style={[styles.bottomBar, { backgroundColor: bottomBarBg }]}>
+          <Text style={[styles.totalText, { color: "#fff" }]}>
             TOTAL: ₱{total.toLocaleString()}
           </Text>
           <TouchableOpacity
-            style={[
-              styles.buyNowBarBtn,
-              { backgroundColor: darkMode ? "#6B6593" : "#B6B3C6" },
-            ]}
+            style={[styles.buyNowBarBtn, { backgroundColor: buyNowBg }]}
           >
-            <Text
-              style={[
-                styles.buyNowBarText,
-                { color: darkMode ? "#fff" : "#fff" },
-              ]}
-            >
+            <Text style={[styles.buyNowBarText, { color: "#fff" }]}>
               BUY NOW
             </Text>
           </TouchableOpacity>

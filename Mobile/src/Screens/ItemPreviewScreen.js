@@ -175,6 +175,9 @@ export default function ItemPreviewScreen({ navigation, route }) {
                 styles.actionBtnRight,
                 { backgroundColor: colors.button },
               ]}
+              onPress={() =>
+                navigation.navigate("OrderSummary", { product: productWithId })
+              }
             >
               <Text
                 style={[styles.actionBtnText, { color: colors.buttonText }]}

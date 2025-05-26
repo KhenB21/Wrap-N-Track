@@ -10,7 +10,7 @@ export default function Header({
   onBackPress,
   onCartPress,
   title = "",
-  logoType = "image", // 'image' or 'text'
+  logoType = "image", 
   darkMode = false,
 }) {
   const bgColor = darkMode ? "#242526" : "#6B6593";

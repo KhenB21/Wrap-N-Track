@@ -8,6 +8,7 @@ import SignUpScreen from "./src/Screens/SignUpScreen";
 import HomeScreen from "./src/Screens/HomeScreen";
 import ItemPreviewScreen from "./src/Screens/ItemPreviewScreen";
 import MyCartScreen from "./src/Screens/MyCartScreen";
+import OrderSummaryScreen from "./src/Screens/OrderSummaryScreen";
 import { ThemeProvider } from "./src/Context/ThemeContext";
 import { CartProvider } from "./src/Context/CartContext";
 const Stack = createStackNavigator();
@@ -25,6 +26,10 @@ export default function App() {
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="ItemPreview" component={ItemPreviewScreen} />
               <Stack.Screen name="MyCart" component={MyCartScreen} />
+              <Stack.Screen
+                name="OrderSummary"
+                component={OrderSummaryScreen}
+              />
             </Stack.Navigator>
           </NavigationContainer>
         </CartProvider>
