@@ -274,17 +274,12 @@ export default function OrderDetails() {
   const handleDeleteOrder = async () => {
     if (!selectedOrder) return;
     try {
-      const response = await axios.delete(`http://localhost:3001/api/orders/${selectedOrder.order_id}`);
-      if (response.data.success) {
-        setShowDeleteConfirm(false);
-        setSelectedOrderId(null); // Close the order details modal
-        fetchOrders();
-      } else {
-        alert('Failed to delete order: ' + response.data.message);
-      }
+      await api.delete(`/api/orders/${selectedOrder.order_id}`);
+      setShowDeleteConfirm(false);
+      setSelectedOrderId(null);
+      fetchOrders();
     } catch (err) {
-      console.error('Delete order error:', err);
-      alert('Failed to delete order: ' + (err.response?.data?.message || err.message));
+      alert('Failed to delete order');
     }
   };
 
@@ -306,22 +301,34 @@ export default function OrderDetails() {
   const [editedOrder, setEditedOrder] = useState(null);
 
   const fetchOrders = async () => {
+    setLoading(true);
     try {
-      const response = await axios.get('http://localhost:3001/api/orders');
-      setOrders(response.data);
-      console.log('Orders fetched successfully:', response.data);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
+      const res = await api.get('/api/orders');
+      setOrders(res.data);
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
+      if (err.response?.status === 401) {
+        window.location.href = '/login';
+      } else {
+        alert('Failed to fetch orders. Please try again later.');
+      }
     }
+    setLoading(false);
   };
 
   const fetchOrderProducts = async (orderId) => {
     try {
-      const response = await axios.get(`http://localhost:3001/api/orders/${orderId}/products`);
-      setOrderProducts(response.data);
-      console.log('Order products fetched successfully:', response.data);
-    } catch (error) {
-      console.error('Error fetching order products:', error);
+      const res = await api.get(`/api/orders/${orderId}/products`);
+      setOrderProducts(res.data);
+    } catch (err) {
+      console.error('Failed to fetch order products:', err);
+      if (err.response?.status === 404) {
+        console.log('Order not found:', orderId);
+        setOrderProducts([]);
+      } else {
+        console.error('Error fetching order products:', err.message);
+        setOrderProducts([]);
+      }
     }
   };
 
@@ -425,43 +432,6 @@ export default function OrderDetails() {
   }, [orders]);
 
 
-
-
-  const fetchOrders = async () => {
-    setLoading(true);
-    try {
-
-      const res = await api.get('/api/orders');
-
-      setOrders(res.data);
-    } catch (err) {
-      console.error('Failed to fetch orders:', err);
-      if (err.response?.status === 401) {
-        window.location.href = '/login';
-      } else {
-        alert('Failed to fetch orders. Please try again later.');
-      }
-    }
-    setLoading(false);
-  };
-
-  const fetchOrderProducts = async (orderId) => {
-    try {
-
-      const res = await api.get(`/api/orders/${orderId}/products`);
-      setOrderProducts(res.data);
-
-    } catch (err) {
-      console.error('Failed to fetch order products:', err);
-      if (err.response?.status === 404) {
-        console.log('Order not found:', orderId);
-        setOrderProducts([]);
-      } else {
-        console.error('Error fetching order products:', err.message);
-        setOrderProducts([]);
-      }
-    }
-  };
 
 
   const handleAddProductToOrder = async () => {
@@ -695,21 +665,6 @@ export default function OrderDetails() {
   };
 
 
-  // Delete order: confirm and delete
-  const handleDeleteOrder = async () => {
-    if (!selectedOrder) return;
-    try {
-      await api.delete(`/api/orders/${selectedOrder.order_id}`);
-      setShowDeleteConfirm(false);
-      setSelectedOrderId(null);
-      fetchOrders();
-    } catch (err) {
-      alert('Failed to delete order');
-    }
-  };
-
-
-
   const handleCompleteConfirm = async () => {
     if (!selectedOrder) return;
     try {
@@ -751,21 +706,13 @@ export default function OrderDetails() {
       setArchivingOrder(true);
 
       try {
-        await axios.post(
-          `http://localhost:3001/api/orders/${selectedOrder.order_id}/archive`,
+        await api.post(
+          `/api/orders/${selectedOrder.order_id}/archive`,
           {},
           {
             headers: {
               'Authorization': `Bearer ${token}`
             }
-
-      await api.post(
-        `/api/orders/${selectedOrder.order_id}/archive`,
-        {},
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-
           }
         );
         
@@ -1689,31 +1636,6 @@ export default function OrderDetails() {
                         <FaCheckCircle /> Complete
                       </button>
                     )}
-
-                  <div style={{marginBottom:12}}>
-                    <b>Date Ordered:</b> {isEditing ? (
-                      <input
-                        type="date"
-                        name="order_date"
-                        value={editedOrder.order_date ? editedOrder.order_date.split('T')[0] : ''}
-                        onChange={handleEditChange}
-                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
-                      />
-                    ) : selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '-'}
-                  </div>
-                  <div style={{marginBottom:12}}>
-                    <b>Package Name:</b> {isEditing ? (
-                      <select
-                        name="package_name"
-                        value={editedOrder.package_name}
-                        onChange={handleEditChange}
-                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
-                      >
-                        <option value="Carlo">Carlo</option>
-                        <option value="Custom">Custom</option>
-                      </select>
-                    ) : selectedOrder.package_name || '-'}
-
                   </div>
                 </div>
 

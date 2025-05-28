@@ -1,134 +1,16 @@
-.dashboard-container {
-  display: flex;
-  min-height: 100vh;
-}
+/* Orders styles */
 
-.dashboard-main {
-  flex: 1;
-  background: #f8f9fa;
-  padding: 20px;
-  overflow-y: auto;
-}
-
-.order-filters {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  margin-bottom: 20px;
-  padding: 12px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-}
-
-.order-search {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.order-details-layout {
-  display: flex;
-  gap: 20px;
-  height: calc(100vh - 180px);
-}
-
-.order-list {
-  width: 360px;
-  min-width: 300px;
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-  overflow-y: auto;
-}
-
-.order-list-title {
-  padding: 16px;
-  font-weight: 700;
-  font-size: 16px;
-  letter-spacing: 1px;
-  border-bottom: 1px solid #eee;
-}
-
-.order-list-item {
-  padding: 16px;
-  border-bottom: 1px solid #eee;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.order-list-item:hover {
-  background: #f8f9fa;
-}
-
-.order-list-item.selected {
-  background: #f0f7ff;
-}
-
-.order-info {
-  margin-bottom: 8px;
-}
-
-.order-name {
-  font-weight: 600;
-  font-size: 15px;
-  margin-bottom: 2px;
-}
-
-.order-code {
-  font-size: 13px;
-  color: #888;
-}
-
-.order-price {
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.order-date {
-  font-size: 13px;
-  color: #888;
-  margin-top: 4px;
-}
-
-.order-details-panel {
-  flex: 1;
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-  overflow-y: auto;
-}
-
-.modal-input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  margin-top: 4px;
-}
-
-.modal-input:focus {
-  outline: none;
-  border-color: #6c63ff;
-  box-shadow: 0 0 0 2px rgba(108,99,255,0.1);
-}
-
-/* Order History styles */
-
-/* Dark mode styles for Order History */
-body.dark .order-history-container {
+/* Dark mode styles for Orders */
+body.dark .orders-container {
   background-color: #1a1a1a; /* Dark background */
   color: #e0e0e0; /* Light text */
 }
 
-body.dark .order-history-header h2 {
+body.dark .orders-header h2 {
   color: #e0e0e0;
 }
 
-body.dark .order-filters {
+body.dark .orders-filters {
   /* Adjust filter styles if needed for dark mode */
 }
 
@@ -236,58 +118,55 @@ body.dark .order-details-panel .status-badge {
     color: #ffffff; /* Ensure text is visible */
 }
 
-/* Dark mode for Modals */
-body.dark .modal-overlay {
+body.dark .order-details-panel .modal-overlay {
     background-color: rgba(0, 0, 0, 0.75);
 }
 
-body.dark .modal-content {
+body.dark .order-details-panel .modal-content {
     background-color: #1e1e1e;
     color: #e0e0e0;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
-body.dark .modal-content h3 {
+body.dark .order-details-panel .modal-content h3 {
     color: #e0e0e0;
 }
 
-body.dark .modal-content label {
+body.dark .order-details-panel .modal-content label {
     color: #cccccc;
 }
 
-body.dark .modal-content input[type="text"],
-body.dark .modal-content input[type="number"],
-body.dark .modal-content textarea,
-body.dark .modal-content select {
+body.dark .order-details-panel .modal-content input[type="text"],
+body.dark .order-details-panel .modal-content textarea,
+body.dark .order-details-panel .modal-content select {
   background-color: #2c2c2c;
   color: #e0e0e0;
   border-color: #555555;
 }
 
-body.dark .modal-content input[type="text"]:focus,
-body.dark .modal-content input[type="number"]:focus,
-body.dark .modal-content textarea:focus,
-body.dark .modal-content select:focus {
+body.dark .order-details-panel .modal-content input[type="text"]:focus,
+body.dark .order-details-panel .modal-content textarea:focus,
+body.dark .order-details-panel .modal-content select:focus {
   border-color: #bb86fc;
   box-shadow: 0 0 0 2px rgba(187, 134, 252, 0.25);
 }
 
-body.dark .modal-content .btn-primary {
+body.dark .order-details-panel .modal-content .btn-primary {
     background-color: #0056b3;
     color: #ffffff;
     border: none;
 }
 
-body.dark .modal-content .btn-primary:hover {
+body.dark .order-details-panel .modal-content .btn-primary:hover {
     background-color: #004494;
 }
 
-body.dark .modal-content .btn-secondary {
+body.dark .order-details-panel .modal-content .btn-secondary {
     background-color: #404040;
     color: #e0e0e0;
     border-color: #555555;
 }
 
-body.dark .modal-content .btn-secondary:hover {
+body.dark .order-details-panel .modal-content .btn-secondary:hover {
     background-color: #505050;
 } 

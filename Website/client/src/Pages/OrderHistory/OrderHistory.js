@@ -4,6 +4,7 @@ import TopBar from "../../Components/TopBar";
 import api from "../../api/axios";
 import config from "../../config";
 import "./OrderHistory.css";
+import { useNavigate } from "react-router-dom";
 
 function getProfilePictureUrl() {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -26,6 +27,44 @@ export default function OrderHistory() {
   const [orderProducts, setOrderProducts] = useState([]);
   const selectedOrder = orders.find(o => o.order_id === selectedOrderId);
   const [ws, setWs] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState(null);
+  const [confirmation, setConfirmation] = useState({ open: false, message: '' });
+  const navigate = useNavigate();
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('No authentication token found. Please log in.');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('http://localhost:3001/api/orders', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch orders');
+      }
+
+      const data = await response.json();
+      setOrders(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const newWs = new WebSocket('ws://localhost:3001/ws');
@@ -51,18 +90,6 @@ export default function OrderHistory() {
   }, []);
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const res = await api.get('/api/orders/history');
-        setOrders(res.data);
-      } catch (err) {
-        console.error('Error fetching orders:', err);
-        setError('Failed to load orders');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrders();
   }, []);
 

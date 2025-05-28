@@ -88,12 +88,7 @@ const handleSubmit = async (e) => {
       .filter(Boolean);
 
     if (missingProducts.length > 0) {
-      setError(
-        `The following products are missing from inventory: ${missingProducts.join(
-          ", "
-        )}`
-      );
-      return;
+      console.warn("The following products are missing from inventory and were not included in the order:", missingProducts.join(", "));
     }
     if (products.length === 0) {
       setError("No valid products found for this order.");

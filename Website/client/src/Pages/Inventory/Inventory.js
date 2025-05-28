@@ -3,19 +3,52 @@ import './Inventory.css';
 import AddProductModal from './AddProductModal';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from "../../api/axios";
 import config from "../../config";
 
 export default function Inventory() {
+  const location = useLocation();
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filter, setFilter] = useState('all');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if we have a filter from dashboard navigation
+    if (location.state?.filter) {
+      setFilter(location.state.filter);
+    }
+  }, [location]);
+
+  useEffect(() => {
+    // Apply filtering based on current filter state
+    switch (filter) {
+      case 'low-stock':
+        setFilteredProducts(products.filter(item => Number(item.quantity || 0) <= 300));
+        break;
+      case 'medium-stock':
+        setFilteredProducts(products.filter(item => {
+          const quantity = Number(item.quantity || 0);
+          return quantity > 300 && quantity <= 800;
+        }));
+        break;
+      case 'high-stock':
+        setFilteredProducts(products.filter(item => Number(item.quantity || 0) > 800));
+        break;
+      case 'replenishment':
+        setFilteredProducts(products.filter(item => Number(item.quantity || 0) <= 0));
+        break;
+      default:
+        setFilteredProducts(products);
+    }
+  }, [filter, products]);
 
   // Fetch products from backend
   const fetchProducts = async () => {
@@ -97,6 +130,19 @@ export default function Inventory() {
             <h2>Inventory</h2>
             <button className="add-product-btn" onClick={() => setShowModal(true)}>Add product +</button>
           </div>
+          <div className="inventory-filters">
+            <select 
+              value={filter} 
+              onChange={(e) => setFilter(e.target.value)}
+              className="inventory-filter-select"
+            >
+              <option value="all">All Products</option>
+              <option value="low-stock">Low Stock (≤300)</option>
+              <option value="medium-stock">Medium Stock (301-800)</option>
+              <option value="high-stock">High Stock (>800)</option>
+              <option value="replenishment">Need Replenishment (0)</option>
+            </select>
+          </div>
           {loading ? (
             <div>Loading...</div>
           ) : (
@@ -115,8 +161,17 @@ export default function Inventory() {
                 </tr>
               </thead>
               <tbody>
-                {products.map(product => (
-                  <tr key={product.sku} style={{ cursor: 'pointer' }} onClick={e => { if (e.target.tagName !== 'BUTTON') handleRowClick(product.sku); }}>
+                {filteredProducts.map(product => (
+                  <tr 
+                    key={product.sku} 
+                    style={{ cursor: 'pointer' }} 
+                    onClick={e => { if (e.target.tagName !== 'BUTTON') handleRowClick(product.sku); }}
+                    className={
+                      Number(product.quantity || 0) <= 300 ? 'low-stock-row' :
+                      Number(product.quantity || 0) > 800 ? 'high-stock-row' :
+                      'medium-stock-row'
+                    }
+                  >
                     <td>
                       {product.image_data ? (
                         <img 
