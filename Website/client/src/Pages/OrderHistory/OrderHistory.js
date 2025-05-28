@@ -25,6 +25,30 @@ export default function OrderHistory() {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [orderProducts, setOrderProducts] = useState([]);
   const selectedOrder = orders.find(o => o.order_id === selectedOrderId);
+  const [ws, setWs] = useState(null);
+
+  useEffect(() => {
+    const newWs = new WebSocket('ws://localhost:3001/ws');
+    setWs(newWs);
+
+    newWs.onopen = () => {
+      console.log('WebSocket connected');
+    };
+
+    newWs.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'order-archived') {
+        // Fetch updated order history when an order is archived
+        fetchOrders();
+      }
+    };
+
+    return () => {
+      if (newWs) {
+        newWs.close();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const fetchOrders = async () => {

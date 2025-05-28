@@ -1,6 +1,6 @@
 const { Pool } = require('pg');
 const WebSocket = require('ws');
-require('dotenv').config();
+require('dotenv').config({ path: __dirname + '/../.env' });
 
 // Debug: Log the database URL (with password masked)
 const dbUrl = process.env.DATABASE_URL;
@@ -29,6 +29,7 @@ if (!dbUrl) {
 }
 
 const pool = new Pool({
+
   connectionString: dbUrl,
   ssl: {
     rejectUnauthorized: false // Required for Render's PostgreSQL

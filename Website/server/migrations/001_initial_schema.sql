@@ -11,6 +11,36 @@ CREATE TABLE IF NOT EXISTS users (
     deleted_at TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS suppliers (
+    supplier_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    contact_person VARCHAR(100),
+    telephone VARCHAR(20),
+    cellphone VARCHAR(20) NOT NULL,
+    email_address VARCHAR(100) NOT NULL,
+    description TEXT,
+    province VARCHAR(100),
+    city_municipality VARCHAR(100),
+    barangay VARCHAR(100),
+    street_address TEXT,
+    zip_code VARCHAR(10),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE OR REPLACE FUNCTION update_supplier_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_supplier_timestamp
+    BEFORE UPDATE ON suppliers
+    FOR EACH ROW
+    EXECUTE FUNCTION update_supplier_timestamp();
+
 CREATE TABLE IF NOT EXISTS inventory_items (
     sku VARCHAR(20) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -124,4 +154,5 @@ DROP TABLE IF EXISTS order_history;
 DROP TABLE IF EXISTS order_products;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS inventory_items;
-DROP TABLE IF EXISTS users; 
+DROP TABLE IF EXISTS suppliers;
+DROP TABLE IF EXISTS users;

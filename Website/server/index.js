@@ -5,10 +5,121 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const { pool, wss, notifyChange } = require('./db');
 const customersRouter = require('./routes/customers');
-require('dotenv').config();
+const suppliersRouter = require('./routes/suppliers');
+require('dotenv').config({ path: __dirname + '/../.env' });
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+// Function to archive completed orders
+async function archiveCompletedOrders() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Get admin user ID
+    const adminResult = await client.query(
+      'SELECT user_id FROM users WHERE role = $1 LIMIT 1',
+      ['admin']
+    );
+    const adminUserId = adminResult.rows[0]?.user_id;
+
+    if (!adminUserId) {
+      console.error('No admin user found');
+      return;
+    }
+
+    // Get completed orders
+    const ordersResult = await client.query(
+      'SELECT * FROM orders WHERE status = $1',
+      ['Completed']
+    );
+
+    if (ordersResult.rows.length === 0) {
+      return;
+    }
+
+    console.log(`Found ${ordersResult.rows.length} completed orders to archive`);
+
+    // Process each completed order
+    for (const order of ordersResult.rows) {
+      try {
+        // Insert into order_history
+        await client.query(
+          `INSERT INTO order_history (
+            order_id, customer_name, name, shipped_to, order_date, expected_delivery,
+            status, shipping_address, total_cost, payment_type, payment_method,
+            account_name, remarks, telephone, cellphone, email_address, archived_by
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+          [
+            order.order_id,
+            order.name, // Using name as customer_name
+            order.name,
+            order.shipped_to,
+            order.order_date,
+            order.expected_delivery,
+            order.status,
+            order.shipping_address,
+            order.total_cost,
+            order.payment_type,
+            order.payment_method,
+            order.account_name,
+            order.remarks,
+            order.telephone,
+            order.cellphone,
+            order.email_address,
+            adminUserId
+          ]
+        );
+
+        // Get and insert order products
+        const productsResult = await client.query(
+          'SELECT op.*, i.unit_price FROM order_products op JOIN inventory_items i ON op.sku = i.sku WHERE op.order_id = $1',
+          [order.order_id]
+        );
+
+        for (const product of productsResult.rows) {
+          await client.query(
+            `INSERT INTO order_history_products (order_id, sku, quantity, unit_price)
+             VALUES ($1, $2, $3, $4)`,
+            [order.order_id, product.sku, product.quantity, product.unit_price]
+          );
+        }
+
+        // Delete from order_products first (due to foreign key constraint)
+        await client.query('DELETE FROM order_products WHERE order_id = $1', [order.order_id]);
+
+        // Delete from orders
+        await client.query('DELETE FROM orders WHERE order_id = $1', [order.order_id]);
+
+        console.log(`Successfully archived order: ${order.order_id}`);
+
+        // Notify WebSocket clients
+        wss.clients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'order-archived',
+              orderId: order.order_id
+            }));
+          }
+        });
+      } catch (error) {
+        console.error(`Error archiving order ${order.order_id}:`, error);
+        // Continue with other orders even if one fails
+      }
+    }
+
+    await client.query('COMMIT');
+  } catch (error) {
+    console.error('Error in archiveCompletedOrders:', error);
+    await client.query('ROLLBACK');
+  } finally {
+    client.release();
+  }
+}
+
+// Run archive check every 5 minutes
+setInterval(archiveCompletedOrders, 5 * 60 * 1000);
 
 // Configure multer for memory storage only
 const upload = multer({
@@ -90,13 +201,73 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+// Add this test endpoint before the registration endpoint
+app.get('/api/test/roles', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT conname, pg_get_constraintdef(oid) 
+      FROM pg_constraint 
+      WHERE conrelid = 'users'::regclass 
+      AND conname = 'users_role_check'
+    `);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error checking constraint:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add this before the registration endpoint
+app.post('/api/fix-role-constraint', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // First, update any existing rows with invalid roles to 'director'
+    await client.query(`
+      UPDATE users 
+      SET role = 'director' 
+      WHERE role NOT IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer')
+    `);
+    
+    // Then update the constraint
+    await client.query(`
+      ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+      ALTER TABLE users ADD CONSTRAINT users_role_check 
+      CHECK (role IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer'));
+    `);
+    
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Role constraint updated successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error updating constraint:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
 // Registration endpoint with file upload (store profile picture in DB)
 app.post('/api/auth/register', upload.single('profilePicture'), async (req, res) => {
+  console.log('Registration request received:', {
+    body: req.body,
+    role: req.body.role,
+    roleType: typeof req.body.role
+  });
+
   const { name, email, password, role } = req.body;
   let profilePictureData = null;
   if (req.file) {
     profilePictureData = req.file.buffer;
   }
+
+  // Convert role to lowercase for validation
+  const roleLower = role.toLowerCase();
+  console.log('Role after conversion:', {
+    original: role,
+    converted: roleLower
+  });
 
   // Validate role
   const validRoles = [
@@ -109,7 +280,13 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
     'packer'
   ];
 
-  if (!validRoles.includes(role)) {
+  console.log('Validating role:', {
+    roleLower,
+    isValid: validRoles.includes(roleLower),
+    validRoles
+  });
+
+  if (!validRoles.includes(roleLower)) {
     return res.status(400).json({
       success: false,
       message: 'Invalid role selected'
@@ -134,11 +311,20 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
+
+    console.log('Attempting to insert user with role:', roleLower);
+
+    // Insert new user with profile picture data (using lowercase role)
+    const result = await pool.query(
+      'INSERT INTO users (name, email, password_hash, role, profile_picture_data) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email, role',
+      [name, email, passwordHash, roleLower, profilePictureData]
+    );
+
     // Insert new user with profile picture data
     // const result = await pool.query(
     //   'INSERT INTO users (name, email, password_hash, role, profile_picture_data, is_active) VALUES ($1, $2, $3, $4, $5, true) RETURNING user_id, name, email, role',
     //   [name, email, passwordHash, role, profilePictureData]
-    // );
+
 
     const newUser = result.rows[0];
 
@@ -168,6 +354,11 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
   } catch (error) {
     console.error('Registration error:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      detail: error.detail
+    });
     // Check for specific database errors
     if (error.code === '23514') { // Check constraint violation
       res.status(400).json({
@@ -188,9 +379,9 @@ app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // Get user from database - only allow active users to login
+    // Get user from database
     const result = await pool.query(
-      'SELECT * FROM users WHERE name = $1 AND is_active = true',
+      'SELECT * FROM users WHERE name = $1',
       [username]
     );
 
@@ -523,20 +714,20 @@ app.delete('/api/users/:user_id', verifyToken, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Forbidden' });
     }
     const { user_id } = req.params;
-    console.log('Attempting to soft delete user:', user_id);
+    console.log('Attempting to delete user:', user_id);
     
-    // Instead of deleting, mark as inactive and set deleted_at timestamp
+    // Actually delete the user
     const result = await pool.query(
-      'UPDATE users SET is_active = false, deleted_at = CURRENT_TIMESTAMP WHERE user_id = $1 RETURNING *',
+      'DELETE FROM users WHERE user_id = $1 RETURNING *',
       [user_id]
     );
     
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    res.json({ success: true, message: 'User deactivated successfully' });
+    res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
-    console.error('Error deactivating user:', error);
+    console.error('Error deleting user:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
@@ -610,6 +801,72 @@ app.post('/api/inventory/scanned-barcode', (req, res) => {
   broadcastBarcode(barcode);
   
   res.json({ success: true });
+});
+
+// Get customer's ongoing orders
+app.get('/api/orders/customer/:customer_name', async (req, res) => {
+  const { customer_name } = req.params;
+  
+  try {
+    const result = await pool.query(`
+      SELECT 
+        o.*, 
+        COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'sku', op.sku, 
+              'quantity', op.quantity, 
+              'name', inv.name, 
+              'image_data', ENCODE(inv.image_data, 'base64')
+            )
+          ) FILTER (WHERE op.sku IS NOT NULL), '[]'
+        ) AS products
+      FROM orders o
+      LEFT JOIN order_products op ON o.order_id = op.order_id
+      LEFT JOIN inventory_items inv ON op.sku = inv.sku
+      WHERE o.name = $1
+      GROUP BY o.order_id
+      ORDER BY o.order_date DESC;
+    `, [customer_name]);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching customer orders:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get customer's order history
+app.get('/api/order-history/customer/:customer_name', async (req, res) => {
+  const { customer_name } = req.params;
+  
+  try {
+    const result = await pool.query(`
+      SELECT 
+        oh.*, 
+        COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'sku', ohp.sku, 
+              'quantity', ohp.quantity, 
+              'name', inv.name, 
+              'image_data', ENCODE(inv.image_data, 'base64')
+            )
+          ) FILTER (WHERE ohp.sku IS NOT NULL), '[]'
+        ) AS products
+      FROM order_history oh
+      LEFT JOIN order_history_products ohp ON oh.order_id = ohp.order_id
+      LEFT JOIN inventory_items inv ON ohp.sku = inv.sku
+      WHERE oh.customer_name = $1
+      GROUP BY oh.order_id
+      ORDER BY oh.order_date DESC;
+    `, [customer_name]);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching customer order history:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // --- ORDER ENDPOINTS START ---
@@ -686,14 +943,14 @@ app.post('/api/orders', async (req, res) => {
 
     console.log("Order inserted successfully:", orderResult.rows[0]);
 
-    // Check if products array exists and has items
-    if (products && Array.isArray(products) && products.length > 0) {
-      for (const { sku, quantity } of products) {
+    // Store products based on package type
+    const productsToStore = package_name === 'Carlo' ? carlo_products : products;
+    
+    if (productsToStore && Array.isArray(productsToStore) && productsToStore.length > 0) {
+      for (const { sku, quantity } of productsToStore) {
         await client.query('INSERT INTO order_products (order_id, sku, quantity) VALUES ($1, $2, $3)', [order_id, sku, quantity]);
       }
-      console.log("Products inserted successfully");
-    } else {
-      console.log("No products to insert");
+      console.log(`${package_name} products inserted successfully`);
     }
 
     await client.query('COMMIT');
@@ -709,37 +966,24 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // --- ORDER PRODUCTS ENDPOINTS START ---
-// Add products to an order and update inventory
-app.post('/api/orders/:order_id/products', async (req, res) => {
+// Get products for an order
+app.get('/api/orders/:order_id/products', async (req, res) => {
   const { order_id } = req.params;
-  const { products } = req.body; // [{ sku, quantity }]
-  const client = await pool.connect();
+  
   try {
-    await client.query('BEGIN');
-    for (const { sku, quantity } of products) {
-      // Check inventory
-      const invRes = await client.query('SELECT quantity, name FROM inventory_items WHERE sku = $1', [sku]);
-      if (invRes.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(404).json({ success: false, message: `Product with SKU ${sku} not found` });
-      }
-      if (invRes.rows[0].quantity < quantity) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ success: false, message: `Not enough stock for ${invRes.rows[0].name}` });
-      }
-      // Deduct inventory
-      await client.query('UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2', [quantity, sku]);
-      // Insert into order_products
-      await client.query('INSERT INTO order_products (order_id, sku, quantity) VALUES ($1, $2, $3)', [order_id, sku, quantity]);
-    }
-    await client.query('COMMIT');
-    res.json({ success: true });
+    const result = await pool.query(`
+      SELECT 
+        op.sku, op.quantity, 
+        i.name, i.image_data
+      FROM order_products op
+      JOIN inventory_items i ON op.sku = i.sku
+      WHERE op.order_id = $1
+    `, [order_id]);
+
+    res.json(result.rows);
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error adding products to order:', error);
+    console.error('Error fetching order products:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
-  } finally {
-    client.release();
   }
 });
 
@@ -900,8 +1144,14 @@ app.delete('/api/orders/:order_id', async (req, res) => {
 app.post('/api/orders/:order_id/archive', verifyToken, async (req, res) => {
   const client = await pool.connect();
   try {
+    console.log('Starting archive process for order:', req.params.order_id);
+    console.log('User info:', {
+      username: req.user.username,
+      user_id: req.user.user_id
+    });
+    
     await client.query('BEGIN');
-
+    
     // Get order details
     const orderResult = await client.query(
       'SELECT * FROM orders WHERE order_id = $1',
@@ -979,12 +1229,27 @@ app.post('/api/orders/:order_id/archive', verifyToken, async (req, res) => {
     await client.query('DELETE FROM orders WHERE order_id = $1', [req.params.order_id]);
 
     await client.query('COMMIT');
-    res.json({ message: 'Order archived successfully' });
+    console.log('Successfully archived order:', req.params.order_id);
+    
+    // Notify WebSocket clients
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          type: 'order-archived',
+          orderId: req.params.order_id
+        }));
+      }
+    });
 
-  } catch (err) {
+    res.json({ success: true, message: 'Order archived successfully' });
+  } catch (error) {
+    console.error('Error archiving order:', error);
     await client.query('ROLLBACK');
-    console.error('Error archiving order:', err);
-    res.status(500).json({ message: 'Failed to archive order' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to archive order', 
+      error: error.message 
+    });
   } finally {
     client.release();
   }
@@ -1039,6 +1304,7 @@ app.get('/api/orders/history/:order_id/products', async (req, res) => {
 
 // Routes
 app.use('/api/customers', customersRouter);
+app.use('/api/suppliers', suppliersRouter);
 
 // Example of how to use real-time updates in your routes
 app.post('/api/update-data', async (req, res) => {

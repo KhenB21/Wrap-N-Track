@@ -40,7 +40,7 @@ const Sidebar = () => {
     return user ? user.role : null;
   };
 
-  const isAdmin = getUserRole() === 'admin';
+  const isAdmin = ['admin', 'director', 'business_developer', 'creatives'].includes(getUserRole());
 
   return (
     <div className="sidebar">
