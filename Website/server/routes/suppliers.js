@@ -200,4 +200,19 @@ router.delete('/:supplier_id', async (req, res) => {
   }
 });
 
+// Get supplier products
+router.get('/:supplierId/products', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT i.*
+      FROM inventory_items i
+      ORDER BY i.name
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching supplier products:', error);
+    res.status(500).json({ error: 'Failed to fetch supplier products' });
+  }
+});
+
 module.exports = router;

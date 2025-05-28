@@ -89,19 +89,8 @@ export default function CustomerDetails() {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.log('No token found in localStorage');
-        setError('Not authenticated. Please log in.');
-        return;
-      }
-      
-      console.log('Fetching customers with token:', token);
-      const response = await axios.get(`${API_BASE_URL}/api/customers`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      console.log('Fetching customers...');
+      const response = await axios.get(`${API_BASE_URL}/api/customers`);
       console.log('API Response:', response.data);
       console.log('Number of customers received:', response.data.length);
       setCustomers(response.data);
@@ -184,12 +173,7 @@ export default function CustomerDetails() {
     if (!validateForm()) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:3001/api/customers', editForm, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await axios.post(`${API_BASE_URL}/api/customers`, editForm);
       setCustomers([...customers, response.data]);
       setIsAdding(false);
       setEditForm({
@@ -218,12 +202,7 @@ export default function CustomerDetails() {
   const handleDelete = async (customerId) => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
       try {
-        const token = localStorage.getItem('token');
-        await axios.delete(`http://localhost:3001/api/customers/${customerId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        await axios.delete(`${API_BASE_URL}/api/customers/${customerId}`);
         setCustomers(customers.filter(c => c.customer_id !== customerId));
         setSelectedCustomer(null);
         setError(null);
@@ -238,12 +217,7 @@ export default function CustomerDetails() {
     if (!validateForm()) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.put(`http://localhost:3001/api/customers/${selectedCustomer.customer_id}`, editForm, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await axios.put(`${API_BASE_URL}/api/customers/${selectedCustomer.customer_id}`, editForm);
       setCustomers(customers.map(c => 
         c.customer_id === response.data.customer_id ? response.data : c
       ));
@@ -308,7 +282,7 @@ export default function CustomerDetails() {
     }
 
     return (
-      <div className="orders-grid">
+      <div className="orders-grid2">
         {customerOrders.completed.map((order) => (
           <div 
             key={order.order_id} 
@@ -317,10 +291,13 @@ export default function CustomerDetails() {
           >
             <div className="order-tab-header">
               <div className="order-id">Order #{order.order_id}</div>
-              <div className="order-status completed">Completed</div>
+              <div className={`order-status ${order.status.toLowerCase()}`}>
+                {order.status}
+              </div>
             </div>
             <div className="order-tab-content">
-              <div className="order-total">${order.total_cost}</div>
+              <div className="order-date">Date: {new Date(order.order_date).toLocaleDateString()}</div>
+              <div className="order-total">₱{Number(order.total_cost).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
             </div>
           </div>
         ))}
@@ -413,7 +390,7 @@ export default function CustomerDetails() {
     }
 
     return (
-      <div className="orders-grid">
+      <div className="orders-grid2" style={{ height: '300px', overflowY: 'auto' }}>
         {customerOrders.ongoing.map((order) => (
           <div 
             key={order.order_id} 

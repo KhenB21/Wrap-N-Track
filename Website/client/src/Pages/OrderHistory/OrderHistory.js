@@ -85,17 +85,17 @@ export default function OrderHistory() {
         {/* Filters */}
         <div className="order-filters">
           <span>Total Archived Orders: {orders.length}</span>
-          <select><option>All</option></select>
-          <select><option>Category</option></select>
-          <select><option>Filter by</option></select>
-          <input className="order-search" type="text" placeholder="Search" />
+          <select key="status-filter"><option>All</option></select>
+          <select key="category-filter"><option>Category</option></select>
+          <select key="filter-by"><option>Filter by</option></select>
+          <input key="search-input" className="order-search" type="text" placeholder="Search" />
         </div>
 
         <div className="order-details-layout">
           {/* Order List */}
           <div className="order-list">
             <div className="order-list-title">ARCHIVED ORDERS</div>
-            {loading ? <div>Loading...</div> : orders.map((o) => (
+            {loading ? <div key="loading">Loading...</div> : orders.map((o) => (
               <div
                 className={`order-list-item${selectedOrderId === o.order_id ? " selected" : ""}`}
                 key={o.order_id}
@@ -115,7 +115,7 @@ export default function OrderHistory() {
           {/* Order Details */}
           <div className="order-details-panel">
             {!selectedOrder ? (
-              <div style={{color:'#bbb',fontSize:22,display:'flex',alignItems:'center',justifyContent:'center',height:'100%'}}>Select an order to view details</div>
+              <div key="no-selection" style={{color:'#bbb',fontSize:22,display:'flex',alignItems:'center',justifyContent:'center',height:'100%'}}>Select an order to view details</div>
             ) : (
               <div style={{padding:'0 12px'}}>
                 <div style={{display:'flex',gap:32,alignItems:'flex-start'}}>
@@ -191,13 +191,24 @@ export default function OrderHistory() {
                   <div style={{width:340,minWidth:260,background:'#fafbfc',borderRadius:10,padding:'18px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
                     <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
                     {orderProducts.length === 0 ? (
-                      <div style={{color:'#aaa'}}>No products in this order.</div>
+                      <div key="no-products" style={{color:'#aaa'}}>No products in this order.</div>
                     ) : (
                       <div>
                         {orderProducts.map((p, idx) => (
-                          <div key={p.sku} style={{display:'flex',alignItems:'center',gap:16,padding:'10px 0',borderBottom:idx!==orderProducts.length-1?'1px solid #eee':'none'}}>
+                          <div key={`${p.sku}-${idx}`} style={{display:'flex',alignItems:'center',gap:16,padding:'10px 0',borderBottom:idx!==orderProducts.length-1?'1px solid #eee':'none'}}>
+                            {p.image_data && (
+                              <img 
+                                src={`data:image/png;base64,${p.image_data}`} 
+                                alt={p.name || 'Product'} 
+                                style={{width:40,height:40,objectFit:'cover',borderRadius:4}}
+                              />
+                            )}
                             <div style={{flex:1}}>
-                              <div style={{fontWeight:600,fontSize:15}}>{p.name}</div>
+                              <div style={{fontWeight:600,fontSize:15}}>{p.name || 'Unknown Product'}</div>
+                              <div style={{fontSize:13,color:'#888'}}>
+                                SKU: {p.sku}
+                                {p.description && <div style={{marginTop:2}}>{p.description}</div>}
+                              </div>
                               <div style={{fontSize:13,color:'#888'}}>₱{Number(p.unit_price).toLocaleString(undefined, {minimumFractionDigits:2})} each</div>
                             </div>
                             <div style={{display:'flex',alignItems:'center',gap:8}}>

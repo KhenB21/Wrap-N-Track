@@ -6,13 +6,15 @@ const multer = require('multer');
 const { pool, wss, notifyChange } = require('./db');
 const customersRouter = require('./routes/customers');
 const suppliersRouter = require('./routes/suppliers');
+const ordersRouter = require('./routes/orders');
+const supplierOrdersRouter = require('./routes/supplier-orders');
 require('dotenv').config({ path: __dirname + '/../.env' });
 
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Function to archive completed orders
-async function archiveCompletedOrders() {
+// Function to archive completed or cancelled orders
+async function archiveCompletedOrCancelledOrders() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -29,19 +31,19 @@ async function archiveCompletedOrders() {
       return;
     }
 
-    // Get completed orders
+    // Get completed or cancelled orders
     const ordersResult = await client.query(
-      'SELECT * FROM orders WHERE status = $1',
-      ['Completed']
+      'SELECT * FROM orders WHERE status IN ($1, $2)',
+      ['Completed', 'Cancelled']
     );
 
     if (ordersResult.rows.length === 0) {
       return;
     }
 
-    console.log(`Found ${ordersResult.rows.length} completed orders to archive`);
+    console.log(`Found ${ordersResult.rows.length} orders to archive`);
 
-    // Process each completed order
+    // Process each order
     for (const order of ordersResult.rows) {
       try {
         // Insert into order_history
@@ -111,7 +113,7 @@ async function archiveCompletedOrders() {
 
     await client.query('COMMIT');
   } catch (error) {
-    console.error('Error in archiveCompletedOrders:', error);
+    console.error('Error in archiveCompletedOrCancelledOrders:', error);
     await client.query('ROLLBACK');
   } finally {
     client.release();
@@ -119,7 +121,7 @@ async function archiveCompletedOrders() {
 }
 
 // Run archive check every 5 minutes
-setInterval(archiveCompletedOrders, 5 * 60 * 1000);
+setInterval(archiveCompletedOrCancelledOrders, 5 * 60 * 1000);
 
 // Configure multer for memory storage only
 const upload = multer({
@@ -1129,7 +1131,7 @@ app.delete('/api/orders/:order_id', async (req, res) => {
   }
 });
 
-// Archive completed order
+// Archive completed or cancelled order
 app.post('/api/orders/:order_id/archive', verifyToken, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1154,10 +1156,10 @@ app.post('/api/orders/:order_id/archive', verifyToken, async (req, res) => {
 
     const order = orderResult.rows[0];
 
-    // Check if order is completed
-    if (order.status !== 'Completed') {
+    // Check if order is completed or cancelled
+    if (order.status !== 'Completed' && order.status !== 'Cancelled') {
       await client.query('ROLLBACK');
-      return res.status(400).json({ message: 'Only completed orders can be archived' });
+      return res.status(400).json({ message: 'Only completed or cancelled orders can be archived' });
     }
 
     // Get order products
@@ -1273,9 +1275,15 @@ app.get('/api/orders/history', async (req, res) => {
 app.get('/api/orders/history/:order_id/products', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT ohp.*, i.name, i.image_data
+      SELECT 
+        ohp.sku,
+        ohp.quantity,
+        ohp.unit_price,
+        i.name,
+        i.image_data,
+        i.description
       FROM order_history_products ohp
-      JOIN inventory_items i ON ohp.sku = i.sku
+      LEFT JOIN inventory_items i ON ohp.sku = i.sku
       WHERE ohp.order_id = $1
     `, [req.params.order_id]);
     
@@ -1294,6 +1302,8 @@ app.get('/api/orders/history/:order_id/products', async (req, res) => {
 // Routes
 app.use('/api/customers', customersRouter);
 app.use('/api/suppliers', suppliersRouter);
+app.use('/api/orders', ordersRouter);
+app.use('/api/supplier-orders', supplierOrdersRouter);
 
 // Example of how to use real-time updates in your routes
 app.post('/api/update-data', async (req, res) => {

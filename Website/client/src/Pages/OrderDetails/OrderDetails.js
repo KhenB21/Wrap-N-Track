@@ -218,7 +218,7 @@ export default function OrderDetails() {
     }
   };
 
-  // Mark as Completed and Archive
+  // Mark as Completed/Cancelled and Archive
   const handleMarkCompleted = async () => {
     if (!selectedOrder) return;
     setShowCompleteConfirm(true);
@@ -556,8 +556,10 @@ useEffect(() => {
       const response = await axios.put(`http://localhost:3001/api/orders/${encodeURIComponent(form.order_id)}`, orderData);
       
       if (response.data.success) {
-        // Only archive if the order is being marked as completed for the first time
-        if (form.status === 'Completed' && selectedOrder?.status !== 'Completed') {
+        // Only archive if the order is being marked as completed or cancelled for the first time
+        if ((form.status === 'Completed' || form.status === 'Cancelled') && 
+            selectedOrder?.status !== 'Completed' && 
+            selectedOrder?.status !== 'Cancelled') {
           try {
             // Add a small delay to ensure the update is processed
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -583,8 +585,9 @@ useEffect(() => {
             console.error('Error archiving order:', archiveErr);
             alert('Order status was updated but failed to archive: ' + (archiveErr.response?.data?.message || archiveErr.message));
           }
-        } else if (form.status === 'Completed' && selectedOrder?.status === 'Completed') {
-          console.log('Order is already completed, no need to archive again');
+        } else if ((form.status === 'Completed' || form.status === 'Cancelled') && 
+                  (selectedOrder?.status === 'Completed' || selectedOrder?.status === 'Cancelled')) {
+          console.log('Order is already completed or cancelled, no need to archive again');
         }
       } else {
         alert('Failed to update order: ' + response.data.message);
