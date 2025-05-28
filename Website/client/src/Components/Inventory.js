@@ -1,3 +1,6 @@
+import api from '../api/axios';
+import config from '../config';
+
 const handleAddProduct = async (productData) => {
     try {
       console.log('Sending product data:', productData);
@@ -11,11 +14,7 @@ const handleAddProduct = async (productData) => {
         }
       });
 
-      const response = await fetch('http://localhost:3001/api/inventory', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
+      const response = await api.post('/api/inventory', formData);
 
       // Check if response is JSON
       const contentType = response.headers.get('content-type');

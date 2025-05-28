@@ -17,6 +17,10 @@ import OrderProcess from "./Pages/CustomerPOV/OrderProcess";
 import CarloPreview from "./Pages/CustomerPOV/CarloPreview";
 import CustomerHome from "./Pages/CustomerPOV/CustomerHome";
 import CustomerCorporate from "./Pages/CustomerCorporate/CustomerCorporate";
+import EricMarielPreview from "./Pages/CustomerPOV/EricMarielPreview";
+import DanielPreview from "./Pages/CustomerPOV/EricMarielPreview";
+import CustomerBespoke from "./Pages/CustomerBespoke";
+import CustomerAboutUs from "./Pages/CustomerAboutUs.js/CustomerAboutUs";
 
 function App() {
   return (
@@ -27,9 +31,11 @@ function App() {
         <Route path="/product-details" element={<ProductDetails />} />
         <Route path="/product-details/:sku" element={<ProductDetails />} />
         <Route path="/product/1" element={<CarloPreview />} />
+        <Route path="/product/2" element={<EricMarielPreview />} />
+        <Route path="/product/3" element={<DanielPreview />} />
         <Route path="/customer-home" element={<CustomerHome />} />
         <Route path="/order-details" element={<OrderDetails />} />
-        <Route path="/customer-details" element={<CustomerDetails />} /> 
+        <Route path="/customer-details" element={<CustomerDetails />} />
         <Route path="/supplier-details" element={<SupplierDetails />} />
         <Route path="/supplier-form" element={<SupplierForm />} />
         <Route path="/register" element={<Register />} />
@@ -42,6 +48,8 @@ function App() {
         <Route path="/wedding" element={<CustomerPOV />} />
         <Route path="/order" element={<OrderProcess />} />
         <Route path="/corporate" element={<CustomerCorporate />} />
+        <Route path="/bespoke" element={<CustomerBespoke />} />
+        <Route path="/about" element={<CustomerAboutUs />} />
       </Routes>
     </Router>
   );

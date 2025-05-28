@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
-import axios from "axios";
+import api from "../../api/axios";
+import config from "../../config";
 import "./OrderHistory.css";
 
 function getProfilePictureUrl() {
@@ -12,14 +13,15 @@ function getProfilePictureUrl() {
   }
   if (user.profile_picture_path) {
     if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
-    return `http://localhost:3001${user.profile_picture_path}`;
+    return `${config.API_URL}${user.profile_picture_path}`;
   }
   return "/placeholder-profile.png";
 }
 
 export default function OrderHistory() {
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [orderProducts, setOrderProducts] = useState([]);
   const selectedOrder = orders.find(o => o.order_id === selectedOrderId);
@@ -49,6 +51,18 @@ export default function OrderHistory() {
   }, []);
 
   useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const res = await api.get('/api/orders/history');
+        setOrders(res.data);
+      } catch (err) {
+        console.error('Error fetching orders:', err);
+        setError('Failed to load orders');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchOrders();
   }, []);
 
@@ -56,23 +70,13 @@ export default function OrderHistory() {
     if (selectedOrderId) fetchOrderProducts(selectedOrderId);
   }, [selectedOrderId]);
 
-  const fetchOrders = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get('http://localhost:3001/api/orders/history');
-      setOrders(res.data);
-    } catch (err) {
-      alert('Failed to fetch order history');
-    }
-    setLoading(false);
-  };
-
   const fetchOrderProducts = async (orderId) => {
     try {
-      const res = await axios.get(`http://localhost:3001/api/orders/history/${orderId}/products`);
+      const res = await api.get(`/api/orders/history/${orderId}/products`);
       setOrderProducts(res.data);
     } catch (err) {
-      setOrderProducts([]);
+      console.error('Error fetching order products:', err);
+      setError('Failed to load order products');
     }
   };
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
+import api from '../../api/axios';
 import "./Dashboard.css";
 
 function Dashboard() {
@@ -9,6 +10,7 @@ function Dashboard() {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [orderHistory, setOrderHistory] = useState([]);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -19,52 +21,32 @@ function Dashboard() {
       navigate("/login");
       return;
     }
-    // Fetch inventory data
-    const fetchInventory = async () => {
+
+    // Fetch data
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await fetch("http://localhost:3001/api/inventory");
-        const data = await res.json();
-        setInventory(data);
-      } catch (err) {
-        setInventory([]);
+        // Fetch inventory
+        const inventoryRes = await api.get('/api/inventory');
+        setInventory(inventoryRes.data);
+
+        // Fetch user details
+        const userRes = await api.get('/api/user/details');
+        setUser(userRes.data);
+
+        // Fetch order history
+        const historyRes = await api.get('/api/orders/history');
+        setOrderHistory(historyRes.data);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
       }
       setLoading(false);
     };
-    fetchInventory();
+
+    fetchData();
   }, [navigate]);
 
-  useEffect(() => {
-    const fetchAndSyncUser = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      const res = await fetch("http://localhost:3001/api/user/details", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const user = await res.json();
-        localStorage.setItem("user", JSON.stringify(user));
-      }
-    };
-    fetchAndSyncUser();
-  }, []);
-
-  useEffect(() => {
-    const fetchOrderHistory = async () => {
-      try {
-        const res = await fetch("http://localhost:3001/api/orders/history");
-        const data = await res.json();
-        setOrderHistory(data);
-      } catch (err) {
-        console.error("Failed to fetch order history:", err);
-        setOrderHistory([]);
-      }
-    };
-    fetchOrderHistory();
-  }, []);
-
   const getProfilePictureUrl = () => {
-    const user = JSON.parse(localStorage.getItem("user"));
     if (!user || !user.profile_picture_data) return "/placeholder-profile.png";
     return `data:image/jpeg;base64,${user.profile_picture_data}`;
   };

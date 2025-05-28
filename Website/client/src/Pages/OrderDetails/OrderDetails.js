@@ -2,9 +2,78 @@ import React, { useEffect, useState, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 import "./OrderDetails.css";
-import axios from "axios";
+import api from "../../api/axios";
+import config from "../../config";
 import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
+
+
+// Add axios interceptor for authentication
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for handling 401 errors
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+const orders = [
+  {
+    id: 1,
+    name: "Terence Auyong",
+    code: "#CO000002",
+    price: "₱125.00",
+    status: "Invoiced",
+    statusClass: "status-invoiced",
+    selected: true,
+  },
+  {
+    id: 2,
+    name: "Khen Bolima",
+    code: "#CO000002",
+    price: "₱125.00",
+    status: "Packed",
+    statusClass: "status-packed",
+    selected: false,
+  },
+  {
+    id: 3,
+    name: "Reinan Briones",
+    code: "#CO000002",
+    price: "₱315.00",
+    status: "Shipped",
+    statusClass: "status-shipped",
+    selected: false,
+  },
+  {
+    id: 4,
+    name: "Grant Nathan",
+    code: "#CO000002",
+    price: "₱315.00",
+    status: "Complete",
+    statusClass: "status-complete",
+    selected: false,
+  },
+];
+
 
 function getProfilePictureUrl() {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -14,7 +83,7 @@ function getProfilePictureUrl() {
   }
   if (user.profile_picture_path) {
     if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
-    return `http://localhost:3001${user.profile_picture_path}`;
+    return `${config.API_URL}${user.profile_picture_path}`;
   }
   return "/placeholder-profile.png";
 }
@@ -94,17 +163,8 @@ const styles = {
     overflowY: 'auto',
     height: 'calc(100% - 40px)',
     paddingRight: '8px',
-    '&::-webkit-scrollbar': {
-      width: '6px'
-    },
-    '&::-webkit-scrollbar-track': {
-      background: '#f1f1f1',
-      borderRadius: '3px'
-    },
-    '&::-webkit-scrollbar-thumb': {
-      background: '#c1c1c1',
-      borderRadius: '3px'
-    }
+    scrollbarWidth: 'thin',
+    scrollbarColor: '#c1c1c1 #f1f1f1'
   },
   orderCard: {
     background: '#fff',
@@ -161,12 +221,21 @@ const styles = {
   }
 };
 
+
 function generateOrderId() {
   // Example: #CO + timestamp + random 3 digits
   const now = Date.now();
   const rand = Math.floor(Math.random() * 900) + 100;
   return `#CO${now}${rand}`;
 }
+
+// Add this helper function at the top level
+const formatOrderId = (orderId) => {
+  if (!orderId) return null;
+  // Keep the # prefix if it exists, but encode it for URLs
+  return encodeURIComponent(orderId.trim());
+};
+
 
 export default function OrderDetails() {
 
@@ -232,6 +301,8 @@ export default function OrderDetails() {
   const [productDetailsByName, setProductDetailsByName] = useState({}); // { name: { image_data, name } }
   const [loadingProductDetails, setLoadingProductDetails] = useState(false);
   const [orderStockIssues, setOrderStockIssues] = useState({}); // { order_id: [product names] }
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedOrder, setEditedOrder] = useState(null);
 
   const fetchOrders = async () => {
     try {
@@ -306,59 +377,36 @@ export default function OrderDetails() {
 
   useEffect(() => {
     async function fetchProductDetails() {
-        if (!orderProducts || orderProducts.length === 0) {
-            console.log("No order products found, exiting useEffect.");
-            return;
-        }
+      if (!orderProducts || orderProducts.length === 0) {
+        console.log("No products to fetch details for");
+        return;
+      }
 
-        setLoadingProductDetails(true);
-        console.log("Fetching product details now...");
-
+      setLoadingProductDetails(true);
+DREXYLL-chatbot
+      const details = { ...productDetailsByName };
+      const fetches = orderProducts.map(async (p) => {
+        const nameKey = p.name || p.product_name || '';
+        if (!nameKey || details[nameKey]) return;
         try {
-            // First, get all inventory items
-            const inventoryResponse = await axios.get('http://localhost:3001/api/inventory');
-            const allInventoryItems = inventoryResponse.data;
-            console.log("Fetched all inventory items:", allInventoryItems);
-
-            const details = { ...productDetailsByName };
-            
-            // For each product in the order, try to find a match in inventory
-            orderProducts.forEach(p => {
-                const nameKey = p.name || p.product_name || '';
-                if (!nameKey || details[nameKey]) return;
-
-                // Try to find a match using case-insensitive partial matching
-                const matchingItem = allInventoryItems.find(item => 
-                    item.name.toLowerCase().includes(nameKey.toLowerCase()) ||
-                    nameKey.toLowerCase().includes(item.name.toLowerCase())
-                );
-
-                if (matchingItem) {
-                    console.log(`Found matching inventory item for ${nameKey}:`, matchingItem);
-                    details[nameKey] = matchingItem;
-                } else {
-                    console.log(`No matching inventory item found for ${nameKey}`);
-                    details[nameKey] = null;
-                }
-            });
-
-            setProductDetailsByName(details);
-            console.log("Updated Product Details:", details);
+          const res = await api.get(`/api/inventory/search?name=${encodeURIComponent(nameKey)}`);
+          details[nameKey] = res.data;
         } catch (err) {
-            console.error("Error fetching inventory:", err);
-        } finally {
-            setLoadingProductDetails(false);
+          details[nameKey] = null;
         }
+      });
+      await Promise.all(fetches);
+      setProductDetailsByName(details);
+      setLoadingProductDetails(false);
+
     }
 
     fetchProductDetails();
-}, [orderProducts]);
+  }, [orderProducts]);
 
-
-useEffect(() => {
+  useEffect(() => {
     console.log("Checking structure of orderProducts after API fetch:", JSON.stringify(orderProducts, null, 2));
-}, [orderProducts]);
-
+  }, [orderProducts]);
 
   // Fetch stock issues for all orders after fetching orders
   useEffect(() => {
@@ -380,6 +428,43 @@ useEffect(() => {
 
 
 
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+
+      const res = await api.get('/api/orders');
+
+      setOrders(res.data);
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
+      if (err.response?.status === 401) {
+        window.location.href = '/login';
+      } else {
+        alert('Failed to fetch orders. Please try again later.');
+      }
+    }
+    setLoading(false);
+  };
+
+  const fetchOrderProducts = async (orderId) => {
+    try {
+
+      const res = await api.get(`/api/orders/${orderId}/products`);
+      setOrderProducts(res.data);
+
+    } catch (err) {
+      console.error('Failed to fetch order products:', err);
+      if (err.response?.status === 404) {
+        console.log('Order not found:', orderId);
+        setOrderProducts([]);
+      } else {
+        console.error('Error fetching order products:', err.message);
+        setOrderProducts([]);
+      }
+    }
+  };
+
+
   const handleAddProductToOrder = async () => {
     setProductError("");
     setPlacingOrder(true);
@@ -392,7 +477,7 @@ useEffect(() => {
       return;
     }
     try {
-      await axios.post(`http://localhost:3001/api/orders/${selectedOrderId}/products`, { products });
+      await api.post(`/api/orders/${selectedOrderId}/products`, { products });
       setShowProductModal(false);
       setProductSelection({});
       fetchOrderProducts(selectedOrderId);
@@ -406,7 +491,7 @@ useEffect(() => {
     setProductError("");
     setProductSelection({});
     try {
-      const res = await axios.get('http://localhost:3001/api/inventory');
+      const res = await api.get('/api/inventory');
       setInventory(res.data);
       setShowProductModal(true);
     } catch (err) {
@@ -436,7 +521,7 @@ useEffect(() => {
     setProfitMargins({});
     setProductError("");
     try {
-      const res = await axios.get('http://localhost:3001/api/inventory');
+      const res = await api.get('/api/inventory');
       setInventory(res.data);
       setShowModal(true);
     } catch (err) {
@@ -492,9 +577,9 @@ useEffect(() => {
         total_cost: calculateTotalCost(productSelection)
       };
 
-      console.log("Submitting order data:", orderData);
+DREXYLL-chatbot
+      const response = await api.post('/api/orders', orderData);
 
-      const response = await axios.post('http://localhost:3001/api/orders', orderData);
       
       if (response.data.success) {
         setShowModal(false);
@@ -528,6 +613,7 @@ useEffect(() => {
   const handleEditOrderSubmit = async (e) => {
     e.preventDefault();
     try {
+
       // Only send the fields that can be edited
       const orderData = {
         order_id: form.order_id,
@@ -598,12 +684,29 @@ useEffect(() => {
         alert('Failed to update order: ' + err.message);
       }
     } finally {
+
+      await api.put(`/api/orders/${form.order_id}`, form);
+
       setShowEditModal(false);
       fetchOrders();
       // Refresh the order products if an order is selected
       if (selectedOrderId) {
         fetchOrderProducts(selectedOrderId);
       }
+    }
+  };
+
+
+  // Delete order: confirm and delete
+  const handleDeleteOrder = async () => {
+    if (!selectedOrder) return;
+    try {
+      await api.delete(`/api/orders/${selectedOrder.order_id}`);
+      setShowDeleteConfirm(false);
+      setSelectedOrderId(null);
+      fetchOrders();
+    } catch (err) {
+      alert('Failed to delete order');
     }
   };
 
@@ -637,7 +740,7 @@ useEffect(() => {
       }
 
       // First mark as completed
-      await axios.put(`http://localhost:3001/api/orders/${selectedOrder.order_id}`, 
+      await api.put(`/api/orders/${selectedOrder.order_id}`, 
         { ...selectedOrder, status: 'Completed' },
         {
           headers: {
@@ -648,6 +751,7 @@ useEffect(() => {
       
       // Then archive the order
       setArchivingOrder(true);
+
       try {
         await axios.post(
           `http://localhost:3001/api/orders/${selectedOrder.order_id}/archive`,
@@ -656,6 +760,14 @@ useEffect(() => {
             headers: {
               'Authorization': `Bearer ${token}`
             }
+
+      await api.post(
+        `/api/orders/${selectedOrder.order_id}/archive`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+
           }
         );
         
@@ -693,7 +805,7 @@ useEffect(() => {
         .filter(([sku, qty]) => Number(qty) > 0)
         .map(([sku, quantity]) => ({ sku, quantity: Number(quantity) }));
       
-      await axios.put(`http://localhost:3001/api/orders/${selectedOrderId}/products`, { products });
+      await api.put(`/api/orders/${selectedOrderId}/products`, { products });
       setShowEditProductsModal(false);
       fetchOrderProducts(selectedOrderId);
     } catch (err) {
@@ -705,7 +817,7 @@ useEffect(() => {
   const handleRemoveProduct = async (sku) => {
     if (!selectedOrder) return;
     try {
-      await axios.delete(`http://localhost:3001/api/orders/${selectedOrderId}/products/${sku}`);
+      await api.delete(`/api/orders/${selectedOrderId}/products/${sku}`);
       fetchOrderProducts(selectedOrderId);
     } catch (err) {
       alert('Failed to remove product');
@@ -721,6 +833,90 @@ useEffect(() => {
   const readyToDeliverOrders = orders.filter(order => order.status === 'Ready to ship');
   const enRouteOrders = orders.filter(order => order.status === 'En Route');
   const completedOrders = orders.filter(order => order.status === 'Completed');
+
+  const handleEditDetails = () => {
+    // Format dates to YYYY-MM-DD before setting edited order
+    const formattedOrder = {
+      ...selectedOrder,
+      order_date: selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '',
+      expected_delivery: selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : ''
+    };
+    setEditedOrder(formattedOrder);
+    setIsEditing(true);
+  };
+
+  const handleSaveDetails = async () => {
+    try {
+      if (!editedOrder || !selectedOrder) {
+        alert('No order selected for editing');
+        return;
+      }
+
+      const orderId = formatOrderId(selectedOrder.order_id);
+      if (!orderId) {
+        alert('Invalid order ID');
+        return;
+      }
+
+      // Debug logging
+      console.log('Original order ID:', selectedOrder.order_id);
+      console.log('Formatted order ID:', orderId);
+      console.log('Full order data being sent:', editedOrder);
+
+      // Format dates before sending to server
+      const orderToSave = {
+        ...editedOrder,
+        order_date: editedOrder.order_date ? editedOrder.order_date.split('T')[0] : '',
+        expected_delivery: editedOrder.expected_delivery ? editedOrder.expected_delivery.split('T')[0] : ''
+      };
+
+      console.log('Saving order details for order:', orderId);
+      console.log('Request URL:', `http://localhost:3001/api/orders/${orderId}`);
+      console.log('Request payload:', orderToSave);
+      
+      // Save the changes
+      const saveResponse = await axios.put(
+        `http://localhost:3001/api/orders/${orderId}`, 
+        orderToSave,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      // Refresh both orders and order products
+      await fetchOrders();
+      if (selectedOrderId) {
+        await fetchOrderProducts(selectedOrderId);
+      }
+      
+      setIsEditing(false);
+      alert('Order details updated successfully');
+    } catch (err) {
+      console.error('Save error:', err);
+      console.error('Error details:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        headers: err.response?.headers
+      });
+      
+      if (err.response?.status === 404) {
+        alert(`Order ${selectedOrder.order_id} not found. Please check the order ID format.`);
+      } else {
+        alert(err?.response?.data?.message || 'Failed to update order details. Please try again.');
+      }
+    }
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditedOrder(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   return (
     <div className="dashboard-container">
@@ -1314,21 +1510,129 @@ useEffect(() => {
               <button onClick={()=>setSelectedOrderId(null)} className="order-modal-close" style={{position:'absolute',top:18,right:24,fontSize:26,color:'#aaa',background:'none',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'color 0.2s, background 0.2s',zIndex:2}}>&times;</button>
               <div className="order-details-modal-content" style={{display:'flex',flexDirection:'row',width:'100%'}}>
                 <div className="order-details-modal-info-col" style={{flex:1.2,padding:'40px 36px 40px 48px'}}>
-                  <h2 style={{marginBottom:24,fontFamily:'Cormorant Garamond,serif',fontWeight:700,fontSize:32,color:'#2c3e50'}}>Order Details</h2>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24}}>
+                    <h2 style={{fontFamily:'Cormorant Garamond,serif',fontWeight:700,fontSize:32,color:'#2c3e50',margin:0}}>Order Details</h2>
+                    {!isEditing ? (
+                      <button 
+                        onClick={handleEditDetails}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: 6,
+                          border: '1px solid #4a90e2',
+                          background: '#fff',
+                          color: '#4a90e2',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        Edit
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={handleSaveDetails}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: 6,
+                          border: 'none',
+                          background: '#4a90e2',
+                          color: '#fff',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        Save
+                      </button>
+                    )}
+                  </div>
                   {orderStockIssues[selectedOrder.order_id] && orderStockIssues[selectedOrder.order_id].length > 0 && (
                     <div style={{color:'#b94a48',background:'#fff3cd',border:'1px solid #ffeeba',borderRadius:6,padding:'8px 12px',marginBottom:18,fontSize:15}}>
                       ⚠️ Not enough stock for: {orderStockIssues[selectedOrder.order_id].join(', ')}
                     </div>
                   )}
-                  <div style={{marginBottom:12}}><b>Name:</b> {selectedOrder.name}</div>
-                  <div style={{marginBottom:12}}><b>Email Address:</b> {selectedOrder.email_address || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Contact Number:</b> {selectedOrder.cellphone || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Order Quantity:</b> {selectedOrder.order_quantity || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Approximate Budget per Gift Box:</b> {selectedOrder.approximate_budget ? `₱${selectedOrder.approximate_budget}` : '-'}</div>
-                  <div style={{marginBottom:12}}><b>Date of Event:</b> {selectedOrder.expected_delivery || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Shipping Location:</b> {selectedOrder.shipping_address || '-'}</div>
-                  <div style={{marginBottom:12}}><b>Status:</b> {selectedOrder.status}</div>
+                  <div style={{marginBottom:12}}>
+                    <b>Name:</b> {isEditing ? (
+                      <input
+                        type="text"
+                        name="name"
+                        value={editedOrder.name}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.name}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Email Address:</b> {isEditing ? (
+                      <input
+                        type="email"
+                        name="email_address"
+                        value={editedOrder.email_address}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.email_address || '-'}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Contact Number:</b> {isEditing ? (
+                      <input
+                        type="text"
+                        name="cellphone"
+                        value={editedOrder.cellphone}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.cellphone || '-'}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Order Quantity:</b> {isEditing ? (
+                      <input
+                        type="number"
+                        name="order_quantity"
+                        value={editedOrder.order_quantity}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.order_quantity || '-'}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Date of Event:</b> {isEditing ? (
+                      <input
+                        type="date"
+                        name="expected_delivery"
+                        value={editedOrder.expected_delivery ? editedOrder.expected_delivery.split('T')[0] : ''}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : '-'}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Shipping Location:</b> {isEditing ? (
+                      <input
+                        type="text"
+                        name="shipping_address"
+                        value={editedOrder.shipping_address}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.shipping_address || '-'}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Status:</b> {isEditing ? (
+                      <select
+                        name="status"
+                        value={editedOrder.status}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="To be pack">To Be Packed</option>
+                        <option value="Ready to ship">Ready to Deliver</option>
+                      </select>
+                    ) : selectedOrder.status}
+                  </div>
                   <div style={{marginBottom:12}}><b>Order ID:</b> {selectedOrder.order_id}</div>
+
                   <div style={{marginBottom:12}}><b>Date Ordered:</b> {selectedOrder.order_date}</div>
                   <div style={{marginBottom:12}}><b>Package Name:</b> {selectedOrder.package_name || '-'}</div>
                   
@@ -1387,6 +1691,31 @@ useEffect(() => {
                         <FaCheckCircle /> Complete
                       </button>
                     )}
+
+                  <div style={{marginBottom:12}}>
+                    <b>Date Ordered:</b> {isEditing ? (
+                      <input
+                        type="date"
+                        name="order_date"
+                        value={editedOrder.order_date ? editedOrder.order_date.split('T')[0] : ''}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      />
+                    ) : selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '-'}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <b>Package Name:</b> {isEditing ? (
+                      <select
+                        name="package_name"
+                        value={editedOrder.package_name}
+                        onChange={handleEditChange}
+                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
+                      >
+                        <option value="Carlo">Carlo</option>
+                        <option value="Custom">Custom</option>
+                      </select>
+                    ) : selectedOrder.package_name || '-'}
+
                   </div>
                 </div>
 
@@ -1493,4 +1822,4 @@ useEffect(() => {
       </div>
     </div>
   );
-} 
+}

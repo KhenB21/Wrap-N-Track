@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../api/axios';
+import config from '../../config';
 import './Register.css';
 
 function Register() {
@@ -15,6 +16,9 @@ function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Log the API URL being used
+  console.log('Register component using API URL:', config.API_URL);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -52,6 +56,7 @@ function Register() {
     setError('');
 
     try {
+      console.log('Attempting registration with API URL:', config.API_URL);
       const formDataToSend = new FormData();
       formDataToSend.append('name', formData.name);
       formDataToSend.append('email', formData.email);
@@ -61,22 +66,31 @@ function Register() {
         formDataToSend.append('profilePicture', profilePicture);
       }
 
-      const response = await axios.post('http://localhost:3001/api/auth/register', formDataToSend, {
+      const response = await api.post('/api/auth/register', formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
 
+      console.log('Registration response:', response.data);
+
       if (response.data.success) {
-        // Store the token and user data
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
-        
-        // Redirect to dashboard
         navigate('/');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      console.error('Registration error:', err);
+      if (err.response) {
+        console.error('Error response:', err.response.data);
+        setError(err.response.data.message || 'Registration failed. Please try again.');
+      } else if (err.request) {
+        console.error('No response received:', err.request);
+        setError('No response from server. Please check your connection.');
+      } else {
+        console.error('Error setting up request:', err.message);
+        setError('An error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
