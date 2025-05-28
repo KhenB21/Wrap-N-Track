@@ -6,6 +6,7 @@ import api from "../../api/axios";
 import config from "../../config";
 import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
+import axios from 'axios';
 
 // Add axios interceptor for authentication
 axios.interceptors.request.use(
@@ -317,7 +318,6 @@ export default function OrderDetails() {
       }
 
       setLoadingProductDetails(true);
-DREXYLL-chatbot
       const details = { ...productDetailsByName };
       const fetches = orderProducts.map(async (p) => {
         const nameKey = p.name || p.product_name || '';
@@ -332,7 +332,6 @@ DREXYLL-chatbot
       await Promise.all(fetches);
       setProductDetailsByName(details);
       setLoadingProductDetails(false);
-
     }
 
     fetchProductDetails();
@@ -362,7 +361,6 @@ DREXYLL-chatbot
   const fetchOrders = async () => {
     setLoading(true);
     try {
-DREXYLL-chatbot
       const res = await api.get('/api/orders');
 
       setOrders(res.data);
@@ -379,7 +377,6 @@ DREXYLL-chatbot
 
   const fetchOrderProducts = async (orderId) => {
     try {
-DREXYLL-chatbot
       const res = await api.get(`/api/orders/${orderId}/products`);
       setOrderProducts(res.data);
 
@@ -486,7 +483,6 @@ DREXYLL-chatbot
         total_cost: calculateTotalCost(productSelection)
       };
 
-DREXYLL-chatbot
       const response = await api.post('/api/orders', orderData);
 
       

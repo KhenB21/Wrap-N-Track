@@ -23,7 +23,6 @@ function generateOrderId() {
 export default function CarloPreview() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({
-DREXYLL-chatbot
     name: "",
     email: "",
     contact: "",
@@ -31,7 +30,6 @@ DREXYLL-chatbot
     budget: "",
     eventDate: "",
     shippingLocation: "",
-
   });
   const [inventory, setInventory] = useState([]);
   const [error, setError] = useState("");
@@ -60,7 +58,6 @@ const handleSubmit = async (e) => {
     const orderQty = Number(form.orderQuantity);
     console.log("Order Quantity:", orderQty);
     if (!orderQty || orderQty < 1) {
-DREXYLL-chatbot
       setError("Order Quantity must be a positive number.");
       return;
     }
@@ -89,6 +86,7 @@ DREXYLL-chatbot
         };
       })
       .filter(Boolean);
+
     if (missingProducts.length > 0) {
       setError(
         `The following products are missing from inventory: ${missingProducts.join(
@@ -100,18 +98,7 @@ DREXYLL-chatbot
     if (products.length === 0) {
       setError("No valid products found for this order.");
       return;
-
     }
-
-    // Create products array with sku and quantity
-    const products = defaultProductNames.map(name => {
-        // Find matching inventory item to get SKU
-        const inventoryItem = inventory.find(item => item.name.toLowerCase() === name.toLowerCase());
-        return {
-            sku: inventoryItem?.sku || null,
-            quantity: orderQty
-        };
-    }).filter(product => product.sku !== null); // Only include products with valid SKUs
 
     const order = {
         order_id: generateOrderId(),
@@ -129,9 +116,10 @@ DREXYLL-chatbot
         telephone: "",
         cellphone: form.contact,
         email_address: form.email,
-DREXYLL-chatbot
         products,
-      };
+    };
+
+    try {
       await api.post("/api/orders", order);
       setModalOpen(false);
       window.location.href = "/orders";
@@ -253,7 +241,6 @@ DREXYLL-chatbot
                       required
                     />
                   </label>
-DREXYLL-chatbot
                   <label>
                     Approximate Budget per Gift Box
                     <input
@@ -261,7 +248,6 @@ DREXYLL-chatbot
                       value={form.budget}
                       onChange={handleChange}
                     />
-
                   </label>
                   <label>
                     Date of Event*
@@ -286,12 +272,10 @@ DREXYLL-chatbot
                     <input name="packageName" value={form.packageName} required readOnly/>
                   </label>
                   <div className="order-form-actions">
-DREXYLL-chatbot
                     <button type="submit">Submit</button>
                     <button type="button" onClick={() => setModalOpen(false)}>
                       Cancel
                     </button>
-
                   </div>
                 </form>
               </div>
@@ -330,6 +314,5 @@ DREXYLL-chatbot
       )}
     </div>
   );
- DREXYLL-chatbot
 }
 
