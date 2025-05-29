@@ -33,84 +33,139 @@ const verifyToken = (req, res, next) => {
 // Apply authentication middleware to all routes
 router.use(verifyToken);
 
-// Create new supplier order
+// Create new customer order
 router.post('/', async (req, res) => {
   try {
     const {
-      supplier_id,
+      order_id: providedOrderId,
+      account_name,
+      name,
       order_date,
       expected_delivery,
+      status,
+      package_name,
+      payment_method,
+      payment_type,
+      shipped_to,
+      shipping_address,
+      total_cost,
       remarks,
-      items
+      telephone,
+      cellphone,
+      email_address,
+      products // array of { sku, quantity, profit_margin }
     } = req.body;
 
-    if (!supplier_id || !items || items.length === 0) {
-      return res.status(400).json({ error: 'Supplier ID and items are required' });
+    // Validate required fields (excluding order_id since we'll generate it if needed)
+    if (!account_name || !name || !order_date || !expected_delivery || !status || !package_name || !products || !Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ error: 'Missing required fields for customer order' });
     }
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      // Generate order_id
-      const order_id = `ORDER-${Date.now()}`;
+      // Generate a unique order ID if not provided
+      let order_id = providedOrderId;
+      if (!order_id) {
+        order_id = `#CO${Date.now()}`;
+      } else {
+        // Check if order_id already exists
+        const existingOrder = await client.query(
+          'SELECT order_id FROM orders WHERE order_id = $1',
+          [order_id]
+        );
+        if (existingOrder.rows.length > 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ 
+            error: 'Order ID already exists',
+            details: `An order with ID ${order_id} already exists. Please try again with a different order ID.`
+          });
+        }
+      }
 
       // Insert into orders table
       const orderResult = await client.query(`
         INSERT INTO orders (
           order_id,
+          account_name,
           name,
           order_date,
           expected_delivery,
           status,
+          package_name,
+          payment_method,
+          payment_type,
+          shipped_to,
+          shipping_address,
+          total_cost,
           remarks,
           telephone,
           cellphone,
           email_address
-        ) VALUES ($1, $2, $3, $4, $5, $6, '', '', '') RETURNING *
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *
       `, [
         order_id,
-        `Supplier Order ${order_id}`,
+        account_name,
+        name,
         order_date,
         expected_delivery,
-        'pending',
-        remarks
+        status,
+        package_name,
+        payment_method,
+        payment_type,
+        shipped_to,
+        shipping_address,
+        total_cost,
+        remarks,
+        telephone,
+        cellphone,
+        email_address
       ]);
 
       if (!orderResult.rows.length) {
         await client.query('ROLLBACK');
-        return res.status(500).json({ error: 'Failed to create order' });
+        return res.status(500).json({ error: 'Failed to create customer order' });
       }
 
       // Insert order products
-      const productPromises = items.map(async (item) => {
-        try {
-          await client.query(`
-            INSERT INTO order_products (order_id, sku, quantity)
-            VALUES ($1, $2, $3)
-          `, [order_id, item.product_id, item.quantity]);
-        } catch (error) {
-          console.error('Error inserting order product:', error);
-          throw error;
+      for (const product of products) {
+        if (!product.sku || !product.quantity) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Each product must have sku and quantity' });
         }
-      });
-
-      await Promise.all(productPromises);
+        await client.query(`
+          INSERT INTO order_products (order_id, sku, quantity, profit_margin)
+          VALUES ($1, $2, $3, $4)
+        `, [order_id, product.sku, product.quantity, product.profit_margin || 0]);
+      }
 
       await client.query('COMMIT');
       res.status(201).json({
         ...orderResult.rows[0],
-        items
+        products
       });
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('Error creating supplier order:', error);
-      res.status(500).json({ error: 'Failed to create supplier order' });
+      console.error('Error creating customer order:', error);
+      
+      // Handle specific database errors
+      if (error.code === '23505') { // Unique violation
+        return res.status(400).json({ 
+          error: 'Order ID already exists',
+          details: `An order with ID ${providedOrderId} already exists. Please try again with a different order ID.`
+        });
+      }
+      
+      res.status(500).json({ 
+        error: 'Failed to create customer order', 
+        details: error.message 
+      });
     } finally {
       client.release();
     }
   } catch (error) {
-    console.error('Error in supplier order route:', error);
+    console.error('Error in customer order route:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

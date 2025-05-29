@@ -165,6 +165,32 @@ pool.connect((err, client, release) => {
     process.exit(1);
   }
   console.log('Successfully connected to PostgreSQL database');
+
+  // Add profit-related columns to orders table
+  client.query(`
+    ALTER TABLE orders 
+    ADD COLUMN IF NOT EXISTS total_profit_estimation DECIMAL(10,2) DEFAULT 0.00;
+  `, (err) => {
+    if (err) {
+      console.error('Error adding total_profit_estimation column:', err);
+    } else {
+      console.log('Successfully added total_profit_estimation column to orders table');
+    }
+  });
+
+  // Add profit-related columns to order_products table
+  client.query(`
+    ALTER TABLE order_products 
+    ADD COLUMN IF NOT EXISTS profit_margin DECIMAL(5,2) DEFAULT 0.00,
+    ADD COLUMN IF NOT EXISTS profit_estimation DECIMAL(10,2) DEFAULT 0.00;
+  `, (err) => {
+    if (err) {
+      console.error('Error adding profit columns to order_products:', err);
+    } else {
+      console.log('Successfully added profit columns to order_products table');
+    }
+  });
+
   release();
 });
 
@@ -807,20 +833,27 @@ app.get('/api/orders/customer/:customer_name', async (req, res) => {
             JSON_BUILD_OBJECT(
               'sku', op.sku, 
               'quantity', op.quantity, 
-              'name', inv.name, 
-              'image_data', ENCODE(inv.image_data, 'base64')
+              'profit_margin', op.profit_margin,
+              'profit_estimation', op.profit_estimation,
+              'name', i.name, 
+              'image_data', ENCODE(i.image_data, 'base64')
             )
           ) FILTER (WHERE op.sku IS NOT NULL), '[]'
         ) AS products
       FROM orders o
       LEFT JOIN order_products op ON o.order_id = op.order_id
-      LEFT JOIN inventory_items inv ON op.sku = inv.sku
+      LEFT JOIN inventory_items i ON op.sku = i.sku
       WHERE o.name = $1
       GROUP BY o.order_id
-      ORDER BY o.order_date DESC;
+      ORDER BY o.order_date DESC
     `, [customer_name]);
 
-    res.json(result.rows);
+    const orders = result.rows.map(order => ({
+      ...order,
+      products: order.products || []
+    }));
+
+    res.json(orders);
   } catch (error) {
     console.error('Error fetching customer orders:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -840,409 +873,66 @@ app.get('/api/order-history/customer/:customer_name', async (req, res) => {
             JSON_BUILD_OBJECT(
               'sku', ohp.sku, 
               'quantity', ohp.quantity, 
-              'name', inv.name, 
-              'image_data', ENCODE(inv.image_data, 'base64')
+              'unit_price', ohp.unit_price,
+              'name', i.name, 
+              'image_data', ENCODE(i.image_data, 'base64')
             )
           ) FILTER (WHERE ohp.sku IS NOT NULL), '[]'
         ) AS products
       FROM order_history oh
       LEFT JOIN order_history_products ohp ON oh.order_id = ohp.order_id
-      LEFT JOIN inventory_items inv ON ohp.sku = inv.sku
+      LEFT JOIN inventory_items i ON ohp.sku = i.sku
       WHERE oh.customer_name = $1
       GROUP BY oh.order_id
-      ORDER BY oh.order_date DESC;
+      ORDER BY oh.order_date DESC
     `, [customer_name]);
 
-    res.json(result.rows);
+    const orders = result.rows.map(order => ({
+      ...order,
+      products: order.products || []
+    }));
+
+    res.json(orders);
   } catch (error) {
     console.error('Error fetching customer order history:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// --- ORDER ENDPOINTS START ---
 // Get all orders
 app.get('/api/orders', async (req, res) => {
-    const client = await pool.connect();
-
-    try {
-        const result = await client.query(`
-SELECT 
-    o.order_id, o.name, o.shipped_to, o.order_date, o.expected_delivery, o.status, 
-    o.shipping_address, o.total_cost, o.payment_type, o.payment_method, o.account_name, 
-    o.remarks, o.telephone, o.cellphone, o.email_address, o.package_name, 
-    COALESCE(o.order_quantity, 0) AS order_quantity, -- ✅ Ensure non-null values
-    COALESCE(o.approximate_budget, 0.00) AS approximate_budget, -- ✅ Ensure non-null values
-    COALESCE(
-        JSON_AGG(
-            JSON_BUILD_OBJECT(
-                'sku', op.sku, 
-                'quantity', op.quantity, 
-                'name', inv.name, 
-                'image_data', ENCODE(inv.image_data, 'base64')
-            )
-        ) FILTER (WHERE op.sku IS NOT NULL), '[]'
-    ) AS products
-FROM orders o
-LEFT JOIN order_products op ON o.order_id = op.order_id
-LEFT JOIN inventory_items inv ON op.sku = inv.sku
-GROUP BY o.order_id
-ORDER BY o.order_date DESC;
-
-        `);
-
-        console.log("Final Orders Response with Corrected Product Data:", JSON.stringify(result.rows, null, 2));
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Error fetching orders:', error);
-        res.status(500).json({ success: false, message: 'Internal server error' });
-    } finally {
-        client.release();
-    }
-});
-
-// Create a new order
-app.post('/api/orders', async (req, res) => {
-  const {
-    order_id, name, shipped_to, order_date, expected_delivery, status,
-    shipping_address, total_cost, payment_type, payment_method, account_name, remarks,
-    telephone, cellphone, email_address, package_name, carlo_products, order_quantity, approximate_budget,
-    products
-  } = req.body;
-
-  console.log("Received order data:", JSON.stringify(req.body, null, 2));
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    const orderResult = await client.query(
-      `INSERT INTO orders (
-        order_id, name, shipped_to, order_date, expected_delivery, status, 
-        shipping_address, total_cost, payment_type, payment_method, account_name, 
-        remarks, telephone, cellphone, email_address, package_name,
-        order_quantity, approximate_budget
-      ) 
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
-      [
-        order_id, name, shipped_to, order_date, expected_delivery, status,
-        shipping_address, total_cost, payment_type, payment_method, account_name,
-        remarks, telephone, cellphone, email_address, package_name,
-        order_quantity, approximate_budget
-      ]
-    );
-
-    console.log("Order inserted successfully:", orderResult.rows[0]);
-
-    // Store products based on package type
-    const productsToStore = package_name === 'Carlo' ? carlo_products : products;
-    
-    if (productsToStore && Array.isArray(productsToStore) && productsToStore.length > 0) {
-      for (const { sku, quantity } of productsToStore) {
-        await client.query('INSERT INTO order_products (order_id, sku, quantity) VALUES ($1, $2, $3)', [order_id, sku, quantity]);
-      }
-      console.log(`${package_name} products inserted successfully`);
-    }
-
-    await client.query('COMMIT');
-
-    res.status(201).json({ success: true, order: orderResult.rows[0] });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error creating order:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
-  } finally {
-    client.release();
-  }
-});
-
-// --- ORDER PRODUCTS ENDPOINTS START ---
-// Get products for an order
-app.get('/api/orders/:order_id/products', async (req, res) => {
-  const { order_id } = req.params;
-  
   try {
     const result = await pool.query(`
       SELECT 
-        op.sku, op.quantity, 
-        i.name, i.image_data
-      FROM order_products op
-      JOIN inventory_items i ON op.sku = i.sku
-      WHERE op.order_id = $1
-    `, [order_id]);
+        o.*, 
+        COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'sku', op.sku, 
+              'quantity', op.quantity,
+              'profit_margin', op.profit_margin,
+              'profit_estimation', op.profit_estimation,
+              'name', i.name, 
+              'image_data', ENCODE(i.image_data, 'base64')
+            )
+          ) FILTER (WHERE op.sku IS NOT NULL), '[]'
+        ) AS products
+      FROM orders o
+      LEFT JOIN order_products op ON o.order_id = op.order_id
+      LEFT JOIN inventory_items i ON op.sku = i.sku
+      GROUP BY o.order_id
+      ORDER BY o.order_date DESC
+    `);
 
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching order products:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-// Update products in an order
-app.put('/api/orders/:order_id/products', async (req, res) => {
-  const { order_id } = req.params;
-  const { products } = req.body; // [{ sku, quantity }]
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    // Get current order products
-    const currentProducts = await client.query('SELECT sku, quantity FROM order_products WHERE order_id = $1', [order_id]);
-    const currentQuantities = {};
-    currentProducts.rows.forEach(p => {
-      currentQuantities[p.sku] = p.quantity;
-    });
-
-    // Process each product update
-    for (const { sku, quantity } of products) {
-      const currentQty = currentQuantities[sku] || 0;
-      const qtyDiff = quantity - currentQty;
-
-      if (qtyDiff !== 0) {
-        // Check inventory for quantity increase
-        if (qtyDiff > 0) {
-          const invRes = await client.query('SELECT quantity, name FROM inventory_items WHERE sku = $1', [sku]);
-          if (invRes.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(404).json({ success: false, message: `Product with SKU ${sku} not found` });
-          }
-          if (invRes.rows[0].quantity < qtyDiff) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ success: false, message: `Not enough stock for ${invRes.rows[0].name}` });
-          }
-          // Deduct additional inventory
-          await client.query('UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2', [qtyDiff, sku]);
-        } else {
-          // Return inventory for quantity decrease
-          await client.query('UPDATE inventory_items SET quantity = quantity + $1 WHERE sku = $2', [-qtyDiff, sku]);
-        }
-
-        if (currentQty === 0) {
-          // Insert new product
-          await client.query('INSERT INTO order_products (order_id, sku, quantity) VALUES ($1, $2, $3)', [order_id, sku, quantity]);
-        } else if (quantity === 0) {
-          // Remove product
-          await client.query('DELETE FROM order_products WHERE order_id = $1 AND sku = $2', [order_id, sku]);
-        } else {
-          // Update quantity
-          await client.query('UPDATE order_products SET quantity = $1 WHERE order_id = $2 AND sku = $3', [quantity, order_id, sku]);
-        }
-      }
-    }
-
-    await client.query('COMMIT');
-    res.json({ success: true });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error updating order products:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  } finally {
-    client.release();
-  }
-});
-
-// Remove a product from an order
-app.delete('/api/orders/:order_id/products/:sku', async (req, res) => {
-  const { order_id, sku } = req.params;
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    // Get current quantity
-    const currentRes = await client.query('SELECT quantity FROM order_products WHERE order_id = $1 AND sku = $2', [order_id, sku]);
-    if (currentRes.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ success: false, message: 'Product not found in order' });
-    }
-    
-    const quantity = currentRes.rows[0].quantity;
-    
-    // Return quantity to inventory
-    await client.query('UPDATE inventory_items SET quantity = quantity + $1 WHERE sku = $2', [quantity, sku]);
-    
-    // Remove from order
-    await client.query('DELETE FROM order_products WHERE order_id = $1 AND sku = $2', [order_id, sku]);
-    
-    await client.query('COMMIT');
-    res.json({ success: true });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error removing product from order:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  } finally {
-    client.release();
-  }
-});
-
-// Get products for an order
-app.get('/api/orders/:order_id/products', async (req, res) => {
-  const { order_id } = req.params;
-  try {
-    const result = await pool.query(
-      `SELECT op.sku, op.quantity, i.name, i.image_data, i.unit_price FROM order_products op
-       JOIN inventory_items i ON op.sku = i.sku WHERE op.order_id = $1`,
-      [order_id]
-    );
-    const products = result.rows.map(row => ({
-      ...row,
-      image_data: row.image_data ? row.image_data.toString('base64') : null
+    const orders = result.rows.map(order => ({
+      ...order,
+      products: order.products || []
     }));
-    res.json(products);
+
+    res.json(orders);
   } catch (error) {
-    console.error('Error fetching order products:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-// --- ORDER PRODUCTS ENDPOINTS END ---
-
-// --- ORDER ENDPOINTS CONTINUED ---
-// Update an order
-app.put('/api/orders/:order_id', async (req, res) => {
-  const { order_id } = req.params;
-  const {
-    name, shipped_to, order_date, expected_delivery, status,
-    shipping_address, total_cost, payment_type, payment_method, account_name, remarks,
-    telephone, cellphone, email_address
-  } = req.body;
-  try {
-    const result = await pool.query(
-      `UPDATE orders SET name=$1, shipped_to=$2, order_date=$3, expected_delivery=$4, status=$5, shipping_address=$6, total_cost=$7, payment_type=$8, payment_method=$9, account_name=$10, remarks=$11, telephone=$12, cellphone=$13, email_address=$14 WHERE order_id=$15 RETURNING *`,
-      [name, shipped_to, order_date, expected_delivery, status, shipping_address, total_cost, payment_type, payment_method, account_name, remarks, telephone, cellphone, email_address, order_id]
-    );
-    if (result.rowCount === 0) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
-    res.json({ success: true, order: result.rows[0] });
-  } catch (error) {
-    console.error('Error updating order:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-// Delete an order
-app.delete('/api/orders/:order_id', async (req, res) => {
-  const { order_id } = req.params;
-  try {
-    await pool.query('DELETE FROM orders WHERE order_id = $1', [order_id]);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting order:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-// Archive completed or cancelled order
-app.post('/api/orders/:order_id/archive', verifyToken, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    console.log('Starting archive process for order:', req.params.order_id);
-    console.log('User info:', {
-      username: req.user.username,
-      user_id: req.user.user_id
-    });
-    
-    await client.query('BEGIN');
-    
-    // Get order details
-    const orderResult = await client.query(
-      'SELECT * FROM orders WHERE order_id = $1',
-      [req.params.order_id]
-    );
-
-    if (orderResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Order not found' });
-    }
-
-    const order = orderResult.rows[0];
-
-    // Check if order is completed or cancelled
-    if (order.status !== 'Completed' && order.status !== 'Cancelled') {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ message: 'Only completed or cancelled orders can be archived' });
-    }
-
-    // Get order products
-    const productsResult = await client.query(
-      'SELECT op.*, p.name as product_name, COALESCE(p.unit_price, 0) as unit_price FROM order_products op JOIN inventory_items p ON op.sku = p.sku WHERE op.order_id = $1',
-      [req.params.order_id]
-    );
-
-    // Optional: throw error if unit_price is still null (should not happen with COALESCE, but for safety)
-    for (const product of productsResult.rows) {
-      if (product.unit_price === null) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ message: `Product ${product.sku} is missing a unit price.` });
-      }
-    }
-
-    // Insert into order_history
-    await client.query(
-      `INSERT INTO order_history (
-        order_id, customer_name, name, shipped_to, order_date, expected_delivery,
-        status, shipping_address, total_cost, payment_type, payment_method,
-        account_name, remarks, telephone, cellphone, email_address, archived_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-      [
-        order.order_id,
-        order.name, // Using name as customer_name since it's the customer's name
-        order.name,
-        order.shipped_to,
-        order.order_date,
-        order.expected_delivery,
-        order.status,
-        order.shipping_address,
-        order.total_cost,
-        order.payment_type,
-        order.payment_method,
-        order.account_name,
-        order.remarks,
-        order.telephone,
-        order.cellphone,
-        order.email_address,
-        req.user.user_id // Get the user_id from the authenticated user
-      ]
-    );
-
-    // Insert order products into order_history_products
-    for (const product of productsResult.rows) {
-      await client.query(
-        `INSERT INTO order_history_products (order_id, sku, quantity, unit_price)
-         VALUES ($1, $2, $3, $4)`,
-        [order.order_id, product.sku, product.quantity, product.unit_price]
-      );
-    }
-
-    // Delete from order_products first (due to foreign key constraint)
-    await client.query('DELETE FROM order_products WHERE order_id = $1', [req.params.order_id]);
-
-    // Delete from orders
-    await client.query('DELETE FROM orders WHERE order_id = $1', [req.params.order_id]);
-
-    await client.query('COMMIT');
-    console.log('Successfully archived order:', req.params.order_id);
-    
-    // Notify WebSocket clients
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({
-          type: 'order-archived',
-          orderId: req.params.order_id
-        }));
-      }
-    });
-
-    res.json({ success: true, message: 'Order archived successfully' });
-  } catch (error) {
-    console.error('Error archiving order:', error);
-    await client.query('ROLLBACK');
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to archive order', 
-      error: error.message 
-    });
-  } finally {
-    client.release();
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1253,15 +943,30 @@ app.get('/api/orders/history', async (req, res) => {
       SELECT 
         oh.*,
         COALESCE(u.name, 'Deleted User') as archived_by_name,
-        u.profile_picture_data as archived_by_profile_picture
+        u.profile_picture_data as archived_by_profile_picture,
+        COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'sku', ohp.sku,
+              'quantity', ohp.quantity,
+              'unit_price', ohp.unit_price,
+              'name', i.name,
+              'image_data', ENCODE(i.image_data, 'base64')
+            )
+          ) FILTER (WHERE ohp.sku IS NOT NULL), '[]'
+        ) AS products
       FROM order_history oh
       LEFT JOIN users u ON oh.archived_by = u.user_id
+      LEFT JOIN order_history_products ohp ON oh.order_id = ohp.order_id
+      LEFT JOIN inventory_items i ON ohp.sku = i.sku
+      GROUP BY oh.order_id, u.name, u.profile_picture_data
       ORDER BY oh.archived_at DESC
     `);
     
     const orders = result.rows.map(order => ({
       ...order,
-      archived_by_profile_picture: order.archived_by_profile_picture ? order.archived_by_profile_picture.toString('base64') : null
+      archived_by_profile_picture: order.archived_by_profile_picture ? order.archived_by_profile_picture.toString('base64') : null,
+      products: order.products || []
     }));
     
     res.json(orders);
@@ -1329,6 +1034,7 @@ app.get('/api/inventory/search', async (req, res) => {
   if (!name) {
     return res.status(400).json({ success: false, message: 'Missing name query parameter' });
   }
+
   try {
     const result = await pool.query(
       `SELECT * FROM inventory_items WHERE LOWER(name) LIKE LOWER($1) LIMIT 1`,
@@ -1344,34 +1050,81 @@ app.get('/api/inventory/search', async (req, res) => {
     console.error('Error searching inventory by name:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
-}); 
+});
 
+// Adjust inventory quantity
+app.put('/api/inventory/:sku/adjust', async (req, res) => {
+  const { sku } = req.params;
+  const { quantity, operation } = req.body;
+  const client = await pool.connect();
 
-app.get('/api/orders/:orderId', async (req, res) => {
-    const { orderId } = req.params;
-    const client = await pool.connect();
-
-    try {
-        // ✅ Fetch order details
-        const orderRes = await client.query("SELECT * FROM orders WHERE order_id = $1", [orderId]);
-        if (orderRes.rows.length === 0) {
-            return res.status(404).json({ error: "Order not found" });
-        }
-        const order = orderRes.rows[0];
-
-        // ✅ Fetch products related to this order
-        const productsRes = await client.query(
-            "SELECT op.sku, op.quantity, inv.name, inv.image_data FROM order_products op JOIN inventory_items inv ON op.sku = inv.sku WHERE op.order_id = $1",
-            [orderId]
-        );
-        order.products = productsRes.rows;
-
-        console.log("Final Order Response:", JSON.stringify(order, null, 2)); // ✅ Debug step
-        res.json(order);
-    } catch (error) {
-        console.error("Error fetching order:", error);
-        res.status(500).json({ error: "Internal server error" });
-    } finally {
-        client.release();
+  try {
+    // Validate input
+    if (!quantity || !operation || !['add', 'subtract'].includes(operation)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid request. Quantity and operation (add/subtract) are required.'
+      });
     }
+
+    await client.query('BEGIN');
+
+    // Get current inventory
+    const result = await client.query(
+      'SELECT quantity, name FROM inventory_items WHERE sku = $1 FOR UPDATE',
+      [sku]
+    );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    const currentQuantity = result.rows[0].quantity;
+    const productName = result.rows[0].name;
+    const newQuantity = operation === 'add' 
+      ? currentQuantity + Number(quantity)
+      : currentQuantity - Number(quantity);
+
+    // Check if we have enough stock for subtraction
+    if (operation === 'subtract' && newQuantity < 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: `Not enough stock for ${productName}. Current quantity: ${currentQuantity}, Requested: ${quantity}`
+      });
+    }
+
+    // Update inventory
+    await client.query(
+      'UPDATE inventory_items SET quantity = $1, last_updated = NOW() WHERE sku = $2',
+      [newQuantity, sku]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: `Inventory updated successfully. New quantity: ${newQuantity}`,
+      product: {
+        sku,
+        name: productName,
+        quantity: newQuantity
+      }
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error adjusting inventory:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      details: error.message
+    });
+  } finally {
+    client.release();
+  }
 });

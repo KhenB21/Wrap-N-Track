@@ -1,23 +1,16 @@
-import React, { useState } from 'react';
-import TopbarCustomer from '../../Components/TopbarCustomer';
-import './CustomerPOV.css';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import TopbarCustomer from '../../Components/TopbarCustomer/TopbarCustomer';
+import './CarloPreview.css';
 
-function generateOrderId() {
-  // Example: #CO + timestamp + random 3 digits
-  const now = Date.now();
-  const rand = Math.floor(Math.random() * 900) + 100;
-  return `#CO${now}${rand}`;
-}
-
-  // List of default product names
-  export const defaultProductNames = [
-    'Signature box',
-    'Envelope',
-    'Wellsmith sprinkle',
-    'Palapa seasoning',
-    'Wine'
-  ];
+// List of default product names
+export const defaultProductNames = [
+  'Signature box',
+  'Envelope',
+  'Wellsmith sprinkle',
+  'Palapa seasoning',
+  'Wine'
+];
 
 export default function CarloPreview() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -42,8 +35,12 @@ export default function CarloPreview() {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+
+  const generateOrderId = () => {
+    return `ORD${Date.now()}`;
+  };
   
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("Submit button clicked");
     setError("");
@@ -75,7 +72,7 @@ const handleSubmit = async (e) => {
             sku: inventoryItem?.sku || null,
             quantity: orderQty
         };
-    }).filter(product => product.sku !== null); // Only include products with valid SKUs
+    }).filter(product => product.sku !== null);
 
     const order = {
         order_id: generateOrderId(),
@@ -112,7 +109,7 @@ const handleSubmit = async (e) => {
         console.error("Order submission error:", err.response?.data || err.message);
         setError(err.response?.data?.message || "Failed to submit order. Please try again.");
     }
-};
+  };
 
   return (
     <div className="carlo-preview-container">
@@ -132,39 +129,93 @@ const handleSubmit = async (e) => {
       </button>
       {modalOpen && (
         <div className="order-modal-overlay" onClick={() => setModalOpen(false)}>
-          <div className="order-modal order-modal-two-col" onClick={e => e.stopPropagation()}>
-            <button className="order-modal-close" onClick={() => setModalOpen(false)} aria-label="Close order form">&times;</button>
+          <div className="order-modal" onClick={e => e.stopPropagation()}>
             <div className="order-modal-content">
               <div className="order-modal-form-col">
-                <h2>Order Form</h2>
-                <form className="order-form" onSubmit={handleSubmit}>
-                  {error && <div style={{color:'red',marginBottom:12}}>{error}</div>}
-                  <label>Name*
-                    <input name="name" value={form.name} onChange={handleChange} required />
-                  </label>
-                  <label>Email Address*
-                    <input name="email" type="email" value={form.email} onChange={handleChange} required />
-                  </label>
-                  <label>Contact Number*
-                    <input name="contact" value={form.contact} onChange={handleChange} required />
-                  </label>
-                  <label>Order Quantity*
-                    <input name="orderQuantity" type="number" min="1" value={form.orderQuantity} onChange={handleChange} required />
-                  </label>
-                  <label>Approximate Budget per Gift Box
-                    <input name="approximateBudget" type="number" step="0.01" min="0" value={form.approximateBudget} onChange={handleChange} />
-                  </label>
-                  <label>Date of Event*
-                    <input name="eventDate" type="date" value={form.eventDate} onChange={handleChange} required />
-                  </label>
-                  <label>Shipping Location*
-                    <input name="shippingLocation" value={form.shippingLocation} onChange={handleChange} required />
-                  </label>
-                  <label>Package Name*
-                    <input name="packageName" value={form.packageName} required readOnly/>
-                  </label>
+                <h2 className="order-modal-title">Place Your Order</h2>
+                <form onSubmit={handleSubmit}>
+                  <div className="form-group">
+                    <label htmlFor="name">Name</label>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={form.name}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="email">Email</label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={form.email}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="contact">Contact Number</label>
+                    <input
+                      type="tel"
+                      id="contact"
+                      name="contact"
+                      value={form.contact}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="orderQuantity">Order Quantity</label>
+                    <input
+                      type="number"
+                      id="orderQuantity"
+                      name="orderQuantity"
+                      value={form.orderQuantity}
+                      onChange={handleChange}
+                      min="1"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="approximateBudget">Approximate Budget</label>
+                    <input
+                      type="number"
+                      id="approximateBudget"
+                      name="approximateBudget"
+                      value={form.approximateBudget}
+                      onChange={handleChange}
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="eventDate">Event Date</label>
+                    <input
+                      type="date"
+                      id="eventDate"
+                      name="eventDate"
+                      value={form.eventDate}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="shippingLocation">Shipping Location</label>
+                    <input
+                      type="text"
+                      id="shippingLocation"
+                      name="shippingLocation"
+                      value={form.shippingLocation}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  {error && <div className="error-message">{error}</div>}
                   <div className="order-form-actions">
-                    <button type="submit" onClick={() => console.log("Submit button clicked")}>Submit</button>
+                    <button type="submit">Submit</button>
                     <button type="button" onClick={() => setModalOpen(false)}>Cancel</button>
                   </div>
                 </form>

@@ -1,0 +1,41 @@
+.topbar-customer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.topbar-customer-left {
+  display: flex;
+  align-items: center;
+}
+
+.topbar-customer-logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+  text-decoration: none;
+  font-family: 'Cormorant Garamond', serif;
+}
+
+.topbar-customer-right {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+.topbar-customer-link {
+  color: #2c3e50;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.topbar-customer-link:hover {
+  color: #6c63ff;
+} 

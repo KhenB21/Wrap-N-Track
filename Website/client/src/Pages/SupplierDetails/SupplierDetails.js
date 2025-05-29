@@ -358,12 +358,12 @@ export default function SupplierDetails() {
           }));
         } else {
           // Update in ongoing orders
-          setSupplierOrders(prev => ({
-            ...prev,
-            ongoing: prev.ongoing.map(o => 
-              o.supplier_order_id === orderForm.supplier_order_id ? response.data : o
-            )
-          }));
+        setSupplierOrders(prev => ({
+          ...prev,
+          ongoing: prev.ongoing.map(o => 
+            o.supplier_order_id === orderForm.supplier_order_id ? response.data : o
+          )
+        }));
         }
       }
 
@@ -861,7 +861,7 @@ export default function SupplierDetails() {
               <div className="order-actions">
                 <div className={`order-status ${activeTab === 1 ? 'received' : (order.status || 'waiting').toLowerCase()}`}>
                   {activeTab === 1 ? 'Received' : (order.status || 'Waiting')}
-                </div>
+              </div>
                 <button 
                   className="delete-order-btn"
                   onClick={(e) => handleDeleteOrder(order.supplier_order_id, e)}
@@ -1195,7 +1195,7 @@ export default function SupplierDetails() {
                             <h3>Order History</h3>
                           </div>
                           <div className="orders-grid">
-                            {renderSupplierOrders()}
+                          {renderSupplierOrders()}
                           </div>
                         </div>
                       )}
@@ -1206,7 +1206,7 @@ export default function SupplierDetails() {
                             <button className="btn-primary" onClick={handleAddOrder}>Add Order</button>
                           </div>
                           <div className="orders-grid">
-                            {renderSupplierOrders()}
+                          {renderSupplierOrders()}
                           </div>
                         </div>
                       )}
