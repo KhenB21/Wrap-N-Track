@@ -9,6 +9,7 @@ import HomeScreen from "./src/Screens/HomeScreen";
 import ItemPreviewScreen from "./src/Screens/ItemPreviewScreen";
 import MyCartScreen from "./src/Screens/MyCartScreen";
 import OrderSummaryScreen from "./src/Screens/OrderSummaryScreen";
+import DeliveryTrackingScreen from "./src/Screens/DeliveryTrackingScreen";
 import { ThemeProvider } from "./src/Context/ThemeContext";
 import { CartProvider } from "./src/Context/CartContext";
 const Stack = createStackNavigator();
@@ -29,6 +30,11 @@ export default function App() {
               <Stack.Screen
                 name="OrderSummary"
                 component={OrderSummaryScreen}
+              />
+              <Stack.Screen
+                name="DeliveryTracking"
+                component={DeliveryTrackingScreen}
+                options={{ headerShown: false }}
               />
             </Stack.Navigator>
           </NavigationContainer>

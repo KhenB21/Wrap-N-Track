@@ -232,7 +232,7 @@ export default function OrderSummaryScreen({ navigation, route }) {
           style={[styles.buyNowBtn, { backgroundColor: colors.btn }]}
           onPress={() => {
             ToastAndroid.show("Order placed successfully!", ToastAndroid.SHORT);
-            navigation.navigate("Home"); // Navigate to Home after buying
+            navigation.navigate("DeliveryTracking", { product }); // Pass product as param
           }}
         >
           <Text style={[styles.buyNowText, { color: colors.btnText }]}>
