@@ -227,14 +227,14 @@ app.post('/api/fix-role-constraint', async (req, res) => {
     await client.query(`
       UPDATE users 
       SET role = 'director' 
-      WHERE role NOT IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer')
+      WHERE role NOT IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales')
     `);
     
     // Then update the constraint
     await client.query(`
       ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
       ALTER TABLE users ADD CONSTRAINT users_role_check 
-      CHECK (role IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer'));
+      CHECK (role IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales'));
     `);
     
     await client.query('COMMIT');
@@ -276,8 +276,7 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
     'director',
     'admin',
     'sales_manager',
-    'assistant_sales',
-    'packer'
+    'assistant_sales'
   ];
 
   console.log('Validating role:', {

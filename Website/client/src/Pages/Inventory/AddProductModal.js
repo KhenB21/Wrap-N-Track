@@ -38,14 +38,23 @@ const CATEGORIES = [
 'Others'
 ];
 
+// Function to generate a unique-like SKU (simple implementation)
+const generateUniqueSku = () => {
+  let digits = '';
+  for (let i = 0; i < 12; i++) {
+    digits += Math.floor(Math.random() * 10); // Generate a random digit (0-9)
+  }
+  return `BC${digits}`;
+};
+
 export default function AddProductModal({ onClose, onAdd, initialData = {}, isEdit = false }) {
   const [form, setForm] = useState({
-    sku: '',
-    name: '',
-    description: '',
-    quantity: 0,
-    unit_price: 0,
-    category: '',
+    sku: isEdit ? (initialData.sku || '') : generateUniqueSku(),
+    name: initialData.name || '',
+    description: initialData.description || '',
+    quantity: initialData.quantity || 0,
+    unit_price: initialData.unit_price || 0,
+    category: initialData.category || '',
   });
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -83,7 +92,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
   }, []);
 
   useEffect(() => {
-    if (initialData && Object.keys(initialData).length > 0) {
+    if (isEdit && initialData && Object.keys(initialData).length > 0) {
       setForm({
         sku: initialData.sku || '',
         name: initialData.name || '',
@@ -97,7 +106,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         setPreview(`${config.API_URL}${initialData.image_path}`);
       }
     }
-  }, [initialData]);
+  }, [isEdit, initialData]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -194,32 +203,26 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
 
     const formData = new FormData();
     
-    // Convert numeric fields to numbers and validate
-    const numericFields = ['quantity', 'unit_price'];
-    
-    Object.entries(form).forEach(([key, value]) => {
-      if (numericFields.includes(key)) {
-        const numValue = Number(value);
-        if (isNaN(numValue)) {
-          setErrors({ ...errors, [key]: `${key} must be a valid number` });
-          return;
-        }
-        formData.append(key, numValue);
-      } else {
-        formData.append(key, value);
-      }
-    });
-    
+    // Append form fields, explicitly converting numbers to strings
+    formData.append('sku', form.sku);
+    formData.append('name', form.name);
+    formData.append('description', form.description);
+    formData.append('quantity', String(form.quantity)); // Explicitly convert to string
+    formData.append('unit_price', String(form.unit_price)); // Explicitly convert to string
+    formData.append('category', form.category);
+
+    // Append image data: use new image if selected
     if (image) {
       formData.append('image', image);
     }
-    
+
+    console.log('FormData before onAdd:', formData); // Added log to inspect FormData
     onAdd(formData);
   };
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
         <button className="close-btn" onClick={onClose}>&times;</button>
         <h3>{isEdit ? 'Edit Item' : 'New Item'}</h3>
         <form onSubmit={handleSubmit} className="add-product-form" encType="multipart/form-data">
@@ -228,7 +231,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
             {preview && <img src={preview} alt="Preview" style={{ width: 60, height: 60, marginTop: 8, borderRadius: 6, objectFit: 'cover' }} />}
           </label>
           <label>SKU
-            <input name="sku" value={form.sku} onChange={handleChange} required disabled={isEdit} />
+            <input name="sku" value={form.sku} onChange={handleChange} required disabled={!isEdit} />
           </label>
           <label>Name
             <input 

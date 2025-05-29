@@ -5,10 +5,10 @@ export default function Notifications({ isOpen, onClose }) {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    // TODO: Replace with actual API call to fetch notifications
+    // TODO: Replace with actual API call to fetch low-stock products
     const fetchNotifications = async () => {
       try {
-        const response = await fetch('/api/notifications');
+        const response = await fetch('/api/notifications/low-stock');
         const data = await response.json();
         setNotifications(data);
       } catch (error) {
@@ -35,7 +35,7 @@ export default function Notifications({ isOpen, onClose }) {
             notifications.map((notification, index) => (
               <div key={index} className="notification-item">
                 <div className="notification-content">
-                  <p className="notification-message">{notification.message}</p>
+                  <p className="notification-message">Product: {notification.name}, Stock: {notification.quantity}</p>
                   <span className="notification-time">
                     {new Date(notification.timestamp).toLocaleString()}
                   </span>

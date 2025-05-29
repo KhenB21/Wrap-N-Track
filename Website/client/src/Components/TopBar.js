@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Notifications from "./Notifications/Notifications";
 import "./TopBar.css";
+import api from '../api/axios'; // Import the api instance
 
 export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -10,6 +11,7 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const dropdownRef = useRef();
   const navigate = useNavigate();
+  const [lowStockNotifications, setLowStockNotifications] = useState([]);
 
   const handleNotificationsClick = () => {
     setIsNotificationsOpen(true);
@@ -68,6 +70,24 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    const fetchLowStockNotifications = async () => {
+      try {
+        const response = await api.get('/api/notifications/low-stock');
+        setLowStockNotifications(response.data);
+      } catch (error) {
+        console.error('Error fetching low stock notifications:', error);
+      }
+    };
+
+    fetchLowStockNotifications();
+
+    // Optional: Fetch notifications periodically
+    const interval = setInterval(fetchLowStockNotifications, 60000); // Fetch every 60 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   const getProfilePictureUrl = () => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) return "/placeholder-profile.png";
@@ -92,6 +112,9 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
           style={{ cursor: 'pointer' }}
         >
           🔔
+          {lowStockNotifications.length > 0 && (
+            <span className="notification-count">{lowStockNotifications.length}</span>
+          )}
         </span>
         <span 
           className="dashboard-settings" 
@@ -119,7 +142,6 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
           {dropdownOpen && (
             <div className="avatar-dropdown">
               <button onClick={handleViewProfile}>View Profile</button>
-              <button onClick={handleSettingsClick}>Settings</button>
               <button onClick={handleLogout} className="logout-btn">Logout</button>
             </div>
           )}
@@ -128,6 +150,7 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
       <Notifications 
         isOpen={isNotificationsOpen} 
         onClose={() => setIsNotificationsOpen(false)} 
+        notifications={lowStockNotifications}
       />
       {showDropdown && (
         <div className="settings-dropdown">

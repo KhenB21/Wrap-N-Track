@@ -20,6 +20,11 @@ export default function Inventory() {
   const [filter, setFilter] = useState('all');
   const navigate = useNavigate();
 
+  // Log showModal changes
+  useEffect(() => {
+    console.log('showModal changed:', showModal);
+  }, [showModal]);
+
   useEffect(() => {
     // Check if we have a filter from dashboard navigation
     if (location.state?.filter) {
@@ -82,13 +87,16 @@ export default function Inventory() {
   };
 
   const handleEdit = (product) => {
+    console.log('Editing product:', product);
     setSelectedProduct(product);
     setShowEditModal(true);
   };
 
   const handleEditSubmit = async (formData) => {
+    console.log('Submitting edit form with data:', formData);
     try {
       const response = await api.put(`/api/inventory/${selectedProduct.sku}`, formData);
+      console.log('Edit API response:', response);
       if (response.data.success) {
         setShowEditModal(false);
         fetchProducts();

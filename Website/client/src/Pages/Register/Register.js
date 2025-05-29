@@ -1,7 +1,7 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import config from "../../config";
 import "./Register.css";
 
 function debounce(func, delay) {
@@ -262,7 +262,7 @@ function Register() {
                 <option value="assistant_sales">Assistant Sales</option>
               </optgroup>
               <optgroup label="Operations">
-                <option value="packer">Packer</option>
+                
               </optgroup>
             </select>
           </div>
