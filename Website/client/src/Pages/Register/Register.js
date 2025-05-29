@@ -158,24 +158,6 @@ function Register() {
   }
 
   try {
-    const formDataToSend = new FormData();
-    formDataToSend.append("name", formData.name);
-    formDataToSend.append("email", formData.email);
-    formDataToSend.append("password", formData.password);
-    formDataToSend.append("role", formData.role);
-    if (profilePicture) {
-      formDataToSend.append("profilePicture", profilePicture);
-    }
-
-
-    const response = await axios.post(
-      "http://localhost:3001/api/auth/register",
-      formDataToSend,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-
     try {
       console.log('Attempting registration with API URL:', config.API_URL);
       const formDataToSend = new FormData();
@@ -185,26 +167,7 @@ function Register() {
       formDataToSend.append("role", formData.role);
       if (profilePicture) {
         formDataToSend.append("profilePicture", profilePicture);
-
       }
-    );
-
-
-    if (response.data.success) {
-      localStorage.setItem("token", response.data.token); // store token
-      localStorage.setItem("user", JSON.stringify(response.data.user)); // store user
-      navigate("/verify"); // redirect to verify page
-    }
-  } catch (err) {
-    const message = err.response?.data?.message;
-
-    if (message === "Email already registered") {
-      setEmailError(message);
-    } else if (message === "Name already taken") {
-      setNameError(message);
-    } else {
-      setError(message || "Registration failed. Please try again.");
-=======
 
       const response = await axios.post(
         "http://localhost:3001/api/auth/register",
@@ -213,17 +176,15 @@ function Register() {
           headers: {
             "Content-Type": "multipart/form-data",
           },
-
         }
       );
 
-      console.log('Registration response:', response.data);
+      console.log("Registration response:", response.data);
 
       if (response.data.success) {
-
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify(response.data.user));
-        navigate("/");
+        navigate("/verify");
       }
     } catch (err) {
       const message = err.response?.data?.message;

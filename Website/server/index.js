@@ -14,6 +14,20 @@ require('dotenv').config({ path: __dirname + '/../.env' });
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Initialize nodemailer transporter
+let transporter = null;
+if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+  transporter = require('nodemailer').createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+} else {
+  console.warn('Email credentials missing in environment variables. Email functionality will not work.');
+}
+
 // Function to archive completed orders
 async function archiveCompletedOrders() {
   const client = await pool.connect();
@@ -334,21 +348,7 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
        VALUES ($1, $2, $3, $4, $5, true, false, $6) 
        RETURNING user_id, name, email, role`,
       [name, email, passwordHash, role, profilePictureData, verificationCode]
-
-
-    console.log('Attempting to insert user with role:', roleLower);
-
-    // Insert new user with profile picture data (using lowercase role)
-    const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role, profile_picture_data) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email, role',
-      [name, email, passwordHash, roleLower, profilePictureData]
-
     );
-
-    // Insert new user with profile picture data
-    // const result = await pool.query(
-    //   'INSERT INTO users (name, email, password_hash, role, profile_picture_data, is_active) VALUES ($1, $2, $3, $4, $5, true) RETURNING user_id, name, email, role',
-    //   [name, email, passwordHash, role, profilePictureData]
 
 
     const newUser = result.rows[0];
@@ -609,14 +609,6 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-//transporter for sending emails
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
-  },
-});
 
 app.post("/api/auth/forgot-password", async (req, res) => {
   const { email } = req.body;

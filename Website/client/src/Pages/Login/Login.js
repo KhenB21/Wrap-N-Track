@@ -93,14 +93,9 @@ function LoginPage() {
 
     try {
 
-      const response = await axios.post(
-        "http://localhost:3001/api/auth/login",
-        {
-          username: formData.username,
-          password: formData.password,
-        }
-      );
-
+      // You only need one response variable. Remove the first declaration or use a different variable name if you need both responses.
+      // If you want to use the api.post call, remove the axios.post call, or vice versa.
+      // Here is the corrected version using only the api.post call:
       console.log('Attempting login with API URL:', config.API_URL);
       const response = await api.post('/api/auth/login', {
         username: formData.username,

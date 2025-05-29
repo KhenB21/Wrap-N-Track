@@ -49,7 +49,11 @@ function ForgotPassword() {
       setMessage(res.data.message);
       setShowModal(true);
     } catch (err) {
-      setError(err.response?.data?.message || "Something went wrong.");
+      if (err.response?.status === 404) {
+        setError("This email address is not registered in our system.");
+      } else {
+        setError(err.response?.data?.message || "Something went wrong.");
+      }
     } finally {
       setLoading(false);
     }
@@ -86,6 +90,7 @@ function ForgotPassword() {
 
         <div className="right-section">
           <h3>Forgot Password</h3>
+          {error && <div className="error-message">{error}</div>}
           {message && <div className="success-message">{message}</div>}
           <form onSubmit={handleSubmit}>
             <div className="input-container">
@@ -115,20 +120,25 @@ function ForgotPassword() {
 
       {/* ✅ Modal for verification code */}
       {showModal && (
-        <div className="modal">
-          <div className="modal-content">
-            {error && <div className="error-message">{error}</div>}
-            <h3>Enter Verification Code</h3>
-            <input
-              type="text"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Enter the code sent to your email"
-            />
-            <button onClick={handleCodeSubmit}>Verify</button>
-          </div>
-        </div>
-      )}
+  <div className="modal">
+    <div className="modal-content">
+      <button className="modal-close" onClick={() => {
+        setShowModal(false);
+        setError("");
+        setMessage("");
+      }}>&times;</button>
+      {error && <div className="error-message modal-error">{error}</div>}
+      <h3>Enter Verification Code</h3>
+      <input
+        type="text"
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        placeholder="Enter the code sent to your email"
+      />
+      <button onClick={handleCodeSubmit}>Verify</button>
+    </div>
+  </div>
+)}
     </div>
   );
 }
