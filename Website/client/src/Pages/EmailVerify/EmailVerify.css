@@ -1,0 +1,117 @@
+.email-verifier-container {
+  display: flex;
+  height: 100vh;
+  background-color: #f2f2f2;
+  justify-content: center;
+  align-items: center;
+}
+
+.verifier-card {
+  display: flex;
+  width: 800px;
+  background-color: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.left-section {
+  background-color: #666693;
+  color: white;
+  flex: 1;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.left-section h1 {
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+
+.left-section .subtitle {
+  font-size: 36px;
+  font-family: 'Cursive', sans-serif;
+  margin-bottom: 5px;
+}
+
+.left-section .gifting {
+  font-size: 18px;
+  font-weight: 300;
+}
+
+.right-section {
+  flex: 1;
+  padding: 40px;
+}
+
+.right-section h3 {
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: #666693;
+}
+
+.input-container {
+  margin-bottom: 20px;
+}
+
+.input-container label {
+  display: block;
+  font-size: 14px;
+  color: #666693;
+  margin-bottom: 6px;
+}
+
+.input-container input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+.verify-button {
+  background-color: #666693;
+  color: white;
+  padding: 12px;
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.verify-button:hover {
+  background-color: #5a5a87;
+}
+
+.success-message,
+.error-message {
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.resend-button {
+  margin-top: 15px;
+  background: none;
+  border: none;
+  color: #666693;
+  text-decoration: underline;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.resend-button:hover {
+  color: #4c4c72;
+}
