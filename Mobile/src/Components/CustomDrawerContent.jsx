@@ -6,12 +6,16 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../Screens/DrawerNavigation/ThemeContect';
 
+// Import useProfile to get profile info from context
+import { useProfile } from '../Screens/DrawerNavigation/AccountProfileScreen';
 
 const CustomDrawerContent = (props) => {
   const navigation = useNavigation();
   const { themeStyles } = useTheme();
   const styles = createStyles(themeStyles);
-  
+
+  // Get profile from context
+  const { profile } = useProfile();
 
   const handleLogout = () => {
     Alert.alert(
@@ -31,11 +35,21 @@ const CustomDrawerContent = (props) => {
     <DrawerContentScrollView {...props} contentContainerStyle={{...styles.drawerContentContainer }}>
       <View style={{...styles.profileContainer, backgroundColor: themeStyles.headerColor}}>
         <Image
-          source={require('../../assets/Profile/person.jpg')}
+          source={
+            profile.image
+              ? (typeof profile.image === "string" && profile.image.startsWith("file")
+                  ? { uri: profile.image }
+                  : profile.image)
+              : require('../../assets/Profile/person.jpg')
+          }
           style={styles.profileImage} 
         />
-        <Text style={styles.userName}>Marc Khenneth Bolima</Text>
-        <Text style={{fontSize: 14, color: '#FDFDFD'}}>bolimarc@gmail.com</Text>
+        <Text style={styles.userName}>
+          {profile.name ? profile.name : "Your Name"}
+        </Text>
+        <Text style={{fontSize: 14, color: '#FDFDFD'}}>
+          {profile.email ? profile.email : "your@email.com"}
+        </Text>
       </View>
       <View style={{justifyContent: 'space-between', height: '100%'}}>
         <View>

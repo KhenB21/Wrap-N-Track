@@ -12,7 +12,7 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { useTheme } from "../../Screens/DrawerNavigation/ThemeContect";
 import * as Notifications from "expo-notifications";
 
-const SettingsScreen = ({ route }) => {
+const SettingsScreen = ({ route, navigation }) => {
   const { pageTitle } = route.params;
   const { isDarkMode, toggleTheme } = useTheme();
   const [isThemeDropdownVisible, setIsThemeDropdownVisible] = useState(false);
@@ -180,6 +180,7 @@ const SettingsScreen = ({ route }) => {
                 flexDirection: "row",
                 alignItems: "center",
               }}
+              onPress={() => navigation.navigate("Profile")} // <-- add this line
             >
               <MaterialCommunityIcons
                 name="account"
