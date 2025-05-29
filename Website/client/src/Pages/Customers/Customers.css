@@ -17,6 +17,7 @@ body.dark .customer-table,
 body.dark .customer-card {
     background-color: #2c2c2c;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    color: #e0e0e0; /* Ensure text is light */
 }
 
 body.dark .customer-table th,
@@ -47,6 +48,21 @@ body.dark .customer-card-info {
 
 body.dark .customer-card-label {
     color: #bb86fc; /* Accent color for labels */
+}
+
+/* Styles for the customer list container and empty state */
+body.dark .customer-list-container {
+  background-color: #2c2c2c; /* Dark background for the list container */
+  color: #e0e0e0; /* Light text */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border-radius: 12px; /* Assuming similar border radius */
+  padding: 20px; /* Assuming some padding */
+}
+
+body.dark .no-customers-found {
+  color: #b0b0b0; /* Slightly lighter color for the empty state message */
+  text-align: center; /* Assuming it's centered */
+  padding: 20px; /* Assuming some padding */
 }
 
 /* Styles for any modals related to customers */

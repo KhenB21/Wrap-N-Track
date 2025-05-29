@@ -290,4 +290,57 @@ body.dark .modal-content .btn-secondary {
 
 body.dark .modal-content .btn-secondary:hover {
     background-color: #505050;
+}
+
+/* Additional dark mode styles for Order History */
+body.dark .order-list-item > div {
+  color: #e0e0e0; /* Ensure text within list items is light */
+}
+
+body.dark .order-details-panel {
+  /* Existing styles */
+}
+
+body.dark .order-details-panel div {
+    color: #e0e0e0; /* Ensure all divs within the panel have light text */
+}
+
+body.dark .order-details-panel span {
+    color: #e0e0e0; /* Ensure all spans within the panel have light text */
+}
+
+body.dark .order-details-panel h3 {
+    color: #e0e0e0; /* Ensure h3 within the panel has light text */
+}
+
+body.dark .order-details-panel hr {
+    border-color: #404040; /* Darker horizontal rule */
+}
+
+body.dark .order-details-panel .order-detail-item label {
+    color: #cccccc; /* Lighter text for labels */
+}
+
+body.dark .order-details-panel .order-detail-item span {
+    color: #e0e0e0; /* Light text for detail values */
+}
+
+body.dark .order-details-panel .product-item {
+    border-bottom-color: #404040; /* Darker border for product items */
+}
+
+body.dark .order-details-panel .product-item div {
+    color: #e0e0e0; /* Ensure text within product items is light */
+}
+
+body.dark .order-details-panel .product-item span {
+     color: #b0b0b0; /* Lighter text for product details like price */
+}
+
+body.dark .order-details-panel .product-item .units {
+     color: #b0b0b0; /* Lighter text for units */
+}
+
+body.dark .order-details-panel .product-item .total-price {
+    color: #e0e0e0; /* Light text for total price */
 } 

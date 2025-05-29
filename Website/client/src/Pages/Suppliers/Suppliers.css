@@ -17,6 +17,7 @@ body.dark .supplier-table,
 body.dark .supplier-card {
     background-color: #2c2c2c;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    color: #e0e0e0; /* Ensure text is light */
 }
 
 body.dark .supplier-table th,
@@ -49,6 +50,21 @@ body.dark .supplier-card-label {
     color: #bb86fc; /* Accent color for labels */
 }
 
+/* Styles for the supplier list container and empty state */
+body.dark .supplier-list-container {
+  background-color: #2c2c2c; /* Dark background for the list container */
+  color: #e0e0e0; /* Light text */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border-radius: 12px; /* Assuming similar border radius */
+  padding: 20px; /* Assuming some padding */
+}
+
+body.dark .no-suppliers-found {
+  color: #b0b0b0; /* Slightly lighter color for the empty state message */
+  text-align: center; /* Assuming it's centered */
+  padding: 20px; /* Assuming some padding */
+}
+
 /* Styles for any modals related to suppliers */
 body.dark .modal-overlay {
     background-color: rgba(0, 0, 0, 0.75); /* Darker overlay */
@@ -77,7 +93,7 @@ body.dark .modal-content select {
   border-color: #555555;
 }
 
-body.dark .modal-content input[type="text"],
+body.dark .modal-content input[type="text"]:focus,
 body.dark .modal-content input[type="email"]:focus,
 body.dark .modal-content textarea:focus,
 body.dark .modal-content select:focus {

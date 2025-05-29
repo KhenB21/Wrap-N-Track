@@ -247,103 +247,106 @@ body.dark .dashboard-month {
 body.dark .dashboard-card {
   background-color: #2c2c2c;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: #e0e0e0; /* Ensure card text is light */
 }
 
 body.dark .card-title {
-  color: #cccccc;
+  color: #b0b0b0; /* Slightly lighter color for title */
 }
 
 body.dark .card-value {
-  color: #ffffff;
-}
-
-/* Keep original accent colors for card borders and text */
-body.dark .card-red {
-    border-left-color: #e74c3c;
-}
-body.dark .card-red .card-value {
-    color: #e74c3c;
-}
-body.dark .card-orange {
-    border-left-color: #f39c12;
-}
-body.dark .card-orange .card-value {
-    color: #f39c12;
-}
-body.dark .card-green {
-    border-left-color: #2ecc71;
-}
-body.dark .card-green .card-value {
-    color: #2ecc71;
-}
-body.dark .card-blue {
-    border-left-color: #3498db;
-}
-body.dark .card-blue .card-value {
-    color: #3498db;
-}
-body.dark .card-low {
-  color: #e74c3c; /* Ensure low stock color is visible */
-}
-
-/* Sales Activity */
-body.dark .activity-list .activity-card {
-  background-color: #2c2c2c;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   color: #e0e0e0;
+}
+
+body.dark .card-red {
+  border-left-color: #cf6679; /* Adjusted for dark mode */
+}
+
+body.dark .card-red .card-value {
+  color: #cf6679; /* Adjusted for dark mode */
+}
+
+body.dark .card-orange {
+  border-left-color: #ffb74d; /* Adjusted for dark mode */
+}
+
+body.dark .card-orange .card-value {
+  color: #ffb74d; /* Adjusted for dark mode */
+}
+
+body.dark .card-green {
+  border-left-color: #81c784; /* Adjusted for dark mode */
+}
+
+body.dark .card-green .card-value {
+  color: #81c784; /* Adjusted for dark mode */
+}
+
+body.dark .card-blue {
+  border-left-color: #64b5f6; /* Adjusted for dark mode */
+}
+
+body.dark .card-blue .card-value {
+  color: #64b5f6; /* Adjusted for dark mode */
+}
+
+body.dark .card-low {
+  color: #cf6679; /* Adjusted low stock color for dark mode */
+}
+
+body.dark .dashboard-activity,
+body.dark .dashboard-top-selling,
+body.dark .dashboard-recent-activity {
+    background-color: #2c2c2c; /* Dark background for lower panels */
+    color: #e0e0e0; /* Light text for lower panels */
+}
+
+body.dark .activity-list .activity-card {
+    /* Background colors are already defined for dark mode */
+    color: #e0e0e0; /* Ensure text is light */
 }
 
 body.dark .activity-card div:first-child {
-    color: #cccccc;
+    color: #e0e0e0; /* Ensure text is light */
 }
 
-/* Keep original accent colors for sales activity cards */
-body.dark .activity-red {
-    border-left-color: #e74c3c;
-}
-body.dark .activity-red .activity-value {
-    color: #e74c3c;
-}
-body.dark .activity-orange {
-    border-left-color: #f39c12;
-}
-body.dark .activity-orange .activity-value {
-    color: #f39c12;
-}
-body.dark .activity-green {
-    border-left-color: #2ecc71;
-}
-body.dark .activity-green .activity-value {
-    color: #2ecc71;
-}
-
-/* Top Selling Products */
 body.dark .top-selling-list li {
-  border-bottom-color: #333333;
-  color: #e0e0e0;
+    color: #e0e0e0; /* Light text for list items */
+    border-bottom: 1px solid #3a3a3a; /* Subtle separator */
+    padding-bottom: 8px;
+    margin-bottom: 8px;
 }
 
-body.dark .top-selling-list li .units {
-  color: #b0b0b0;
+body.dark .top-selling-list li:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
 }
 
-/* Recent Activity */
+body.dark .product-bar {
+    background: #555; /* Darker background for bars */
+}
+
+body.dark .units {
+    color: #b0b0b0; /* Slightly lighter color for units */
+}
+
 body.dark .recent-activity-item {
-  border-bottom-color: #333333;
+    color: #e0e0e0; /* Light text for activity items */
 }
 
 body.dark .recent-activity-item div {
-  color: #cccccc;
+    color: #e0e0e0; /* Ensure text is light */
 }
 
 body.dark .recent-activity-item b {
-    color: #e0e0e0;
+     color: #e0e0e0; /* Ensure bold text is light */
 }
 
 body.dark .activity-link {
-  color: #bb86fc; /* Accent color for links */
+    color: #64b5f6; /* Adjusted link color for dark mode */
 }
 
 body.dark .activity-time {
-  color: #999999;
+    color: #b0b0b0; /* Slightly lighter color for time */
 }

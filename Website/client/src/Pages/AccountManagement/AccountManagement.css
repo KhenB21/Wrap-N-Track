@@ -152,4 +152,26 @@ body.dark .user-modal-actions .user-modal-delete.secondary {
 body.dark .user-modal-actions .user-modal-save.secondary:hover,
 body.dark .user-modal-actions .user-modal-delete.secondary:hover {
     background-color: #505050;
+}
+
+/* Additional dark mode styles for Account Management user details */
+body.dark .account-management-container .user-card {
+    background-color: #2c2c2c; /* Dark background for user cards */
+    color: #e0e0e0; /* Light text for user card */
+}
+
+body.dark .account-management-container .user-card div {
+    color: #e0e0e0; /* Ensure text within user card divs is light */
+}
+
+body.dark .account-management-container .user-card span {
+    color: #e0e0e0; /* Ensure text within user card spans is light */
+}
+
+body.dark .account-management-container .user-card b {
+    color: #e0e0e0; /* Ensure bold text within user card is light */
+}
+
+body.dark .account-management-container label {
+    color: #cccccc; /* Lighter color for labels like User ID, Email, etc. */
 } 
