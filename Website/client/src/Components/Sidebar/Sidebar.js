@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Sidebar.css"; // We'll create this next
+import config from '../../config';
 
 const Sidebar = () => {
   const [reportsOpen, setReportsOpen] = useState(false);
@@ -27,7 +28,7 @@ const Sidebar = () => {
     // If we have a path, use that
     if (user.profile_picture_path) {
       if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
-      return `http://localhost:3001${user.profile_picture_path}`;
+      return `${config.API_URL}${user.profile_picture_path}`;
     }
     
     return "/placeholder-profile.png";
@@ -39,7 +40,7 @@ const Sidebar = () => {
     return user ? user.role : null;
   };
 
-  const isAdmin = getUserRole() === 'admin';
+  const isAdmin = ['admin', 'director', 'business_developer', 'creatives'].includes(getUserRole());
 
   return (
     <div className="sidebar">

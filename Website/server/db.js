@@ -1,14 +1,40 @@
 const { Pool } = require('pg');
 const WebSocket = require('ws');
-require('dotenv').config();
+require('dotenv').config({ path: __dirname + '/.env' });
+
+// Debug: Log the database connection details (with password masked)
+const dbUser = process.env.DB_USER;
+const dbHost = process.env.DB_HOST || 'localhost'; // Default to localhost
+const dbName = process.env.DB_NAME;
+const dbPort = process.env.DB_PORT;
+console.log('Database User:', dbUser || 'Not set (will use PG defaults)');
+console.log('Database Host:', dbHost);
+console.log('Database Name:', dbName || 'Not set (will use PG defaults)');
+console.log('Database Port:', dbPort || 'Not set (will use 5432)');
+
+// Note: Connection might fail if DB_USER, DB_NAME, or DB_PASSWORD are not set depending on PG configuration
+if (!dbUser || !dbName || !process.env.DB_PASSWORD) {
+  console.warn('Database connection environment variables (DB_USER, DB_NAME, DB_PASSWORD) are not fully set. Connection might fail depending on PostgreSQL configuration.');
+}
 
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'wrap_n_track',
-  password: process.env.DB_PASSWORD || '123qwe123!', 
-  port: process.env.DB_PORT || 5432,
+  user: dbUser,
+  host: dbHost,
+  database: dbName,
+  password: process.env.DB_PASSWORD,
+  port: dbPort ? parseInt(dbPort) : 5432, // Default to 5432 if not set
 });
+
+// Test the connection immediately
+pool.connect()
+  .then(client => {
+    console.log('Successfully connected to PostgreSQL database');
+    client.release();
+  })
+  .catch(err => {
+    console.error('Error connecting to PostgreSQL database:', err);
+    process.exit(1);
+  });
 
 // Create a WebSocket server instance
 const wss = new WebSocket.Server({ noServer: true });
@@ -71,6 +97,14 @@ const notifyChange = async (channel, payload) => {
 
 // Initialize database listeners
 setupDatabaseListeners();
+
+const generateUniqueSku = () => {
+  let digits = '';
+  for (let i = 0; i < 12; i++) {
+    digits += Math.floor(Math.random() * 10); // Generate a random digit (0-9)
+  }
+  return `BC${digits}`;
+};
 
 module.exports = {
   pool,

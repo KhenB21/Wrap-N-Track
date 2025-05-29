@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import config from "../../config";
 import "./Register.css";
 
 function debounce(func, delay) {
@@ -12,6 +13,7 @@ function debounce(func, delay) {
     }, delay);
   };
 }
+
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -34,6 +36,7 @@ function Register() {
 
   const navigate = useNavigate();
 
+
   useEffect(() => {
     if (
       formData.confirmPassword &&
@@ -44,6 +47,7 @@ function Register() {
       setPasswordMatchError("");
     }
   }, [formData.password, formData.confirmPassword]);
+
 
   const checkEmailExists = debounce(async (email) => {
     if (!email) return;
@@ -86,6 +90,7 @@ function Register() {
       setCheckingName(false);
     }
   }, 500);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -162,6 +167,7 @@ function Register() {
       formDataToSend.append("profilePicture", profilePicture);
     }
 
+
     const response = await axios.post(
       "http://localhost:3001/api/auth/register",
       formDataToSend,
@@ -169,8 +175,20 @@ function Register() {
         headers: {
           "Content-Type": "multipart/form-data",
         },
+
+    try {
+      console.log('Attempting registration with API URL:', config.API_URL);
+      const formDataToSend = new FormData();
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append("email", formData.email);
+      formDataToSend.append("password", formData.password);
+      formDataToSend.append("role", formData.role);
+      if (profilePicture) {
+        formDataToSend.append("profilePicture", profilePicture);
+
       }
     );
+
 
     if (response.data.success) {
       localStorage.setItem("token", response.data.token); // store token
@@ -186,6 +204,37 @@ function Register() {
       setNameError(message);
     } else {
       setError(message || "Registration failed. Please try again.");
+=======
+
+      const response = await axios.post(
+        "http://localhost:3001/api/auth/register",
+        formDataToSend,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+
+        }
+      );
+
+      console.log('Registration response:', response.data);
+
+      if (response.data.success) {
+
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+        navigate("/");
+      }
+    } catch (err) {
+      const message = err.response?.data?.message;
+
+      if (message === "Email already registered") {
+        setEmailError(message); // shows below the email input
+      } else {
+        setError(message || "Registration failed. Please try again.");
+      }
+
+
     }
   } finally {
     setLoading(false);
@@ -277,7 +326,7 @@ function Register() {
                 <option value="assistant_sales">Assistant Sales</option>
               </optgroup>
               <optgroup label="Operations">
-                <option value="packer">Packer</option>
+                
               </optgroup>
             </select>
           </div>

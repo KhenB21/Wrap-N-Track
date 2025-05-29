@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from '../../api/axios';
+import config from '../../config';
 import "./Login.css";
 
 function LoginPage() {
@@ -26,6 +27,7 @@ function LoginPage() {
   );
 
   const navigate = useNavigate();
+
 
   const getMaxAttempts = () => {
     return userRole === "customer" ? 5 : 3;
@@ -65,6 +67,10 @@ function LoginPage() {
     }
   }, [lockoutTime]);
 
+  // Log the API URL being used
+  console.log('Login component using API URL:', config.API_URL);
+
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -86,6 +92,7 @@ function LoginPage() {
     setError("");
 
     try {
+
       const response = await axios.post(
         "http://localhost:3001/api/auth/login",
         {
@@ -94,7 +101,17 @@ function LoginPage() {
         }
       );
 
+      console.log('Attempting login with API URL:', config.API_URL);
+      const response = await api.post('/api/auth/login', {
+        username: formData.username,
+        password: formData.password
+      });
+
+
+      console.log('Login response:', response.data);
+
       if (response.data.success) {
+
         // Clear lockout data
         setFailedAttempts(0);
         localStorage.setItem("failedAttempts", "0");
@@ -106,12 +123,17 @@ function LoginPage() {
         localStorage.setItem("user", JSON.stringify(response.data.user));
 
         // Show success and redirect
+
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+
         setShowSuccess(true);
         setTimeout(() => {
           navigate("/"); // match simpler component's behavior
         }, 1500);
       }
     } catch (err) {
+
       const role = err.response?.data?.role;
       if (role) {
         setUserRole(role);
@@ -125,6 +147,19 @@ function LoginPage() {
       setError(
         err.response?.data?.message || "Login failed. Please try again."
       );
+
+      console.error('Login error:', err);
+      if (err.response) {
+        console.error('Error response:', err.response.data);
+        setError(err.response.data.message || "Login failed. Please try again.");
+      } else if (err.request) {
+        console.error('No response received:', err.request);
+        setError("No response from server. Please check your connection.");
+      } else {
+        console.error('Error setting up request:', err.message);
+        setError("An error occurred. Please try again.");
+      }
+
     } finally {
       setLoading(false);
     }

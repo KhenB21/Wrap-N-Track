@@ -1,0 +1,177 @@
+/* Account Management styles */
+
+/* Dark mode styles for Account Management */
+body.dark .account-management-container {
+  background-color: #1a1a1a; /* Dark background */
+  color: #e0e0e0; /* Light text */
+}
+
+body.dark .account-management-header h2 {
+  color: #e0e0e0;
+}
+
+/* Add dark mode styles for account management list, cards, details, etc. */
+/* Assuming a layout similar to User Management */
+
+body.dark .user-management-container {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+}
+
+body.dark .user-management-header h1 {
+    color: #e0e0e0;
+}
+
+body.dark .register-user-btn {
+    background-color: #0056b3;
+    color: #ffffff;
+    border: none;
+}
+
+body.dark .register-user-btn:hover {
+    background-color: #004494;
+}
+
+body.dark .no-users-message {
+    color: #cccccc;
+}
+
+body.dark .user-section-title {
+    color: #e0e0e0;
+}
+
+body.dark .user-cards-list .user-card {
+    background-color: #2c2c2c;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    color: #e0e0e0;
+}
+
+body.dark .user-cards-list .user-card:hover {
+    background-color: #404040;
+}
+
+body.dark .user-card-header {
+    border-bottom-color: #404040;
+}
+
+body.dark .user-card-name {
+    color: #e0e0e0;
+}
+
+body.dark .user-card-role {
+    color: #cccccc;
+}
+
+body.dark .user-card-info {
+    color: #cccccc;
+}
+
+body.dark .user-card-label {
+    color: #bb86fc; /* Accent color for labels */
+}
+
+body.dark .status-admin,
+body.dark .status-employee {
+    /* Keep original status colors */
+    color: #ffffff; /* Ensure text is visible */
+}
+
+/* Dark mode for Modals (assuming similar structure to UserManagementModal) */
+body.dark .user-modal-overlay {
+    background-color: rgba(0, 0, 0, 0.75); /* Darker overlay */
+}
+
+body.dark .user-modal {
+    background-color: #1e1e1e; /* Dark modal background */
+    color: #e0e0e0;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+body.dark .user-modal-header h3 {
+    color: #e0e0e0;
+}
+
+body.dark .user-modal-close {
+    color: #e0e0e0;
+}
+
+body.dark .user-modal-close:hover {
+    background-color: #404040;
+}
+
+body.dark .user-modal-body label {
+    color: #cccccc;
+}
+
+body.dark .user-modal-body input[type="text"],
+body.dark .user-modal-body input[type="email"],
+body.dark .user-modal-body select {
+  background-color: #2c2c2c;
+  color: #e0e0e0;
+  border-color: #555555;
+}
+
+body.dark .user-modal-body input[type="text"]:focus,
+body.dark .user-modal-body input[type="email"]:focus,
+body.dark .user-modal-body select:focus {
+  border-color: #bb86fc;
+  box-shadow: 0 0 0 2px rgba(187, 134, 252, 0.25);
+}
+
+body.dark .user-modal-body .error {
+    color: #e74c3c;
+}
+
+body.dark .user-modal-actions .user-modal-save {
+    background-color: #0056b3;
+    color: #ffffff;
+    border: none;
+}
+
+body.dark .user-modal-actions .user-modal-save:hover {
+    background-color: #004494;
+}
+
+body.dark .user-modal-actions .user-modal-delete {
+    background-color: #e74c3c;
+    color: #ffffff;
+    border: none;
+}
+
+body.dark .user-modal-actions .user-modal-delete:hover {
+    background-color: #c0392b;
+}
+
+body.dark .user-modal-actions .user-modal-save.secondary,
+body.dark .user-modal-actions .user-modal-delete.secondary {
+    background-color: #404040;
+    color: #e0e0e0;
+    border-color: #555555;
+}
+
+body.dark .user-modal-actions .user-modal-save.secondary:hover,
+body.dark .user-modal-actions .user-modal-delete.secondary:hover {
+    background-color: #505050;
+}
+
+/* Additional dark mode styles for Account Management user details */
+body.dark .account-management-container .user-card {
+    background-color: #2c2c2c; /* Dark background for user cards */
+    color: #e0e0e0; /* Light text for user card */
+}
+
+body.dark .account-management-container .user-card div {
+    color: #e0e0e0; /* Ensure text within user card divs is light */
+}
+
+body.dark .account-management-container .user-card span {
+    color: #e0e0e0; /* Ensure text within user card spans is light */
+}
+
+body.dark .account-management-container .user-card b {
+    color: #e0e0e0; /* Ensure bold text within user card is light */
+}
+
+body.dark .account-management-container label {
+    color: #cccccc; /* Lighter color for labels like User ID, Email, etc. */
+} 

@@ -4,6 +4,8 @@ import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import AddProductModal from '../Inventory/AddProductModal';
 import '../Inventory/Inventory.css';
+import api from '../../api/axios';
+import config from '../../config';
 
 export default function ProductDetails() {
   const { sku } = useParams();
@@ -19,10 +21,9 @@ export default function ProductDetails() {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`http://localhost:3001/api/inventory`);
-        const data = await res.json();
-        setProducts(data);
-        const found = data.find(p => p.sku === sku);
+        const res = await api.get('/api/inventory');
+        setProducts(res.data);
+        const found = res.data.find(p => p.sku === sku);
         setProduct(found);
         // Select the current product by default
         setSelected(sel => ({ ...sel, [sku]: true }));
@@ -39,16 +40,13 @@ export default function ProductDetails() {
   const handleDelete = () => setShowDeleteDialog(true);
 
   const handleEditSubmit = async (formData) => {
-    await fetch(`http://localhost:3001/api/inventory/${sku}`, {
-      method: 'PUT',
-      body: formData,
-    });
+    await api.put(`/api/inventory/${sku}`, formData);
     setShowEditModal(false);
     window.location.reload();
   };
 
   const handleDeleteConfirm = async () => {
-    await fetch(`http://localhost:3001/api/inventory/${sku}`, { method: 'DELETE' });
+    await api.delete(`/api/inventory/${sku}`);
     setShowDeleteDialog(false);
     // Go to next product or inventory
     const idx = products.findIndex(p => p.sku === sku);
