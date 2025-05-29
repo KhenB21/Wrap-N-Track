@@ -374,6 +374,26 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
   }
 });
 
+// GET /api/auth/check-email?email=example@example.com
+app.get('/api/auth/check-email', async (req, res) => {
+  const { email } = req.query;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required' });
+  }
+
+  try {
+    const result = await pool.query('SELECT 1 FROM users WHERE email = $1', [email]);
+    const exists = result.rows.length > 0;
+    res.json({ exists });
+  } catch (error) {
+    console.error('Email check error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+
+
 // Login endpoint
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;

@@ -1,32 +1,108 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../../api/axios';
-import config from '../../config';
-import './Register.css';
+
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import "./Register.css";
+
+function debounce(func, delay) {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      func.apply(null, args);
+    }, delay);
+  };
+}
+
 
 function Register() {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'employee'
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    role: "employee",
   });
   const [profilePicture, setProfilePicture] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [passwordMatchError, setPasswordMatchError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [emailError, setEmailError] = useState("");
+
   const navigate = useNavigate();
 
-  // Log the API URL being used
-  console.log('Register component using API URL:', config.API_URL);
+
+  useEffect(() => {
+    if (
+      formData.confirmPassword &&
+      formData.password !== formData.confirmPassword
+    ) {
+      setPasswordMatchError("Passwords do not match");
+    } else {
+      setPasswordMatchError("");
+    }
+  }, [formData.password, formData.confirmPassword]);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
-    setError('');
+    setError("");
+
+    const checkEmailExists = debounce(async (email) => {
+      if (!email) return;
+      try {
+        setCheckingEmail(true);
+        const res = await axios.get(
+          `http://localhost:3001/api/auth/check-email`,
+          {
+            params: { email },
+          }
+        );
+
+        if (res.data.exists) {
+          setEmailError("Email is already registered");
+        } else {
+          setEmailError("");
+        }
+      } catch (err) {
+        console.error("Email check failed:", err);
+        setEmailError("Could not check email");
+      } finally {
+        setCheckingEmail(false);
+      }
+    }, 500); // 500ms debounce
+
+    if (name === "email") {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(value)) {
+        setEmailError("Please enter a valid email address");
+      } else {
+        setEmailError("");
+      }
+    }
+    if (name === "password") {
+      const pattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+      if (!pattern.test(value)) {
+        setPasswordError(
+          "Password must be at least 8 characters and include at least 1 uppercase, 1 lowercase, 1 number, and 1 symbol."
+        );
+      } else {
+        setPasswordError("");
+      }
+    }
+    if (name === "email") {
+      setFormData((prev) => ({ ...prev, email: value }));
+      setError("");
+      checkEmailExists(value);
+    }
   };
 
   const handleFileChange = (e) => {
@@ -34,65 +110,73 @@ function Register() {
     if (file) {
       // Check file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
-        setError('File size must be less than 5MB');
+        setError("File size must be less than 5MB");
         return;
       }
 
       // Check file type
       if (!file.type.match(/^image\/(jpg|jpeg|png|gif)$/)) {
-        setError('Only image files (jpg, jpeg, png, gif) are allowed');
+        setError("Only image files (jpg, jpeg, png, gif) are allowed");
         return;
       }
 
       setProfilePicture(file);
       setPreviewUrl(URL.createObjectURL(file));
-      setError('');
+      setError("");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
 
     try {
       console.log('Attempting registration with API URL:', config.API_URL);
       const formDataToSend = new FormData();
-      formDataToSend.append('name', formData.name);
-      formDataToSend.append('email', formData.email);
-      formDataToSend.append('password', formData.password);
-      formDataToSend.append('role', formData.role);
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append("email", formData.email);
+      formDataToSend.append("password", formData.password);
+      formDataToSend.append("role", formData.role);
       if (profilePicture) {
-        formDataToSend.append('profilePicture', profilePicture);
+        formDataToSend.append("profilePicture", profilePicture);
       }
 
-      const response = await api.post('/api/auth/register', formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
+
+      const response = await axios.post(
+        "http://localhost:3001/api/auth/register",
+        formDataToSend,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+
         }
-      });
+      );
 
       console.log('Registration response:', response.data);
 
       if (response.data.success) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        navigate('/');
+
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+        navigate("/");
       }
     } catch (err) {
-      console.error('Registration error:', err);
-      if (err.response) {
-        console.error('Error response:', err.response.data);
-        setError(err.response.data.message || 'Registration failed. Please try again.');
-      } else if (err.request) {
-        console.error('No response received:', err.request);
-        setError('No response from server. Please check your connection.');
+      const message = err.response?.data?.message;
+
+      if (message === "Email already registered") {
+        setEmailError(message); // shows below the email input
       } else {
-        console.error('Error setting up request:', err.message);
-        setError('An error occurred. Please try again.');
+        setError(message || "Registration failed. Please try again.");
       }
-    } finally {
-      setLoading(false);
+
     }
   };
 
@@ -124,6 +208,8 @@ function Register() {
               onChange={handleChange}
               required
             />
+            {checkingEmail && <small>Checking email...</small>}
+            {emailError && <div className="error-message">{emailError}</div>}
           </div>
 
           <div className="form-group">
@@ -136,6 +222,24 @@ function Register() {
               onChange={handleChange}
               required
             />
+            {passwordError && (
+              <div className="error-message">{passwordError}</div>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="confirmPassword">Confirm Password:</label>
+            <input
+              type="password"
+              id="confirmPassword"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+            />
+            {passwordMatchError && (
+              <div className="error-message">{passwordMatchError}</div>
+            )}
           </div>
 
           <div className="form-group">
@@ -170,6 +274,7 @@ function Register() {
               id="profilePicture"
               accept="image/*"
               onChange={handleFileChange}
+              required
             />
             {previewUrl && (
               <div className="image-preview">
@@ -178,8 +283,13 @@ function Register() {
             )}
           </div>
 
-          <button type="submit" disabled={loading}>
-            {loading ? 'Registering...' : 'Register'}
+          <button
+            type="submit"
+            disabled={
+              loading || !!emailError || !!passwordError || !!passwordMatchError
+            }
+          >
+            {loading ? "Registering..." : "Register"}
           </button>
         </form>
       </div>
@@ -187,4 +297,4 @@ function Register() {
   );
 }
 
-export default Register; 
+export default Register;
