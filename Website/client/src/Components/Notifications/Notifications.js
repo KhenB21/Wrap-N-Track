@@ -1,26 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import './Notifications.css';
 
-export default function Notifications({ isOpen, onClose }) {
-  const [notifications, setNotifications] = useState([]);
-
-  useEffect(() => {
-    // TODO: Replace with actual API call to fetch low-stock products
-    const fetchNotifications = async () => {
-      try {
-        const response = await fetch('/api/notifications/low-stock');
-        const data = await response.json();
-        setNotifications(data);
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-      }
-    };
-
-    if (isOpen) {
-      fetchNotifications();
-    }
-  }, [isOpen]);
-
+export default function Notifications({ isOpen, onClose, notifications = [] }) {
   if (!isOpen) return null;
 
   return (
@@ -33,12 +14,20 @@ export default function Notifications({ isOpen, onClose }) {
         <div className="notifications-list">
           {notifications.length > 0 ? (
             notifications.map((notification, index) => (
-              <div key={index} className="notification-item">
+              <div key={index} className="notification-item" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {notification.image_data ? (
+                  <img 
+                    src={`data:image/jpeg;base64,${notification.image_data}`} 
+                    alt={notification.name} 
+                    style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }}
+                    onError={e => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/40'; }}
+                  />
+                ) : (
+                  <div style={{ width: 40, height: 40, background: '#eee', borderRadius: 4 }} />
+                )}
                 <div className="notification-content">
-                  <p className="notification-message">Product: {notification.name}, Stock: {notification.quantity}</p>
-                  <span className="notification-time">
-                    {new Date(notification.timestamp).toLocaleString()}
-                  </span>
+                  <p className="notification-message"><b>Low stocks Name:</b> {notification.name}</p>
+                  <p className="notification-message">Stock: {notification.quantity}</p>
                 </div>
               </div>
             ))

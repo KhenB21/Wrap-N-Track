@@ -162,7 +162,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
   const handleCategoryChange = (e) => {
     const value = e.target.value;
     setCategoryInput(value);
-    setForm({ ...form, category: value });
+    setForm(prev => ({ ...prev, category: value }));
     
     if (value) {
       const filtered = CATEGORIES.filter(category =>
@@ -178,7 +178,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
 
   const handleCategorySelect = (category) => {
     setCategoryInput(category);
-    setForm({ ...form, category });
+    setForm(prev => ({ ...prev, category }));
     setShowSuggestions(false);
   };
 
@@ -196,28 +196,42 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
+    // Sync form.category with categoryInput before validation/submit
+    if (categoryInput !== form.category) {
+      setForm(prev => ({ ...prev, category: categoryInput }));
+    }
+
     if (!validateForm()) {
       return;
     }
 
-    const formData = new FormData();
-    
-    // Append form fields, explicitly converting numbers to strings
-    formData.append('sku', form.sku);
-    formData.append('name', form.name);
-    formData.append('description', form.description);
-    formData.append('quantity', String(form.quantity)); // Explicitly convert to string
-    formData.append('unit_price', String(form.unit_price)); // Explicitly convert to string
-    formData.append('category', form.category);
-
-    // Append image data: use new image if selected
-    if (image) {
-      formData.append('image', image);
+    // For edit: send JSON, for add: send FormData
+    if (isEdit) {
+      const jsonData = {
+        sku: form.sku,
+        name: form.name,
+        description: form.description,
+        quantity: Number(form.quantity),
+        unit_price: Number(form.unit_price),
+        category: categoryInput || form.category,
+      };
+      console.log('Edit JSON before onAdd:', jsonData);
+      onAdd(jsonData);
+    } else {
+      const formData = new FormData();
+      formData.append('sku', form.sku);
+      formData.append('name', form.name);
+      formData.append('description', form.description);
+      formData.append('quantity', String(form.quantity));
+      formData.append('unit_price', String(form.unit_price));
+      formData.append('category', categoryInput || form.category);
+      if (image) {
+        formData.append('image', image);
+      }
+      console.log('Add FormData before onAdd:', Array.from(formData.entries()));
+      onAdd(formData);
     }
-
-    console.log('FormData before onAdd:', formData); // Added log to inspect FormData
-    onAdd(formData);
   };
 
   return (

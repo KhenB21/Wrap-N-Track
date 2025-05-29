@@ -4,7 +4,7 @@ import Notifications from "./Notifications/Notifications";
 import "./TopBar.css";
 import api from '../api/axios'; // Import the api instance
 
-export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
+export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowStockProducts }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -12,6 +12,13 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
   const dropdownRef = useRef();
   const navigate = useNavigate();
   const [lowStockNotifications, setLowStockNotifications] = useState([]);
+
+  // If lowStockProducts is provided as a prop, use it for notifications
+  useEffect(() => {
+    if (Array.isArray(lowStockProducts)) {
+      setLowStockNotifications(lowStockProducts);
+    }
+  }, [lowStockProducts]);
 
   const handleNotificationsClick = () => {
     setIsNotificationsOpen(true);
@@ -71,22 +78,21 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
   }, [theme]);
 
   useEffect(() => {
-    const fetchLowStockNotifications = async () => {
-      try {
-        const response = await api.get('/api/notifications/low-stock');
-        setLowStockNotifications(response.data);
-      } catch (error) {
-        console.error('Error fetching low stock notifications:', error);
-      }
-    };
-
-    fetchLowStockNotifications();
-
-    // Optional: Fetch notifications periodically
-    const interval = setInterval(fetchLowStockNotifications, 60000); // Fetch every 60 seconds
-
-    return () => clearInterval(interval);
-  }, []);
+    // Only fetch from backend if lowStockProducts is not provided
+    if (typeof lowStockProducts === 'undefined') {
+      const fetchLowStockNotifications = async () => {
+        try {
+          const response = await api.get('/api/notifications/low-stock');
+          setLowStockNotifications(response.data);
+        } catch (error) {
+          console.error('Error fetching low stock notifications:', error);
+        }
+      };
+      fetchLowStockNotifications();
+      const interval = setInterval(fetchLowStockNotifications, 60000); // Fetch every 60 seconds
+      return () => clearInterval(interval);
+    }
+  }, [lowStockProducts]);
 
   const getProfilePictureUrl = () => {
     const user = JSON.parse(localStorage.getItem('user'));
