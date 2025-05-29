@@ -3,6 +3,8 @@ import { Link, useNavigate, Routes, Route } from 'react-router-dom';
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import './CustomerPOV.css';
 import CarloPreview from './CarloPreview';
+import EricMarielPreview from './EricMarielPreview';
+import DanielPreview from './DanielPreview';
 
 const styles = {
   container: {
@@ -192,6 +194,8 @@ export default function CustomerPOV() {
       <TopbarCustomer />
       <Routes>
         <Route path="/product/1" element={<CarloPreview />} />
+        <Route path="/product/2" element={<EricMarielPreview />} />
+        <Route path="/product/3" element={<DanielPreview />} />
       </Routes>
       {/* Hero Section with forced background image */}
       <section

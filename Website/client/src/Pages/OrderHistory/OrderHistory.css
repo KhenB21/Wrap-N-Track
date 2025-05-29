@@ -114,4 +114,180 @@
   outline: none;
   border-color: #6c63ff;
   box-shadow: 0 0 0 2px rgba(108,99,255,0.1);
+}
+
+/* Order History styles */
+
+/* Dark mode styles for Order History */
+body.dark .order-history-container {
+  background-color: #1a1a1a; /* Dark background */
+  color: #e0e0e0; /* Light text */
+}
+
+body.dark .order-history-header h2 {
+  color: #e0e0e0;
+}
+
+body.dark .order-filters {
+  /* Adjust filter styles if needed for dark mode */
+}
+
+body.dark .order-search {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border-color: #555555;
+}
+
+body.dark .order-search::placeholder {
+  color: #aaaaaa;
+}
+
+body.dark .order-filter-select {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border-color: #555555;
+}
+
+body.dark .order-filter-select:focus {
+  border-color: #bb86fc;
+  box-shadow: 0 0 0 2px rgba(187, 134, 252, 0.25);
+}
+
+body.dark .order-details-layout {
+  /* Adjust layout styles if needed */
+}
+
+body.dark .order-list {
+  background-color: #2c2c2c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+body.dark .order-list-title {
+  color: #e0e0e0;
+  border-bottom-color: #404040;
+}
+
+body.dark .order-list-item {
+  background-color: #2c2c2c;
+  border-bottom-color: #404040;
+}
+
+body.dark .order-list-item:hover {
+  background-color: #404040;
+}
+
+body.dark .order-list-item.selected {
+  background-color: #0056b3; /* Accent color for selected item */
+  color: #ffffff;
+}
+
+body.dark .order-list-item.selected .order-name,
+body.dark .order-list-item.selected .order-code,
+body.dark .order-list-item.selected .order-price,
+body.dark .order-list-item.selected .order-date {
+    color: #ffffff; /* Ensure text is visible on accent background */
+}
+
+body.dark .order-info .order-name {
+  color: #e0e0e0;
+}
+
+body.dark .order-info .order-code {
+  color: #aaaaaa;
+}
+
+body.dark .order-price,
+body.dark .order-date {
+  color: #e0e0e0;
+}
+
+body.dark .order-details-panel {
+  background-color: #2c2c2c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: #e0e0e0;
+}
+
+body.dark .order-details-panel h3 {
+    color: #e0e0e0;
+}
+
+body.dark .order-details-panel .loading {
+    color: #cccccc;
+}
+
+body.dark .order-details-panel .error {
+    color: #e74c3c;
+}
+
+body.dark .order-details-panel hr {
+    border-color: #404040;
+}
+
+body.dark .order-details-panel .order-detail-item label {
+  color: #cccccc;
+}
+
+body.dark .order-details-panel .order-detail-item span {
+  color: #e0e0e0;
+}
+
+body.dark .order-details-panel .status-badge {
+    /* Keep original status colors, adjust text color if needed */
+    color: #ffffff; /* Ensure text is visible */
+}
+
+/* Dark mode for Modals */
+body.dark .modal-overlay {
+    background-color: rgba(0, 0, 0, 0.75);
+}
+
+body.dark .modal-content {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+body.dark .modal-content h3 {
+    color: #e0e0e0;
+}
+
+body.dark .modal-content label {
+    color: #cccccc;
+}
+
+body.dark .modal-content input[type="text"],
+body.dark .modal-content input[type="number"],
+body.dark .modal-content textarea,
+body.dark .modal-content select {
+  background-color: #2c2c2c;
+  color: #e0e0e0;
+  border-color: #555555;
+}
+
+body.dark .modal-content input[type="text"]:focus,
+body.dark .modal-content input[type="number"]:focus,
+body.dark .modal-content textarea:focus,
+body.dark .modal-content select:focus {
+  border-color: #bb86fc;
+  box-shadow: 0 0 0 2px rgba(187, 134, 252, 0.25);
+}
+
+body.dark .modal-content .btn-primary {
+    background-color: #0056b3;
+    color: #ffffff;
+    border: none;
+}
+
+body.dark .modal-content .btn-primary:hover {
+    background-color: #004494;
+}
+
+body.dark .modal-content .btn-secondary {
+    background-color: #404040;
+    color: #e0e0e0;
+    border-color: #555555;
+}
+
+body.dark .modal-content .btn-secondary:hover {
+    background-color: #505050;
 } 

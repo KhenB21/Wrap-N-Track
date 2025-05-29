@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './AddProductModal.css';
+import api from '../../api/axios';
+import config from '../../config';
 
 const CATEGORIES = [
   'Electronics',
@@ -57,9 +59,8 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     // Fetch existing products for validation
     const fetchProducts = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/inventory');
-        const data = await response.json();
-        setExistingProducts(data);
+        const response = await api.get('/api/inventory');
+        setExistingProducts(response.data);
       } catch (error) {
         console.error('Error fetching products:', error);
       }
@@ -67,7 +68,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     fetchProducts();
 
     // Set up WebSocket connection for real-time barcode updates
-    const ws = new WebSocket('ws://localhost:3001');
+    const ws = new WebSocket(config.WS_URL);
     
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -93,7 +94,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       });
       setCategoryInput(initialData.category || '');
       if (initialData.image_path) {
-        setPreview(`http://localhost:3001${initialData.image_path}`);
+        setPreview(`${config.API_URL}${initialData.image_path}`);
       }
     }
   }, [initialData]);
@@ -178,7 +179,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     if (file) {
       setPreview(URL.createObjectURL(file));
     } else if (initialData.image_path) {
-      setPreview(`http://localhost:3001${initialData.image_path}`);
+      setPreview(`${config.API_URL}${initialData.image_path}`);
     } else {
       setPreview(null);
     }

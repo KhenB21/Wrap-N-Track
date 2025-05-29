@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -12,6 +13,7 @@ function debounce(func, delay) {
     }, delay);
   };
 }
+
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -32,6 +34,7 @@ function Register() {
 
   const navigate = useNavigate();
 
+
   useEffect(() => {
     if (
       formData.confirmPassword &&
@@ -42,6 +45,7 @@ function Register() {
       setPasswordMatchError("");
     }
   }, [formData.password, formData.confirmPassword]);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -134,6 +138,7 @@ function Register() {
     }
 
     try {
+      console.log('Attempting registration with API URL:', config.API_URL);
       const formDataToSend = new FormData();
       formDataToSend.append("name", formData.name);
       formDataToSend.append("email", formData.email);
@@ -143,6 +148,7 @@ function Register() {
         formDataToSend.append("profilePicture", profilePicture);
       }
 
+
       const response = await axios.post(
         "http://localhost:3001/api/auth/register",
         formDataToSend,
@@ -150,10 +156,14 @@ function Register() {
           headers: {
             "Content-Type": "multipart/form-data",
           },
+
         }
       );
 
+      console.log('Registration response:', response.data);
+
       if (response.data.success) {
+
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify(response.data.user));
         navigate("/");
@@ -166,6 +176,7 @@ function Register() {
       } else {
         setError(message || "Registration failed. Please try again.");
       }
+
     }
   };
 

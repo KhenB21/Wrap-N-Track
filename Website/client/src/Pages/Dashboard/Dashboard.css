@@ -228,3 +228,122 @@
     gap: 12px;
   }
 }
+
+/* Dark mode styles for Dashboard */
+body.dark .dashboard-main {
+  background-color: #1a1a1a; /* Dark background */
+  color: #e0e0e0; /* Light text */
+}
+
+body.dark .dashboard-section h3,
+body.dark .dashboard-lower h4 {
+  color: #e0e0e0;
+}
+
+body.dark .dashboard-month {
+  color: #b0b0b0; /* Slightly lighter color for sub-text */
+}
+
+body.dark .dashboard-card {
+  background-color: #2c2c2c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+body.dark .card-title {
+  color: #cccccc;
+}
+
+body.dark .card-value {
+  color: #ffffff;
+}
+
+/* Keep original accent colors for card borders and text */
+body.dark .card-red {
+    border-left-color: #e74c3c;
+}
+body.dark .card-red .card-value {
+    color: #e74c3c;
+}
+body.dark .card-orange {
+    border-left-color: #f39c12;
+}
+body.dark .card-orange .card-value {
+    color: #f39c12;
+}
+body.dark .card-green {
+    border-left-color: #2ecc71;
+}
+body.dark .card-green .card-value {
+    color: #2ecc71;
+}
+body.dark .card-blue {
+    border-left-color: #3498db;
+}
+body.dark .card-blue .card-value {
+    color: #3498db;
+}
+body.dark .card-low {
+  color: #e74c3c; /* Ensure low stock color is visible */
+}
+
+/* Sales Activity */
+body.dark .activity-list .activity-card {
+  background-color: #2c2c2c;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  color: #e0e0e0;
+}
+
+body.dark .activity-card div:first-child {
+    color: #cccccc;
+}
+
+/* Keep original accent colors for sales activity cards */
+body.dark .activity-red {
+    border-left-color: #e74c3c;
+}
+body.dark .activity-red .activity-value {
+    color: #e74c3c;
+}
+body.dark .activity-orange {
+    border-left-color: #f39c12;
+}
+body.dark .activity-orange .activity-value {
+    color: #f39c12;
+}
+body.dark .activity-green {
+    border-left-color: #2ecc71;
+}
+body.dark .activity-green .activity-value {
+    color: #2ecc71;
+}
+
+/* Top Selling Products */
+body.dark .top-selling-list li {
+  border-bottom-color: #333333;
+  color: #e0e0e0;
+}
+
+body.dark .top-selling-list li .units {
+  color: #b0b0b0;
+}
+
+/* Recent Activity */
+body.dark .recent-activity-item {
+  border-bottom-color: #333333;
+}
+
+body.dark .recent-activity-item div {
+  color: #cccccc;
+}
+
+body.dark .recent-activity-item b {
+    color: #e0e0e0;
+}
+
+body.dark .activity-link {
+  color: #bb86fc; /* Accent color for links */
+}
+
+body.dark .activity-time {
+  color: #999999;
+}

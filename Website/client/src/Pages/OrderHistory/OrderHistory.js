@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
-import axios from "axios";
+import api from "../../api/axios";
+import config from "../../config";
 import "./OrderHistory.css";
+import { useNavigate } from "react-router-dom";
 
 function getProfilePictureUrl() {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -12,17 +14,80 @@ function getProfilePictureUrl() {
   }
   if (user.profile_picture_path) {
     if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
-    return `http://localhost:3001${user.profile_picture_path}`;
+    return `${config.API_URL}${user.profile_picture_path}`;
   }
   return "/placeholder-profile.png";
 }
 
 export default function OrderHistory() {
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [orderProducts, setOrderProducts] = useState([]);
   const selectedOrder = orders.find(o => o.order_id === selectedOrderId);
+  const [ws, setWs] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState(null);
+  const [confirmation, setConfirmation] = useState({ open: false, message: '' });
+  const navigate = useNavigate();
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('No authentication token found. Please log in.');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('http://localhost:3001/api/orders', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch orders');
+      }
+
+      const data = await response.json();
+      setOrders(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const newWs = new WebSocket('ws://localhost:3001/ws');
+    setWs(newWs);
+
+    newWs.onopen = () => {
+      console.log('WebSocket connected');
+    };
+
+    newWs.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'order-archived') {
+        // Fetch updated order history when an order is archived
+        fetchOrders();
+      }
+    };
+
+    return () => {
+      if (newWs) {
+        newWs.close();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     fetchOrders();
@@ -32,23 +97,13 @@ export default function OrderHistory() {
     if (selectedOrderId) fetchOrderProducts(selectedOrderId);
   }, [selectedOrderId]);
 
-  const fetchOrders = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get('http://localhost:3001/api/orders/history');
-      setOrders(res.data);
-    } catch (err) {
-      alert('Failed to fetch order history');
-    }
-    setLoading(false);
-  };
-
   const fetchOrderProducts = async (orderId) => {
     try {
-      const res = await axios.get(`http://localhost:3001/api/orders/history/${orderId}/products`);
+      const res = await api.get(`/api/orders/history/${orderId}/products`);
       setOrderProducts(res.data);
     } catch (err) {
-      setOrderProducts([]);
+      console.error('Error fetching order products:', err);
+      setError('Failed to load order products');
     }
   };
 

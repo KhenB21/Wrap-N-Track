@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
+import api from '../../api/axios';
 import "./Dashboard.css";
 
 function Dashboard() {
@@ -9,6 +10,24 @@ function Dashboard() {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [orderHistory, setOrderHistory] = useState([]);
+  const [user, setUser] = useState(null);
+
+  // Add navigation handlers
+  const handleTotalProductsClick = () => {
+    navigate('/inventory');
+  };
+
+  const handleTotalUnitsClick = () => {
+    navigate('/inventory');
+  };
+
+  const handleLowStockClick = () => {
+    navigate('/inventory', { state: { filter: 'low-stock' } });
+  };
+
+  const handleReplenishmentClick = () => {
+    navigate('/inventory', { state: { filter: 'replenishment' } });
+  };
 
   useEffect(() => {
     // Check if user is authenticated
@@ -19,52 +38,32 @@ function Dashboard() {
       navigate("/login");
       return;
     }
-    // Fetch inventory data
-    const fetchInventory = async () => {
+
+    // Fetch data
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await fetch("http://localhost:3001/api/inventory");
-        const data = await res.json();
-        setInventory(data);
-      } catch (err) {
-        setInventory([]);
+        // Fetch inventory
+        const inventoryRes = await api.get('/api/inventory');
+        setInventory(inventoryRes.data);
+
+        // Fetch user details
+        const userRes = await api.get('/api/user/details');
+        setUser(userRes.data);
+
+        // Fetch order history
+        const historyRes = await api.get('/api/orders/history');
+        setOrderHistory(historyRes.data);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
       }
       setLoading(false);
     };
-    fetchInventory();
+
+    fetchData();
   }, [navigate]);
 
-  useEffect(() => {
-    const fetchAndSyncUser = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      const res = await fetch("http://localhost:3001/api/user/details", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const user = await res.json();
-        localStorage.setItem("user", JSON.stringify(user));
-      }
-    };
-    fetchAndSyncUser();
-  }, []);
-
-  useEffect(() => {
-    const fetchOrderHistory = async () => {
-      try {
-        const res = await fetch("http://localhost:3001/api/orders/history");
-        const data = await res.json();
-        setOrderHistory(data);
-      } catch (err) {
-        console.error("Failed to fetch order history:", err);
-        setOrderHistory([]);
-      }
-    };
-    fetchOrderHistory();
-  }, []);
-
   const getProfilePictureUrl = () => {
-    const user = JSON.parse(localStorage.getItem("user"));
     if (!user || !user.profile_picture_data) return "/placeholder-profile.png";
     return `data:image/jpeg;base64,${user.profile_picture_data}`;
   };
@@ -93,25 +92,25 @@ function Dashboard() {
         <div className="dashboard-section">
           <h3>Inventory Overview</h3>
           <div className="dashboard-cards-row">
-            <div className="dashboard-card card-red">
+            <div className="dashboard-card card-red" onClick={handleTotalProductsClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Total Products</div>
               <div className="card-value">
                 {loading ? "..." : totalProducts}
               </div>
             </div>
-            <div className="dashboard-card card-orange">
+            <div className="dashboard-card card-orange" onClick={handleTotalUnitsClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Total Product Units</div>
               <div className="card-value">
                 {loading ? "..." : totalProductUnits.toLocaleString()}
               </div>
             </div>
-            <div className="dashboard-card card-green">
+            <div className="dashboard-card card-green" onClick={handleLowStockClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Low in Stock</div>
               <div className="card-value card-low">
                 {loading ? "..." : lowStockProducts}
               </div>
             </div>
-            <div className="dashboard-card card-blue">
+            <div className="dashboard-card card-blue" onClick={handleReplenishmentClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Replenishment Pending</div>
               <div className="card-value">~~</div>
             </div>

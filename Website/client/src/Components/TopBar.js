@@ -6,6 +6,8 @@ import "./TopBar.css";
 export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const dropdownRef = useRef();
   const navigate = useNavigate();
 
@@ -34,6 +36,15 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
     setDropdownOpen(false);
   };
 
+  const toggleDropdown = () => {
+    setShowDropdown(!showDropdown);
+  };
+
+  const handleThemeChange = (newTheme) => {
+    setTheme(newTheme);
+    setShowDropdown(false);
+  };
+
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event) {
@@ -50,6 +61,12 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [dropdownOpen]);
+
+  useEffect(() => {
+    // Apply theme to body
+    document.body.className = theme;
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   const getProfilePictureUrl = () => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -80,7 +97,7 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
           className="dashboard-settings" 
           role="img" 
           aria-label="Settings"
-          onClick={handleSettingsClick}
+          onClick={toggleDropdown}
           style={{ cursor: 'pointer' }}
         >
           ⚙️
@@ -112,6 +129,32 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl }) {
         isOpen={isNotificationsOpen} 
         onClose={() => setIsNotificationsOpen(false)} 
       />
+      {showDropdown && (
+        <div className="settings-dropdown">
+          <button 
+            className="theme-btn"
+            onClick={() => handleThemeChange('light')}
+            style={{ 
+              backgroundColor: theme === 'light' ? '#e6f0ff' : 'transparent',
+              color: theme === 'light' ? '#007bff' : '#666'
+            }}
+          >
+            <span role="img" aria-label="Light Mode">☀️</span>
+            Light Mode
+          </button>
+          <button 
+            className="theme-btn"
+            onClick={() => handleThemeChange('dark')}
+            style={{ 
+              backgroundColor: theme === 'dark' ? '#2c2c2c' : 'transparent',
+              color: theme === 'dark' ? '#fff' : '#666'
+            }}
+          >
+            <span role="img" aria-label="Dark Mode">🌙</span>
+            Dark Mode
+          </button>
+        </div>
+      )}
     </div>
   );
 } 
