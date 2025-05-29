@@ -21,7 +21,7 @@ function Register() {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "employee",
+    role: "business_developer", // Default to a valid backend role
   });
   const [profilePicture, setProfilePicture] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -191,11 +191,13 @@ function Register() {
 
       if (message === "Email already registered") {
         setEmailError(message); // shows below the email input
+      } else if (message === "Name already taken") {
+        setNameError(message);
+      } else if (message === "Invalid role selected") {
+        setError("Invalid role selected. Please choose a valid role.");
       } else {
         setError(message || "Registration failed. Please try again.");
       }
-
-
     }
   } finally {
     setLoading(false);
