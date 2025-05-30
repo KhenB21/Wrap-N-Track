@@ -2,92 +2,9 @@ import React, { useEffect, useState, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 import "./OrderDetails.css";
-import api from "../../api/axios";
-import config from "../../config";
+import axios from "axios";
 import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
-
-import axios from 'axios';
-
-// Add axios interceptor for authentication
-axios.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Add response interceptor for handling 401 errors
-axios.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
-const orders = [
-  {
-    id: 1,
-    name: "Terence Auyong",
-    code: "#CO000002",
-    price: "₱125.00",
-    status: "Invoiced",
-    statusClass: "status-invoiced",
-    selected: true,
-  },
-  {
-    id: 2,
-    name: "Khen Bolima",
-    code: "#CO000002",
-    price: "₱125.00",
-    status: "Packed",
-    statusClass: "status-packed",
-    selected: false,
-  },
-  {
-    id: 3,
-    name: "Reinan Briones",
-    code: "#CO000002",
-    price: "₱315.00",
-    status: "Shipped",
-    statusClass: "status-shipped",
-    selected: false,
-  },
-  {
-    id: 4,
-    name: "Grant Nathan",
-    code: "#CO000002",
-    price: "₱315.00",
-    status: "Complete",
-    statusClass: "status-complete",
-    selected: false,
-  },
-];
-
-
-function getProfilePictureUrl() {
-  const user = JSON.parse(localStorage.getItem('user'));
-  if (!user) return "/placeholder-profile.png";
-  if (user.profile_picture_data) {
-    return `data:image/png;base64,${user.profile_picture_data}`;
-  }
-  if (user.profile_picture_path) {
-    if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
-    return `${config.API_URL}${user.profile_picture_path}`;
-  }
-  return "/placeholder-profile.png";
-}
 
 // Add these styles at the top of the file
 const styles = {
@@ -164,8 +81,17 @@ const styles = {
     overflowY: 'auto',
     height: 'calc(100% - 40px)',
     paddingRight: '8px',
-    scrollbarWidth: 'thin',
-    scrollbarColor: '#c1c1c1 #f1f1f1'
+    '&::-webkit-scrollbar': {
+      width: '6px'
+    },
+    '&::-webkit-scrollbar-track': {
+      background: '#f1f1f1',
+      borderRadius: '3px'
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: '#c1c1c1',
+      borderRadius: '3px'
+    }
   },
   orderCard: {
     background: '#fff',
@@ -222,6 +148,18 @@ const styles = {
   }
 };
 
+function getProfilePictureUrl() {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (!user) return "/placeholder-profile.png";
+  if (user.profile_picture_data) {
+    return `data:image/png;base64,${user.profile_picture_data}`;
+  }
+  if (user.profile_picture_path) {
+    if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
+    return `http://localhost:3001${user.profile_picture_path}`;
+  }
+  return "/placeholder-profile.png";
+}
 
 function generateOrderId() {
   // Example: #CO + timestamp + random 3 digits
@@ -229,14 +167,6 @@ function generateOrderId() {
   const rand = Math.floor(Math.random() * 900) + 100;
   return `#CO${now}${rand}`;
 }
-
-// Add this helper function at the top level
-const formatOrderId = (orderId) => {
-  if (!orderId) return null;
-  // Keep the # prefix if it exists, but encode it for URLs
-  return encodeURIComponent(orderId.trim());
-};
-
 
 export default function OrderDetails() {
 
@@ -274,16 +204,21 @@ export default function OrderDetails() {
   const handleDeleteOrder = async () => {
     if (!selectedOrder) return;
     try {
-      await api.delete(`/api/orders/${selectedOrder.order_id}`);
-      setShowDeleteConfirm(false);
-      setSelectedOrderId(null);
-      fetchOrders();
+      const response = await axios.delete(`http://localhost:3001/api/orders/${selectedOrder.order_id}`);
+      if (response.data.success) {
+        setShowDeleteConfirm(false);
+        setSelectedOrderId(null); // Close the order details modal
+        fetchOrders();
+      } else {
+        alert('Failed to delete order: ' + response.data.message);
+      }
     } catch (err) {
-      alert('Failed to delete order');
+      console.error('Delete order error:', err);
+      alert('Failed to delete order: ' + (err.response?.data?.message || err.message));
     }
   };
 
-  // Mark as Completed and Archive
+  // Mark as Completed/Cancelled and Archive
   const handleMarkCompleted = async () => {
     if (!selectedOrder) return;
     setShowCompleteConfirm(true);
@@ -297,38 +232,25 @@ export default function OrderDetails() {
   const [productDetailsByName, setProductDetailsByName] = useState({}); // { name: { image_data, name } }
   const [loadingProductDetails, setLoadingProductDetails] = useState(false);
   const [orderStockIssues, setOrderStockIssues] = useState({}); // { order_id: [product names] }
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedOrder, setEditedOrder] = useState(null);
 
   const fetchOrders = async () => {
-    setLoading(true);
     try {
-      const res = await api.get('/api/orders');
-      setOrders(res.data);
-    } catch (err) {
-      console.error('Failed to fetch orders:', err);
-      if (err.response?.status === 401) {
-        window.location.href = '/login';
-      } else {
-        alert('Failed to fetch orders. Please try again later.');
-      }
+      const response = await axios.get('http://localhost:3001/api/orders');
+      setOrders(response.data);
+      console.log('Orders fetched successfully:', response.data);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
     }
-    setLoading(false);
   };
 
   const fetchOrderProducts = async (orderId) => {
     try {
-      const res = await api.get(`/api/orders/${orderId}/products`);
-      setOrderProducts(res.data);
-    } catch (err) {
-      console.error('Failed to fetch order products:', err);
-      if (err.response?.status === 404) {
-        console.log('Order not found:', orderId);
-        setOrderProducts([]);
-      } else {
-        console.error('Error fetching order products:', err.message);
-        setOrderProducts([]);
-      }
+      const response = await axios.get(`http://localhost:3001/api/orders/${orderId}/products`);
+      setOrderProducts(response.data);
+      console.log('Order products fetched successfully:', response.data);
+    } catch (error) {
+      console.error('Error fetching order products:', error);
+      setOrderProducts([]); // Reset products on error
     }
   };
 
@@ -383,36 +305,10 @@ export default function OrderDetails() {
     }
   }, [selectedOrderId, orders]);
 
-  useEffect(() => {
-    async function fetchProductDetails() {
-      if (!orderProducts || orderProducts.length === 0) {
-        console.log("No products to fetch details for");
-        return;
-      }
-
-      setLoadingProductDetails(true);
-      const details = { ...productDetailsByName };
-      const fetches = orderProducts.map(async (p) => {
-        const nameKey = p.name || p.product_name || '';
-        if (!nameKey || details[nameKey]) return;
-        try {
-          const res = await api.get(`/api/inventory/search?name=${encodeURIComponent(nameKey)}`);
-          details[nameKey] = res.data;
-        } catch (err) {
-          details[nameKey] = null;
-        }
-      });
-      await Promise.all(fetches);
-      setProductDetailsByName(details);
-      setLoadingProductDetails(false);
-    }
-
-    fetchProductDetails();
-  }, [orderProducts]);
-
-  useEffect(() => {
+useEffect(() => {
     console.log("Checking structure of orderProducts after API fetch:", JSON.stringify(orderProducts, null, 2));
-  }, [orderProducts]);
+}, [orderProducts]);
+
 
   // Fetch stock issues for all orders after fetching orders
   useEffect(() => {
@@ -446,7 +342,7 @@ export default function OrderDetails() {
       return;
     }
     try {
-      await api.post(`/api/orders/${selectedOrderId}/products`, { products });
+      await axios.post(`http://localhost:3001/api/orders/${selectedOrderId}/products`, { products });
       setShowProductModal(false);
       setProductSelection({});
       fetchOrderProducts(selectedOrderId);
@@ -460,7 +356,7 @@ export default function OrderDetails() {
     setProductError("");
     setProductSelection({});
     try {
-      const res = await api.get('/api/inventory');
+      const res = await axios.get('http://localhost:3001/api/inventory');
       setInventory(res.data);
       setShowProductModal(true);
     } catch (err) {
@@ -490,7 +386,7 @@ export default function OrderDetails() {
     setProfitMargins({});
     setProductError("");
     try {
-      const res = await api.get('/api/inventory');
+      const res = await axios.get('http://localhost:3001/api/inventory');
       setInventory(res.data);
       setShowModal(true);
     } catch (err) {
@@ -507,7 +403,14 @@ export default function OrderDetails() {
   };
 
   const handleProductSelection = (sku, value) => {
-    const newSelection = { ...productSelection, [sku]: value };
+    // Find the inventory item to ensure we're using the correct SKU
+    const inventoryItem = inventory.find(item => item.sku === sku);
+    if (!inventoryItem) {
+      console.error(`No inventory item found for SKU: ${sku}`);
+      return;
+    }
+
+    const newSelection = { ...productSelection, [inventoryItem.sku]: value };
     setProductSelection(newSelection);
     setForm(prev => ({ ...prev, total_cost: calculateTotalCost(newSelection) }));
   };
@@ -519,37 +422,85 @@ export default function OrderDetails() {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setProductError("");
-
-    // Filter products that have both quantity and profit margin
-    const selectedProducts = Object.entries(productSelection)
-      .filter(([sku, qty]) => Number(qty) > 0 && Number(profitMargins[sku] || 0) > 0)
-      .map(([sku, quantity]) => {
-        const inventoryItem = inventory.find(item => item.sku === sku);
-        return {
-          sku,
-          name: inventoryItem?.name || '',
-          quantity: Number(quantity),
-          profit_margin: Number(profitMargins[sku])
-        };
-      });
-
-    if (selectedProducts.length === 0) {
-      setProductError("Please select at least one product with quantity and profit margin");
-      return;
-    }
+    setPlacingOrder(true);
 
     try {
+      // Get the token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please log in to create an order');
+        return;
+      }
+
+      // Filter products that have both quantity and profit margin
+      const selectedProducts = Object.entries(productSelection)
+        .filter(([sku, qty]) => {
+          const quantity = Number(qty);
+          const margin = Number(profitMargins[sku] || 0);
+          // For Custom orders, require both quantity and profit margin
+          if (form.package_name === 'Custom') {
+            return quantity > 0 && margin > 0;
+          }
+          // For other orders, only require quantity
+          return quantity > 0;
+        })
+        .map(([sku, quantity]) => {
+          const inventoryItem = inventory.find(item => item.sku === sku);
+          return {
+            sku,
+            name: inventoryItem?.name || '',
+            quantity: Number(quantity),
+            profit_margin: form.package_name === 'Custom' ? Number(profitMargins[sku]) : 0
+          };
+        });
+
+      if (selectedProducts.length === 0) {
+        if (form.package_name === 'Custom') {
+          setProductError("Please select at least one product with quantity and profit margin");
+        } else {
+          setProductError("Please select at least one product with quantity");
+        }
+        setPlacingOrder(false);
+        return;
+      }
+
       // Create order with products in a single request
       const orderData = {
         ...form,
+        // Remove order_id to let backend generate it
+        order_id: undefined,
         products: selectedProducts,
         total_cost: calculateTotalCost(productSelection)
       };
 
-      const response = await api.post('/api/orders', orderData);
+      console.log("Submitting order data:", orderData);
 
+      const response = await axios.post('http://localhost:3001/api/orders', orderData, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
-      if (response.data.success) {
+      if (response.data) {
+        // If the order is not in Pending status, adjust inventory
+        if (form.status !== 'Pending') {
+          console.log("Adjusting inventory for new non-pending order");
+          for (const product of selectedProducts) {
+            try {
+              const adjustResponse = await axios.put(`http://localhost:3001/api/inventory/${product.sku}/adjust`, {
+                quantity: product.quantity,
+                operation: 'subtract'
+              }, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              console.log(`Successfully deducted ${product.quantity} units of ${product.sku} from inventory:`, adjustResponse.data);
+            } catch (adjustError) {
+              console.error(`Failed to adjust inventory for product ${product.sku}:`, adjustError.response?.data || adjustError);
+              throw new Error(`Failed to deduct inventory for ${product.name}: ${adjustError.response?.data?.message || adjustError.message}`);
+            }
+          }
+        }
+
         setShowModal(false);
         setProductSelection({});
         setProfitMargins({});
@@ -559,30 +510,158 @@ export default function OrderDetails() {
       }
     } catch (err) {
       console.error("Order submission error:", err);
-      setProductError(err?.response?.data?.message || 'Failed to create order');
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to create order';
+      setProductError(errorMessage);
+      console.error("Detailed error:", {
+        message: errorMessage,
+        response: err.response?.data,
+        status: err.response?.status
+      });
+    } finally {
+      setPlacingOrder(false);
     }
   };
 
   // Edit order: open modal with selected order's data
-  const handleEditOrder = () => {
+  const handleEditOrder = async () => {
     if (!selectedOrder) return;
-    // Preserve the dates in the correct format
-    const orderData = {
-      ...selectedOrder,
-      order_date: selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '',
-      expected_delivery: selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : ''
-    };
-    setForm(orderData);
-    setShowEditModal(true);
-    setSelectedOrderId(null); // Close the order details modal
+    
+    try {
+      // Fetch the latest order products for this specific order
+      const productsResponse = await axios.get(`http://localhost:3001/api/orders/${selectedOrder.order_id}/products`);
+      const orderProducts = productsResponse.data;
+      console.log("Fetched products for order", selectedOrder.order_id, ":", orderProducts);
+
+      // Initialize product selection and profit margins with current order's values
+      const initialProductSelection = {};
+      const initialProfitMargins = {};
+      
+      // Use products from the selected order if available, otherwise use the fetched products
+      const productsToUse = selectedOrder.products || orderProducts;
+      
+      // Map products using their actual SKUs from inventory
+      for (const product of productsToUse) {
+        // Find the inventory item by name first
+        const inventoryItem = inventory.find(item => 
+          item.name.toLowerCase() === product.name.toLowerCase() ||
+          item.name.toLowerCase().includes(product.name.toLowerCase()) ||
+          product.name.toLowerCase().includes(item.name.toLowerCase())
+        );
+        
+        if (inventoryItem) {
+          initialProductSelection[inventoryItem.sku] = product.quantity;
+          initialProfitMargins[inventoryItem.sku] = product.profit_margin;
+        }
+      }
+      
+      console.log("Initial product selection:", initialProductSelection);
+      console.log("Initial profit margins:", initialProfitMargins);
+      
+      setProductSelection(initialProductSelection);
+      setProfitMargins(initialProfitMargins);
+
+      // Preserve the dates in the correct format and set all form fields
+      const orderData = {
+        ...selectedOrder,
+        order_date: selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '',
+        expected_delivery: selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : '',
+        items: productsToUse.map(product => {
+          const inventoryItem = inventory.find(item => 
+            item.name.toLowerCase() === product.name.toLowerCase() ||
+            item.name.toLowerCase().includes(product.name.toLowerCase()) ||
+            product.name.toLowerCase().includes(item.name.toLowerCase())
+          );
+          return {
+            sku: inventoryItem ? inventoryItem.sku : product.sku,
+            quantity: Number(product.quantity) || 0,
+            profit_margin: Number(product.profit_margin) || 0,
+            unit_price: Number(product.unit_price) || 0
+          };
+        })
+      };
+
+      console.log("Setting form data for editing:", orderData);
+      setForm(orderData);
+      setShowEditModal(true);
+      setSelectedOrderId(null); // Close the order details modal
+    } catch (error) {
+      console.error("Error fetching order products for editing:", error);
+      // If we can't fetch products, still allow editing with the data we have
+      const orderData = {
+        ...selectedOrder,
+        order_date: selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '',
+        expected_delivery: selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : '',
+        items: selectedOrder.products ? selectedOrder.products.map(product => {
+          const inventoryItem = inventory.find(item => 
+            item.name.toLowerCase() === product.name.toLowerCase() ||
+            item.name.toLowerCase().includes(product.name.toLowerCase()) ||
+            product.name.toLowerCase().includes(item.name.toLowerCase())
+          );
+          return {
+            sku: inventoryItem ? inventoryItem.sku : product.sku,
+            quantity: Number(product.quantity) || 0,
+            profit_margin: Number(product.profit_margin) || 0,
+            unit_price: Number(product.unit_price) || 0
+          };
+        }) : []
+      };
+      setForm(orderData);
+      setShowEditModal(true);
+      setSelectedOrderId(null);
+    }
   };
 
   // Save edited order
   const handleEditOrderSubmit = async (e) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please log in to complete this action');
+        return;
+      }
 
-      // Only send the fields that can be edited
+      console.log("Current productSelection:", productSelection);
+      console.log("Current profitMargins:", profitMargins);
+
+      // Filter and map products with proper validation
+      const selectedProducts = Object.entries(productSelection)
+        .filter(([sku, qty]) => {
+          const quantity = Number(qty);
+          const isValid = sku && sku.trim() !== '' && !isNaN(quantity) && quantity > 0;
+          if (!isValid) {
+            console.log(`Filtering out invalid product - SKU: ${sku}, Quantity: ${qty}`);
+          }
+          return isValid;
+        })
+        .map(([sku, quantity]) => {
+          const inventoryItem = inventory.find(item => item.sku === sku);
+          if (!inventoryItem) {
+            console.error(`No inventory item found for SKU: ${sku}`);
+            return null;
+          }
+
+          return {
+            sku: inventoryItem.sku,
+            name: inventoryItem.name,
+            quantity: Number(quantity),
+            profit_margin: Number(profitMargins[sku] || 0),
+            unit_price: Number(inventoryItem.unit_price || 0)
+          };
+        })
+        .filter(product => product !== null);
+
+      console.log("Final selected products:", selectedProducts);
+
+      if (selectedProducts.length === 0) {
+        alert('Please select at least one product with a valid quantity');
+        return;
+      }
+
+      const calculatedTotalCost = selectedProducts.reduce((total, product) => {
+        return total + (product.unit_price * product.quantity);
+      }, 0);
+
       const orderData = {
         order_id: form.order_id,
         name: form.name,
@@ -591,7 +670,7 @@ export default function OrderDetails() {
         expected_delivery: form.expected_delivery,
         status: form.status,
         shipping_address: form.shipping_address,
-        total_cost: form.total_cost,
+        total_cost: calculatedTotalCost.toString(),
         payment_type: form.payment_type,
         payment_method: form.payment_method,
         account_name: form.account_name,
@@ -600,36 +679,86 @@ export default function OrderDetails() {
         cellphone: form.cellphone,
         email_address: form.email_address,
         package_name: form.package_name,
-        order_quantity: form.order_quantity,
-        approximate_budget: form.approximate_budget
+        order_quantity: selectedProducts.reduce((total, p) => total + p.quantity, 0),
+        items: selectedProducts
       };
 
-      console.log("Updating order with ID:", form.order_id);
-      console.log("Order data being sent:", orderData);
+      console.log("Final order data being sent:", orderData);
 
-      const response = await axios.put(`http://localhost:3001/api/orders/${encodeURIComponent(form.order_id)}`, orderData);
+      // If status is changing, handle inventory adjustments
+      if (selectedOrder && selectedOrder.status !== form.status) {
+        console.log("Status is changing from", selectedOrder.status, "to", form.status);
+
+        // Handle inventory adjustments based on status change
+        if (form.status === 'Cancelled') {
+          console.log("Returning quantities to inventory for cancelled order");
+          // Return quantities to inventory for cancelled orders
+          for (const product of selectedProducts) {
+            try {
+              const adjustResponse = await axios.put(`http://localhost:3001/api/inventory/${product.sku}/adjust`, {
+                quantity: product.quantity,
+                operation: 'add'
+              }, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              console.log(`Successfully returned ${product.quantity} units of ${product.sku} to inventory:`, adjustResponse.data);
+            } catch (adjustError) {
+              console.error(`Failed to adjust inventory for product ${product.sku}:`, adjustError.response?.data || adjustError);
+              throw new Error(`Failed to return inventory for ${product.name}: ${adjustError.response?.data?.message || adjustError.message}`);
+            }
+          }
+        } else if (form.status !== 'Pending') {
+          // If changing to a non-pending status, check if we need to deduct inventory
+          if (selectedOrder.status === 'Pending') {
+            console.log("Deducting quantities from inventory for new non-pending order");
+            // Deduct quantities from inventory for new non-pending orders
+            for (const product of selectedProducts) {
+              try {
+                const adjustResponse = await axios.put(`http://localhost:3001/api/inventory/${product.sku}/adjust`, {
+                  quantity: product.quantity,
+                  operation: 'subtract'
+                }, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                console.log(`Successfully deducted ${product.quantity} units of ${product.sku} from inventory:`, adjustResponse.data);
+              } catch (adjustError) {
+                console.error(`Failed to adjust inventory for product ${product.sku}:`, adjustError.response?.data || adjustError);
+                throw new Error(`Failed to deduct inventory for ${product.name}: ${adjustError.response?.data?.message || adjustError.message}`);
+              }
+            }
+          }
+        }
+      }
+
+      // Update the order
+      const response = await axios.put(
+        `http://localhost:3001/api/orders/${encodeURIComponent(form.order_id)}`, 
+        orderData,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
       
       if (response.data.success) {
-        // Only archive if the order is being marked as completed for the first time
-        if (form.status === 'Completed' && selectedOrder?.status !== 'Completed') {
+        // Only archive if the order is being marked as completed or cancelled for the first time
+        if ((form.status === 'Completed' || form.status === 'Cancelled') && 
+            selectedOrder?.status !== 'Completed' && 
+            selectedOrder?.status !== 'Cancelled') {
           try {
             // Add a small delay to ensure the update is processed
             await new Promise(resolve => setTimeout(resolve, 1000));
             
-            // Get the token from localStorage
-            const token = localStorage.getItem('token');
-            if (!token) {
-              alert('Please log in to complete this action');
-              return;
-            }
-
             // Archive the order
             await axios.post(
               `http://localhost:3001/api/orders/${encodeURIComponent(form.order_id)}/archive`,
               {},
               {
                 headers: {
-                  'Authorization': `Bearer ${token}`
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
                 }
               }
             );
@@ -637,32 +766,31 @@ export default function OrderDetails() {
             console.error('Error archiving order:', archiveErr);
             alert('Order status was updated but failed to archive: ' + (archiveErr.response?.data?.message || archiveErr.message));
           }
-        } else if (form.status === 'Completed' && selectedOrder?.status === 'Completed') {
-          console.log('Order is already completed, no need to archive again');
         }
+        setShowEditModal(false);
+        fetchOrders();
       } else {
-        alert('Failed to update order: ' + response.data.message);
+        throw new Error(response.data.message || 'Failed to update order');
       }
     } catch (err) {
       console.error('Update order error:', err);
       if (err.response) {
         console.error('Error response:', err.response.data);
-        alert('Failed to update order: ' + (err.response.data.message || err.message));
+        if (err.response.status === 401) {
+          alert('Your session has expired. Please log in again.');
+          // Clear the invalid token
+          localStorage.removeItem('token');
+          // Optionally redirect to login page
+          window.location.href = '/login';
+        } else {
+          alert('Failed to update order: ' + (err.response.data.message || err.message));
+        }
       } else {
         alert('Failed to update order: ' + err.message);
       }
-    } finally {
-
-      await api.put(`/api/orders/${form.order_id}`, form);
-
-      setShowEditModal(false);
-      fetchOrders();
-      // Refresh the order products if an order is selected
-      if (selectedOrderId) {
-        fetchOrderProducts(selectedOrderId);
-      }
     }
   };
+
 
 
   const handleCompleteConfirm = async () => {
@@ -693,7 +821,7 @@ export default function OrderDetails() {
       }
 
       // First mark as completed
-      await api.put(`/api/orders/${selectedOrder.order_id}`, 
+      await axios.put(`http://localhost:3001/api/orders/${selectedOrder.order_id}`, 
         { ...selectedOrder, status: 'Completed' },
         {
           headers: {
@@ -701,13 +829,22 @@ export default function OrderDetails() {
           }
         }
       );
+
+      // Deduct quantities from inventory
+      for (const product of orderProducts) {
+        await axios.put(`http://localhost:3001/api/inventory/${product.sku}/adjust`, {
+          quantity: product.quantity,
+          operation: 'subtract'
+        }, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
       
       // Then archive the order
       setArchivingOrder(true);
-
       try {
-        await api.post(
-          `/api/orders/${selectedOrder.order_id}/archive`,
+        await axios.post(
+          `http://localhost:3001/api/orders/${selectedOrder.order_id}/archive`,
           {},
           {
             headers: {
@@ -750,7 +887,7 @@ export default function OrderDetails() {
         .filter(([sku, qty]) => Number(qty) > 0)
         .map(([sku, quantity]) => ({ sku, quantity: Number(quantity) }));
       
-      await api.put(`/api/orders/${selectedOrderId}/products`, { products });
+      await axios.put(`http://localhost:3001/api/orders/${selectedOrderId}/products`, { products });
       setShowEditProductsModal(false);
       fetchOrderProducts(selectedOrderId);
     } catch (err) {
@@ -762,7 +899,7 @@ export default function OrderDetails() {
   const handleRemoveProduct = async (sku) => {
     if (!selectedOrder) return;
     try {
-      await api.delete(`/api/orders/${selectedOrderId}/products/${sku}`);
+      await axios.delete(`http://localhost:3001/api/orders/${selectedOrderId}/products/${sku}`);
       fetchOrderProducts(selectedOrderId);
     } catch (err) {
       alert('Failed to remove product');
@@ -779,88 +916,70 @@ export default function OrderDetails() {
   const enRouteOrders = orders.filter(order => order.status === 'En Route');
   const completedOrders = orders.filter(order => order.status === 'Completed');
 
-  const handleEditDetails = () => {
-    // Format dates to YYYY-MM-DD before setting edited order
-    const formattedOrder = {
-      ...selectedOrder,
-      order_date: selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '',
-      expected_delivery: selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : ''
-    };
-    setEditedOrder(formattedOrder);
-    setIsEditing(true);
-  };
+  // Update the product selection in the edit modal table
+  const renderProductTable = () => {
+    // Filter products based on package name
+    const filteredInventory = form.package_name === 'Carlo' 
+      ? inventory.filter(item => defaultProductNames.some(name => 
+          item.name.toLowerCase().includes(name.toLowerCase()) ||
+          name.toLowerCase().includes(item.name.toLowerCase())
+        ))
+      : inventory;
 
-  const handleSaveDetails = async () => {
-    try {
-      if (!editedOrder || !selectedOrder) {
-        alert('No order selected for editing');
-        return;
-      }
-
-      const orderId = formatOrderId(selectedOrder.order_id);
-      if (!orderId) {
-        alert('Invalid order ID');
-        return;
-      }
-
-      // Debug logging
-      console.log('Original order ID:', selectedOrder.order_id);
-      console.log('Formatted order ID:', orderId);
-      console.log('Full order data being sent:', editedOrder);
-
-      // Format dates before sending to server
-      const orderToSave = {
-        ...editedOrder,
-        order_date: editedOrder.order_date ? editedOrder.order_date.split('T')[0] : '',
-        expected_delivery: editedOrder.expected_delivery ? editedOrder.expected_delivery.split('T')[0] : ''
-      };
-
-      console.log('Saving order details for order:', orderId);
-      console.log('Request URL:', `http://localhost:3001/api/orders/${orderId}`);
-      console.log('Request payload:', orderToSave);
-      
-      // Save the changes
-      const saveResponse = await axios.put(
-        `http://localhost:3001/api/orders/${orderId}`, 
-        orderToSave,
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      // Refresh both orders and order products
-      await fetchOrders();
-      if (selectedOrderId) {
-        await fetchOrderProducts(selectedOrderId);
-      }
-      
-      setIsEditing(false);
-      alert('Order details updated successfully');
-    } catch (err) {
-      console.error('Save error:', err);
-      console.error('Error details:', {
-        status: err.response?.status,
-        statusText: err.response?.statusText,
-        data: err.response?.data,
-        headers: err.response?.headers
-      });
-      
-      if (err.response?.status === 404) {
-        alert(`Order ${selectedOrder.order_id} not found. Please check the order ID format.`);
-      } else {
-        alert(err?.response?.data?.message || 'Failed to update order details. Please try again.');
-      }
-    }
-  };
-
-  const handleEditChange = (e) => {
-    const { name, value } = e.target;
-    setEditedOrder(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    return (
+      <table style={{width:'100%',borderCollapse:'collapse'}}>
+        <thead style={{position:'sticky',top:0,background:'#f8f8f8',zIndex:1}}>
+          <tr>
+            <th style={{textAlign:'left',padding:'8px'}}>Image</th>
+            <th style={{textAlign:'left',padding:'8px'}}>Name</th>
+            <th style={{textAlign:'right',padding:'8px'}}>Unit Price</th>
+            <th style={{textAlign:'right',padding:'8px'}}>Available</th>
+            <th style={{textAlign:'right',padding:'8px'}}>Profit Margin %</th>
+            <th style={{textAlign:'right',padding:'8px'}}>Est. Profit</th>
+            <th style={{textAlign:'right',padding:'8px'}}>Quantity</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredInventory.map(item => {
+            const quantity = Number(productSelection[item.sku] || 0);
+            const margin = Number(profitMargins[item.sku] || 0);
+            const unitPrice = Number(item.unit_price || 0);
+            const estimatedProfit = (unitPrice * quantity * (margin / 100)).toFixed(2);
+            return (
+              <tr key={item.sku}>
+                <td style={{padding:'8px'}}>{item.image_data ? <img src={`data:image/jpeg;base64,${item.image_data}`} alt={item.name} style={{width:40,height:40,borderRadius:6,objectFit:'cover'}} /> : <div style={{width:40,height:40,background:'#eee',borderRadius:6}} />}</td>
+                <td style={{padding:'8px'}}>{item.name}</td>
+                <td style={{padding:'8px',textAlign:'right'}}>₱{unitPrice.toFixed(2)}</td>
+                <td style={{padding:'8px',textAlign:'right'}}>{item.quantity}</td>
+                <td style={{padding:'8px',textAlign:'right'}}>
+                  <input 
+                    type="number" 
+                    min={0} 
+                    max={100}
+                    value={profitMargins[item.sku] || ''} 
+                    onChange={e => setProfitMargins(pm => ({...pm, [item.sku]: e.target.value}))} 
+                    style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
+                  />
+                </td>
+                <td style={{padding:'8px',textAlign:'right'}}>
+                  {quantity > 0 && margin > 0 ? `₱${estimatedProfit}` : '-'}
+                </td>
+                <td style={{padding:'8px',textAlign:'right'}}>
+                  <input 
+                    type="number" 
+                    min={0} 
+                    max={item.quantity} 
+                    value={productSelection[item.sku] || ''} 
+                    onChange={e => handleProductSelection(item.sku, e.target.value)} 
+                    style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
+                  />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    );
   };
 
   return (
@@ -1124,58 +1243,7 @@ export default function OrderDetails() {
                 <div style={{flex:1.2,minWidth:0}}>
                   <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
                   <div style={{maxHeight:400,overflowY:'auto',marginBottom:18,border:'1px solid #eee',borderRadius:8,padding:16}}>
-                    <table style={{width:'100%',borderCollapse:'collapse'}}>
-                      <thead style={{position:'sticky',top:0,background:'#f8f8f8',zIndex:1}}>
-                        <tr>
-                          <th style={{textAlign:'left',padding:'8px'}}>Image</th>
-                          <th style={{textAlign:'left',padding:'8px'}}>Name</th>
-                          <th style={{textAlign:'right',padding:'8px'}}>Unit Price</th>
-                          <th style={{textAlign:'right',padding:'8px'}}>Available</th>
-                          <th style={{textAlign:'right',padding:'8px'}}>Profit Margin %</th>
-                          <th style={{textAlign:'right',padding:'8px'}}>Est. Profit</th>
-                          <th style={{textAlign:'right',padding:'8px'}}>Quantity</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {inventory.map(item => {
-                          const quantity = Number(productSelection[item.sku] || 0);
-                          const margin = Number(profitMargins[item.sku] || 0);
-                          const unitPrice = Number(item.unit_price || 0);
-                          const estimatedProfit = (unitPrice * quantity * (margin / 100)).toFixed(2);
-                          return (
-                            <tr key={item.sku}>
-                              <td style={{padding:'8px'}}>{item.image_data ? <img src={`data:image/jpeg;base64,${item.image_data}`} alt={item.name} style={{width:40,height:40,borderRadius:6,objectFit:'cover'}} /> : <div style={{width:40,height:40,background:'#eee',borderRadius:6}} />}</td>
-                              <td style={{padding:'8px'}}>{item.name}</td>
-                              <td style={{padding:'8px',textAlign:'right'}}>₱{unitPrice.toFixed(2)}</td>
-                              <td style={{padding:'8px',textAlign:'right'}}>{item.quantity}</td>
-                              <td style={{padding:'8px',textAlign:'right'}}>
-                                <input 
-                                  type="number" 
-                                  min={0} 
-                                  max={100}
-                                  value={profitMargins[item.sku] || ''} 
-                                  onChange={e => setProfitMargins(pm => ({...pm, [item.sku]: e.target.value}))} 
-                                  style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
-                                />
-                              </td>
-                              <td style={{padding:'8px',textAlign:'right'}}>
-                                {quantity > 0 && margin > 0 ? `₱${estimatedProfit}` : '-'}
-                              </td>
-                              <td style={{padding:'8px',textAlign:'right'}}>
-                                <input 
-                                  type="number" 
-                                  min={0} 
-                                  max={item.quantity} 
-                                  value={productSelection[item.sku] || ''} 
-                                  onChange={e => handleProductSelection(item.sku, e.target.value)} 
-                                  style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    {renderProductTable()}
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
                     <div style={{fontWeight:500}}>
@@ -1280,79 +1348,97 @@ export default function OrderDetails() {
         {/* Edit Order Modal */}
         {showEditModal && (
           <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#0008',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <div className="modal" style={{background:'#fff',padding:32,borderRadius:12,minWidth:800,maxWidth:900,width:'90vw',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
+            <div className="modal" style={{background:'#fff',padding:32,borderRadius:12,minWidth:1100,maxWidth:'95vw',width:'95vw',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
               <h2 style={{marginBottom:20}}>Edit Order</h2>
-              <form onSubmit={handleEditOrderSubmit} style={{display:'flex',flexDirection:'column',gap:24}}>
-                {/* Order Info */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Order ID<input name="order_id" value={form.order_id} onChange={handleFormChange} required className="modal-input" disabled /></label>
-                  <label style={{fontWeight:500}}>Name<input name="name" value={form.name} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Status
-                    <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">
-                      <option value="">Select status</option>
-                      <option value="Pending">Pending</option>
-                      <option value="To be pack">To be pack</option>
-                      <option value="Ready to ship">Ready to ship</option>
-                      <option value="En Route">En Route</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Invoice">Invoice</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
-                  </label>
+              <form onSubmit={handleEditOrderSubmit} style={{display:'flex',flexDirection:'row',gap:40,alignItems:'flex-start'}}>
+                {/* Left: Order Details */}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order ID<input name="order_id" value={form.order_id} onChange={handleFormChange} required className="modal-input" disabled /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Name<input name="name" value={form.name} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Status
+                      <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">
+                        <option value="">Select status</option>
+                        <option value="Pending">Pending</option>
+                        <option value="To be pack">To be pack</option>
+                        <option value="Ready to ship">Ready to ship</option>
+                        <option value="En Route">En Route</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Invoice">Invoice</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Package Name
+                      <select name="package_name" value={form.package_name} onChange={handleFormChange} required className="modal-input">
+                        <option value="">Select package</option>
+                        <option value="Carlo">Carlo</option>
+                        <option value="Custom">Custom</option>
+                      </select>
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Expected Delivery<input name="expected_delivery" type="date" value={form.expected_delivery} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Shipped To (Receiver name) <input name="shipped_to" value={form.shipped_to} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Shipping Address<input name="shipping_address" value={form.shipping_address} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Telephone<input name="telephone" value={form.telephone} onChange={handleFormChange} className="modal-input" placeholder="(optional)" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Cellphone<input name="cellphone" value={form.cellphone} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Email Address<input name="email_address" value={form.email_address} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Total Cost
+                      <input 
+                        name="total_cost" 
+                        type="number" 
+                        step="0.01" 
+                        value={form.total_cost} 
+                        readOnly 
+                        className="modal-input" 
+                        style={{backgroundColor:'#f5f5f5'}}
+                      />
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Payment Type
+                      <select name="payment_type" value={form.payment_type} onChange={handleFormChange} className="modal-input" required>
+                        <option value="">Select payment type</option>
+                        <option value="50% paid">50% paid</option>
+                        <option value="70% paid">70% paid</option>
+                        <option value="100% Paid">100% Paid</option>
+                      </select>
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Payment Method
+                      <select name="payment_method" value={form.payment_method} onChange={handleFormChange} className="modal-input" required>
+                        <option value="">Select payment method</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Online Banking">Online Banking</option>
+                        <option value="E-Wallet">E-Wallet</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                      </select>
+                    </label>
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Account Name<input name="account_name" value={form.account_name} onChange={handleFormChange} className="modal-input" /></label>
+                    {/* Remarks - span both columns */}
+                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6,gridColumn:'1 / span 2'}}>Remarks<input name="remarks" value={form.remarks} onChange={handleFormChange} className="modal-input" /></label>
+                  </div>
+                  {/* Form buttons */}
+                  <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:24}}>
+                    <button type="button" onClick={()=>setShowEditModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}>Cancel</button>
+                    <button type="submit" style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#6c63ff',color:'#fff',fontWeight:600,cursor:'pointer'}}>Save</button>
+                  </div>
                 </div>
-                {/* Dates */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Expected Delivery<input name="expected_delivery" type="date" value={form.expected_delivery} onChange={handleFormChange} required className="modal-input" /></label>
-                </div>
-                {/* Shipping */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Shipped To (Receiver name) <input name="shipped_to" value={form.shipped_to} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Shipping Address<input name="shipping_address" value={form.shipping_address} onChange={handleFormChange} required className="modal-input" /></label>
-                </div>
-                {/* Contact */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Telephone<input name="telephone" value={form.telephone} onChange={handleFormChange} className="modal-input" placeholder="(optional)" /></label>
-                  <label style={{fontWeight:500}}>Cellphone<input name="cellphone" value={form.cellphone} onChange={handleFormChange} required className="modal-input" /></label>
-                  <label style={{fontWeight:500}}>Email Address<input name="email_address" value={form.email_address} onChange={handleFormChange} required className="modal-input" /></label>
-                </div>
-                {/* Payment */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:8}}>
-                  <label style={{fontWeight:500}}>Total Cost
-                    <input 
-                      name="total_cost" 
-                      type="number" 
-                      step="0.01" 
-                      value={form.total_cost} 
-                      readOnly 
-                      className="modal-input" 
-                      style={{backgroundColor:'#f5f5f5'}}
-                    />
-                  </label>
-                  <label style={{fontWeight:500}}>Payment Type
-                    <select name="payment_type" value={form.payment_type} onChange={handleFormChange} className="modal-input" required>
-                      <option value="">Select payment type</option>
-                      <option value="50% paid">50% paid</option>
-                      <option value="70% paid">70% paid</option>
-                      <option value="100% Paid">100% Paid</option>
-                    </select>
-                  </label>
-                  <label style={{fontWeight:500}}>Payment Method
-                    <select name="payment_method" value={form.payment_method} onChange={handleFormChange} className="modal-input" required>
-                      <option value="">Select payment method</option>
-                      <option value="Cash">Cash</option>
-                      <option value="Online Banking">Online Banking</option>
-                      <option value="E-Wallet">E-Wallet</option>
-                      <option value="Bank Transfer">Bank Transfer</option>
-                    </select>
-                  </label>
-                  <label style={{fontWeight:500}}>Account Name<input name="account_name" value={form.account_name} onChange={handleFormChange} className="modal-input" /></label>
-                </div>
-                {/* Remarks */}
-                <label style={{fontWeight:500}}>Remarks<input name="remarks" value={form.remarks} onChange={handleFormChange} className="modal-input" /></label>
-                <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
-                  <button type="button" onClick={()=>setShowEditModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}>Cancel</button>
-                  <button type="submit" style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#6c63ff',color:'#fff',fontWeight:600,cursor:'pointer'}}>Save</button>
+                {/* Right: Products Section */}
+                <div style={{flex:1.2,minWidth:0}}>
+                  <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
+                  <div style={{maxHeight:400,overflowY:'auto',marginBottom:18,border:'1px solid #eee',borderRadius:8,padding:16}}>
+                    {renderProductTable()}
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+                    <div style={{fontWeight:500}}>
+                      Total Estimated Profit: ₱{
+                        inventory.reduce((total, item) => {
+                          const quantity = Number(productSelection[item.sku] || 0);
+                          const margin = Number(profitMargins[item.sku] || 0);
+                          const unitPrice = Number(item.unit_price || 0);
+                          return total + (unitPrice * quantity * (margin / 100));
+                        }, 0).toFixed(2)
+                      }
+                    </div>
+                  </div>
+                  {productError && <div style={{color:'red',marginBottom:8}}>{productError}</div>}
                 </div>
               </form>
             </div>
@@ -1455,129 +1541,20 @@ export default function OrderDetails() {
               <button onClick={()=>setSelectedOrderId(null)} className="order-modal-close" style={{position:'absolute',top:18,right:24,fontSize:26,color:'#aaa',background:'none',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'color 0.2s, background 0.2s',zIndex:2}}>&times;</button>
               <div className="order-details-modal-content" style={{display:'flex',flexDirection:'row',width:'100%'}}>
                 <div className="order-details-modal-info-col" style={{flex:1.2,padding:'40px 36px 40px 48px'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24}}>
-                    <h2 style={{fontFamily:'Cormorant Garamond,serif',fontWeight:700,fontSize:32,color:'#2c3e50',margin:0}}>Order Details</h2>
-                    {!isEditing ? (
-                      <button 
-                        onClick={handleEditDetails}
-                        style={{
-                          padding: '8px 16px',
-                          borderRadius: 6,
-                          border: '1px solid #4a90e2',
-                          background: '#fff',
-                          color: '#4a90e2',
-                          cursor: 'pointer',
-                          fontWeight: 600,
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        Edit
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={handleSaveDetails}
-                        style={{
-                          padding: '8px 16px',
-                          borderRadius: 6,
-                          border: 'none',
-                          background: '#4a90e2',
-                          color: '#fff',
-                          cursor: 'pointer',
-                          fontWeight: 600,
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        Save
-                      </button>
-                    )}
-                  </div>
+                  <h2 style={{marginBottom:24,fontFamily:'Cormorant Garamond,serif',fontWeight:700,fontSize:32,color:'#2c3e50'}}>Order Details</h2>
                   {orderStockIssues[selectedOrder.order_id] && orderStockIssues[selectedOrder.order_id].length > 0 && (
                     <div style={{color:'#b94a48',background:'#fff3cd',border:'1px solid #ffeeba',borderRadius:6,padding:'8px 12px',marginBottom:18,fontSize:15}}>
                       ⚠️ Not enough stock for: {orderStockIssues[selectedOrder.order_id].join(', ')}
                     </div>
                   )}
-                  <div style={{marginBottom:12}}>
-                    <b>Name:</b> {isEditing ? (
-                      <input
-                        type="text"
-                        name="name"
-                        value={editedOrder.name}
-                        onChange={handleEditChange}
-                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
-                      />
-                    ) : selectedOrder.name}
-                  </div>
-                  <div style={{marginBottom:12}}>
-                    <b>Email Address:</b> {isEditing ? (
-                      <input
-                        type="email"
-                        name="email_address"
-                        value={editedOrder.email_address}
-                        onChange={handleEditChange}
-                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
-                      />
-                    ) : selectedOrder.email_address || '-'}
-                  </div>
-                  <div style={{marginBottom:12}}>
-                    <b>Contact Number:</b> {isEditing ? (
-                      <input
-                        type="text"
-                        name="cellphone"
-                        value={editedOrder.cellphone}
-                        onChange={handleEditChange}
-                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
-                      />
-                    ) : selectedOrder.cellphone || '-'}
-                  </div>
-                  <div style={{marginBottom:12}}>
-                    <b>Order Quantity:</b> {isEditing ? (
-                      <input
-                        type="number"
-                        name="order_quantity"
-                        value={editedOrder.order_quantity}
-                        onChange={handleEditChange}
-                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
-                      />
-                    ) : selectedOrder.order_quantity || '-'}
-                  </div>
-                  <div style={{marginBottom:12}}>
-                    <b>Date of Event:</b> {isEditing ? (
-                      <input
-                        type="date"
-                        name="expected_delivery"
-                        value={editedOrder.expected_delivery ? editedOrder.expected_delivery.split('T')[0] : ''}
-                        onChange={handleEditChange}
-                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
-                      />
-                    ) : selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : '-'}
-                  </div>
-                  <div style={{marginBottom:12}}>
-                    <b>Shipping Location:</b> {isEditing ? (
-                      <input
-                        type="text"
-                        name="shipping_address"
-                        value={editedOrder.shipping_address}
-                        onChange={handleEditChange}
-                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
-                      />
-                    ) : selectedOrder.shipping_address || '-'}
-                  </div>
-                  <div style={{marginBottom:12}}>
-                    <b>Status:</b> {isEditing ? (
-                      <select
-                        name="status"
-                        value={editedOrder.status}
-                        onChange={handleEditChange}
-                        style={{marginLeft:8,padding:'4px 8px',borderRadius:4,border:'1px solid #ddd'}}
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="To be pack">To Be Packed</option>
-                        <option value="Ready to ship">Ready to Deliver</option>
-                      </select>
-                    ) : selectedOrder.status}
-                  </div>
+                  <div style={{marginBottom:12}}><b>Name:</b> {selectedOrder.name}</div>
+                  <div style={{marginBottom:12}}><b>Email Address:</b> {selectedOrder.email_address || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Contact Number:</b> {selectedOrder.cellphone || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Order Quantity:</b> {selectedOrder.order_quantity || selectedOrder.products?.reduce((total, p) => total + p.quantity, 0) || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Date of Event:</b> {selectedOrder.expected_delivery || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Shipping Location:</b> {selectedOrder.shipping_address || '-'}</div>
+                  <div style={{marginBottom:12}}><b>Status:</b> {selectedOrder.status}</div>
                   <div style={{marginBottom:12}}><b>Order ID:</b> {selectedOrder.order_id}</div>
-
                   <div style={{marginBottom:12}}><b>Date Ordered:</b> {selectedOrder.order_date}</div>
                   <div style={{marginBottom:12}}><b>Package Name:</b> {selectedOrder.package_name || '-'}</div>
                   
@@ -1684,52 +1661,48 @@ export default function OrderDetails() {
                         </li>
                       ))}
                     </ul>
-                  ) : orderProducts && orderProducts.length > 0 ? (
+                  ) : selectedOrder.products && selectedOrder.products.length > 0 ? (
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
-                      {orderProducts.map((p, idx) => {
-                        const inventoryItem = inventory.find(item => item.sku === p.sku);
-                        return (
-                          <li key={p.sku || idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-                            {inventoryItem && inventoryItem.image_data ? (
-                              <img 
-                                src={`data:image/jpeg;base64,${inventoryItem.image_data}`} 
-                                alt={inventoryItem.name} 
-                                style={{ 
-                                  width: 48, 
-                                  height: 48, 
-                                  borderRadius: 8, 
-                                  objectFit: 'cover', 
-                                  background: '#eee', 
-                                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
-                                }} 
-                              />
-                            ) : (
-                              <div style={{ 
+                      {selectedOrder.products.map((p, idx) => (
+                        <li key={p.sku || idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+                          {p.image_data ? (
+                            <img 
+                              src={`data:image/jpeg;base64,${p.image_data}`} 
+                              alt={p.name} 
+                              style={{ 
                                 width: 48, 
                                 height: 48, 
-                                background: '#eee', 
                                 borderRadius: 8, 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                color: '#bbb', 
-                                fontSize: 22 
-                              }}>
-                                ?
-                              </div>
-                            )}
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
-                                {p.name || inventoryItem?.name || 'Unknown Product'}
-                              </div>
-                              <div style={{ fontSize: 14, color: '#888' }}>
-                                Qty: {p.quantity}
-                                {p.profit_margin && <span style={{ marginLeft: 8 }}>({p.profit_margin}% margin)</span>}
-                              </div>
+                                objectFit: 'cover', 
+                                background: '#eee', 
+                                boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
+                              }} 
+                            />
+                          ) : (
+                            <div style={{ 
+                              width: 48, 
+                              height: 48, 
+                              background: '#eee', 
+                              borderRadius: 8, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              color: '#bbb', 
+                              fontSize: 22 
+                            }}>
+                              ?
                             </div>
-                          </li>
-                        );
-                      })}
+                          )}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
+                              {p.name}
+                            </div>
+                            <div style={{ fontSize: 14, color: '#888' }}>
+                              Qty: {p.quantity}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
                     </ul>
                   ) : (
                     <div style={{color:'#666',fontSize:15}}>No products added to this order yet.</div>
@@ -1742,4 +1715,4 @@ export default function OrderDetails() {
       </div>
     </div>
   );
-}
+} 
