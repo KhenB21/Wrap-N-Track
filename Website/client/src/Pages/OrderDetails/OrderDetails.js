@@ -525,89 +525,43 @@ useEffect(() => {
   // Edit order: open modal with selected order's data
   const handleEditOrder = async () => {
     if (!selectedOrder) return;
-    
     try {
-      // Fetch the latest order products for this specific order
+      // 1. Fetch inventory first
+      const inventoryRes = await axios.get('http://localhost:3001/api/inventory');
+      setInventory(inventoryRes.data);
+
+      // 2. Fetch the latest order products for this specific order
       const productsResponse = await axios.get(`http://localhost:3001/api/orders/${selectedOrder.order_id}/products`);
       const orderProducts = productsResponse.data;
       console.log("Fetched products for order", selectedOrder.order_id, ":", orderProducts);
 
-      // Initialize product selection and profit margins with current order's values
+      // 3. Map products to inventory
       const initialProductSelection = {};
       const initialProfitMargins = {};
-      
-      // Use products from the selected order if available, otherwise use the fetched products
-      const productsToUse = selectedOrder.products || orderProducts;
-      
-      // Map products using their actual SKUs from inventory
-      for (const product of productsToUse) {
-        // Find the inventory item by name first
-        const inventoryItem = inventory.find(item => 
-          item.name.toLowerCase() === product.name.toLowerCase() ||
-          item.name.toLowerCase().includes(product.name.toLowerCase()) ||
-          product.name.toLowerCase().includes(item.name.toLowerCase())
+      for (const product of orderProducts) {
+        const inventoryItem = inventoryRes.data.find(item =>
+          item.sku === product.sku ||
+          item.name.toLowerCase() === product.name.toLowerCase()
         );
-        
         if (inventoryItem) {
           initialProductSelection[inventoryItem.sku] = product.quantity;
           initialProfitMargins[inventoryItem.sku] = product.profit_margin;
         }
       }
-      
-      console.log("Initial product selection:", initialProductSelection);
-      console.log("Initial profit margins:", initialProfitMargins);
-      
       setProductSelection(initialProductSelection);
       setProfitMargins(initialProfitMargins);
 
-      // Preserve the dates in the correct format and set all form fields
-      const orderData = {
+      // 4. Set form and show modal
+      setForm({
         ...selectedOrder,
         order_date: selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '',
         expected_delivery: selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : '',
-        items: productsToUse.map(product => {
-          const inventoryItem = inventory.find(item => 
-            item.name.toLowerCase() === product.name.toLowerCase() ||
-            item.name.toLowerCase().includes(product.name.toLowerCase()) ||
-            product.name.toLowerCase().includes(item.name.toLowerCase())
-          );
-          return {
-            sku: inventoryItem ? inventoryItem.sku : product.sku,
-            quantity: Number(product.quantity) || 0,
-            profit_margin: Number(product.profit_margin) || 0,
-            unit_price: Number(product.unit_price) || 0
-          };
-        })
-      };
-
-      console.log("Setting form data for editing:", orderData);
-      setForm(orderData);
+      });
       setShowEditModal(true);
       setSelectedOrderId(null); // Close the order details modal
     } catch (error) {
-      console.error("Error fetching order products for editing:", error);
-      // If we can't fetch products, still allow editing with the data we have
-      const orderData = {
-        ...selectedOrder,
-        order_date: selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '',
-        expected_delivery: selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : '',
-        items: selectedOrder.products ? selectedOrder.products.map(product => {
-          const inventoryItem = inventory.find(item => 
-            item.name.toLowerCase() === product.name.toLowerCase() ||
-            item.name.toLowerCase().includes(product.name.toLowerCase()) ||
-            product.name.toLowerCase().includes(item.name.toLowerCase())
-          );
-          return {
-            sku: inventoryItem ? inventoryItem.sku : product.sku,
-            quantity: Number(product.quantity) || 0,
-            profit_margin: Number(product.profit_margin) || 0,
-            unit_price: Number(product.unit_price) || 0
-          };
-        }) : []
-      };
-      setForm(orderData);
-      setShowEditModal(true);
-      setSelectedOrderId(null);
+      console.error("Error fetching inventory or order products for editing:", error);
+      alert('Failed to load order or inventory for editing.');
     }
   };
 
@@ -620,9 +574,6 @@ useEffect(() => {
         alert('Please log in to complete this action');
         return;
       }
-
-      console.log("Current productSelection:", productSelection);
-      console.log("Current profitMargins:", profitMargins);
 
       // Filter and map products with proper validation
       const selectedProducts = Object.entries(productSelection)
@@ -637,10 +588,9 @@ useEffect(() => {
         .map(([sku, quantity]) => {
           const inventoryItem = inventory.find(item => item.sku === sku);
           if (!inventoryItem) {
-            console.error(`No inventory item found for SKU: ${sku}`);
+            alert(`Product with SKU ${sku} not found in inventory! This product will be skipped.`);
             return null;
           }
-
           return {
             sku: inventoryItem.sku,
             name: inventoryItem.name,
@@ -649,7 +599,13 @@ useEffect(() => {
             unit_price: Number(inventoryItem.unit_price || 0)
           };
         })
-        .filter(product => product !== null);
+        .filter(product => product && product.sku); // Only keep products with a valid SKU
+
+      // Extra validation: if any product is missing a SKU, show error and stop
+      if (selectedProducts.some(p => !p.sku)) {
+        alert('One or more products are missing a valid SKU. Please check your product selection.');
+        return;
+      }
 
       console.log("Final selected products:", selectedProducts);
 
@@ -1347,16 +1303,57 @@ useEffect(() => {
 
         {/* Edit Order Modal */}
         {showEditModal && (
-          <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#0008',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <div className="modal" style={{background:'#fff',padding:32,borderRadius:12,minWidth:1100,maxWidth:'95vw',width:'95vw',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
-              <h2 style={{marginBottom:20}}>Edit Order</h2>
-              <form onSubmit={handleEditOrderSubmit} style={{display:'flex',flexDirection:'row',gap:40,alignItems:'flex-start'}}>
+          <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <div className="modal" style={{
+              background:'#fff',
+              borderRadius:16,
+              maxWidth:1400,
+              width:'99vw',
+              minWidth:320,
+              boxShadow:'0 8px 32px rgba(44,62,80,0.13)',
+              display:'flex',
+              flexDirection:'column',
+              position:'relative',
+              maxHeight:'95vh',
+              overflow:'auto',
+              padding:0
+            }}>
+              <div className="modal-header" style={{
+                display:'flex',
+                alignItems:'center',
+                justifyContent:'space-between',
+                padding:'28px 36px 18px 36px',
+                borderBottom:'1.5px solid #ececec',
+                background:'#fff',
+                position:'sticky',
+                top:0,
+                zIndex:2
+              }}>
+                <h2 className="modal-title" style={{fontSize:28,fontWeight:700,margin:0,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50'}}>Edit Order</h2>
+                <button className="modal-close" type="button" onClick={() => setShowEditModal(false)} style={{fontSize:28,color:'#aaa',background:'none',border:'none',borderRadius:'50%',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'color 0.2s, background 0.2s'}}>&times;</button>
+              </div>
+              <form onSubmit={handleEditOrderSubmit} style={{
+                display:'flex',
+                flexDirection:'row',
+                gap:0,
+                alignItems:'stretch',
+                height:'100%',
+                minHeight:400,
+                overflow:'visible',
+                background:'#fff'
+              }}>
                 {/* Left: Order Details */}
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order ID<input name="order_id" value={form.order_id} onChange={handleFormChange} required className="modal-input" disabled /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Name<input name="name" value={form.name} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Status
+                <div style={{
+                  flex:1.2,
+                  minWidth:320,
+                  padding:'32px 32px 32px 36px',
+                  overflowY:'auto',
+                  maxHeight:'calc(95vh - 80px)'
+                }}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}>
+                    <label>Order ID<input name="order_id" value={form.order_id} onChange={handleFormChange} required className="modal-input" disabled /></label>
+                    <label>Name<input name="name" value={form.name} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label>Status
                       <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">
                         <option value="">Select status</option>
                         <option value="Pending">Pending</option>
@@ -1368,21 +1365,21 @@ useEffect(() => {
                         <option value="Cancelled">Cancelled</option>
                       </select>
                     </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Package Name
+                    <label>Package Name
                       <select name="package_name" value={form.package_name} onChange={handleFormChange} required className="modal-input">
                         <option value="">Select package</option>
                         <option value="Carlo">Carlo</option>
                         <option value="Custom">Custom</option>
                       </select>
                     </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Expected Delivery<input name="expected_delivery" type="date" value={form.expected_delivery} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Shipped To (Receiver name) <input name="shipped_to" value={form.shipped_to} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Shipping Address<input name="shipping_address" value={form.shipping_address} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Telephone<input name="telephone" value={form.telephone} onChange={handleFormChange} className="modal-input" placeholder="(optional)" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Cellphone<input name="cellphone" value={form.cellphone} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Email Address<input name="email_address" value={form.email_address} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Total Cost
+                    <label>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label>Expected Delivery<input name="expected_delivery" type="date" value={form.expected_delivery} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label>Shipped To (Receiver name) <input name="shipped_to" value={form.shipped_to} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label>Shipping Address<input name="shipping_address" value={form.shipping_address} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label>Telephone<input name="telephone" value={form.telephone} onChange={handleFormChange} className="modal-input" placeholder="(optional)" /></label>
+                    <label>Cellphone<input name="cellphone" value={form.cellphone} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label>Email Address<input name="email_address" value={form.email_address} onChange={handleFormChange} required className="modal-input" /></label>
+                    <label>Total Cost
                       <input 
                         name="total_cost" 
                         type="number" 
@@ -1393,7 +1390,7 @@ useEffect(() => {
                         style={{backgroundColor:'#f5f5f5'}}
                       />
                     </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Payment Type
+                    <label>Payment Type
                       <select name="payment_type" value={form.payment_type} onChange={handleFormChange} className="modal-input" required>
                         <option value="">Select payment type</option>
                         <option value="50% paid">50% paid</option>
@@ -1401,7 +1398,7 @@ useEffect(() => {
                         <option value="100% Paid">100% Paid</option>
                       </select>
                     </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Payment Method
+                    <label>Payment Method
                       <select name="payment_method" value={form.payment_method} onChange={handleFormChange} className="modal-input" required>
                         <option value="">Select payment method</option>
                         <option value="Cash">Cash</option>
@@ -1410,37 +1407,117 @@ useEffect(() => {
                         <option value="Bank Transfer">Bank Transfer</option>
                       </select>
                     </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Account Name<input name="account_name" value={form.account_name} onChange={handleFormChange} className="modal-input" /></label>
+                    <label>Account Name<input name="account_name" value={form.account_name} onChange={handleFormChange} className="modal-input" /></label>
                     {/* Remarks - span both columns */}
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6,gridColumn:'1 / span 2'}}>Remarks<input name="remarks" value={form.remarks} onChange={handleFormChange} className="modal-input" /></label>
+                    <label style={{gridColumn:'1 / span 2'}}>Remarks<input name="remarks" value={form.remarks} onChange={handleFormChange} className="modal-input" /></label>
                   </div>
-                  {/* Form buttons */}
-                  <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:24}}>
-                    <button type="button" onClick={()=>setShowEditModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}>Cancel</button>
-                    <button type="submit" style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#6c63ff',color:'#fff',fontWeight:600,cursor:'pointer'}}>Save</button>
+                  {/* Footer Buttons */}
+                  <div className="modal-footer" style={{width:'100%',marginTop:32,display:'flex',justifyContent:'flex-end',gap:12}}>
+                    <button type="button" className="btn btn-secondary" onClick={()=>setShowEditModal(false)} style={{minWidth:100}}>Cancel</button>
+                    <button type="submit" className="btn btn-primary" style={{minWidth:100}}>Save</button>
                   </div>
                 </div>
+                {/* Divider */}
+                <div style={{width:1,background:'#ececec',margin:'32px 0',borderRadius:1}}></div>
                 {/* Right: Products Section */}
-                <div style={{flex:1.2,minWidth:0}}>
-                  <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
-                  <div style={{maxHeight:400,overflowY:'auto',marginBottom:18,border:'1px solid #eee',borderRadius:8,padding:16}}>
-                    {renderProductTable()}
+                <div style={{
+                  flex:2,
+                  minWidth:700,
+                  maxWidth:900,
+                  background:'#f8f9fa',
+                  padding:'32px 32px 32px 32px',
+                  display:'flex',
+                  flexDirection:'column',
+                  alignItems:'flex-start',
+                  overflowY:'auto',
+                  maxHeight:'calc(95vh - 80px)'
+                }}>
+                  <div style={{fontWeight:700,fontSize:18,marginBottom:16,letterSpacing:1,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50'}}>PRODUCTS</div>
+                  <div style={{marginBottom:18,border:'1px solid #eee',borderRadius:8,padding:0,width:'100%',background:'#fff',maxHeight:500,overflowY:'auto',overflowX:'hidden'}}>
+                    <table style={{width:'100%',borderCollapse:'collapse',tableLayout:'auto'}}>
+                      <thead style={{position:'sticky',top:0,zIndex:1,background:'#f8f8f8'}}>
+                        <tr>
+                          <th style={{textAlign:'left',padding:'8px',width:'80px'}}>Image</th>
+                          <th style={{textAlign:'left',padding:'8px',width:'200px'}}>Name</th>
+                          <th style={{textAlign:'right',padding:'8px',width:'120px'}}>Unit Price</th>
+                          <th style={{textAlign:'right',padding:'8px',width:'100px'}}>Available</th>
+                          <th style={{textAlign:'right',padding:'8px',width:'140px'}}>Profit Margin %</th>
+                          <th style={{textAlign:'right',padding:'8px',width:'140px'}}>Est. Profit</th>
+                          <th style={{textAlign:'right',padding:'8px',width:'120px'}}>Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {
+                          (form.package_name === 'Carlo' 
+                            ? inventory.filter(item => defaultProductNames.some(name => 
+                                item.name.toLowerCase().includes(name.toLowerCase()) ||
+                                name.toLowerCase().includes(item.name.toLowerCase())
+                              ))
+                            : inventory
+                          ).map((item, idx) => {
+                            const quantity = Number(productSelection[item.sku] || 0);
+                            const margin = Number(profitMargins[item.sku] || 0);
+                            const unitPrice = Number(item.unit_price || 0);
+                            const estimatedProfit = (unitPrice * quantity * (margin / 100)).toFixed(2);
+                            return (
+                              <tr key={item.sku} style={{background: idx % 2 === 0 ? '#fafbfc' : '#fff', transition:'background 0.2s'}}>
+                                <td style={{padding:'8px'}}>{item.image_data ? <img src={`data:image/jpeg;base64,${item.image_data}`} alt={item.name} style={{width:40,height:40,borderRadius:6,objectFit:'cover'}} /> : <div style={{width:40,height:40,background:'#eee',borderRadius:6}} />}</td>
+                                <td style={{padding:'8px',fontWeight:600}}>{item.name}</td>
+                                <td style={{padding:'8px',textAlign:'right'}}>₱{unitPrice.toFixed(2)}</td>
+                                <td style={{padding:'8px',textAlign:'right'}}>{item.quantity}</td>
+                                <td style={{padding:'8px',textAlign:'right'}}>
+                                  <input 
+                                    type="number" 
+                                    min={0} 
+                                    max={100}
+                                    value={profitMargins[item.sku] || ''} 
+                                    onChange={e => setProfitMargins(pm => ({...pm, [item.sku]: e.target.value}))} 
+                                    style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc',textAlign:'right'}} 
+                                  />
+                                </td>
+                                <td style={{padding:'8px',textAlign:'right'}}>
+                                  {quantity > 0 && margin > 0 ? `₱${estimatedProfit}` : '-'}
+                                </td>
+                                <td style={{padding:'8px',textAlign:'right'}}>
+                                  <input 
+                                    type="number" 
+                                    min={0} 
+                                    max={item.quantity} 
+                                    value={productSelection[item.sku] || ''} 
+                                    onChange={e => handleProductSelection(item.sku, e.target.value)} 
+                                    style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc',textAlign:'right'}} 
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })
+                        }
+                      </tbody>
+                    </table>
                   </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
-                    <div style={{fontWeight:500}}>
-                      Total Estimated Profit: ₱{
-                        inventory.reduce((total, item) => {
-                          const quantity = Number(productSelection[item.sku] || 0);
-                          const margin = Number(profitMargins[item.sku] || 0);
-                          const unitPrice = Number(item.unit_price || 0);
-                          return total + (unitPrice * quantity * (margin / 100));
-                        }, 0).toFixed(2)
-                      }
-                    </div>
+                  <div style={{fontWeight:500,marginBottom:18}}>
+                    Total Estimated Profit: ₱{
+                      inventory.reduce((total, item) => {
+                        const quantity = Number(productSelection[item.sku] || 0);
+                        const margin = Number(profitMargins[item.sku] || 0);
+                        const unitPrice = Number(item.unit_price || 0);
+                        return total + (unitPrice * quantity * (margin / 100));
+                      }, 0).toFixed(2)
+                    }
                   </div>
-                  {productError && <div style={{color:'red',marginBottom:8}}>{productError}</div>}
+                  {productError && <div className="error-message">{productError}</div>}
                 </div>
               </form>
+              <style>{`
+                @media (max-width: 1100px) {
+                  .modal { max-width: 99vw !important; width: 99vw !important; }
+                  form { flex-direction: column !important; }
+                  .modal-header { padding: 18px 12px 12px 12px !important; }
+                  .modal-footer { flex-direction: column !important; gap: 8px !important; }
+                  .modal > form > div { min-width: 0 !important; max-width: 100vw !important; }
+                }
+                .modal tbody tr:hover { background: #f0f4ff !important; }
+              `}</style>
             </div>
           </div>
         )}
@@ -1622,87 +1699,129 @@ useEffect(() => {
                     <div style={{color:'#888',fontSize:16}}>Loading products...</div>
                   ) : selectedOrder.package_name === "Carlo" && carloProducts.length > 0 ? (
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
-                      {carloProducts.map((product, idx) => (
-                        <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-                          {product.image_data ? (
-                            <img 
-                              src={`data:image/jpeg;base64,${product.image_data}`} 
-                              alt={product.name} 
-                              style={{ 
+                      {carloProducts.map((product, idx) => {
+                        const inInventory = inventory.some(
+                          item =>
+                            (product.sku && item.sku === product.sku) ||
+                            item.name.toLowerCase() === product.name.toLowerCase()
+                        );
+                        return (
+                          <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+                            {product.image_data ? (
+                              <img 
+                                src={`data:image/jpeg;base64,${product.image_data}`} 
+                                alt={product.name} 
+                                style={{ 
+                                  width: 48, 
+                                  height: 48, 
+                                  borderRadius: 8, 
+                                  objectFit: 'cover', 
+                                  background: '#eee', 
+                                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
+                                }} 
+                              />
+                            ) : (
+                              <div style={{ 
                                 width: 48, 
                                 height: 48, 
-                                borderRadius: 8, 
-                                objectFit: 'cover', 
                                 background: '#eee', 
-                                boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
-                              }} 
-                            />
-                          ) : (
-                            <div style={{ 
-                              width: 48, 
-                              height: 48, 
-                              background: '#eee', 
-                              borderRadius: 8, 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
-                              color: '#bbb', 
-                              fontSize: 22 
-                            }}>
-                              ?
+                                borderRadius: 8, 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                color: '#bbb', 
+                                fontSize: 22 
+                              }}>
+                                ?
+                              </div>
+                            )}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
+                                {product.name}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 14,
+                                  color: inInventory ? '#888' : '#e53935',
+                                  fontWeight: inInventory ? 400 : 700,
+                                  background: inInventory ? 'none' : '#fff0f0',
+                                  borderRadius: inInventory ? 0 : 4,
+                                  padding: inInventory ? 0 : '2px 8px',
+                                  display: 'inline-block'
+                                }}
+                              >
+                                Qty: {product.quantity}
+                                {!inInventory && (
+                                  <span style={{ marginLeft: 6, fontWeight: 600 }}>(Not in inventory)</span>
+                                )}
+                              </div>
                             </div>
-                          )}
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
-                              {product.name}
-                            </div>
-                            <div style={{ fontSize: 14, color: '#888' }}>Qty: {product.quantity}</div>
-                          </div>
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : selectedOrder.products && selectedOrder.products.length > 0 ? (
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
-                      {selectedOrder.products.map((p, idx) => (
-                        <li key={p.sku || idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-                          {p.image_data ? (
-                            <img 
-                              src={`data:image/jpeg;base64,${p.image_data}`} 
-                              alt={p.name} 
-                              style={{ 
+                      {selectedOrder.products.map((p, idx) => {
+                        const inInventory = inventory.some(
+                          item =>
+                            (p.sku && item.sku === p.sku) ||
+                            item.name.toLowerCase() === p.name.toLowerCase()
+                        );
+                        return (
+                          <li key={p.sku || idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+                            {p.image_data ? (
+                              <img 
+                                src={`data:image/jpeg;base64,${p.image_data}`} 
+                                alt={p.name} 
+                                style={{ 
+                                  width: 48, 
+                                  height: 48, 
+                                  borderRadius: 8, 
+                                  objectFit: 'cover', 
+                                  background: '#eee', 
+                                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
+                                }} 
+                              />
+                            ) : (
+                              <div style={{ 
                                 width: 48, 
                                 height: 48, 
-                                borderRadius: 8, 
-                                objectFit: 'cover', 
                                 background: '#eee', 
-                                boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
-                              }} 
-                            />
-                          ) : (
-                            <div style={{ 
-                              width: 48, 
-                              height: 48, 
-                              background: '#eee', 
-                              borderRadius: 8, 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
-                              color: '#bbb', 
-                              fontSize: 22 
-                            }}>
-                              ?
+                                borderRadius: 8, 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                color: '#bbb', 
+                                fontSize: 22 
+                              }}>
+                                ?
+                              </div>
+                            )}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
+                                {p.name}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 14,
+                                  color: inInventory ? '#888' : '#e53935',
+                                  fontWeight: inInventory ? 400 : 700,
+                                  background: inInventory ? 'none' : '#fff0f0',
+                                  borderRadius: inInventory ? 0 : 4,
+                                  padding: inInventory ? 0 : '2px 8px',
+                                  display: 'inline-block'
+                                }}
+                              >
+                                Qty: {p.quantity}
+                                {!inInventory && (
+                                  <span style={{ marginLeft: 6, fontWeight: 600 }}>(Not in inventory)</span>
+                                )}
+                              </div>
                             </div>
-                          )}
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
-                              {p.name}
-                            </div>
-                            <div style={{ fontSize: 14, color: '#888' }}>
-                              Qty: {p.quantity}
-                            </div>
-                          </div>
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     <div style={{color:'#666',fontSize:15}}>No products added to this order yet.</div>
