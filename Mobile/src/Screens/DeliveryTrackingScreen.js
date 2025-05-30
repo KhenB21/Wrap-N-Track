@@ -6,12 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Linking,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import Header from "../Components/Header"; 
-import { useTheme } from "../Context/ThemeContext"; 
+import Header from "../Components/Header";
+import { useTheme } from "../Context/ThemeContext";
 
-// Dummy data for tracking and item
 const dummyTracking = [
   {
     status: "Order Placed",
@@ -23,19 +23,19 @@ const dummyTracking = [
     status: "Order Confirmed",
     date: "2025-05-29 10:10 AM",
     icon: "check-decagram",
-    done: true,
+    done: false,
   },
   {
     status: "Packed",
     date: "2025-05-29 12:00 PM",
     icon: "package-variant-closed",
-    done: true,
+    done: false,
   },
   {
     status: "Shipped",
     date: "2025-05-29 3:00 PM",
     icon: "truck-fast",
-    done: true,
+    done: false,
   },
   {
     status: "Out for Delivery",
@@ -96,24 +96,70 @@ const DeliveryTrackingScreen = ({ navigation, route }) => {
       />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Item Card */}
-        <View style={[styles.itemCard, { backgroundColor: colors.card, shadowColor: colors.text, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.itemCard,
+            {
+              backgroundColor: colors.card,
+              shadowColor: colors.text,
+              borderColor: colors.border,
+            },
+          ]}
+        >
           <Image source={item.image} style={styles.itemImage} />
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={[styles.itemTitle, { color: colors.text }]}>{item.title}</Text>
-            <Text style={[styles.itemSubtitle, { color: colors.text }]}>{item.subtitle}</Text>
-            <Text style={[styles.itemDesc, { color: colors.text }]}>{item.desc}</Text>
+            <Text style={[styles.itemTitle, { color: colors.text }]}>
+              {item.title}
+            </Text>
+            <Text style={[styles.itemSubtitle, { color: colors.text }]}>
+              {item.subtitle}
+            </Text>
+            <Text style={[styles.itemDesc, { color: colors.text }]}>
+              {item.desc}
+            </Text>
           </View>
         </View>
         {/* ETA */}
         <View style={[styles.etaBox, { backgroundColor: colors.infoBg }]}>
-          <MaterialCommunityIcons name="clock-outline" size={20} color={colors.infoText} />
+          <MaterialCommunityIcons
+            name="clock-outline"
+            size={20}
+            color={colors.infoText}
+          />
           <Text style={[styles.etaText, { color: colors.infoText }]}>
-            Estimated Arrival: <Text style={{ fontWeight: "bold" }}>{estimatedArrival}</Text>
+            Estimated Arrival:{" "}
+            <Text style={{ fontWeight: "bold" }}>{estimatedArrival}</Text>
           </Text>
         </View>
+
+        {/* Link Holder */}
+        <TouchableOpacity
+          style={styles.linkHolder}
+          onPress={() => {
+            Linking.openURL("https://www.jtexpress.ph/track-and-trace");
+          }}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons
+            name="link-variant"
+            size={18}
+            color={colors.accent}
+          />
+          <Text style={[styles.linkText, { color: colors.accent }]}>
+            View Tracking Link
+          </Text>
+        </TouchableOpacity>
+
         {/* Vertical Tracking Progress */}
-        <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.text }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Tracking Progress</Text>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.card, shadowColor: colors.text },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Tracking Progress
+          </Text>
           <View style={styles.timelineVertical}>
             {dummyTracking.map((step, idx) => (
               <View key={step.status} style={styles.timelineRowVertical}>
@@ -152,7 +198,10 @@ const DeliveryTrackingScreen = ({ navigation, route }) => {
                   <Text
                     style={[
                       styles.timelineStatusVertical,
-                      { color: step.done ? colors.accent : "#888", textAlign: "left" },
+                      {
+                        color: step.done ? colors.accent : "#888",
+                        textAlign: "left",
+                      },
                     ]}
                   >
                     {step.status}
@@ -165,9 +214,14 @@ const DeliveryTrackingScreen = ({ navigation, route }) => {
             ))}
           </View>
           <View style={[styles.infoBox, { backgroundColor: colors.infoBg }]}>
-            <MaterialCommunityIcons name="information" size={18} color={colors.infoText} />
+            <MaterialCommunityIcons
+              name="information"
+              size={18}
+              color={colors.infoText}
+            />
             <Text style={[styles.infoText, { color: colors.infoText }]}>
-              You will receive a notification once your order is out for delivery.
+              You will receive a notification once your order is out for
+              delivery.
             </Text>
           </View>
         </View>
@@ -328,6 +382,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginLeft: 8,
     flex: 1,
+  },
+  linkHolder: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    marginLeft: "4%",
+    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: "#F5F5F7",
+  },
+  linkText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "500",
+    textDecorationLine: "underline",
   },
 });
 
