@@ -8,7 +8,6 @@ import api, { apiFileUpload } from "../../api/axios";
 import config from "../../config";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
 export default function Inventory() {
   const location = useLocation();
   const [products, setProducts] = useState([]);
@@ -244,21 +243,21 @@ export default function Inventory() {
                           <div className="img-placeholder" />
                         )}
                       </td>
-                      <td className="ellipsis" title={product.sku}>
+                      <td className="ellipsis" title={product.sku} style={{ textAlign: 'center' }}>
                         {product.sku}
                       </td>
-                      <td className="ellipsis" title={product.name}>
+                      <td className="ellipsis" title={product.name} style={{ textAlign: 'center' }}>
                         {product.name}
                       </td>
-                      <td className="ellipsis" title={product.description}>
+                      <td className="ellipsis" title={product.description} style={{ textAlign: 'center' }}>
                         {product.description}
                       </td>
-                      <td>{product.quantity}</td>
-                      <td>₱{parseFloat(product.unit_price).toFixed(2)}</td>
-                      <td className="ellipsis" title={product.category}>
+                      <td style={{ textAlign: 'center' }}>{product.quantity}</td>
+                      <td style={{ textAlign: 'center' }}>₱{parseFloat(product.unit_price).toFixed(2)}</td>
+                      <td className="ellipsis" title={product.category} style={{ textAlign: 'center' }}>
                         {product.category}
                       </td>
-                      <td>{new Date(product.last_updated).toLocaleString()}</td>
+                      <td style={{ textAlign: 'center' }}>{new Date(product.last_updated).toLocaleString()}</td>
                       <td>
                         <div className="action-buttons">
                           <button 
