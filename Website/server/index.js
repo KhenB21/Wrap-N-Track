@@ -761,6 +761,7 @@ app.post('/api/user/profile-picture', verifyToken, upload.single('profilePicture
 
 // Add a new inventory item (with image upload to DB)
 app.post('/api/inventory', upload.single('image'), async (req, res) => {
+  const client = await pool.connect();
   try {
     console.log('Received inventory POST request');
     console.log('Request body:', req.body);
@@ -771,6 +772,8 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       size: req.file.size
     } : 'No file uploaded');
 
+    await client.query('BEGIN');
+    
     const { sku, name, description, quantity, unit_price, category } = req.body;
     let imageData = null;
     
@@ -791,14 +794,20 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       });
     }
     
+    // Process image if present
     if (req.file) {
       imageData = req.file.buffer;
       console.log('Image data read from memory, size:', imageData.length);
+      
+      // Validate image size (should already be validated by multer, but double-check)
+      if (imageData.length > 5 * 1024 * 1024) { // 5MB limit
+        throw new Error('Image size exceeds 5MB limit');
+      }
     }
     
     // Check if SKU already exists
-    const existingProduct = await pool.query(
-      'SELECT sku FROM inventory_items WHERE sku = $1',
+    const existingProduct = await client.query(
+      'SELECT sku FROM inventory_items WHERE sku = $1 FOR UPDATE',
       [sku]
     );
 
@@ -815,10 +824,16 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       hasImage: !!imageData
     });
 
-    const result = await pool.query(
-      'INSERT INTO inventory_items (sku, name, description, quantity, unit_price, category, image_data) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [sku, name, description, quantity, unit_price, category, imageData]
+    // Insert the new product
+    const result = await client.query(
+      `INSERT INTO inventory_items 
+       (sku, name, description, quantity, unit_price, category, image_data, last_updated) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) 
+       RETURNING *`,
+      [sku, name, description, Number(quantity), Number(unit_price), category, imageData]
     );
+    
+    await client.query('COMMIT');
     
     // Convert image data to base64 for the response
     const product = result.rows[0];
@@ -834,12 +849,15 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       product
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error adding inventory item:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Internal server error',
-      details: error.message 
+      message: 'Failed to add product. ' + error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  } finally {
+    client.release();
   }
 });
 
@@ -888,16 +906,35 @@ app.put('/api/inventory/:sku', upload.single('image'), async (req, res) => {
 
 // Get all inventory items
 app.get('/api/inventory', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const result = await pool.query('SELECT * FROM inventory_items ORDER BY last_updated DESC');
-    const products = result.rows.map(product => ({
-      ...product,
-      image_data: product.image_data ? product.image_data.toString('base64') : null
-    }));
-    res.json(products);
+    const result = await client.query(`
+      SELECT 
+        sku, 
+        name, 
+        description, 
+        quantity, 
+        unit_price, 
+        category, 
+        last_updated,
+        CASE 
+          WHEN image_data IS NOT NULL THEN encode(image_data, 'base64')
+          ELSE NULL 
+        END as image_data
+      FROM inventory_items 
+      ORDER BY last_updated DESC
+    `);
+    
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching inventory:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch inventory',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  } finally {
+    client.release();
   }
 });
 

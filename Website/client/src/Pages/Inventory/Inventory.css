@@ -1,54 +1,113 @@
 .inventory-container {
-  background: #f6f6f8;
-  /* min-height: 100vh; */
-  padding: 32px 40px 0 40px;
+  background: #f8f9fc;
+  padding: 28px 36px;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 .inventory-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .inventory-header h2 {
-  font-size: 2rem;
-  color: #333;
-  font-weight: 700;
+  font-size: 1.75rem;
+  color: #2c3e50;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin: 0;
 }
 
 .add-product-btn {
-  background: #696a8f;
-  color: #fff;
+  padding: 10px 20px;
+  background-color: #4361ee;
+  color: white;
   border: none;
-  border-radius: 6px;
-  padding: 10px 22px;
-  font-size: 1rem;
-  font-weight: 600;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 4px 6px rgba(67, 97, 238, 0.15);
+  letter-spacing: 0.3px;
 }
+
 .add-product-btn:hover {
-  background: #4d4e6a;
+  background-color: #3a56d4;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 10px rgba(67, 97, 238, 0.2);
+}
+
+.add-product-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+.inventory-table-container {
+  flex: 1;
+  width: 100%;
+  margin-top: 16px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Important for flex children to respect overflow */
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.inventory-table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0; /* Allows the wrapper to shrink below its content size */
 }
 
 .inventory-table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 8px;
+  border-collapse: collapse;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  overflow: hidden;
+  table-layout: fixed;
+  margin: 0;
+}
+
+.inventory-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f5f7fa;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+
+.inventory-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 11;
+  background: #f5f7fa;
+  padding: 16px;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  color: #4a5568;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .inventory-table th, .inventory-table td {
-  padding: 16px 20px;
-  text-align: center;
-  font-size: 1.05rem;
+  padding: 16px;
+  text-align: left;
+  font-size: 0.95rem;
   line-height: 1.5;
-  border-right: 1px solid #e0e0e0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   vertical-align: middle;
 }
 
@@ -67,13 +126,15 @@
 
 .inventory-table tr {
   background: #fff;
-  transition: all 0.2s ease;
+}
+
+.inventory-table tr:nth-child(even) {
+  background: #fafbfd;
 }
 
 .inventory-table tr:hover {
-  background: #f7f7fa;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  background: #f0f4ff;
+  cursor: pointer;
 }
 
 .img-placeholder {
@@ -86,47 +147,79 @@
 }
 
 .product-img-thumb {
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
+  width: 50px;
+  height: 50px;
+  border-radius: 6px;
   object-fit: cover;
-  border: 1px solid #eee;
+  border: 1px solid rgba(0, 0, 0, 0.05);
   transition: transform 0.2s ease;
   display: block;
   margin: 0 auto;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .product-img-thumb:hover {
   transform: scale(1.05);
 }
 
-.edit-btn {
-  background: #e6f0ff;
-  color: #007bff;
-  border: 1px solid #007bff;
-  border-radius: 4px;
-  padding: 5px 14px;
-  font-size: 1rem;
-  cursor: pointer;
-  margin-right: 8px;
-  transition: background 0.2s;
-}
-.edit-btn:hover {
-  background: #cce0ff;
+/* Action buttons container */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 4px 0;
 }
 
-.delete-btn {
-  background: #fdecea;
-  color: #e74c3c;
-  border: 1px solid #e74c3c;
-  border-radius: 4px;
-  padding: 5px 14px;
-  font-size: 1rem;
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 6px;
+  box-sizing: border-box;
 }
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  fill: currentColor;
+}
+
+/* Edit button */
+.edit-btn {
+  background: #e8f0fe;
+  color: #1a73e8;
+}
+
+.edit-btn:hover {
+  background: #d2e3fc;
+  transform: translateY(-1px);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Delete button */
+.delete-btn {
+  background: #d93025;
+  color: #fff;
+}
+
 .delete-btn:hover {
-  background: #f8d7da;
+  background: #b71c1c;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Active states */
+.icon-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 /* Stock level row styles */
@@ -202,7 +295,77 @@
 
 /* Inventory styles */
 
-/* Dark mode styles for Inventory */
+/* Loading container */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0;
+}
+
+/* Action buttons container */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.text-btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.3px;
+}
+
+/* Edit button */
+.edit-btn {
+  background: #e8f0fe;
+  color: #1a73e8;
+}
+
+.edit-btn:hover {
+  background: #d2e3fc;
+  transform: translateY(-1px);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Delete button */
+.delete-btn {
+  background: #d93025;
+  color: #fff;
+}
+
+.delete-btn:hover {
+  background: #b71c1c;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Active state for all buttons */
+.text-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Dark mode styles */
 body.dark .inventory-container {
   background-color: #1a1a1a; /* Dark background */
   color: #e0e0e0; /* Light text */
@@ -264,9 +427,9 @@ body.dark .edit-btn:hover {
 }
 
 body.dark .delete-btn {
-  background-color: #404040;
-  color: #e74c3c; /* Color for delete */
-  border-color: #e74c3c;
+  background-color: #b71c1c;
+  color: #fff;
+  border-color: #b71c1c;
 }
 
 body.dark .delete-btn:hover {
@@ -309,9 +472,7 @@ body.dark .high-stock-row:hover {
   background-color: rgba(0, 128, 0, 0.3);
 }
 
-body.dark .inventory-table td:nth-child(5)::before {
-  /* Ensure dot is visible */
-}
+/* Stock indicator dot styles are defined in the main ruleset above */
 
 /* Dark mode for Modals (assuming AddProductModal uses similar structure) */
 body.dark .modal-overlay {

@@ -1,27 +1,42 @@
 import axios from 'axios';
 import config from '../config';
 
-const api = axios.create({
-  baseURL: config.API_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
-
-// Add a request interceptor to add the auth token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+// Create a base axios instance with common config
+const createAxiosInstance = (contentType = 'application/json') => {
+  const instance = axios.create({
+    baseURL: config.API_URL,
+    withCredentials: true,
+    headers: {
+      'Content-Type': contentType
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+  });
+
+  // Add a request interceptor to add the auth token
+  instance.interceptors.request.use(
+    (config) => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      // Remove Content-Type for FormData to let the browser set it with the correct boundary
+      if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+      }
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+
+  return instance;
+};
+
+// Regular API instance for JSON data
+const api = createAxiosInstance();
+
+// File upload instance (no Content-Type header, will be set automatically)
+const apiFileUpload = createAxiosInstance();
 
 // Add a response interceptor to handle errors
 api.interceptors.response.use(
@@ -42,4 +57,5 @@ api.interceptors.response.use(
   }
 );
 
-export default api; 
+export { apiFileUpload };
+export default api;
