@@ -218,6 +218,7 @@ export default function HomeScreen() {
               styles.createMineButton,
               { backgroundColor: colors.button },
             ]}
+            onPress={() => navigation.navigate("CreateGift")}
           >
             <Text style={[styles.createMineText, { color: colors.buttonText }]}>
               CREATE MINE

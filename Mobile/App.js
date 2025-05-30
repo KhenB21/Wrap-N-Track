@@ -16,6 +16,7 @@ import { OrdersProvider } from "./src/Context/OrdersContext";
 import OrderedItemsScreen from "./src/Screens/OrderedItemsScreen";
 import ProfileScreen from "./src/Screens/ProfileScreen";
 import { ProfileProvider } from "./src/Context/ProfileContext";
+import CreateGiftScreen from "./src/Screens/CreateGiftScreen";
 const Stack = createStackNavigator();
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
                   <Stack.Screen name="DeliveryTracking" component={DeliveryTrackingScreen}/>
                   <Stack.Screen name="OrderedItem" component={OrderedItemsScreen}/>
                   <Stack.Screen name="Profile" component={ProfileScreen}/>
+                  <Stack.Screen name="CreateGift" component={CreateGiftScreen}/>
 
                 </Stack.Navigator>
               </NavigationContainer>
