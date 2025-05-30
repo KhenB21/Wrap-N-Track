@@ -8,6 +8,12 @@ const API_BASE_URL = 'http://localhost:3001';
 
 const tabs = ["Overview", "Order History", "Ongoing orders"];
 
+function generateSupplierOrderId() {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 1000);
+  return `SO${timestamp}${random}`;
+}
+
 function getProfilePictureUrl() {
   const user = JSON.parse(localStorage.getItem('user'));
   if (!user) return "/placeholder-profile.png";
@@ -25,6 +31,8 @@ export default function SupplierDetails() {
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [isAddingOrder, setIsAddingOrder] = useState(false);
+  const [isEditingOrder, setIsEditingOrder] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,10 +54,27 @@ export default function SupplierDetails() {
     street_address: '',
     zip_code: ''
   });
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderForm, setOrderForm] = useState({
+    supplier_order_id: '',
+    status: 'Waiting',
+    products: [],
+    order_date: new Date().toISOString().split('T')[0],
+    expected_delivery: '',
+    remarks: ''
+  });
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showOngoingOrderModal, setShowOngoingOrderModal] = useState(false);
   const [orderProducts, setOrderProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState('');
+  const [selectedVariation, setSelectedVariation] = useState('');
+  const [selectedQuantity, setSelectedQuantity] = useState('');
+  const [showProductInputs, setShowProductInputs] = useState(false);
+  const [orderItems, setOrderItems] = useState([]);
+  const [productInputs, setProductInputs] = useState([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState(null);
 
   const fetchSupplierProducts = useCallback(async (supplierId) => {
     if (!selectedSupplier) {
@@ -59,6 +84,7 @@ export default function SupplierDetails() {
     console.log('Fetching products for supplier:', selectedSupplier.name);
     try {
       const response = await axios.get(`${API_BASE_URL}/api/suppliers/${supplierId}/products`);
+      console.log('Fetched products:', response.data);
       setSupplierProducts(response.data);
     } catch (error) {
       console.error('Error fetching supplier products:', error);
@@ -128,12 +154,12 @@ export default function SupplierDetails() {
 
     console.log('Fetching orders for supplier:', selectedSupplier.name);
     try {
-      // Fetch ongoing orders from orders table
-      const ongoingResponse = await axios.get(`${API_BASE_URL}/api/orders/supplier/${encodeURIComponent(selectedSupplier.name)}`);
+      // Fetch ongoing orders from supplier_orders table
+      const ongoingResponse = await axios.get(`${API_BASE_URL}/api/supplier-orders/supplier/${selectedSupplier.supplier_id}`);
       console.log('Ongoing orders response:', ongoingResponse.data);
 
-      // Fetch completed orders from order_history table
-      const completedResponse = await axios.get(`${API_BASE_URL}/api/order-history/supplier/${encodeURIComponent(selectedSupplier.name)}`);
+      // Fetch completed orders from supplier_order_history table
+      const completedResponse = await axios.get(`${API_BASE_URL}/api/supplier-orders/history/supplier/${selectedSupplier.supplier_id}`);
       console.log('Completed orders response:', completedResponse.data);
 
       // Set the orders in state
@@ -142,8 +168,8 @@ export default function SupplierDetails() {
         completed: completedResponse.data
       });
     } catch (error) {
-      console.error('Error fetching customer orders:', error);
-      setError('Failed to fetch customer orders');
+      console.error('Error fetching orders:', error);
+      setError('Failed to fetch orders');
     }
   }, [selectedSupplier]);
 
@@ -169,6 +195,255 @@ export default function SupplierDetails() {
       zip_code: ''
     });
     setError(null);
+  };
+
+  const handleAddOrder = () => {
+    if (!selectedSupplier) {
+      setError("Please select a supplier first.");
+      return;
+    }
+    setIsAddingOrder(true);
+    setOrderForm({
+      supplier_order_id: generateSupplierOrderId(),
+      status: 'Waiting',
+      products: [],
+      order_date: new Date().toISOString().split('T')[0],
+      expected_delivery: '',
+      remarks: ''
+    });
+    setOrderItems([]);
+    setProductInputs([]);
+    setShowProductInputs(false);
+    setSelectedProduct('');
+    setSelectedVariation('');
+    setSelectedQuantity('');
+    fetchSupplierProducts(selectedSupplier.supplier_id);
+    setShowOngoingOrderModal(true);
+  };
+
+  const handleInputChange = (id, field, value) => {
+    // For quantity field, ensure it's a positive number
+    if (field === 'quantity') {
+      const numValue = parseInt(value);
+      if (isNaN(numValue) || numValue < 1) {
+        value = '';
+      } else if (numValue > 9999) {
+        value = '9999';
+      }
+    }
+
+    setProductInputs(productInputs.map(input => 
+      input.id === id ? { ...input, [field]: value } : input
+    ));
+  };
+
+  const handleAddProductInput = () => {
+    setProductInputs([...productInputs, { 
+      id: Date.now(),
+      product: '',
+      variation: '',
+      quantity: ''
+    }]);
+  };
+
+  const handleAddProductToOrder = (input) => {
+    if (!input.product || !input.variation || !input.quantity) {
+      setError("Please fill in all product details");
+      return;
+    }
+
+    const product = supplierProducts.find(p => p.sku === input.product);
+    if (!product) {
+      setError("Selected product not found");
+      return;
+    }
+
+    // Check if product with same variation already exists
+    const existingItem = orderItems.find(
+      item => item.product_id === input.product && item.variation === input.variation
+    );
+
+    if (existingItem) {
+      // Update quantity of existing item
+      setOrderItems(orderItems.map(item => 
+        item.product_id === input.product && item.variation === input.variation
+          ? { ...item, quantity: item.quantity + parseInt(input.quantity) }
+          : item
+      ));
+    } else {
+      // Add new item
+      const newItem = {
+        product_id: input.product,
+        product_name: product.name,
+        variation: input.variation,
+        quantity: parseInt(input.quantity)
+      };
+      setOrderItems([...orderItems, newItem]);
+    }
+    
+    // Remove the input row after adding the product
+    setProductInputs(productInputs.filter(p => p.id !== input.id));
+  };
+
+  const handleKeyPress = (event, input) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleAddProductToOrder(input);
+    }
+  };
+
+  const handleRemoveProduct = (index) => {
+    setOrderItems(orderItems.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveProductInput = (id) => {
+    setProductInputs(productInputs.filter(p => p.id !== id));
+  };
+
+  const handleSaveOrder = async () => {
+    if (orderItems.length === 0) {
+      setError("Please add at least one product to the order");
+      return;
+    }
+
+    if (!orderForm.expected_delivery) {
+      setError("Please select an expected delivery date");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      const orderData = {
+        supplier_order_id: orderForm.supplier_order_id,
+        supplier_id: selectedSupplier.supplier_id,
+        status: orderForm.status,
+        order_date: orderForm.order_date,
+        expected_delivery: orderForm.expected_delivery,
+        remarks: orderForm.remarks,
+        items: orderItems
+      };
+
+      console.log('Saving order with data:', JSON.stringify(orderData, null, 2));
+      console.log('Order items:', JSON.stringify(orderItems, null, 2));
+
+      let response;
+      if (isAddingOrder) {
+        response = await axios.post(`${API_BASE_URL}/api/supplier-orders`, orderData, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        console.log('Order creation response:', JSON.stringify(response.data, null, 2));
+        
+        setSupplierOrders(prev => ({
+          ...prev,
+          ongoing: [...prev.ongoing, response.data]
+        }));
+      } else {
+        response = await axios.put(`${API_BASE_URL}/api/supplier-orders/${orderForm.supplier_order_id}`, orderData, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        console.log('Order update response:', response.data);
+        
+        if (orderForm.status === 'Received') {
+          // Move to order history
+          setSupplierOrders(prev => ({
+            ongoing: prev.ongoing.filter(o => o.supplier_order_id !== orderForm.supplier_order_id),
+            completed: [...prev.completed, response.data]
+          }));
+        } else {
+          // Update in ongoing orders
+        setSupplierOrders(prev => ({
+          ...prev,
+          ongoing: prev.ongoing.map(o => 
+            o.supplier_order_id === orderForm.supplier_order_id ? response.data : o
+          )
+        }));
+        }
+      }
+
+      setIsAddingOrder(false);
+      setIsEditingOrder(false);
+      setShowOngoingOrderModal(false);
+      setError(null);
+      
+      // Reset form data
+      setOrderForm({
+        supplier_order_id: '',
+        status: 'Waiting',
+        products: [],
+        order_date: new Date().toISOString().split('T')[0],
+        expected_delivery: '',
+        remarks: ''
+      });
+      setOrderItems([]);
+      setShowProductInputs(false);
+    } catch (error) {
+      console.error('Error saving order:', error);
+      setError(error.response?.data?.message || 'Failed to save order');
+    }
+  };
+
+  const handleEditOrder = async (order) => {
+    try {
+      console.log('Fetching items for order:', order.supplier_order_id);
+      // Fetch order items based on whether it's a completed or ongoing order
+      const endpoint = activeTab === 1 
+        ? `${API_BASE_URL}/api/supplier-orders/history/${order.supplier_order_id}/items`
+        : `${API_BASE_URL}/api/supplier-orders/${order.supplier_order_id}/items`;
+      
+      const itemsResponse = await axios.get(endpoint);
+      console.log('Order items response:', itemsResponse.data);
+      const items = itemsResponse.data;
+
+      setIsAddingOrder(false);
+      setIsEditingOrder(true);
+      setOrderForm({
+        supplier_order_id: order.supplier_order_id,
+        status: order.status || 'Received',
+        order_date: order.order_date,
+        expected_delivery: order.expected_delivery,
+        remarks: order.remarks || ''
+      });
+      setOrderItems(items);
+      setProductInputs([]);
+      setShowOngoingOrderModal(true);
+    } catch (error) {
+      console.error('Error fetching order items:', error);
+      setError('Failed to fetch order items');
+    }
+  };
+
+  const handleDeleteOrder = async (orderId, event) => {
+    event.stopPropagation(); // Prevent triggering the order edit
+    if (!window.confirm('Are you sure you want to delete this order?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_BASE_URL}/api/supplier-orders/${orderId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      // Update the orders state
+      setSupplierOrders(prev => ({
+        ...prev,
+        ongoing: prev.ongoing.filter(o => o.supplier_order_id !== orderId)
+      }));
+
+      setError(null);
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      setError(error.response?.data?.message || 'Failed to delete order');
+    }
   };
 
   const validateForm = () => {
@@ -462,7 +737,7 @@ export default function SupplierDetails() {
 
   const renderSupplierProducts = () => {
     if (!supplierProducts.length) {
-      return <div className="no-results">No products found</div>;
+      return <div className="no-results">No orders found</div>;
     }
 
     return (
@@ -571,53 +846,186 @@ export default function SupplierDetails() {
   };
 
   const renderSupplierOrders = () => {
-    
+    const orders = activeTab === 1 ? supplierOrders.completed : supplierOrders.ongoing;
 
     return (
-      <div className="orders-grid">
-        {supplierOrders.ongoing.map((order) => (
+      <div className="orders-grid2">
+        {orders.map((order) => (
           <div 
             key={order.supplier_order_id} 
             className="order-tab"
-            onClick={() => {
-              setSelectedOrder(order);
-              setShowOrderModal(true);
-            }}
+            onClick={() => handleEditOrder(order)}
           >
             <div className="order-tab-header">
               <div className="order-id">Order {order.supplier_order_id}</div>
-              <div className={`order-status ${order.status.toLowerCase().replace(/\s+/g, '-')}`}>
-                {order.status}
+              <div className="order-actions">
+                <div className={`order-status ${activeTab === 1 ? 'received' : (order.status || 'waiting').toLowerCase()}`}>
+                  {activeTab === 1 ? 'Received' : (order.status || 'Waiting')}
+              </div>
+                <button 
+                  className="delete-order-btn"
+                  onClick={(e) => handleDeleteOrder(order.supplier_order_id, e)}
+                >
+                  🗑️
+                </button>
               </div>
             </div>
             <div className="order-tab-content">
-              <div className="order-total">₱{order.total_cost}</div>
-            </div>
-          </div>
-        ))}
-        {supplierOrders.completed.map((order) => (
-          <div 
-            key={order.supplier_order_id} 
-            className="order-tab"
-            onClick={() => {
-              setSelectedOrder(order);
-              setShowOrderModal(true);
-            }}
-          >
-            <div className="order-tab-header">
-              <div className="order-id">Order {order.supplier_order_id}</div>
-              <div className={`order-status ${order.status.toLowerCase().replace(/\s+/g, '-')}`}>
-                {order.status}
-              </div>
-            </div>
-            <div className="order-tab-content">
-              <div className="order-total">₱{order.total_cost}</div>
+              <div className="order-date">Date: {new Date(order.order_date).toLocaleDateString()}</div>
+              <div className="order-delivery">Expected: {new Date(order.expected_delivery).toLocaleDateString()}</div>
             </div>
           </div>
         ))}
       </div>
     );
   };
+
+  const renderOngoingOrderModal = () => {
+    return (
+      <div className="modal-suppliers">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h2>{isAddingOrder ? 'Add New Order' : 'Edit Order'}</h2>
+            <button onClick={() => {
+              setIsAddingOrder(false);
+              setIsEditingOrder(false);
+              setShowOngoingOrderModal(false);
+            }}>×</button>
+          </div>
+          <div className="modal-body">
+            {error && <div className="error-message">{error}</div>}
+            <div className="form-group">
+              <label>Supplier Order ID:</label>
+              <input 
+                type="text" 
+                value={orderForm.supplier_order_id}
+                readOnly
+                className="readonly-input"
+              />
+            </div>
+            <div className="form-group">
+              <label>Status:</label>
+              <select 
+                value={orderForm.status}
+                onChange={(e) => setOrderForm({...orderForm, status: e.target.value})}
+              >
+                <option value="Waiting">Waiting</option>
+                <option value="Received">Received</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Order Date:</label>
+              <input 
+                type="date" 
+                value={orderForm.order_date}
+                readOnly
+                className="readonly-input"
+              />
+            </div>
+            <div className="form-group">
+              <label>Expected Delivery:</label>
+              <input 
+                type="date" 
+                value={orderForm.expected_delivery}
+                onChange={(e) => setOrderForm({...orderForm, expected_delivery: e.target.value})}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Products:</label>
+              <div className="products-section">
+                {orderItems.map((item, index) => (
+                  <div key={index} className="product-item">
+                    <span>{item.product_name} - {item.variation} (Qty: {item.quantity})</span>
+                    <button 
+                      type="button" 
+                      onClick={() => handleRemoveProduct(index)}
+                      className="remove-product-btn"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button 
+                  type="button" 
+                  onClick={handleAddProductInput}
+                  className="add-product-btn"
+                >
+                  Add Product
+                </button>
+                {productInputs.map((input) => (
+                  <div key={input.id} className="product-inputs">
+                    <select
+                      value={input.product}
+                      onChange={(e) => handleInputChange(input.id, 'product', e.target.value)}
+                    >
+                      <option key="default" value="">Select Product</option>
+                      {supplierProducts && supplierProducts.map(product => (
+                        <option key={product.sku} value={product.sku}>
+                          {product.name} - {product.sku}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={input.variation}
+                      onChange={(e) => handleInputChange(input.id, 'variation', e.target.value)}
+                    >
+                      <option key="default" value="">Select Variation</option>
+                      <option key="small" value="Small">Small</option>
+                      <option key="medium" value="Medium">Medium</option>
+                      <option key="large" value="Large">Large</option>
+                    </select>
+                    <input 
+                      type="number" 
+                      value={input.quantity}
+                      onChange={(e) => handleInputChange(input.id, 'quantity', e.target.value)}
+                      onKeyPress={(e) => handleKeyPress(e, input)}
+                      placeholder="Quantity"
+                      min="1"
+                      max="9999"
+                      style={{ width: '80px' }}
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => handleAddProductToOrder(input)}
+                      className="add-product-btn"
+                    >
+                      Add
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => handleRemoveProductInput(input.id)}
+                      className="remove-input-btn"
+                    >
+                      −
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Remarks:</label>
+              <textarea 
+                value={orderForm.remarks}
+                onChange={(e) => setOrderForm({...orderForm, remarks: e.target.value})}
+              />
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button onClick={() => {
+              setIsAddingOrder(false);
+              setIsEditingOrder(false);
+              setShowOngoingOrderModal(false);
+            }}>Cancel</button>
+            <button onClick={handleSaveOrder} className="btn-primary">
+              {isAddingOrder ? 'Add Order' : 'Update Order'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="dashboard-container">
       <Sidebar />
@@ -721,9 +1129,6 @@ export default function SupplierDetails() {
                     >
                       🗑️
                     </button>
-                    
-                    {activeTab === 1 && renderSupplierOrders()}
-                    {activeTab === 2 && renderSupplierOrders()}
                   </div>
                 </div>
               ))
@@ -770,7 +1175,7 @@ export default function SupplierDetails() {
                         </button>
                       ))}
                     </div>
-                    <div className="supplier-details-content">
+                    <div className="supplier-details-content" style={{ overflowY: 'auto', height: 'calc(100% - 120px)' }}>
                       {activeTab === 0 && (
                         <div className="supplier-details-section">
                           <div className="supplier-details-label">SUPPLIER DETAILS</div>
@@ -784,8 +1189,27 @@ export default function SupplierDetails() {
                           </div>
                         </div>
                       )}
-                      {activeTab === 1 && renderSupplierProducts()}
-                      {activeTab === 2 && renderSupplierOrders()}
+                      {activeTab === 1 && (
+                        <div className="orders-section">
+                          <div className="orders-header">
+                            <h3>Order History</h3>
+                          </div>
+                          <div className="orders-grid">
+                          {renderSupplierOrders()}
+                          </div>
+                        </div>
+                      )}
+                      {activeTab === 2 && (
+                        <div className="orders-section">
+                          <div className="orders-header">
+                            <h3>Ongoing Orders</h3>
+                            <button className="btn-primary" onClick={handleAddOrder}>Add Order</button>
+                          </div>
+                          <div className="orders-grid">
+                          {renderSupplierOrders()}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -797,6 +1221,7 @@ export default function SupplierDetails() {
         </div>
 
         {/* Add the modal render at the end of the component */}
+        {showOngoingOrderModal && renderOngoingOrderModal()}
         {showOrderModal && renderOrderModal()}
       </div>
     </div>
