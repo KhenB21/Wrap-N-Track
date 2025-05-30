@@ -4,11 +4,10 @@ import AddProductModal from './AddProductModal';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import { useNavigate, useLocation } from 'react-router-dom';
-import api from "../../api/axios";
+import api, { apiFileUpload } from "../../api/axios";
 import config from "../../config";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
 export default function Inventory() {
   const location = useLocation();
   const [products, setProducts] = useState([]);
@@ -78,16 +77,24 @@ export default function Inventory() {
 
   const handleAddProduct = async (formData) => {
     try {
-      const response = await api.post('/api/inventory', formData);
+      // Determine if this is a file upload (FormData) or JSON data
+      const isFileUpload = formData instanceof FormData;
+      
+      // Use apiFileUpload for file uploads, regular api for JSON
+      const response = isFileUpload 
+        ? await apiFileUpload.post('/api/inventory', formData)
+        : await api.post('/api/inventory', formData);
+        
       if (response.data.success) {
         setShowModal(false);
-        fetchProducts();
+        await fetchProducts();
         toast.success('Product added successfully!');
       }
     } catch (err) {
       console.error('Error adding product:', err);
-      setError('Failed to add product');
-      toast.error('Failed to add product');
+      const errorMessage = err.response?.data?.message || 'Failed to add product';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -97,26 +104,41 @@ export default function Inventory() {
     setShowEditModal(true);
   };
 
-  const handleEditSubmit = async (jsonData) => {
-    console.log('Submitting edit form with data:', jsonData);
+  const handleEditSubmit = async (formData) => {
+    console.log('Submitting edit form with data:', formData);
     try {
-      const response = await api.put(
-        `/api/inventory/${selectedProduct.sku}`,
-        jsonData,
-        { headers: { 'Content-Type': 'application/json' } }
-      );
+      // Determine if this is a file upload (FormData) or JSON data
+      const isFileUpload = formData instanceof FormData;
+      
+      // Use the appropriate API instance and headers
+      const response = isFileUpload
+        ? await apiFileUpload.put(`/api/inventory/${selectedProduct.sku}`, formData)
+        : await api.put(
+            `/api/inventory/${selectedProduct.sku}`,
+            formData,
+            { headers: { 'Content-Type': 'application/json' } }
+          );
+      
       console.log('Edit API response:', response);
-      if (response.data && response.data.success) {
+      
+      if (response.data) {
+        // If we have a success message, show it, otherwise assume success if we have data
+        if (response.data.success === false) {
+          throw new Error(response.data.message || 'Failed to update product');
+        }
+        
+        // Close the modal and refresh the product list
         setShowEditModal(false);
-        fetchProducts();
+        await fetchProducts(); // Wait for the products to be refreshed
         toast.success('Product updated successfully!');
       } else {
-        toast.error('Failed to update product');
+        throw new Error('No data received from server');
       }
     } catch (err) {
       console.error('Error updating product:', err);
-      setError('Failed to update product');
-      toast.error('Failed to update product');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to update product';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -151,7 +173,16 @@ export default function Inventory() {
         <div className="inventory-container">
           <div className="inventory-header">
             <h2>Inventory</h2>
-            <button className="add-product-btn" onClick={() => setShowModal(true)}>Add product +</button>
+            <button 
+              className="add-product-btn" 
+              onClick={() => setShowModal(true)}
+              title="Add New Product"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '8px' }}>
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+              </svg>
+              Add Product
+            </button>
           </div>
           <div className="inventory-filters">
             <select 
@@ -167,64 +198,92 @@ export default function Inventory() {
             </select>
           </div>
           {loading ? (
-            <div>Loading...</div>
+            <div className="loading-container">Loading...</div>
           ) : (
-            <table className="inventory-table">
-              <thead>
-                <tr>
-                  <th>Image</th>
-                  <th>SKU</th>
-                  <th>Name</th>
-                  <th>Description</th>
-                  <th>Quantity</th>
-                  <th>Unit Price</th>
-                  <th>Category</th>
-                  <th>Last Updated</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.map(product => (
-                  <tr 
-                    key={product.sku} 
-                    style={{ cursor: 'pointer' }} 
-                    onClick={e => { if (e.target.tagName !== 'BUTTON') handleRowClick(product.sku); }}
-                    className={
-                      Number(product.quantity || 0) <= 300 ? 'low-stock-row' :
-                      Number(product.quantity || 0) > 800 ? 'high-stock-row' :
-                      'medium-stock-row'
-                    }
-                  >
-                    <td>
-                      {product.image_data ? (
-                        <img 
-                          src={`data:image/jpeg;base64,${product.image_data}`} 
-                          alt={product.name} 
-                          className="product-img-thumb"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = 'https://via.placeholder.com/50';
-                          }}
-                        />
-                      ) : (
-                        <div className="img-placeholder" />
-                      )}
-                    </td>
-                    <td>{product.sku}</td>
-                    <td>{product.name}</td>
-                    <td>{product.description}</td>
-                    <td>{product.quantity}</td>
-                    <td>{product.unit_price}</td>
-                    <td>{product.category}</td>
-                    <td>{product.last_updated}</td>
-                    <td>
-                      <button className="edit-btn" onClick={e => { e.stopPropagation(); handleEdit(product); }}>Edit</button>
-                      <button className="delete-btn" onClick={e => { e.stopPropagation(); handleDelete(product); }}>Delete</button>
-                    </td>
+            <div className="inventory-table-container">
+              <div className="inventory-table-wrapper">
+                <table className="inventory-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '80px' }}>Image</th>
+                    <th style={{ width: '120px' }}>SKU</th>
+                    <th style={{ width: '150px' }}>Name</th>
+                    <th style={{ width: '200px' }}>Description</th>
+                    <th style={{ width: '100px' }}>Quantity</th>
+                    <th style={{ width: '120px' }}>Unit Price</th>
+                    <th style={{ width: '150px' }}>Category</th>
+                    <th style={{ width: '150px' }}>Last Updated</th>
+                    <th style={{ width: '180px' }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredProducts.map(product => (
+                    <tr 
+                      key={product.sku} 
+                      style={{ cursor: 'pointer' }} 
+                      onClick={e => { if (e.target.tagName !== 'BUTTON') handleRowClick(product.sku); }}
+                      className={
+                        Number(product.quantity || 0) <= 300 ? 'low-stock-row' :
+                        Number(product.quantity || 0) > 800 ? 'high-stock-row' :
+                        'medium-stock-row'
+                      }
+                    >
+                      <td>
+                        {product.image_data ? (
+                          <img 
+                            src={`data:image/jpeg;base64,${product.image_data}`} 
+                            alt={product.name} 
+                            className="product-img-thumb"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://via.placeholder.com/50';
+                            }}
+                          />
+                        ) : (
+                          <div className="img-placeholder" />
+                        )}
+                      </td>
+                      <td className="ellipsis" title={product.sku} style={{ textAlign: 'center' }}>
+                        {product.sku}
+                      </td>
+                      <td className="ellipsis" title={product.name} style={{ textAlign: 'center' }}>
+                        {product.name}
+                      </td>
+                      <td className="ellipsis" title={product.description} style={{ textAlign: 'center' }}>
+                        {product.description}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>{product.quantity}</td>
+                      <td style={{ textAlign: 'center' }}>₱{parseFloat(product.unit_price).toFixed(2)}</td>
+                      <td className="ellipsis" title={product.category} style={{ textAlign: 'center' }}>
+                        {product.category}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>{new Date(product.last_updated).toLocaleString()}</td>
+                      <td>
+                        <div className="action-buttons">
+                          <button 
+                            className="text-btn edit-btn" 
+                            onClick={e => { e.stopPropagation(); handleEdit(product); }}
+                            title="Edit Product"
+                            aria-label="Edit product"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            className="text-btn delete-btn" 
+                            onClick={e => { e.stopPropagation(); handleDelete(product); }}
+                            title="Delete Product"
+                            aria-label="Delete product"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
           )}
           {showModal && <AddProductModal onClose={() => setShowModal(false)} onAdd={handleAddProduct} />}
           {showEditModal && selectedProduct && (

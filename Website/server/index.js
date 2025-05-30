@@ -5,31 +5,18 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-require('dotenv').config();
 const { pool, wss, notifyChange } = require('./db');
 const customersRouter = require('./routes/customers');
 const suppliersRouter = require('./routes/suppliers');
+const ordersRouter = require('./routes/orders');
+const supplierOrdersRouter = require('./routes/supplier-orders');
 require('dotenv').config({ path: __dirname + '/../.env' });
 
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Initialize nodemailer transporter
-let transporter = null;
-if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
-  transporter = require('nodemailer').createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-  });
-} else {
-  console.warn('Email credentials missing in environment variables. Email functionality will not work.');
-}
-
-// Function to archive completed orders
-async function archiveCompletedOrders() {
+// Function to archive completed or cancelled orders
+async function archiveCompletedOrCancelledOrders() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -46,19 +33,19 @@ async function archiveCompletedOrders() {
       return;
     }
 
-    // Get completed orders
+    // Get completed or cancelled orders
     const ordersResult = await client.query(
-      'SELECT * FROM orders WHERE status = $1',
-      ['Completed']
+      'SELECT * FROM orders WHERE status IN ($1, $2)',
+      ['Completed', 'Cancelled']
     );
 
     if (ordersResult.rows.length === 0) {
       return;
     }
 
-    console.log(`Found ${ordersResult.rows.length} completed orders to archive`);
+    console.log(`Found ${ordersResult.rows.length} orders to archive`);
 
-    // Process each completed order
+    // Process each order
     for (const order of ordersResult.rows) {
       try {
         // Insert into order_history
@@ -128,7 +115,7 @@ async function archiveCompletedOrders() {
 
     await client.query('COMMIT');
   } catch (error) {
-    console.error('Error in archiveCompletedOrders:', error);
+    console.error('Error in archiveCompletedOrCancelledOrders:', error);
     await client.query('ROLLBACK');
   } finally {
     client.release();
@@ -136,7 +123,7 @@ async function archiveCompletedOrders() {
 }
 
 // Run archive check every 5 minutes
-setInterval(archiveCompletedOrders, 5 * 60 * 1000);
+setInterval(archiveCompletedOrCancelledOrders, 5 * 60 * 1000);
 
 // Configure multer for memory storage only
 const upload = multer({
@@ -160,32 +147,54 @@ app.use((err, req, res, next) => {
 });
 
 // CORS configuration
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://wrap-n-track.vercel.app',
-  'https://wrap-n-track-git-main-khenb21s-projects.vercel.app',
-  'https://wrap-n-track.onrender.com'
-];
-
 app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) === -1) {
-      console.log('Blocked by CORS:', origin);
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    console.log('Allowed by CORS:', origin);
-    return callback(null, true);
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
 }));
-
 app.use(express.json());
+
+// Test database connection
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('Error acquiring client', err.stack);
+    console.error('Database connection details:', {
+      user: process.env.DB_USER,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      port: process.env.DB_PORT || 5432,
+    });
+    process.exit(1);
+  }
+  console.log('Successfully connected to PostgreSQL database');
+
+  // Add profit-related columns to orders table
+  client.query(`
+    ALTER TABLE orders 
+    ADD COLUMN IF NOT EXISTS total_profit_estimation DECIMAL(10,2) DEFAULT 0.00;
+  `, (err) => {
+    if (err) {
+      console.error('Error adding total_profit_estimation column:', err);
+    } else {
+      console.log('Successfully added total_profit_estimation column to orders table');
+    }
+  });
+
+  // Add profit-related columns to order_products table
+  client.query(`
+    ALTER TABLE order_products 
+    ADD COLUMN IF NOT EXISTS profit_margin DECIMAL(5,2) DEFAULT 0.00,
+    ADD COLUMN IF NOT EXISTS profit_estimation DECIMAL(10,2) DEFAULT 0.00;
+  `, (err) => {
+    if (err) {
+      console.error('Error adding profit columns to order_products:', err);
+    } else {
+      console.log('Successfully added profit columns to order_products table');
+    }
+  });
+
+  release();
+});
 
 // Add error handler for pool
 pool.on('error', (err, client) => {
@@ -218,7 +227,6 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-
 // Add this test endpoint before the registration endpoint
 app.get('/api/test/roles', async (req, res) => {
   try {
@@ -245,14 +253,14 @@ app.post('/api/fix-role-constraint', async (req, res) => {
     await client.query(`
       UPDATE users 
       SET role = 'director' 
-      WHERE role NOT IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales')
+      WHERE role NOT IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer')
     `);
     
     // Then update the constraint
     await client.query(`
       ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
       ALTER TABLE users ADD CONSTRAINT users_role_check 
-      CHECK (role IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales'));
+      CHECK (role IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer'));
     `);
     
     await client.query('COMMIT');
@@ -266,7 +274,6 @@ app.post('/api/fix-role-constraint', async (req, res) => {
   }
 });
 
-
 // Registration endpoint with file upload (store profile picture in DB)
 app.post('/api/auth/register', upload.single('profilePicture'), async (req, res) => {
   console.log('Registration request received:', {
@@ -277,11 +284,9 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
   const { name, email, password, role } = req.body;
   let profilePictureData = null;
-
   if (req.file) {
     profilePictureData = req.file.buffer;
   }
-
 
   // Convert role to lowercase for validation
   const roleLower = role.toLowerCase();
@@ -291,14 +296,14 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
   });
 
   // Validate role
-
   const validRoles = [
     'business_developer',
     'creatives',
     'director',
     'admin',
     'sales_manager',
-    'assistant_sales'
+    'assistant_sales',
+    'packer'
   ];
 
   console.log('Validating role:', {
@@ -316,7 +321,11 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
   try {
     // Check if email already exists
-    const emailCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const emailCheck = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
+
     if (emailCheck.rows.length > 0) {
       return res.status(400).json({
         success: false,
@@ -324,103 +333,46 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
       });
     }
 
-    // Check if name exists
-    const nameCheck = await pool.query('SELECT * FROM users WHERE name = $1', [name.trim()]);
-    if (nameCheck.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name already taken'
-      });
-    }
-
     // Hash password
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
+    console.log('Attempting to insert user with role:', roleLower);
 
-    // Generate 6-digit verification code
-    const verificationCode = crypto.randomInt(100000, 999999).toString();
-
-    // Insert new user (with is_verified: false)
+    // Insert new user with profile picture data (using lowercase role)
     const result = await pool.query(
-      `INSERT INTO users 
-        (name, email, password_hash, role, profile_picture_data, is_active, is_verified, verification_code) 
-       VALUES ($1, $2, $3, $4, $5, true, false, $6) 
-       RETURNING user_id, name, email, role`,
-      [name, email, passwordHash, role, profilePictureData, verificationCode]
+      'INSERT INTO users (name, email, password_hash, role, profile_picture_data) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email, role',
+      [name, email, passwordHash, roleLower, profilePictureData]
     );
-
 
     const newUser = result.rows[0];
 
-    // Send email for verification
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-      }
-    });
-
-    // Email content
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Verify your email',
-      text: `Hi ${name},\n\nYour verification code is: ${verificationCode}\n\nThank you!`
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    // Generate JWT token
+    // Create JWT token
     const token = jwt.sign(
-      { userId: newUser.user_id, email: newUser.email, role: newUser.role },
+      { 
+        user_id: newUser.user_id,
+        name: newUser.name,
+        role: newUser.role 
+      },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '24h' }
     );
 
-    // Success response including token
+    // Return success response
     res.status(201).json({
       success: true,
-      message: 'Registration successful. Please verify your email.',
+      token,
       user: {
         user_id: newUser.user_id,
         name: newUser.name,
         email: newUser.email,
-        role: newUser.role
-      },
-      token, // send token here
+        role: newUser.role,
+        profile_picture_data: profilePictureData ? profilePictureData.toString('base64') : null
+      }
     });
 
   } catch (error) {
     console.error('Registration error:', error);
-
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-});
-
-// check if name already exists
-app.get('/api/auth/check-name', async (req, res) => {
-  const { name } = req.query;
-
-  if (!name || name.trim() === "") {
-    return res.status(400).json({ error: 'Name is required' });
-  }
-
-  try {
-    const result = await pool.query(
-      'SELECT 1 FROM users WHERE name = $1',
-      [name.trim()]
-    );
-
-    res.json({ exists: result.rowCount > 0 });
-  } catch (error) {
-    console.error('Name check error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-
     console.error('Error details:', {
       code: error.code,
       message: error.message,
@@ -438,109 +390,6 @@ app.get('/api/auth/check-name', async (req, res) => {
         message: 'Internal server error'
       });
     }
-
-  }
-});
-
-app.get('/api/auth/check-email', async (req, res) => {
-  const { email } = req.query;
-
-  if (!email) {
-    return res.status(400).json({ success: false, message: 'Email is required' });
-  }
-
-  try {
-    const result = await pool.query('SELECT 1 FROM users WHERE email = $1', [email]);
-    const exists = result.rows.length > 0;
-    res.json({ exists });
-  } catch (error) {
-    console.error('Email check error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-app.post('/api/auth/verify', async (req, res) => {
-  const { email, code } = req.body;
-  try {
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    const user = userResult.rows[0];
-
-    if (!user) {
-      return res.status(400).json({ message: 'User not found' });
-    }
-
-    if (user.is_verified) {
-      return res.status(400).json({ message: 'User already verified' });
-    }
-
-    if (user.verification_code !== code) {
-      return res.status(400).json({ message: 'Invalid verification code' });
-    }
-
-    await pool.query('UPDATE users SET is_verified = true, verification_code = NULL WHERE email = $1', [email]);
-
-    res.json({ message: 'Email verified successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-app.post('/api/auth/resend-code', async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ success: false, message: 'Email is required.' });
-  }
-
-  try {
-    // Check if user exists and not verified
-    const userResult = await pool.query(
-      'SELECT user_id, name, is_verified FROM users WHERE email = $1',
-      [email]
-    );
-
-    if (userResult.rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'User not found.' });
-    }
-
-    const user = userResult.rows[0];
-
-    if (user.is_verified) {
-      return res.status(400).json({ success: false, message: 'Email already verified.' });
-    }
-
-    // Generate new code
-    const newCode = crypto.randomInt(100000, 999999).toString();
-
-    // Update the verification code in DB
-    await pool.query(
-      'UPDATE users SET verification_code = $1 WHERE user_id = $2',
-      [newCode, user.user_id]
-    );
-
-    // Send email with new code
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Your new email verification code',
-      text: `Hi ${user.name},\n\nYour new verification code is: ${newCode}\n\nThank you!`,
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    res.json({ success: true, message: 'Verification code resent.' });
-  } catch (error) {
-    console.error('Resend code error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 });
 
@@ -568,11 +417,9 @@ app.post('/api/auth/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!validPassword) {
-      // Return role even on incorrect password
       return res.status(401).json({
         success: false,
-        message: 'Invalid username or password',
-        role: user.role
+        message: 'Invalid username or password'
       });
     }
 
@@ -608,112 +455,6 @@ app.post('/api/auth/login', async (req, res) => {
     });
   }
 });
-
-
-app.post("/api/auth/forgot-password", async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ message: "Email is required." });
-  }
-
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-    console.error("Email credentials missing in environment variables.");
-    return res.status(500).json({ message: "Email server not configured." });
-  }
-
-  try {
-    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    const user = result.rows[0];
-    console.log("User found for password reset:", user.email);
-
-    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-    await pool.query(
-      "UPDATE users SET reset_code = $1, reset_code_expires = NOW() + INTERVAL '15 minutes' WHERE user_id = $2",
-      [resetCode, user.user_id]
-    );
-
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: "Password Reset Code",
-      text: `Hello,\n\nYour password reset code is: ${resetCode}\n\nThis code expires in 15 minutes.\n\nIf you did not request this, please ignore this email.\n\nThank you.`,
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    console.log("Reset code email sent to:", user.email);
-
-    res.json({ message: "Reset code sent to your email." });
-  } catch (error) {
-    console.error("Forgot password error:", error);
-    res.status(500).json({ message: "Internal server error." });
-  }
-});
-
-app.post('/api/auth/verify-reset-code', async (req, res) => {
-  const { email, code } = req.body;
-
-  if (!email || !code) {
-    return res.status(400).json({ message: "Email and code are required." });
-  }
-
-  try {
-    const result = await pool.query(
-      `SELECT reset_code, reset_code_expires
-       FROM users
-       WHERE email = $1`,
-      [email]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    const user = result.rows[0];
-
-    if (!user.reset_code || user.reset_code !== code) {
-      return res.status(400).json({ message: "Invalid code." });
-    }
-
-    const expiresAt = new Date(user.reset_code_expires);
-    const now = new Date();
-
-    if (now > expiresAt) {
-      return res.status(400).json({ message: "Code has expired." });
-    }
-
-    res.status(200).json({ message: "Code verified successfully." });
-  } catch (err) {
-    console.error("Verify code error:", err);
-    res.status(500).json({ message: "Internal server error." });
-  }
-});
-
-
-app.post('/api/auth/reset-password', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    // Hash password
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-    await pool.query(
-      "UPDATE users SET password_hash = $1, reset_code = NULL, reset_code_expires = NULL WHERE email = $2",
-      [passwordHash, email]
-    );
-    res.json({ message: "Password reset successful." });
-  } catch (err) {
-    console.error("Reset password error:", err);
-    res.status(500).json({ message: "Internal server error." });
-  }
-});
-
 
 // User details endpoint (return profile_picture_data as base64)
 app.get('/api/user/details', verifyToken, async (req, res) => {
@@ -761,6 +502,7 @@ app.post('/api/user/profile-picture', verifyToken, upload.single('profilePicture
 
 // Add a new inventory item (with image upload to DB)
 app.post('/api/inventory', upload.single('image'), async (req, res) => {
+  const client = await pool.connect();
   try {
     console.log('Received inventory POST request');
     console.log('Request body:', req.body);
@@ -771,6 +513,8 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       size: req.file.size
     } : 'No file uploaded');
 
+    await client.query('BEGIN');
+    
     const { sku, name, description, quantity, unit_price, category } = req.body;
     let imageData = null;
     
@@ -791,14 +535,20 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       });
     }
     
+    // Process image if present
     if (req.file) {
       imageData = req.file.buffer;
       console.log('Image data read from memory, size:', imageData.length);
+      
+      // Validate image size (should already be validated by multer, but double-check)
+      if (imageData.length > 5 * 1024 * 1024) { // 5MB limit
+        throw new Error('Image size exceeds 5MB limit');
+      }
     }
     
     // Check if SKU already exists
-    const existingProduct = await pool.query(
-      'SELECT sku FROM inventory_items WHERE sku = $1',
+    const existingProduct = await client.query(
+      'SELECT sku FROM inventory_items WHERE sku = $1 FOR UPDATE',
       [sku]
     );
 
@@ -815,10 +565,16 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       hasImage: !!imageData
     });
 
-    const result = await pool.query(
-      'INSERT INTO inventory_items (sku, name, description, quantity, unit_price, category, image_data) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [sku, name, description, quantity, unit_price, category, imageData]
+    // Insert the new product
+    const result = await client.query(
+      `INSERT INTO inventory_items 
+       (sku, name, description, quantity, unit_price, category, image_data, last_updated) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) 
+       RETURNING *`,
+      [sku, name, description, Number(quantity), Number(unit_price), category, imageData]
     );
+    
+    await client.query('COMMIT');
     
     // Convert image data to base64 for the response
     const product = result.rows[0];
@@ -834,12 +590,15 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       product
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error adding inventory item:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Internal server error',
-      details: error.message 
+      message: 'Failed to add product. ' + error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  } finally {
+    client.release();
   }
 });
 
@@ -888,16 +647,35 @@ app.put('/api/inventory/:sku', upload.single('image'), async (req, res) => {
 
 // Get all inventory items
 app.get('/api/inventory', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const result = await pool.query('SELECT * FROM inventory_items ORDER BY last_updated DESC');
-    const products = result.rows.map(product => ({
-      ...product,
-      image_data: product.image_data ? product.image_data.toString('base64') : null
-    }));
-    res.json(products);
+    const result = await client.query(`
+      SELECT 
+        sku, 
+        name, 
+        description, 
+        quantity, 
+        unit_price, 
+        category, 
+        last_updated,
+        CASE 
+          WHEN image_data IS NOT NULL THEN encode(image_data, 'base64')
+          ELSE NULL 
+        END as image_data
+      FROM inventory_items 
+      ORDER BY last_updated DESC
+    `);
+    
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching inventory:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch inventory',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  } finally {
+    client.release();
   }
 });
 
@@ -1094,20 +872,27 @@ app.get('/api/orders/customer/:customer_name', async (req, res) => {
             JSON_BUILD_OBJECT(
               'sku', op.sku, 
               'quantity', op.quantity, 
-              'name', inv.name, 
-              'image_data', ENCODE(inv.image_data, 'base64')
+              'profit_margin', op.profit_margin,
+              'profit_estimation', op.profit_estimation,
+              'name', i.name, 
+              'image_data', ENCODE(i.image_data, 'base64')
             )
           ) FILTER (WHERE op.sku IS NOT NULL), '[]'
         ) AS products
       FROM orders o
       LEFT JOIN order_products op ON o.order_id = op.order_id
-      LEFT JOIN inventory_items inv ON op.sku = inv.sku
+      LEFT JOIN inventory_items i ON op.sku = i.sku
       WHERE o.name = $1
       GROUP BY o.order_id
-      ORDER BY o.order_date DESC;
+      ORDER BY o.order_date DESC
     `, [customer_name]);
 
-    res.json(result.rows);
+    const orders = result.rows.map(order => ({
+      ...order,
+      products: order.products || []
+    }));
+
+    res.json(orders);
   } catch (error) {
     console.error('Error fetching customer orders:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1127,409 +912,66 @@ app.get('/api/order-history/customer/:customer_name', async (req, res) => {
             JSON_BUILD_OBJECT(
               'sku', ohp.sku, 
               'quantity', ohp.quantity, 
-              'name', inv.name, 
-              'image_data', ENCODE(inv.image_data, 'base64')
+              'unit_price', ohp.unit_price,
+              'name', i.name, 
+              'image_data', ENCODE(i.image_data, 'base64')
             )
           ) FILTER (WHERE ohp.sku IS NOT NULL), '[]'
         ) AS products
       FROM order_history oh
       LEFT JOIN order_history_products ohp ON oh.order_id = ohp.order_id
-      LEFT JOIN inventory_items inv ON ohp.sku = inv.sku
+      LEFT JOIN inventory_items i ON ohp.sku = i.sku
       WHERE oh.customer_name = $1
       GROUP BY oh.order_id
-      ORDER BY oh.order_date DESC;
+      ORDER BY oh.order_date DESC
     `, [customer_name]);
 
-    res.json(result.rows);
+    const orders = result.rows.map(order => ({
+      ...order,
+      products: order.products || []
+    }));
+
+    res.json(orders);
   } catch (error) {
     console.error('Error fetching customer order history:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// --- ORDER ENDPOINTS START ---
 // Get all orders
 app.get('/api/orders', async (req, res) => {
-    const client = await pool.connect();
-
-    try {
-        const result = await client.query(`
-SELECT 
-    o.order_id, o.name, o.shipped_to, o.order_date, o.expected_delivery, o.status, 
-    o.shipping_address, o.total_cost, o.payment_type, o.payment_method, o.account_name, 
-    o.remarks, o.telephone, o.cellphone, o.email_address, o.package_name, 
-    COALESCE(o.order_quantity, 0) AS order_quantity, -- ✅ Ensure non-null values
-    COALESCE(o.approximate_budget, 0.00) AS approximate_budget, -- ✅ Ensure non-null values
-    COALESCE(
-        JSON_AGG(
-            JSON_BUILD_OBJECT(
-                'sku', op.sku, 
-                'quantity', op.quantity, 
-                'name', inv.name, 
-                'image_data', ENCODE(inv.image_data, 'base64')
-            )
-        ) FILTER (WHERE op.sku IS NOT NULL), '[]'
-    ) AS products
-FROM orders o
-LEFT JOIN order_products op ON o.order_id = op.order_id
-LEFT JOIN inventory_items inv ON op.sku = inv.sku
-GROUP BY o.order_id
-ORDER BY o.order_date DESC;
-
-        `);
-
-        console.log("Final Orders Response with Corrected Product Data:", JSON.stringify(result.rows, null, 2));
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Error fetching orders:', error);
-        res.status(500).json({ success: false, message: 'Internal server error' });
-    } finally {
-        client.release();
-    }
-});
-
-// Create a new order
-app.post('/api/orders', async (req, res) => {
-  const {
-    order_id, name, shipped_to, order_date, expected_delivery, status,
-    shipping_address, total_cost, payment_type, payment_method, account_name, remarks,
-    telephone, cellphone, email_address, package_name, carlo_products, order_quantity, approximate_budget,
-    products
-  } = req.body;
-
-  console.log("Received order data:", JSON.stringify(req.body, null, 2));
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    const orderResult = await client.query(
-      `INSERT INTO orders (
-        order_id, name, shipped_to, order_date, expected_delivery, status, 
-        shipping_address, total_cost, payment_type, payment_method, account_name, 
-        remarks, telephone, cellphone, email_address, package_name,
-        order_quantity, approximate_budget
-      ) 
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
-      [
-        order_id, name, shipped_to, order_date, expected_delivery, status,
-        shipping_address, total_cost, payment_type, payment_method, account_name,
-        remarks, telephone, cellphone, email_address, package_name,
-        order_quantity, approximate_budget
-      ]
-    );
-
-    console.log("Order inserted successfully:", orderResult.rows[0]);
-
-    // Store products based on package type
-    const productsToStore = package_name === 'Carlo' ? carlo_products : products;
-    
-    if (productsToStore && Array.isArray(productsToStore) && productsToStore.length > 0) {
-      for (const { sku, quantity } of productsToStore) {
-        await client.query('INSERT INTO order_products (order_id, sku, quantity) VALUES ($1, $2, $3)', [order_id, sku, quantity]);
-      }
-      console.log(`${package_name} products inserted successfully`);
-    }
-
-    await client.query('COMMIT');
-
-    res.status(201).json({ success: true, order: orderResult.rows[0] });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error creating order:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
-  } finally {
-    client.release();
-  }
-});
-
-// --- ORDER PRODUCTS ENDPOINTS START ---
-// Get products for an order
-app.get('/api/orders/:order_id/products', async (req, res) => {
-  const { order_id } = req.params;
-  
   try {
     const result = await pool.query(`
       SELECT 
-        op.sku, op.quantity, 
-        i.name, i.image_data
-      FROM order_products op
-      JOIN inventory_items i ON op.sku = i.sku
-      WHERE op.order_id = $1
-    `, [order_id]);
+        o.*, 
+        COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'sku', op.sku, 
+              'quantity', op.quantity,
+              'profit_margin', op.profit_margin,
+              'profit_estimation', op.profit_estimation,
+              'name', i.name, 
+              'image_data', ENCODE(i.image_data, 'base64')
+            )
+          ) FILTER (WHERE op.sku IS NOT NULL), '[]'
+        ) AS products
+      FROM orders o
+      LEFT JOIN order_products op ON o.order_id = op.order_id
+      LEFT JOIN inventory_items i ON op.sku = i.sku
+      GROUP BY o.order_id
+      ORDER BY o.order_date DESC
+    `);
 
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching order products:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-// Update products in an order
-app.put('/api/orders/:order_id/products', async (req, res) => {
-  const { order_id } = req.params;
-  const { products } = req.body; // [{ sku, quantity }]
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    // Get current order products
-    const currentProducts = await client.query('SELECT sku, quantity FROM order_products WHERE order_id = $1', [order_id]);
-    const currentQuantities = {};
-    currentProducts.rows.forEach(p => {
-      currentQuantities[p.sku] = p.quantity;
-    });
-
-    // Process each product update
-    for (const { sku, quantity } of products) {
-      const currentQty = currentQuantities[sku] || 0;
-      const qtyDiff = quantity - currentQty;
-
-      if (qtyDiff !== 0) {
-        // Check inventory for quantity increase
-        if (qtyDiff > 0) {
-          const invRes = await client.query('SELECT quantity, name FROM inventory_items WHERE sku = $1', [sku]);
-          if (invRes.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(404).json({ success: false, message: `Product with SKU ${sku} not found` });
-          }
-          if (invRes.rows[0].quantity < qtyDiff) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ success: false, message: `Not enough stock for ${invRes.rows[0].name}` });
-          }
-          // Deduct additional inventory
-          await client.query('UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2', [qtyDiff, sku]);
-        } else {
-          // Return inventory for quantity decrease
-          await client.query('UPDATE inventory_items SET quantity = quantity + $1 WHERE sku = $2', [-qtyDiff, sku]);
-        }
-
-        if (currentQty === 0) {
-          // Insert new product
-          await client.query('INSERT INTO order_products (order_id, sku, quantity) VALUES ($1, $2, $3)', [order_id, sku, quantity]);
-        } else if (quantity === 0) {
-          // Remove product
-          await client.query('DELETE FROM order_products WHERE order_id = $1 AND sku = $2', [order_id, sku]);
-        } else {
-          // Update quantity
-          await client.query('UPDATE order_products SET quantity = $1 WHERE order_id = $2 AND sku = $3', [quantity, order_id, sku]);
-        }
-      }
-    }
-
-    await client.query('COMMIT');
-    res.json({ success: true });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error updating order products:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  } finally {
-    client.release();
-  }
-});
-
-// Remove a product from an order
-app.delete('/api/orders/:order_id/products/:sku', async (req, res) => {
-  const { order_id, sku } = req.params;
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    // Get current quantity
-    const currentRes = await client.query('SELECT quantity FROM order_products WHERE order_id = $1 AND sku = $2', [order_id, sku]);
-    if (currentRes.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ success: false, message: 'Product not found in order' });
-    }
-    
-    const quantity = currentRes.rows[0].quantity;
-    
-    // Return quantity to inventory
-    await client.query('UPDATE inventory_items SET quantity = quantity + $1 WHERE sku = $2', [quantity, sku]);
-    
-    // Remove from order
-    await client.query('DELETE FROM order_products WHERE order_id = $1 AND sku = $2', [order_id, sku]);
-    
-    await client.query('COMMIT');
-    res.json({ success: true });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error removing product from order:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  } finally {
-    client.release();
-  }
-});
-
-// Get products for an order
-app.get('/api/orders/:order_id/products', async (req, res) => {
-  const { order_id } = req.params;
-  try {
-    const result = await pool.query(
-      `SELECT op.sku, op.quantity, i.name, i.image_data, i.unit_price FROM order_products op
-       JOIN inventory_items i ON op.sku = i.sku WHERE op.order_id = $1`,
-      [order_id]
-    );
-    const products = result.rows.map(row => ({
-      ...row,
-      image_data: row.image_data ? row.image_data.toString('base64') : null
+    const orders = result.rows.map(order => ({
+      ...order,
+      products: order.products || []
     }));
-    res.json(products);
+
+    res.json(orders);
   } catch (error) {
-    console.error('Error fetching order products:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-// --- ORDER PRODUCTS ENDPOINTS END ---
-
-// --- ORDER ENDPOINTS CONTINUED ---
-// Update an order
-app.put('/api/orders/:order_id', async (req, res) => {
-  const { order_id } = req.params;
-  const {
-    name, shipped_to, order_date, expected_delivery, status,
-    shipping_address, total_cost, payment_type, payment_method, account_name, remarks,
-    telephone, cellphone, email_address
-  } = req.body;
-  try {
-    const result = await pool.query(
-      `UPDATE orders SET name=$1, shipped_to=$2, order_date=$3, expected_delivery=$4, status=$5, shipping_address=$6, total_cost=$7, payment_type=$8, payment_method=$9, account_name=$10, remarks=$11, telephone=$12, cellphone=$13, email_address=$14 WHERE order_id=$15 RETURNING *`,
-      [name, shipped_to, order_date, expected_delivery, status, shipping_address, total_cost, payment_type, payment_method, account_name, remarks, telephone, cellphone, email_address, order_id]
-    );
-    if (result.rowCount === 0) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
-    res.json({ success: true, order: result.rows[0] });
-  } catch (error) {
-    console.error('Error updating order:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-// Delete an order
-app.delete('/api/orders/:order_id', async (req, res) => {
-  const { order_id } = req.params;
-  try {
-    await pool.query('DELETE FROM orders WHERE order_id = $1', [order_id]);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting order:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-// Archive completed order
-app.post('/api/orders/:order_id/archive', verifyToken, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    console.log('Starting archive process for order:', req.params.order_id);
-    console.log('User info:', {
-      username: req.user.username,
-      user_id: req.user.user_id
-    });
-    
-    await client.query('BEGIN');
-    
-    // Get order details
-    const orderResult = await client.query(
-      'SELECT * FROM orders WHERE order_id = $1',
-      [req.params.order_id]
-    );
-
-    if (orderResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Order not found' });
-    }
-
-    const order = orderResult.rows[0];
-
-    // Check if order is completed
-    if (order.status !== 'Completed') {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ message: 'Only completed orders can be archived' });
-    }
-
-    // Get order products
-    const productsResult = await client.query(
-      'SELECT op.*, p.name as product_name, COALESCE(p.unit_price, 0) as unit_price FROM order_products op JOIN inventory_items p ON op.sku = p.sku WHERE op.order_id = $1',
-      [req.params.order_id]
-    );
-
-    // Optional: throw error if unit_price is still null (should not happen with COALESCE, but for safety)
-    for (const product of productsResult.rows) {
-      if (product.unit_price === null) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ message: `Product ${product.sku} is missing a unit price.` });
-      }
-    }
-
-    // Insert into order_history
-    await client.query(
-      `INSERT INTO order_history (
-        order_id, customer_name, name, shipped_to, order_date, expected_delivery,
-        status, shipping_address, total_cost, payment_type, payment_method,
-        account_name, remarks, telephone, cellphone, email_address, archived_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-      [
-        order.order_id,
-        order.name, // Using name as customer_name since it's the customer's name
-        order.name,
-        order.shipped_to,
-        order.order_date,
-        order.expected_delivery,
-        order.status,
-        order.shipping_address,
-        order.total_cost,
-        order.payment_type,
-        order.payment_method,
-        order.account_name,
-        order.remarks,
-        order.telephone,
-        order.cellphone,
-        order.email_address,
-        req.user.user_id // Get the user_id from the authenticated user
-      ]
-    );
-
-    // Insert order products into order_history_products
-    for (const product of productsResult.rows) {
-      await client.query(
-        `INSERT INTO order_history_products (order_id, sku, quantity, unit_price)
-         VALUES ($1, $2, $3, $4)`,
-        [order.order_id, product.sku, product.quantity, product.unit_price]
-      );
-    }
-
-    // Delete from order_products first (due to foreign key constraint)
-    await client.query('DELETE FROM order_products WHERE order_id = $1', [req.params.order_id]);
-
-    // Delete from orders
-    await client.query('DELETE FROM orders WHERE order_id = $1', [req.params.order_id]);
-
-    await client.query('COMMIT');
-    console.log('Successfully archived order:', req.params.order_id);
-    
-    // Notify WebSocket clients
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({
-          type: 'order-archived',
-          orderId: req.params.order_id
-        }));
-      }
-    });
-
-    res.json({ success: true, message: 'Order archived successfully' });
-  } catch (error) {
-    console.error('Error archiving order:', error);
-    await client.query('ROLLBACK');
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to archive order', 
-      error: error.message 
-    });
-  } finally {
-    client.release();
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1540,15 +982,30 @@ app.get('/api/orders/history', async (req, res) => {
       SELECT 
         oh.*,
         COALESCE(u.name, 'Deleted User') as archived_by_name,
-        u.profile_picture_data as archived_by_profile_picture
+        u.profile_picture_data as archived_by_profile_picture,
+        COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'sku', ohp.sku,
+              'quantity', ohp.quantity,
+              'unit_price', ohp.unit_price,
+              'name', i.name,
+              'image_data', ENCODE(i.image_data, 'base64')
+            )
+          ) FILTER (WHERE ohp.sku IS NOT NULL), '[]'
+        ) AS products
       FROM order_history oh
       LEFT JOIN users u ON oh.archived_by = u.user_id
+      LEFT JOIN order_history_products ohp ON oh.order_id = ohp.order_id
+      LEFT JOIN inventory_items i ON ohp.sku = i.sku
+      GROUP BY oh.order_id, u.name, u.profile_picture_data
       ORDER BY oh.archived_at DESC
     `);
     
     const orders = result.rows.map(order => ({
       ...order,
-      archived_by_profile_picture: order.archived_by_profile_picture ? order.archived_by_profile_picture.toString('base64') : null
+      archived_by_profile_picture: order.archived_by_profile_picture ? order.archived_by_profile_picture.toString('base64') : null,
+      products: order.products || []
     }));
     
     res.json(orders);
@@ -1562,9 +1019,15 @@ app.get('/api/orders/history', async (req, res) => {
 app.get('/api/orders/history/:order_id/products', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT ohp.*, i.name, i.image_data
+      SELECT 
+        ohp.sku,
+        ohp.quantity,
+        ohp.unit_price,
+        i.name,
+        i.image_data,
+        i.description
       FROM order_history_products ohp
-      JOIN inventory_items i ON ohp.sku = i.sku
+      LEFT JOIN inventory_items i ON ohp.sku = i.sku
       WHERE ohp.order_id = $1
     `, [req.params.order_id]);
     
@@ -1583,6 +1046,8 @@ app.get('/api/orders/history/:order_id/products', async (req, res) => {
 // Routes
 app.use('/api/customers', customersRouter);
 app.use('/api/suppliers', suppliersRouter);
+app.use('/api/orders', ordersRouter);
+app.use('/api/supplier-orders', supplierOrdersRouter);
 
 // Example of how to use real-time updates in your routes
 app.post('/api/update-data', async (req, res) => {
@@ -1608,6 +1073,7 @@ app.get('/api/inventory/search', async (req, res) => {
   if (!name) {
     return res.status(400).json({ success: false, message: 'Missing name query parameter' });
   }
+
   try {
     const result = await pool.query(
       `SELECT * FROM inventory_items WHERE LOWER(name) LIKE LOWER($1) LIMIT 1`,
@@ -1623,34 +1089,81 @@ app.get('/api/inventory/search', async (req, res) => {
     console.error('Error searching inventory by name:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
-}); 
+});
 
+// Adjust inventory quantity
+app.put('/api/inventory/:sku/adjust', async (req, res) => {
+  const { sku } = req.params;
+  const { quantity, operation } = req.body;
+  const client = await pool.connect();
 
-app.get('/api/orders/:orderId', async (req, res) => {
-    const { orderId } = req.params;
-    const client = await pool.connect();
-
-    try {
-        // ✅ Fetch order details
-        const orderRes = await client.query("SELECT * FROM orders WHERE order_id = $1", [orderId]);
-        if (orderRes.rows.length === 0) {
-            return res.status(404).json({ error: "Order not found" });
-        }
-        const order = orderRes.rows[0];
-
-        // ✅ Fetch products related to this order
-        const productsRes = await client.query(
-            "SELECT op.sku, op.quantity, inv.name, inv.image_data FROM order_products op JOIN inventory_items inv ON op.sku = inv.sku WHERE op.order_id = $1",
-            [orderId]
-        );
-        order.products = productsRes.rows;
-
-        console.log("Final Order Response:", JSON.stringify(order, null, 2)); // ✅ Debug step
-        res.json(order);
-    } catch (error) {
-        console.error("Error fetching order:", error);
-        res.status(500).json({ error: "Internal server error" });
-    } finally {
-        client.release();
+  try {
+    // Validate input
+    if (!quantity || !operation || !['add', 'subtract'].includes(operation)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid request. Quantity and operation (add/subtract) are required.'
+      });
     }
+
+    await client.query('BEGIN');
+
+    // Get current inventory
+    const result = await client.query(
+      'SELECT quantity, name FROM inventory_items WHERE sku = $1 FOR UPDATE',
+      [sku]
+    );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    const currentQuantity = result.rows[0].quantity;
+    const productName = result.rows[0].name;
+    const newQuantity = operation === 'add' 
+      ? currentQuantity + Number(quantity)
+      : currentQuantity - Number(quantity);
+
+    // Check if we have enough stock for subtraction
+    if (operation === 'subtract' && newQuantity < 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: `Not enough stock for ${productName}. Current quantity: ${currentQuantity}, Requested: ${quantity}`
+      });
+    }
+
+    // Update inventory
+    await client.query(
+      'UPDATE inventory_items SET quantity = $1, last_updated = NOW() WHERE sku = $2',
+      [newQuantity, sku]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: `Inventory updated successfully. New quantity: ${newQuantity}`,
+      product: {
+        sku,
+        name: productName,
+        quantity: newQuantity
+      }
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error adjusting inventory:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      details: error.message
+    });
+  } finally {
+    client.release();
+  }
 });
