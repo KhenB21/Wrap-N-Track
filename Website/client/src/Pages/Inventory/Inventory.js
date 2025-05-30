@@ -6,6 +6,8 @@ import TopBar from '../../Components/TopBar';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from "../../api/axios";
 import config from "../../config";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function Inventory() {
   const location = useLocation();
@@ -19,6 +21,11 @@ export default function Inventory() {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
   const navigate = useNavigate();
+
+  // Log showModal changes
+  useEffect(() => {
+    console.log('showModal changed:', showModal);
+  }, [showModal]);
 
   useEffect(() => {
     // Check if we have a filter from dashboard navigation
@@ -59,6 +66,7 @@ export default function Inventory() {
     } catch (err) {
       console.error('Error fetching inventory:', err);
       setError('Failed to load inventory');
+      toast.error('Failed to load inventory');
     } finally {
       setLoading(false);
     }
@@ -74,28 +82,41 @@ export default function Inventory() {
       if (response.data.success) {
         setShowModal(false);
         fetchProducts();
+        toast.success('Product added successfully!');
       }
     } catch (err) {
       console.error('Error adding product:', err);
       setError('Failed to add product');
+      toast.error('Failed to add product');
     }
   };
 
   const handleEdit = (product) => {
+    console.log('Editing product:', product);
     setSelectedProduct(product);
     setShowEditModal(true);
   };
 
-  const handleEditSubmit = async (formData) => {
+  const handleEditSubmit = async (jsonData) => {
+    console.log('Submitting edit form with data:', jsonData);
     try {
-      const response = await api.put(`/api/inventory/${selectedProduct.sku}`, formData);
-      if (response.data.success) {
+      const response = await api.put(
+        `/api/inventory/${selectedProduct.sku}`,
+        jsonData,
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      console.log('Edit API response:', response);
+      if (response.data && response.data.success) {
         setShowEditModal(false);
         fetchProducts();
+        toast.success('Product updated successfully!');
+      } else {
+        toast.error('Failed to update product');
       }
     } catch (err) {
       console.error('Error updating product:', err);
       setError('Failed to update product');
+      toast.error('Failed to update product');
     }
   };
 
@@ -109,10 +130,12 @@ export default function Inventory() {
       const response = await api.delete(`/api/inventory/${selectedProduct.sku}`);
       if (response.data.success) {
         fetchProducts();
+        toast.success('Product deleted successfully!');
       }
     } catch (err) {
       console.error('Error deleting product:', err);
       setError('Failed to delete product');
+      toast.error('Failed to delete product');
     }
   };
 
@@ -124,7 +147,7 @@ export default function Inventory() {
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar />
+        <TopBar lowStockProducts={products.filter(item => Number(item.quantity || 0) < 300)} />
         <div className="inventory-container">
           <div className="inventory-header">
             <h2>Inventory</h2>
@@ -139,7 +162,7 @@ export default function Inventory() {
               <option value="all">All Products</option>
               <option value="low-stock">Low Stock (≤300)</option>
               <option value="medium-stock">Medium Stock (301-800)</option>
-              <option value="high-stock">High Stock (>800)</option>
+              <option value="high-stock">High Stock (&gt;800)</option>
               <option value="replenishment">Need Replenishment (0)</option>
             </select>
           </div>
@@ -226,6 +249,7 @@ export default function Inventory() {
           )}
         </div>
       </div>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
     </div>
   );
-} 
+}

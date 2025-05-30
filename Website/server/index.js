@@ -3,6 +3,9 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+require('dotenv').config();
 const { pool, wss, notifyChange } = require('./db');
 const customersRouter = require('./routes/customers');
 const suppliersRouter = require('./routes/suppliers');
@@ -10,6 +13,20 @@ require('dotenv').config({ path: __dirname + '/../.env' });
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+// Initialize nodemailer transporter
+let transporter = null;
+if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+  transporter = require('nodemailer').createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+} else {
+  console.warn('Email credentials missing in environment variables. Email functionality will not work.');
+}
 
 // Function to archive completed orders
 async function archiveCompletedOrders() {
@@ -201,6 +218,7 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+
 // Add this test endpoint before the registration endpoint
 app.get('/api/test/roles', async (req, res) => {
   try {
@@ -227,14 +245,14 @@ app.post('/api/fix-role-constraint', async (req, res) => {
     await client.query(`
       UPDATE users 
       SET role = 'director' 
-      WHERE role NOT IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer')
+      WHERE role NOT IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales')
     `);
     
     // Then update the constraint
     await client.query(`
       ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
       ALTER TABLE users ADD CONSTRAINT users_role_check 
-      CHECK (role IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer'));
+      CHECK (role IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales'));
     `);
     
     await client.query('COMMIT');
@@ -248,6 +266,7 @@ app.post('/api/fix-role-constraint', async (req, res) => {
   }
 });
 
+
 // Registration endpoint with file upload (store profile picture in DB)
 app.post('/api/auth/register', upload.single('profilePicture'), async (req, res) => {
   console.log('Registration request received:', {
@@ -258,9 +277,11 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
   const { name, email, password, role } = req.body;
   let profilePictureData = null;
+
   if (req.file) {
     profilePictureData = req.file.buffer;
   }
+
 
   // Convert role to lowercase for validation
   const roleLower = role.toLowerCase();
@@ -270,14 +291,14 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
   });
 
   // Validate role
+
   const validRoles = [
     'business_developer',
     'creatives',
     'director',
     'admin',
     'sales_manager',
-    'assistant_sales',
-    'packer'
+    'assistant_sales'
   ];
 
   console.log('Validating role:', {
@@ -295,15 +316,20 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
   try {
     // Check if email already exists
-    const emailCheck = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
-
+    const emailCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (emailCheck.rows.length > 0) {
       return res.status(400).json({
         success: false,
         message: 'Email already registered'
+      });
+    }
+
+    // Check if name exists
+    const nameCheck = await pool.query('SELECT * FROM users WHERE name = $1', [name.trim()]);
+    if (nameCheck.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name already taken'
       });
     }
 
@@ -312,48 +338,89 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
 
-    console.log('Attempting to insert user with role:', roleLower);
+    // Generate 6-digit verification code
+    const verificationCode = crypto.randomInt(100000, 999999).toString();
 
-    // Insert new user with profile picture data (using lowercase role)
+    // Insert new user (with is_verified: false)
     const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role, profile_picture_data) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email, role',
-      [name, email, passwordHash, roleLower, profilePictureData]
+      `INSERT INTO users 
+        (name, email, password_hash, role, profile_picture_data, is_active, is_verified, verification_code) 
+       VALUES ($1, $2, $3, $4, $5, true, false, $6) 
+       RETURNING user_id, name, email, role`,
+      [name, email, passwordHash, role, profilePictureData, verificationCode]
     );
-
-    // Insert new user with profile picture data
-    // const result = await pool.query(
-    //   'INSERT INTO users (name, email, password_hash, role, profile_picture_data, is_active) VALUES ($1, $2, $3, $4, $5, true) RETURNING user_id, name, email, role',
-    //   [name, email, passwordHash, role, profilePictureData]
 
 
     const newUser = result.rows[0];
 
-    // Create JWT token
+    // Send email for verification
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+
+    // Email content
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Verify your email',
+      text: `Hi ${name},\n\nYour verification code is: ${verificationCode}\n\nThank you!`
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    // Generate JWT token
     const token = jwt.sign(
-      { 
-        user_id: newUser.user_id,
-        name: newUser.name,
-        role: newUser.role 
-      },
+      { userId: newUser.user_id, email: newUser.email, role: newUser.role },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '1h' }
     );
 
-    // Return success response
+    // Success response including token
     res.status(201).json({
       success: true,
-      token,
+      message: 'Registration successful. Please verify your email.',
       user: {
         user_id: newUser.user_id,
         name: newUser.name,
         email: newUser.email,
-        role: newUser.role,
-        profile_picture_data: profilePictureData ? profilePictureData.toString('base64') : null
-      }
+        role: newUser.role
+      },
+      token, // send token here
     });
 
   } catch (error) {
     console.error('Registration error:', error);
+
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// check if name already exists
+app.get('/api/auth/check-name', async (req, res) => {
+  const { name } = req.query;
+
+  if (!name || name.trim() === "") {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT 1 FROM users WHERE name = $1',
+      [name.trim()]
+    );
+
+    res.json({ exists: result.rowCount > 0 });
+  } catch (error) {
+    console.error('Name check error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+
     console.error('Error details:', {
       code: error.code,
       message: error.message,
@@ -371,10 +438,10 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
         message: 'Internal server error'
       });
     }
+
   }
 });
 
-// GET /api/auth/check-email?email=example@example.com
 app.get('/api/auth/check-email', async (req, res) => {
   const { email } = req.query;
 
@@ -392,7 +459,90 @@ app.get('/api/auth/check-email', async (req, res) => {
   }
 });
 
+app.post('/api/auth/verify', async (req, res) => {
+  const { email, code } = req.body;
+  try {
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = userResult.rows[0];
 
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+
+    if (user.is_verified) {
+      return res.status(400).json({ message: 'User already verified' });
+    }
+
+    if (user.verification_code !== code) {
+      return res.status(400).json({ message: 'Invalid verification code' });
+    }
+
+    await pool.query('UPDATE users SET is_verified = true, verification_code = NULL WHERE email = $1', [email]);
+
+    res.json({ message: 'Email verified successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.post('/api/auth/resend-code', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required.' });
+  }
+
+  try {
+    // Check if user exists and not verified
+    const userResult = await pool.query(
+      'SELECT user_id, name, is_verified FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'User not found.' });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.is_verified) {
+      return res.status(400).json({ success: false, message: 'Email already verified.' });
+    }
+
+    // Generate new code
+    const newCode = crypto.randomInt(100000, 999999).toString();
+
+    // Update the verification code in DB
+    await pool.query(
+      'UPDATE users SET verification_code = $1 WHERE user_id = $2',
+      [newCode, user.user_id]
+    );
+
+    // Send email with new code
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Your new email verification code',
+      text: `Hi ${user.name},\n\nYour new verification code is: ${newCode}\n\nThank you!`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({ success: true, message: 'Verification code resent.' });
+  } catch (error) {
+    console.error('Resend code error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+});
 
 // Login endpoint
 app.post('/api/auth/login', async (req, res) => {
@@ -418,9 +568,11 @@ app.post('/api/auth/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!validPassword) {
+      // Return role even on incorrect password
       return res.status(401).json({
         success: false,
-        message: 'Invalid username or password'
+        message: 'Invalid username or password',
+        role: user.role
       });
     }
 
@@ -456,6 +608,112 @@ app.post('/api/auth/login', async (req, res) => {
     });
   }
 });
+
+
+app.post("/api/auth/forgot-password", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required." });
+  }
+
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    console.error("Email credentials missing in environment variables.");
+    return res.status(500).json({ message: "Email server not configured." });
+  }
+
+  try {
+    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const user = result.rows[0];
+    console.log("User found for password reset:", user.email);
+
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await pool.query(
+      "UPDATE users SET reset_code = $1, reset_code_expires = NOW() + INTERVAL '15 minutes' WHERE user_id = $2",
+      [resetCode, user.user_id]
+    );
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: "Password Reset Code",
+      text: `Hello,\n\nYour password reset code is: ${resetCode}\n\nThis code expires in 15 minutes.\n\nIf you did not request this, please ignore this email.\n\nThank you.`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    console.log("Reset code email sent to:", user.email);
+
+    res.json({ message: "Reset code sent to your email." });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+});
+
+app.post('/api/auth/verify-reset-code', async (req, res) => {
+  const { email, code } = req.body;
+
+  if (!email || !code) {
+    return res.status(400).json({ message: "Email and code are required." });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT reset_code, reset_code_expires
+       FROM users
+       WHERE email = $1`,
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const user = result.rows[0];
+
+    if (!user.reset_code || user.reset_code !== code) {
+      return res.status(400).json({ message: "Invalid code." });
+    }
+
+    const expiresAt = new Date(user.reset_code_expires);
+    const now = new Date();
+
+    if (now > expiresAt) {
+      return res.status(400).json({ message: "Code has expired." });
+    }
+
+    res.status(200).json({ message: "Code verified successfully." });
+  } catch (err) {
+    console.error("Verify code error:", err);
+    res.status(500).json({ message: "Internal server error." });
+  }
+});
+
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    // Hash password
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+    await pool.query(
+      "UPDATE users SET password_hash = $1, reset_code = NULL, reset_code_expires = NULL WHERE email = $2",
+      [passwordHash, email]
+    );
+    res.json({ message: "Password reset successful." });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({ message: "Internal server error." });
+  }
+});
+
 
 // User details endpoint (return profile_picture_data as base64)
 app.get('/api/user/details', verifyToken, async (req, res) => {
