@@ -150,6 +150,7 @@ app.use((err, req, res, next) => {
 // Allow specific origins or patterns
 const allowedOrigins = [
   'http://localhost:3000',
+  'https://wrap-n-track-b6z5.vercel.app',
   /https:\/\/.*\.vercel\.app$/,
   /https:\/\/.*\.render\.com$/
 ];
