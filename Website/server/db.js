@@ -7,7 +7,12 @@ const dbConfig = {
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  // Add connection timeout and retry settings
+  connectionTimeoutMillis: 10000, // 10 seconds
+  idleTimeoutMillis: 30000, // 30 seconds
+  max: 20, // Maximum number of clients in the pool
+  min: 4,  // Minimum number of clients in the pool
 };
 
 // Create a new pool using the configuration
@@ -16,35 +21,53 @@ const pool = new Pool(dbConfig);
 // Log database configuration (without sensitive data)
 console.log('Database configuration:', {
   connectionString: process.env.DATABASE_URL ? '[REDACTED]' : 'Not set',
-  ssl: dbConfig.ssl
+  ssl: dbConfig.ssl,
+  connectionTimeoutMillis: dbConfig.connectionTimeoutMillis,
+  idleTimeoutMillis: dbConfig.idleTimeoutMillis,
+  max: dbConfig.max,
+  min: dbConfig.min
 });
 
-// Test the connection immediately
-pool.connect()
-  .then(client => {
-    console.log('Successfully connected to PostgreSQL database');
-    console.log('Database connection details:', {
-      host: client.connectionParameters.host,
-      port: client.connectionParameters.port,
-      database: client.connectionParameters.database,
-      user: client.connectionParameters.user,
-      ssl: client.connectionParameters.ssl
-    });
-    client.release();
-  })
-  .catch(err => {
-    console.error('Error connecting to PostgreSQL database:', err);
-    console.error('Error details:', {
-      code: err.code,
-      message: err.message,
-      stack: err.stack
-    });
-    console.error('Database configuration:', {
-      connectionString: process.env.DATABASE_URL ? '[REDACTED]' : 'Not set',
-      ssl: dbConfig.ssl
-    });
-    process.exit(1);
-  });
+// Function to test database connection with retries
+const testConnection = async (retries = 3, delay = 5000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const client = await pool.connect();
+      console.log('Successfully connected to PostgreSQL database');
+      console.log('Database connection details:', {
+        host: client.connectionParameters.host,
+        port: client.connectionParameters.port,
+        database: client.connectionParameters.database,
+        user: client.connectionParameters.user,
+        ssl: client.connectionParameters.ssl
+      });
+      client.release();
+      return true;
+    } catch (err) {
+      console.error(`Connection attempt ${i + 1} failed:`, err);
+      console.error('Error details:', {
+        code: err.code,
+        message: err.message,
+        stack: err.stack
+      });
+      console.error('Database configuration:', {
+        connectionString: process.env.DATABASE_URL ? '[REDACTED]' : 'Not set',
+        ssl: dbConfig.ssl
+      });
+      
+      if (i < retries - 1) {
+        console.log(`Retrying in ${delay/1000} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error('All connection attempts failed');
+        process.exit(1);
+      }
+    }
+  }
+};
+
+// Test the connection with retries
+testConnection();
 
 // Add error handler for pool
 pool.on('error', (err, client) => {
@@ -54,7 +77,10 @@ pool.on('error', (err, client) => {
     message: err.message,
     stack: err.stack
   });
-  process.exit(-1);
+  // Don't exit the process in production, just log the error
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(-1);
+  }
 });
 
 // Create a WebSocket server instance
