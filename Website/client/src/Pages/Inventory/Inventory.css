@@ -1,10 +1,9 @@
 .inventory-container {
   background: #f8f9fc;
   padding: 28px 36px;
-  height: 100%;
+  height: auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
@@ -53,23 +52,21 @@
 }
 
 .inventory-table-container {
-  flex: 1;
   width: 100%;
   margin-top: 16px;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 0; /* Important for flex children to respect overflow */
+  min-height: 0;
   border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .inventory-table-wrapper {
-  flex: 1;
+  max-height: 65vh;
   overflow-y: auto;
-  min-height: 0; /* Allows the wrapper to shrink below its content size */
+  min-height: 0;
 }
 
 .inventory-table {

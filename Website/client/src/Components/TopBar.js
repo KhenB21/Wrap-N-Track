@@ -4,7 +4,7 @@ import Notifications from "./Notifications/Notifications";
 import "./TopBar.css";
 import api from '../api/axios'; // Import the api instance
 
-export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowStockProducts }) {
+export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowStockProducts, searchValue = "", onSearchChange = () => {} }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -108,7 +108,13 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
 
   return (
     <div className="dashboard-topbar">
-      <input className="dashboard-search" type="text" placeholder={searchPlaceholder} />
+      <input
+        className="dashboard-search"
+        type="text"
+        placeholder={searchPlaceholder}
+        value={searchValue}
+        onChange={onSearchChange}
+      />
       <div className="dashboard-topbar-icons">
         <span 
           className="dashboard-bell" 

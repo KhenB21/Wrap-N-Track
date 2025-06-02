@@ -19,6 +19,7 @@ export default function Inventory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
   // Log showModal changes
@@ -34,27 +35,41 @@ export default function Inventory() {
   }, [location]);
 
   useEffect(() => {
-    // Apply filtering based on current filter state
+    // Filter products by search term (excluding SKU)
+    let filtered = products;
+    if (searchTerm.trim() !== "") {
+      const term = searchTerm.toLowerCase();
+      filtered = products.filter(item =>
+        (item.name && item.name.toLowerCase().includes(term)) ||
+        (item.description && item.description.toLowerCase().includes(term)) ||
+        (item.category && item.category.toLowerCase().includes(term)) ||
+        (item.unit_price && String(item.unit_price).toLowerCase().includes(term)) ||
+        (item.quantity && String(item.quantity).toLowerCase().includes(term)) ||
+        (item.last_updated && new Date(item.last_updated).toLocaleString().toLowerCase().includes(term))
+      );
+    }
+    // Apply stock filter after search
     switch (filter) {
       case 'low-stock':
-        setFilteredProducts(products.filter(item => Number(item.quantity || 0) <= 300));
+        filtered = filtered.filter(item => Number(item.quantity || 0) <= 300);
         break;
       case 'medium-stock':
-        setFilteredProducts(products.filter(item => {
+        filtered = filtered.filter(item => {
           const quantity = Number(item.quantity || 0);
           return quantity > 300 && quantity <= 800;
-        }));
+        });
         break;
       case 'high-stock':
-        setFilteredProducts(products.filter(item => Number(item.quantity || 0) > 800));
+        filtered = filtered.filter(item => Number(item.quantity || 0) > 800);
         break;
       case 'replenishment':
-        setFilteredProducts(products.filter(item => Number(item.quantity || 0) <= 0));
+        filtered = filtered.filter(item => Number(item.quantity || 0) <= 0);
         break;
       default:
-        setFilteredProducts(products);
+        break;
     }
-  }, [filter, products]);
+    setFilteredProducts(filtered);
+  }, [searchTerm, filter, products]);
 
   // Fetch products from backend
   const fetchProducts = async () => {
@@ -153,6 +168,8 @@ export default function Inventory() {
       if (response.data.success) {
         fetchProducts();
         toast.success('Product deleted successfully!');
+        setShowDeleteDialog(false);
+        setSelectedProduct(null);
       }
     } catch (err) {
       console.error('Error deleting product:', err);
@@ -169,7 +186,11 @@ export default function Inventory() {
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar lowStockProducts={products.filter(item => Number(item.quantity || 0) < 300)} />
+        <TopBar
+          lowStockProducts={products.filter(item => Number(item.quantity || 0) < 300)}
+          searchValue={searchTerm}
+          onSearchChange={e => setSearchTerm(e.target.value)}
+        />
         <div className="inventory-container">
           <div className="inventory-header">
             <h2>Inventory</h2>

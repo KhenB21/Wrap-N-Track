@@ -122,6 +122,12 @@ const Sidebar = () => {
               </Link>
             </li>
           )}
+           <li>
+            <Link to="/customer-home">
+              <span className="icon">💍</span>
+              <span className="text">Go to website</span>
+            </Link>
+          </li>
         </ul>
       </nav>
 
