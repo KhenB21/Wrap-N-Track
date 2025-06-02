@@ -174,6 +174,8 @@ export default function OrderProcess() {
     customization: { name: 'Own Product', description: 'Custom Addition', image: null }
   });
   const [selectedStyle, setSelectedStyle] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [inventory, setInventory] = useState([]);
 
   const modernRomantic = [
     {
@@ -633,10 +635,84 @@ export default function OrderProcess() {
     setCurrentConCat(conCatNumber);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle form submission
-    console.log(formData);
+
+    const orderData = {
+      name: formData.name,
+      shipped_to: formData.name,
+      order_date: new Date().toISOString().split('T')[0],
+      expected_delivery: formData.weddingDate,
+      status: "Pending",
+      shipping_address: "-",
+      total_cost: 0,
+      payment_type: "-",
+      payment_method: "-",
+      account_name: "-",
+      remarks: formData.specialRequests,
+      telephone: formData.phone,
+      cellphone: formData.phone,
+      email_address: formData.email,
+      products: getSelectedProductsByName(), // <-- use this!
+    };
+
+    try {
+      const response = await fetch("http://localhost:3001/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
+      });
+
+      if (response.ok) {
+        alert("Order submitted!");
+        // Reset all form fields and selections
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          weddingDate: "",
+          guestCount: "",
+          style: "",
+          budget: "",
+          specialRequests: "",
+        });
+        setSelectedPackaging([]);
+        setSelectedBeverages([]);
+        setSelectedFood([]);
+        setSelectedKitchenware([]);
+        setSelectedHomeDecor([]);
+        setSelectedFaceAndBody([]);
+        setSelectedClothing([]);
+        setSelectedCustomization([]);
+        setCustomProducts({
+          packaging: false,
+          beverages: false,
+          food: false,
+          kitchenware: false,
+          homeDecor: false,
+          faceAndBody: false,
+          clothing: false,
+          customization: false
+        });
+        setCustomProductDetails({
+          packaging: { name: 'Own Product', description: 'Packaging', image: null },
+          beverages: { name: 'Own Product', description: 'Beverages', image: null },
+          food: { name: 'Own Product', description: 'Food', image: null },
+          kitchenware: { name: 'Own Product', description: 'Kitchenware', image: null },
+          homeDecor: { name: 'Own Product', description: 'Home Decor', image: null },
+          faceAndBody: { name: 'Own Product', description: 'Face and Body', image: null },
+          clothing: { name: 'Own Product', description: 'Clothing and Accessories', image: null },
+          customization: { name: 'Own Product', description: 'Custom Addition', image: null }
+        });
+        setSelectedStyle("");
+        setCurrentStep(0);
+      } else {
+        alert("Failed to submit order");
+      }
+    } catch (err) {
+      alert("Error submitting order");
+      console.error(err);
+    }
   };
 
   const handleEditCategory = (category) => {
@@ -1171,6 +1247,23 @@ export default function OrderProcess() {
     }
   }, []);
 
+  // Fetch inventory on mount
+  useEffect(() => {
+    fetch("http://localhost:3001/api/inventory")
+      .then(res => res.json())
+      .then(data => setInventory(data))
+      .catch(err => console.error("Failed to fetch inventory", err));
+  }, []);
+
+  const getSelectedProductsByName = () => {
+    const items = getAllSelectedItems();
+    return items.map(item => ({
+      name: item.name,
+      quantity: 1, // or your chosen quantity logic
+      category: item.category
+    }));
+  };
+
   return (
     <div style={styles.container}>
       <TopbarCustomer />
@@ -1507,7 +1600,7 @@ export default function OrderProcess() {
               ))}
             </div>
 
-            <button type="submit" style={styles.button}>
+            <button onClick={() => handleStepClick(2)} style={styles.button}>
               Next
             </button>
           </form>
@@ -2055,7 +2148,7 @@ export default function OrderProcess() {
               </>
             )}
 
-            <button type="submit" style={styles.button}>
+            <button onClick={() => handleStepClick(3)} style={styles.button}>
               Next
             </button>
           </form>
@@ -2125,7 +2218,7 @@ export default function OrderProcess() {
               ))}
             </div>
 
-            <button type="submit" style={styles.button}>
+            <button onClick={() => handleStepClick(4)} style={styles.button}>
               Next
             </button>
           </form>
@@ -2170,7 +2263,7 @@ export default function OrderProcess() {
                 />
               </div>
 
-              <button type="submit" style={styles.button}>
+              <button type="submit"  style={styles.button}>
                 Submit Order
               </button>
             </div>
