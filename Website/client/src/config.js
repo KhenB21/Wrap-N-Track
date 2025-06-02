@@ -3,14 +3,11 @@ console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
 
 // Determine if we're in development mode
-// const isDevelopment = true; // Uncomment for localhost
-const isDevelopment = false; // Uncomment for deployed
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 const config = {
-  // API_URL: 'http://localhost:3001', // Uncomment for localhost
-  API_URL: process.env.REACT_APP_API_URL || 'https://wrap-n-track.onrender.com', // Uncomment for deployed
-  // WS_URL: 'ws://localhost:3001', // Uncomment for localhost
-  WS_URL: process.env.REACT_APP_WS_URL || 'wss://wrap-n-track.onrender.com', // Uncomment for deployed
+  API_URL: process.env.REACT_APP_API_URL || 'https://wrap-n-track.onrender.com',
+  WS_URL: process.env.REACT_APP_WS_URL || 'wss://wrap-n-track.onrender.com',
   isDevelopment
 };
 
