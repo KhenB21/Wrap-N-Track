@@ -3,26 +3,26 @@ const WebSocket = require('ws');
 require('dotenv').config({ path: __dirname + '/.env' });
 
 // Debug: Log the database connection details (with password masked)
-const dbUser = process.env.DB_USER;
-const dbHost = process.env.DB_HOST || 'localhost'; // Default to localhost
-const dbName = process.env.DB_NAME;
-const dbPort = process.env.DB_PORT;
-console.log('Database User:', dbUser || 'Not set (will use PG defaults)');
-console.log('Database Host:', dbHost);
-console.log('Database Name:', dbName || 'Not set (will use PG defaults)');
-console.log('Database Port:', dbPort || 'Not set (will use 5432)');
+const dbUser = process.env.DB_USER || 'wrapntrack_0tfj_user';
+const dbHost = process.env.DB_HOST || 'dpg-d0ut1t6uk2gs73atkr10-a.singapore-postgres.render.com';
+const dbName = process.env.DB_NAME || 'wrapntrack_0tfj';
+const dbPort = process.env.DB_PORT || '5432';
+const dbPassword = process.env.DB_PASSWORD || 'tBdOMUDQEUFHMnTfKToZatcnwecc5xod';
 
-// Note: Connection might fail if DB_USER, DB_NAME, or DB_PASSWORD are not set depending on PG configuration
-if (!dbUser || !dbName || !process.env.DB_PASSWORD) {
-  console.warn('Database connection environment variables (DB_USER, DB_NAME, DB_PASSWORD) are not fully set. Connection might fail depending on PostgreSQL configuration.');
-}
+console.log('Database User:', dbUser);
+console.log('Database Host:', dbHost);
+console.log('Database Name:', dbName);
+console.log('Database Port:', dbPort);
 
 const pool = new Pool({
   user: dbUser,
   host: dbHost,
   database: dbName,
-  password: process.env.DB_PASSWORD,
-  port: dbPort ? parseInt(dbPort) : 5432, // Default to 5432 if not set
+  password: dbPassword,
+  port: parseInt(dbPort),
+  ssl: {
+    rejectUnauthorized: false // Required for Render PostgreSQL
+  }
 });
 
 // Test the connection immediately
