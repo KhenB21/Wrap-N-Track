@@ -8,9 +8,9 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
+  TextInput,
 } from "react-native";
 import Header from "../Components/Header";
-import AddToCartButton from "../Components/AddToCartButton";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCart } from "../Context/CartContext";
 import { useTheme } from "../Context/ThemeContext";
@@ -118,52 +118,40 @@ export default function MyCartScreen({ navigation }) {
           <Text style={[styles.itemSubtitle, { color: subText }]}>
             {item.subtitle}
           </Text>
-          <Text
-            style={[styles.itemDesc, { color: darkMode ? "#B0B3B8" : "#888" }]}
-          >
+          <Text style={[styles.itemDesc, { color: darkMode ? "#B0B3B8" : "#888" }]}>
             {item.desc}
           </Text>
-          <Text
-            style={[styles.itemPrice, { color: darkMode ? "#fff" : "#222" }]}
-          >
+          <Text style={[styles.itemPrice, { color: darkMode ? "#fff" : "#222" }]}>
             {item.price || "₱1,499"}
           </Text>
-        </View>
-        <View style={styles.quantityBox}>
-          <Text style={[styles.quantityLabel, { color: subText }]}>
-            QUANTITY
-          </Text>
-          <View
-            style={[
-              styles.quantitySelectorRow,
-              { backgroundColor: quantityBg, borderColor: border },
-            ]}
-          >
-            <TouchableOpacity
-              onPress={() =>
+          {/* Move quantity row here */}
+          <View style={styles.quantityBoxRow}>
+            <Text style={[styles.quantityLabel, { color: subText }]}>
+              QUANTITY
+            </Text>
+            <TextInput
+              style={[
+                styles.quantityInputCard,
+                {
+                  backgroundColor: quantityBg,
+                  color: quantityValueColor,
+                  borderColor: border,
+                  marginLeft: 6,
+                },
+              ]}
+              value={String(item.quantity || 1)}
+              onChangeText={(v) => {
+                const num = v.replace(/[^0-9]/g, "");
                 handleQuantityChange(
                   item.id,
-                  Math.max(1, (item.quantity || 1) - 1),
+                  num === "" ? 1 : parseInt(num, 10),
                   isCart
-                )
-              }
-              style={styles.quantityBtn}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="minus" size={18} color={accent} />
-            </TouchableOpacity>
-            <Text style={[styles.quantityValue, { color: quantityValueColor }]}>
-              {item.quantity || 1}
-            </Text>
-            <TouchableOpacity
-              onPress={() =>
-                handleQuantityChange(item.id, (item.quantity || 1) + 1, isCart)
-              }
-              style={styles.quantityBtn}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="plus" size={18} color={accent} />
-            </TouchableOpacity>
+                );
+              }}
+              keyboardType="numeric"
+              maxLength={3}
+              textAlign="center"
+            />
           </View>
         </View>
       </View>
@@ -391,26 +379,33 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   quantityBox: {
-    alignItems: "center",
+    alignItems: "flex-end", // align label and input to the right
     marginLeft: 10,
     justifyContent: "center",
+  },
+  quantityBoxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-end", // aligns to the right of the card
+    marginLeft: 10,
+    marginTop: 2,
   },
   quantityLabel: {
     fontSize: 10,
     color: "#6B6593",
     fontFamily: "serif",
     marginBottom: 2,
-    textAlign: "center",
+    // Remove textAlign: "center"
   },
   quantitySelectorRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F5F4FA",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#B6B3C6",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    backgroundColor: "transparent", // remove background
+    borderRadius: 0,
+    borderWidth: 0,
+    borderColor: "transparent",
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     minWidth: 70,
     justifyContent: "space-between",
   },
@@ -475,5 +470,15 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     lineHeight: 22,
     textAlign: "center",
+  },
+  quantityInputCard: {
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    fontSize: 14,
+    width: 50,
+    textAlign: "center",
+    marginTop: 2,
   },
 });

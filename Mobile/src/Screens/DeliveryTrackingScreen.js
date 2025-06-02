@@ -84,7 +84,7 @@ const DeliveryTrackingScreen = ({ navigation, route }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      {/* Use your custom Header just like in OrderSummaryScreen */}
+      
       <Header
         showBack
         logoType="image"
