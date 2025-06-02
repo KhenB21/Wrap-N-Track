@@ -138,31 +138,10 @@ const upload = multer({
 });
 
 // CORS configuration
-app.use((req, res, next) => {
-  const allowedOrigins = [
-    'https://wrap-n-track-b6z5.vercel.app',
-    'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app',
-    'http://localhost:3000'
-  ];
-  
-  const origin = req.headers.origin;
-  console.log('Request origin:', origin);
-  
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
-
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log('Handling OPTIONS request');
-    return res.status(204).end();
-  }
-
-  next();
-});
+app.use(cors({
+  origin: 'https://wrap-n-track-b6z5.vercel.app',
+  credentials: true
+}));
 
 // Add a middleware to log all requests
 app.use((req, res, next) => {
