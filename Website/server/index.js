@@ -140,11 +140,13 @@ const upload = multer({
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = [
-      'https://wrap-n-track-b6z5.vercel.app',
-      'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app',
-      'http://localhost:3000'
-    ];
+    const allowedOrigins = process.env.CORS_ORIGIN 
+      ? process.env.CORS_ORIGIN.split(',')
+      : [
+          'https://wrap-n-track-b6z5.vercel.app',
+          'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app',
+          'http://localhost:3000'
+        ];
     
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
@@ -153,6 +155,7 @@ const corsOptions = {
       callback(null, true);
     } else {
       console.log('CORS blocked request from origin:', origin);
+      console.log('Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -185,7 +188,8 @@ app.use((req, res, next) => {
     method: req.method,
     path: req.path,
     origin: req.headers.origin,
-    headers: req.headers
+    headers: req.headers,
+    timestamp: new Date().toISOString()
   });
   next();
 });
@@ -197,7 +201,13 @@ app.use((err, req, res, next) => {
     method: req.method,
     path: req.path,
     origin: req.headers.origin,
-    headers: req.headers
+    headers: req.headers,
+    timestamp: new Date().toISOString()
+  });
+  console.error('Error details:', {
+    code: err.code,
+    message: err.message,
+    stack: err.stack
   });
   res.status(500).json({
     success: false,
@@ -216,10 +226,23 @@ pool.connect((err, client, release) => {
       host: process.env.DB_HOST,
       database: process.env.DB_NAME,
       port: process.env.DB_PORT || 5432,
+      // Don't log the actual password
+      hasPassword: !!process.env.DB_PASSWORD,
+      hasDatabaseUrl: !!process.env.DATABASE_URL
     });
+    console.error('Full error:', err);
     process.exit(1);
   }
   console.log('Successfully connected to PostgreSQL database');
+  console.log('Database connection details:', {
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT || 5432,
+    // Don't log the actual password
+    hasPassword: !!process.env.DB_PASSWORD,
+    hasDatabaseUrl: !!process.env.DATABASE_URL
+  });
 
   // Add profit-related columns to orders table
   client.query(`
@@ -334,15 +357,13 @@ app.get('/api/test/env', async (req, res) => {
     const envInfo = {
       NODE_ENV: process.env.NODE_ENV,
       PORT: process.env.PORT,
-      DB_HOST: process.env.DB_HOST ? 'Set' : 'Not Set',
-      DB_NAME: process.env.DB_NAME ? 'Set' : 'Not Set',
-      DB_PORT: process.env.DB_PORT,
+      DATABASE_URL: process.env.DATABASE_URL ? 'Set' : 'Not Set',
       JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Not Set',
-      // Add CORS info
-      CORS_ORIGINS: corsOptions.origin.toString(),
+      CORS_ORIGIN: process.env.CORS_ORIGIN ? 'Set' : 'Not Set',
       // Add server info
       SERVER_TIME: new Date().toISOString(),
-      SERVER_TIMEZONE: Intl.DateTimeFormat().resolvedOptions().timeZone
+      SERVER_TIMEZONE: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      DATABASE_CONNECTED: pool.totalCount > 0
     };
     
     res.json({
@@ -351,6 +372,11 @@ app.get('/api/test/env', async (req, res) => {
     });
   } catch (error) {
     console.error('Error checking environment:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ 
       success: false, 
       message: 'Error checking environment',

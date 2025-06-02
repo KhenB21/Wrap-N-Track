@@ -2,39 +2,60 @@ const { Pool } = require('pg');
 const WebSocket = require('ws');
 require('dotenv').config({ path: __dirname + '/.env' });
 
-// Debug: Log the database connection details (with password masked)
-const dbUser = process.env.DB_USER || 'wrapntrack_0tfj_user';
-const dbHost = process.env.DB_HOST || 'dpg-d0ut1t6uk2gs73atkr10-a.singapore-postgres.render.com';
-const dbName = process.env.DB_NAME || 'wrapntrack_0tfj';
-const dbPort = process.env.DB_PORT || '5432';
-const dbPassword = process.env.DB_PASSWORD || 'tBdOMUDQEUFHMnTfKToZatcnwecc5xod';
-
-console.log('Database User:', dbUser);
-console.log('Database Host:', dbHost);
-console.log('Database Name:', dbName);
-console.log('Database Port:', dbPort);
-
-const pool = new Pool({
-  user: dbUser,
-  host: dbHost,
-  database: dbName,
-  password: dbPassword,
-  port: parseInt(dbPort),
+// Database configuration
+const dbConfig = {
+  connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false // Required for Render PostgreSQL
+    rejectUnauthorized: false
   }
+};
+
+// Create a new pool using the configuration
+const pool = new Pool(dbConfig);
+
+// Log database configuration (without sensitive data)
+console.log('Database configuration:', {
+  connectionString: process.env.DATABASE_URL ? '[REDACTED]' : 'Not set',
+  ssl: dbConfig.ssl
 });
 
 // Test the connection immediately
 pool.connect()
   .then(client => {
     console.log('Successfully connected to PostgreSQL database');
+    console.log('Database connection details:', {
+      host: client.connectionParameters.host,
+      port: client.connectionParameters.port,
+      database: client.connectionParameters.database,
+      user: client.connectionParameters.user,
+      ssl: client.connectionParameters.ssl
+    });
     client.release();
   })
   .catch(err => {
     console.error('Error connecting to PostgreSQL database:', err);
+    console.error('Error details:', {
+      code: err.code,
+      message: err.message,
+      stack: err.stack
+    });
+    console.error('Database configuration:', {
+      connectionString: process.env.DATABASE_URL ? '[REDACTED]' : 'Not set',
+      ssl: dbConfig.ssl
+    });
     process.exit(1);
   });
+
+// Add error handler for pool
+pool.on('error', (err, client) => {
+  console.error('Unexpected error on idle client', err);
+  console.error('Error details:', {
+    code: err.code,
+    message: err.message,
+    stack: err.stack
+  });
+  process.exit(-1);
+});
 
 // Create a WebSocket server instance
 const wss = new WebSocket.Server({ noServer: true });
@@ -77,6 +98,11 @@ const setupDatabaseListeners = async () => {
     console.log('Database listeners set up successfully');
   } catch (error) {
     console.error('Error setting up database listeners:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
   }
 };
 
@@ -90,6 +116,11 @@ const notifyChange = async (channel, payload) => {
     );
   } catch (error) {
     console.error('Error sending notification:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
   } finally {
     client.release();
   }
