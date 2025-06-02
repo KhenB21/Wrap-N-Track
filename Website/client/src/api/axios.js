@@ -7,7 +7,8 @@ const createAxiosInstance = (contentType = 'application/json') => {
     baseURL: config.API_URL,
     withCredentials: true,
     headers: {
-      'Content-Type': contentType
+      'Content-Type': contentType,
+      'Accept': 'application/json'
     }
   });
 
@@ -49,6 +50,7 @@ api.interceptors.response.use(
     } else if (error.request) {
       // The request was made but no response was received
       console.error('No response received:', error.request);
+      console.error('Request config:', error.config);
     } else {
       // Something happened in setting up the request that triggered an Error
       console.error('Request setup error:', error.message);

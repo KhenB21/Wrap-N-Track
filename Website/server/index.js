@@ -137,40 +137,43 @@ const upload = multer({
   }
 });
 
-// Error handling middleware
+// CORS configuration
+app.use(cors({
+  origin: true, // Allow all origins temporarily for debugging
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
+
+// Add a middleware to log all requests
+app.use((req, res, next) => {
+  console.log('Incoming request:', {
+    method: req.method,
+    path: req.path,
+    origin: req.headers.origin,
+    headers: req.headers
+  });
+  next();
+});
+
+// Add error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({
+      success: false,
+      message: 'CORS error: ' + err.message,
+      origin: req.headers.origin
+    });
+  }
   res.status(500).json({
     success: false,
     message: err.message || 'Internal server error'
   });
 });
 
-// CORS configuration
-// Allow specific origins or patterns
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://wrap-n-track-b6z5.vercel.app',
-  /https:\/\/.*\.vercel\.app$/,
-  /https:\/\/.*-git-main-.*\.vercel\.app$/,
-  /https:\/\/.*\.render\.com$/
-];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.some(pattern => typeof pattern === 'string' ? pattern === origin : pattern.test(origin))) {
-      callback(null, true)
-    } else {
-      console.log('CORS blocked request from origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
 app.use(express.json());
 
 // Test database connection
