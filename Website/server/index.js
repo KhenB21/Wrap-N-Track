@@ -152,6 +152,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://wrap-n-track-b6z5.vercel.app',
   /https:\/\/.*\.vercel\.app$/,
+  /https:\/\/.*-git-main-.*\.vercel\.app$/,
   /https:\/\/.*\.render\.com$/
 ];
 
@@ -162,11 +163,13 @@ app.use(cors({
     if (allowedOrigins.some(pattern => typeof pattern === 'string' ? pattern === origin : pattern.test(origin))) {
       callback(null, true)
     } else {
+      console.log('CORS blocked request from origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 
