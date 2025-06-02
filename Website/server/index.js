@@ -138,10 +138,46 @@ const upload = multer({
 });
 
 // CORS configuration
-app.use(cors({
-  origin: 'https://wrap-n-track-b6z5.vercel.app',
-  credentials: true
-}));
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://wrap-n-track-b6z5.vercel.app',
+      'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app',
+      'http://localhost:3000'
+    ];
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked request from origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
+};
+
+app.use(cors(corsOptions));
+
+// Add headers middleware
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
 
 // Add a middleware to log all requests
 app.use((req, res, next) => {
@@ -291,6 +327,38 @@ app.post('/api/fix-role-constraint', async (req, res) => {
   }
 });
 
+// Add this before the registration endpoint
+app.get('/api/test/env', async (req, res) => {
+  try {
+    // Only return non-sensitive environment information
+    const envInfo = {
+      NODE_ENV: process.env.NODE_ENV,
+      PORT: process.env.PORT,
+      DB_HOST: process.env.DB_HOST ? 'Set' : 'Not Set',
+      DB_NAME: process.env.DB_NAME ? 'Set' : 'Not Set',
+      DB_PORT: process.env.DB_PORT,
+      JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Not Set',
+      // Add CORS info
+      CORS_ORIGINS: corsOptions.origin.toString(),
+      // Add server info
+      SERVER_TIME: new Date().toISOString(),
+      SERVER_TIMEZONE: Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+    
+    res.json({
+      success: true,
+      environment: envInfo
+    });
+  } catch (error) {
+    console.error('Error checking environment:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error checking environment',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // Registration endpoint with file upload (store profile picture in DB)
 app.post('/api/auth/register', upload.single('profilePicture'), async (req, res) => {
   console.log('Registration request received:', {
@@ -412,7 +480,20 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
 // Login endpoint
 app.post('/api/auth/login', async (req, res) => {
+  console.log('Login attempt received:', {
+    body: req.body,
+    origin: req.headers.origin,
+    headers: req.headers
+  });
+
   const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Username and password are required'
+    });
+  }
 
   try {
     // Get user from database
@@ -424,6 +505,7 @@ app.post('/api/auth/login', async (req, res) => {
     const user = result.rows[0];
 
     if (!user) {
+      console.log('Login failed: User not found');
       return res.status(401).json({
         success: false,
         message: 'Invalid username or password'
@@ -434,6 +516,7 @@ app.post('/api/auth/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!validPassword) {
+      console.log('Login failed: Invalid password');
       return res.status(401).json({
         success: false,
         message: 'Invalid username or password'
@@ -450,6 +533,8 @@ app.post('/api/auth/login', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
+
+    console.log('Login successful for user:', username);
 
     // Return success response with profile picture data
     res.json({
@@ -468,7 +553,8 @@ app.post('/api/auth/login', async (req, res) => {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -813,6 +899,35 @@ app.get('/api/test', (req, res) => {
 // Create HTTP server
 const server = app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  console.log('Environment:', process.env.NODE_ENV);
+  console.log('CORS allowed origins:', corsOptions.origin);
+});
+
+// Error handling for the server
+server.on('error', (error) => {
+  console.error('Server error:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${port} is already in use`);
+    process.exit(1);
+  }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit the process in production
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process in production
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
 });
 
 // Upgrade HTTP server to WebSocket server

@@ -17,6 +17,7 @@ const createAxiosInstance = (contentType = 'application/json') => {
     (config) => {
       console.log('Making request to:', config.url);
       console.log('Request headers:', config.headers);
+      console.log('Request origin:', window.location.origin);
       
       const token = localStorage.getItem('token');
       if (token) {
@@ -67,7 +68,8 @@ api.interceptors.response.use(
       console.error('No response received:', {
         request: error.request,
         config: error.config,
-        message: error.message
+        message: error.message,
+        origin: window.location.origin
       });
     } else {
       // Something happened in setting up the request that triggered an Error
