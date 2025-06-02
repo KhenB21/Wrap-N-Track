@@ -168,6 +168,8 @@ export default function Inventory() {
       if (response.data.success) {
         fetchProducts();
         toast.success('Product deleted successfully!');
+        setShowDeleteDialog(false);
+        setSelectedProduct(null);
       }
     } catch (err) {
       console.error('Error deleting product:', err);
