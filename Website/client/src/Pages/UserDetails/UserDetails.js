@@ -98,6 +98,8 @@ export default function UserDetails() {
     }
   };
 
+  const isAdminRole = ['admin', 'director', 'business_developer', 'creatives'].includes(userData.role);
+
   if (loading) {
     return (
       <div className="dashboard-container">
@@ -185,8 +187,8 @@ export default function UserDetails() {
               </div>
               <div className="user-detail-item">
                 <label>Status:</label>
-                <span className={userData.role === 'admin' ? 'status-admin' : 'status-employee'}>
-                  {userData.role === 'admin' ? 'Administrator' : 'Employee'}
+                <span className={isAdminRole ? 'status-admin' : 'status-employee'}>
+                  {isAdminRole ? 'Admin' : 'Employee'}
                 </span>
               </div>
               <div className="user-detail-item">

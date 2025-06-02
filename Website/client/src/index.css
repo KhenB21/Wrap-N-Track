@@ -11,3 +11,50 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Global styles */
+
+/* Add dark mode global styles */
+body.dark {
+  background-color: #121212; /* A common dark background */
+  color: #e0e0e0; /* Light grey text for contrast */
+}
+
+body.dark a {
+  color: #bb86fc; /* A light purple for links */
+}
+
+body.dark button {
+  /* Default button styles in dark mode */
+  background-color: #333333;
+  color: #e0e0e0;
+  border: 1px solid #555555;
+}
+
+body.dark button:hover {
+  background-color: #444444;
+  border-color: #666666;
+}
+
+body.dark input[type="text"],
+body.dark input[type="email"],
+body.dark input[type="password"],
+body.dark input[type="number"],
+body.dark select,
+body.dark textarea {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border: 1px solid #555555;
+}
+
+body.dark input[type="text"]:focus,
+body.dark input[type="email"]:focus,
+body.dark input[type="password"]:focus,
+body.dark input[type="number"]:focus,
+body.dark select:focus,
+body.dark textarea:focus {
+  border-color: #bb86fc;
+  box-shadow: 0 0 0 0.2rem rgba(187, 134, 252, 0.25);
+}
+
+/* Add more global dark mode styles as needed for common elements */

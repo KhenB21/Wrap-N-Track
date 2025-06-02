@@ -11,6 +11,15 @@ function generateOrderId() {
   return `#CO${now}${rand}`;
 }
 
+  // List of default product names
+  export const defaultProductNames = [
+    'Signature box',
+    'Envelope',
+    'Wellsmith sprinkle',
+    'Palapa seasoning',
+    'Wine'
+  ];
+
 export default function CarloPreview() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({
@@ -33,10 +42,18 @@ export default function CarloPreview() {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
-  const handleSubmit = async (e) => {
+  
+const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Submit button clicked");
     setError("");
+
+    // Log form data
+    console.log("Form data:", form);
+
+    // Validate order quantity
     const orderQty = Number(form.orderQuantity);
+    console.log("Order Quantity:", orderQty);
     if (!orderQty || orderQty < 1) {
       setError("Order Quantity must be a positive number.");
       return;
@@ -51,31 +68,36 @@ export default function CarloPreview() {
     ];
     // Find SKUs for these products in inventory
     const missingProducts = [];
-    const products = defaultProductNames.map(name => {
-      const item = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
-      if (!item) {
-        missingProducts.push(name);
-        return null;
-      }
-      return {
-        sku: item.sku,
-        quantity: orderQty
-      };
-    }).filter(Boolean);
+
+    const products = defaultProductNames
+      .map((name) => {
+        const item = inventory.find(
+          (i) => i.name.toLowerCase() === name.toLowerCase()
+        );
+        if (!item) {
+          missingProducts.push(name);
+          return null;
+        }
+        return {
+          sku: item.sku,
+          quantity: orderQty,
+        };
+      })
+      .filter(Boolean);
+
     if (missingProducts.length > 0) {
-      setError(`The following products are missing from inventory: ${missingProducts.join(', ')}`);
-      return;
+      console.warn("The following products are missing from inventory and were not included in the order:", missingProducts.join(", "));
+
     }
     if (products.length === 0) {
       setError('No valid products found for this order.');
       return;
     }
-    try {
-      const order_id = generateOrderId();
-      const order = {
-        order_id,
+
+    const order = {
+        order_id: generateOrderId(),
         name: form.name,
-        shipped_to: form.name, // Assuming recipient is the same as name
+        shipped_to: form.name,
         order_date: new Date().toISOString().slice(0, 10),
         expected_delivery: form.eventDate,
         status: 'Pending',
@@ -88,15 +110,49 @@ export default function CarloPreview() {
         telephone: '',
         cellphone: form.contact,
         email_address: form.email,
-        products
-      };
-      await api.post('/api/orders', order);
+
+        products,
+    };
+
+    try {
+      await api.post("/api/orders", order);
+
       setModalOpen(false);
       window.location.href = '/orders';
     } catch (err) {
       setError('Failed to submit order. Please try again.');
     }
   };
+
+
+  useEffect(() => {
+    // Load the chatbot script
+    const scriptId = "zapier-chatbot-script";
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement("script");
+      script.id = scriptId;
+      script.src =
+        "https://interfaces.zapier.com/assets/web-components/zapier-interfaces/zapier-interfaces.esm.js";
+      script.type = "module";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
+    // Wait until script is loaded, then add chatbot element
+    const chatbotId = "cmb4k6r9900ek14o7r1yropa0";
+    const existingBot = document.querySelector(
+      "zapier-interfaces-chatbot-embed"
+    );
+
+    if (!existingBot) {
+      const bot = document.createElement("zapier-interfaces-chatbot-embed");
+      bot.setAttribute("is-popup", "true");
+      bot.setAttribute("chatbot-id", chatbotId);
+      document.body.appendChild(bot);
+    }
+  }, []);
+
+
   return (
     <div className="carlo-preview-container">
       <TopbarCustomer />
@@ -143,6 +199,9 @@ export default function CarloPreview() {
                   <label>Shipping Location*
                     <input name="shippingLocation" value={form.shippingLocation} onChange={handleChange} required />
                   </label>
+                  <label>Package Name*
+                    <input name="packageName" value={form.packageName} required readOnly/>
+                  </label>
                   <div className="order-form-actions">
                     <button type="submit">Submit</button>
                     <button type="button" onClick={() => setModalOpen(false)}>Cancel</button>
@@ -165,4 +224,7 @@ export default function CarloPreview() {
       )}
     </div>
   );
-} 
+
+}
+
+

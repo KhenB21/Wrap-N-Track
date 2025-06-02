@@ -228,3 +228,125 @@
     gap: 12px;
   }
 }
+
+/* Dark mode styles for Dashboard */
+body.dark .dashboard-main {
+  background-color: #1a1a1a; /* Dark background */
+  color: #e0e0e0; /* Light text */
+}
+
+body.dark .dashboard-section h3,
+body.dark .dashboard-lower h4 {
+  color: #e0e0e0;
+}
+
+body.dark .dashboard-month {
+  color: #b0b0b0; /* Slightly lighter color for sub-text */
+}
+
+body.dark .dashboard-card {
+  background-color: #2c2c2c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: #e0e0e0; /* Ensure card text is light */
+}
+
+body.dark .card-title {
+  color: #b0b0b0; /* Slightly lighter color for title */
+}
+
+body.dark .card-value {
+  color: #e0e0e0;
+}
+
+body.dark .card-red {
+  border-left-color: #cf6679; /* Adjusted for dark mode */
+}
+
+body.dark .card-red .card-value {
+  color: #cf6679; /* Adjusted for dark mode */
+}
+
+body.dark .card-orange {
+  border-left-color: #ffb74d; /* Adjusted for dark mode */
+}
+
+body.dark .card-orange .card-value {
+  color: #ffb74d; /* Adjusted for dark mode */
+}
+
+body.dark .card-green {
+  border-left-color: #81c784; /* Adjusted for dark mode */
+}
+
+body.dark .card-green .card-value {
+  color: #81c784; /* Adjusted for dark mode */
+}
+
+body.dark .card-blue {
+  border-left-color: #64b5f6; /* Adjusted for dark mode */
+}
+
+body.dark .card-blue .card-value {
+  color: #64b5f6; /* Adjusted for dark mode */
+}
+
+body.dark .card-low {
+  color: #cf6679; /* Adjusted low stock color for dark mode */
+}
+
+body.dark .dashboard-activity,
+body.dark .dashboard-top-selling,
+body.dark .dashboard-recent-activity {
+    background-color: #2c2c2c; /* Dark background for lower panels */
+    color: #e0e0e0; /* Light text for lower panels */
+}
+
+body.dark .activity-list .activity-card {
+    /* Background colors are already defined for dark mode */
+    color: #e0e0e0; /* Ensure text is light */
+}
+
+body.dark .activity-card div:first-child {
+    color: #e0e0e0; /* Ensure text is light */
+}
+
+body.dark .top-selling-list li {
+    color: #e0e0e0; /* Light text for list items */
+    border-bottom: 1px solid #3a3a3a; /* Subtle separator */
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+}
+
+body.dark .top-selling-list li:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+body.dark .product-bar {
+    background: #555; /* Darker background for bars */
+}
+
+body.dark .units {
+    color: #b0b0b0; /* Slightly lighter color for units */
+}
+
+body.dark .recent-activity-item {
+    color: #e0e0e0; /* Light text for activity items */
+}
+
+body.dark .recent-activity-item div {
+    color: #e0e0e0; /* Ensure text is light */
+}
+
+body.dark .recent-activity-item b {
+     color: #e0e0e0; /* Ensure bold text is light */
+}
+
+body.dark .activity-link {
+    color: #64b5f6; /* Adjusted link color for dark mode */
+}
+
+body.dark .activity-time {
+    color: #b0b0b0; /* Slightly lighter color for time */
+}

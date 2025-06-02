@@ -1,0 +1,13 @@
+/* Reports styles */
+
+/* Dark mode styles for Reports */
+body.dark .reports-container {
+  background-color: #1a1a1a; /* Dark background */
+  color: #e0e0e0; /* Light text */
+}
+
+body.dark .reports-header h2 {
+  color: #e0e0e0;
+}
+
+/* Add dark mode styles for specific report elements as needed */ 

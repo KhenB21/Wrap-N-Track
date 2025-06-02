@@ -831,4 +831,434 @@ body, .customerpov-container, .carlo-preview-container {
   .order-modal-form-col {
     padding: 0;
   }
+}
+
+/* --- Pensée Home Styles --- */
+.pensee-home {
+  background: #f7f5fa;
+  font-family: 'Cormorant Garamond', serif;
+  color: #3a3550;
+}
+
+
+.pensee-hero {
+  background: linear-gradient(120deg, #e9e4f0 0%, #f7f5fa 100%);
+  padding: 64px 0 48px 0;
+  text-align: center;
+}
+.pensee-hero-title {
+  font-size: 3rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  color: rgba(163,163,188,255);
+  margin-bottom: 16px;
+  letter-spacing: 0.04em;
+}
+.pensee-hero-subtitle {
+  font-size: 1.3rem;
+  color: #5a5470;
+  margin-bottom: 32px;
+}
+.pensee-cta-btn {
+  background: linear-gradient(90deg, #6c63ff 0%, #b993d6 100%);
+  color: #fff;
+  border: none;
+  border-radius: 32px;
+  padding: 14px 38px;
+  font-size: 1.1rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(108,99,255,0.08);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.pensee-cta-btn:hover {
+  background: linear-gradient(90deg, #b993d6 0%, #6c63ff 100%);
+  box-shadow: 0 4px 24px rgba(108,99,255,0.15);
+}
+.pensee-cta-secondary {
+  background: #fff;
+  color: #6c63ff;
+  border: 2px solid #b993d6;
+  margin-top: 18px;
+}
+.pensee-cta-secondary:hover {
+  background: #f7f5fa;
+  color: #b993d6;
+}
+
+.pensee-section-title {
+  font-size: 2.2rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  color: #6c63ff;
+  text-align: center;
+  margin-bottom: 32px;
+  letter-spacing: 0.03em;
+}
+.pensee-section-title span {
+  color: #b993d6;
+}
+
+.pensee-why {
+  padding: 56px 0 32px 0;
+  background: #f7f5fa;
+}
+.pensee-why-cards {
+  display: flex;
+  gap: 32px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.pensee-why-card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 2px 16px rgba(108,99,255,0.07);
+  padding: 32px 28px;
+  max-width: 340px;
+  min-width: 260px;
+  flex: 1 1 260px;
+  text-align: center;
+  margin-bottom: 18px;
+  border: 1.5px solid #ece9f6;
+}
+.pensee-why-card h3 {
+  color: #6c63ff;
+  font-size: 1.3rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.pensee-why-card p {
+  color: #5a5470;
+  font-size: 1rem;
+  font-family: 'Lora', serif;
+}
+
+.pensee-how-it-works {
+  background: #fff;
+  padding: 56px 0 40px 0;
+  text-align: center;
+}
+.pensee-steps {
+  display: flex;
+  justify-content: center;
+  gap: 36px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.pensee-step {
+  background: #f7f5fa;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(185,147,214,0.07);
+  padding: 28px 24px;
+  min-width: 180px;
+  max-width: 220px;
+  flex: 1 1 180px;
+  margin-bottom: 12px;
+}
+.pensee-step-number {
+  background: #b993d6;
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 700;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px auto;
+}
+.pensee-step-title {
+  color: #6c63ff;
+  font-size: 1.1rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+}
+
+.pensee-testimonials {
+  background: #f7f5fa;
+  padding: 56px 0 40px 0;
+}
+.pensee-testimonial-cards {
+  display: flex;
+  gap: 32px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.pensee-testimonial-card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 2px 16px rgba(108,99,255,0.07);
+  padding: 32px 28px;
+  max-width: 340px;
+  min-width: 260px;
+  flex: 1 1 260px;
+  text-align: center;
+  margin-bottom: 18px;
+  border: 1.5px solid #ece9f6;
+}
+.pensee-testimonial-card h4 {
+  color: #b993d6;
+  font-size: 1.1rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.pensee-testimonial-card p {
+  color: #5a5470;
+  font-size: 1rem;
+  font-family: 'Lora', serif;
+}
+
+.pensee-faq-contact {
+  background: #fff;
+  padding: 56px 0 40px 0;
+  text-align: center;
+}
+.pensee-faq-list {
+  max-width: 700px;
+  margin: 0 auto 32px auto;
+  text-align: left;
+  color: #5a5470;
+  font-size: 1rem;
+  font-family: 'Lora', serif;
+  line-height: 1.7;
+}
+.pensee-faq-list li {
+  margin-bottom: 16px;
+}
+.pensee-contact-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Responsive Styles */
+@media (max-width: 900px) {
+  .pensee-why-cards, .pensee-testimonial-cards, .pensee-steps {
+    flex-direction: column;
+    gap: 18px;
+    align-items: center;
+  }
+  .pensee-why-card, .pensee-testimonial-card, .pensee-step {
+    max-width: 95vw;
+    min-width: 0;
+    width: 100%;
+  }
+  .pensee-section-title {
+    font-size: 1.5rem;
+  }
+  .pensee-hero-title {
+    font-size: 2rem;
+  }
+}
+
+/* --- Pensée Hero Image Section --- */
+.pensee-hero-image-section {
+  position: relative;
+  width: 100vw;
+  min-height: 480px;
+  height: 60vh;
+  max-height: 600px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f7f5fa;
+}
+.pensee-hero-bg {
+  width: 100vw;
+  height: 100%;
+  object-fit: cover;
+  min-height: 480px;
+  max-height: 600px;
+  filter: brightness(0.92) saturate(1.05);
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1;
+}
+.pensee-hero-overlay {
+  position: relative;
+  z-index: 2;
+  background: #f8f6eecc;
+  border-radius: 8px;
+  box-shadow: 0 4px 32px rgba(44,62,80,0.10);
+  padding: 48px 64px 40px 64px;
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .pensee-hero-image-section {
+    min-height: 320px;
+    height: 38vh;
+    max-height: 340px;
+  }
+  .pensee-hero-bg {
+    min-height: 320px;
+    max-height: 340px;
+  }
+  .pensee-hero-overlay {
+    padding: 24px 10vw 20px 10vw;
+    max-width: 98vw;
+  }
+}
+
+/* --- Alternating Highlight Sections --- */
+.pensee-highlight-section {
+  background: #fcfbf6;
+  padding: 64px 0 32px 0;
+}
+.pensee-highlight-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  max-width: 1200px;
+  margin: 0 auto 56px auto;
+  padding: 0 32px;
+}
+.pensee-highlight-row.reverse {
+  flex-direction: row-reverse;
+}
+.pensee-highlight-text {
+  flex: 1.2;
+  min-width: 260px;
+  max-width: 520px;
+  color: #3a3550;
+  font-family: 'Cormorant Garamond', serif;
+}
+.pensee-highlight-text h2 {
+  font-size: 2rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+  color: #6c63ff;
+  margin-bottom: 18px;
+  letter-spacing: 0.02em;
+}
+.pensee-highlight-text h2 em {
+  font-style: italic;
+  color: #b993d6;
+  font-weight: 400;
+}
+.pensee-highlight-text p {
+  font-size: 1.1rem;
+  color: #5a5470;
+  font-family: 'Lora', serif;
+  margin-bottom: 18px;
+}
+.pensee-highlight-link {
+  color: #6c63ff;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  transition: color 0.2s;
+}
+.pensee-highlight-link:hover {
+  color: #b993d6;
+  text-decoration: underline;
+}
+.pensee-highlight-image {
+  flex: 1;
+  min-width: 220px;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pensee-highlight-image img {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 16px;
+  box-shadow: 0 2px 16px rgba(108,99,255,0.07);
+  object-fit: cover;
+}
+@media (max-width: 900px) {
+  .pensee-highlight-row, .pensee-highlight-row.reverse {
+    flex-direction: column !important;
+    gap: 18px;
+    margin-bottom: 36px;
+    padding: 0 4vw;
+  }
+  .pensee-highlight-text, .pensee-highlight-image {
+    max-width: 98vw;
+    min-width: 0;
+    width: 100%;
+    text-align: center;
+  }
+  .pensee-highlight-image img {
+    max-width: 98vw;
+  }
+}
+
+/* --- Steps Section --- */
+.pensee-steps-bg {
+  background: #b993d6;
+  color: #fff;
+}
+.pensee-steps {
+  display: flex;
+  justify-content: center;
+  gap: 36px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.pensee-step {
+  background: transparent;
+  border-radius: 16px;
+  box-shadow: none;
+  padding: 48px 24px 28px 24px;
+  min-width: 180px;
+  max-width: 320px;
+  flex: 1 1 180px;
+  margin-bottom: 12px;
+  position: relative;
+  text-align: center;
+  overflow: visible;
+}
+.pensee-step-bgnum {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 5rem;
+  color: #fff;
+  opacity: 0.13;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+.pensee-step-title {
+  position: relative;
+  z-index: 2;
+  color: #fff;
+  font-size: 1.3rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+  margin-top: 48px;
+}
+@media (max-width: 900px) {
+  .pensee-steps {
+    flex-direction: column;
+    gap: 18px;
+    align-items: center;
+  }
+  .pensee-step {
+    max-width: 95vw;
+    min-width: 0;
+    width: 100%;
+    padding: 36px 8vw 18px 8vw;
+  }
+  .pensee-step-title {
+    margin-top: 36px;
+  }
 } 

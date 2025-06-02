@@ -40,7 +40,7 @@ const Sidebar = () => {
     return user ? user.role : null;
   };
 
-  const isAdmin = getUserRole() === 'admin';
+  const isAdmin = ['admin', 'director', 'business_developer', 'creatives'].includes(getUserRole());
 
   return (
     <div className="sidebar">
@@ -122,6 +122,12 @@ const Sidebar = () => {
               </Link>
             </li>
           )}
+           <li>
+            <Link to="/customer-home">
+              <span className="icon">💍</span>
+              <span className="text">Go to website</span>
+            </Link>
+          </li>
         </ul>
       </nav>
 

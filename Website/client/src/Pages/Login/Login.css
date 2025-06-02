@@ -1,10 +1,10 @@
 /* Font Faces */
-@font-face {
+/* @font-face {
   font-family: "Cinzel";
   src: url("../../../public/Assets/Fonts/Cinzel-Regular.ttf") format("truetype");
   font-weight: normal;
   font-style: normal;
-}
+} */
 
 @font-face {
   font-family: "Cinzel";
@@ -19,6 +19,68 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+.password-container {
+  position: relative;
+}
+
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-input-wrapper input {
+  padding-right: 40px;
+  width: 100%;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 25%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #21258f;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+}
+
+.password-toggle {
+  transition: none !important;
+  animation: none !important;
+}
+
+.password-input-wrapper input {
+  transition: none !important;
+}
+
+
+.password-toggle:hover {
+  color: #5a5b7f;
+}
+
+.password-toggle:disabled {
+  color: #ccc;
+  cursor: not-allowed;
+}
+
+.eye-icon {
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+}
+
+.input-container {
+  margin-bottom: 1.5rem;
+  width: 100%;
+  position: relative;
 }
 
 .login-container {
@@ -250,6 +312,27 @@
   color: #666;
 }
 
+.alert-message {
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 5px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.alert-message.warning {
+  background-color: #fff4e5;
+  color: #9f6000;
+  border: 1px solid #ffd59e;
+}
+
+.alert-message.lockout {
+  background-color: #fdecea;
+  color: #d8000c;
+  border: 1px solid #f5c6cb;
+}
+
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -278,4 +361,16 @@
   100% {
     transform: scale(1);
   }
+}
+
+/* Remove or override any capitalization for username input */
+#username {
+  font-family: 'Inter', Arial, Helvetica, sans-serif !important;
+  text-transform: none !important;
+  font-variant: normal !important;
+  letter-spacing: normal !important;
+}
+
+.input-container label[for="username"] {
+  text-transform: none !important;
 }

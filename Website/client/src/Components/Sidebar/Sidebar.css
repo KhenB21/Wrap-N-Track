@@ -130,3 +130,66 @@ body {
     padding-left: 20px;
   }
 }
+
+/* Dark mode styles for Sidebar */
+body.dark .sidebar {
+  background-color: #1e1e1e; /* Darker background for sidebar */
+  border-right: 1px solid #333333;
+}
+
+body.dark .sidebar-header h1 {
+  color: #e0e0e0;
+}
+
+body.dark .sidebar-menu a {
+  color: #cccccc;
+}
+
+body.dark .sidebar-menu a:hover {
+  background-color: #333333;
+  color: #ffffff;
+}
+
+body.dark .sidebar-menu a.active {
+  background-color: #0056b3; /* A dark mode friendly accent color */
+  color: #ffffff;
+}
+
+body.dark .sidebar-menu a.active .sidebar-icon {
+  color: #ffffff; /* Ensure icons are visible */
+}
+
+body.dark .sidebar-menu a .sidebar-icon {
+    color: #999999; /* Default icon color */
+}
+
+body.dark .sidebar-menu a:hover .sidebar-icon {
+    color: #ffffff;
+}
+
+body.dark .sidebar-footer {
+  border-top: 1px solid #333333;
+}
+
+body.dark .sidebar-footer .log-out {
+  color: #e74c3c; /* Keep logout button color for clarity */
+}
+
+body.dark .sidebar-footer .log-out:hover {
+  background-color: #444444;
+}
+
+/* Adjust report submenu for dark mode */
+body.dark .sidebar-menu .submenu {
+    background-color: #2c2c2c;
+    border-top: 1px solid #444444;
+}
+
+body.dark .sidebar-menu .submenu a {
+    color: #cccccc;
+}
+
+body.dark .sidebar-menu .submenu a:hover {
+    background-color: #404040;
+    color: #ffffff;
+}

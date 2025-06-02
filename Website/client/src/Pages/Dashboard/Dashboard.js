@@ -12,6 +12,23 @@ function Dashboard() {
   const [orderHistory, setOrderHistory] = useState([]);
   const [user, setUser] = useState(null);
 
+  // Add navigation handlers
+  const handleTotalProductsClick = () => {
+    navigate('/inventory');
+  };
+
+  const handleTotalUnitsClick = () => {
+    navigate('/inventory');
+  };
+
+  const handleLowStockClick = () => {
+    navigate('/inventory', { state: { filter: 'low-stock' } });
+  };
+
+  const handleReplenishmentClick = () => {
+    navigate('/inventory', { state: { filter: 'replenishment' } });
+  };
+
   useEffect(() => {
     // Check if user is authenticated
     const token = localStorage.getItem("token");
@@ -75,25 +92,25 @@ function Dashboard() {
         <div className="dashboard-section">
           <h3>Inventory Overview</h3>
           <div className="dashboard-cards-row">
-            <div className="dashboard-card card-red">
+            <div className="dashboard-card card-red" onClick={handleTotalProductsClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Total Products</div>
               <div className="card-value">
                 {loading ? "..." : totalProducts}
               </div>
             </div>
-            <div className="dashboard-card card-orange">
+            <div className="dashboard-card card-orange" onClick={handleTotalUnitsClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Total Product Units</div>
               <div className="card-value">
                 {loading ? "..." : totalProductUnits.toLocaleString()}
               </div>
             </div>
-            <div className="dashboard-card card-green">
+            <div className="dashboard-card card-green" onClick={handleLowStockClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Low in Stock</div>
               <div className="card-value card-low">
                 {loading ? "..." : lowStockProducts}
               </div>
             </div>
-            <div className="dashboard-card card-blue">
+            <div className="dashboard-card card-blue" onClick={handleReplenishmentClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Replenishment Pending</div>
               <div className="card-value">~~</div>
             </div>

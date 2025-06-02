@@ -1,38 +1,28 @@
 const { Pool } = require('pg');
 const WebSocket = require('ws');
-require('dotenv').config();
+require('dotenv').config({ path: __dirname + '/.env' });
 
-// Debug: Log the database URL (with password masked)
-const dbUrl = process.env.DATABASE_URL;
-console.log('Database URL:', dbUrl ? 'Present' : 'Missing');
-console.log('Database Host:', process.env.DB_HOST || 'Not set');
+// Debug: Log the database connection details (with password masked)
+const dbUser = process.env.DB_USER;
+const dbHost = process.env.DB_HOST || 'localhost'; // Default to localhost
+const dbName = process.env.DB_NAME;
+const dbPort = process.env.DB_PORT;
+console.log('Database User:', dbUser || 'Not set (will use PG defaults)');
+console.log('Database Host:', dbHost);
+console.log('Database Name:', dbName || 'Not set (will use PG defaults)');
+console.log('Database Port:', dbPort || 'Not set (will use 5432)');
 
-// Parse and log connection details (safely)
-if (dbUrl) {
-  try {
-    const url = new URL(dbUrl);
-    console.log('Connection details:', {
-      protocol: url.protocol,
-      hostname: url.hostname,
-      port: url.port,
-      database: url.pathname.split('/')[1],
-      user: url.username
-    });
-  } catch (err) {
-    console.error('Error parsing DATABASE_URL:', err.message);
-  }
-}
-
-if (!dbUrl) {
-  console.error('DATABASE_URL environment variable is not set!');
-  process.exit(1);
+// Note: Connection might fail if DB_USER, DB_NAME, or DB_PASSWORD are not set depending on PG configuration
+if (!dbUser || !dbName || !process.env.DB_PASSWORD) {
+  console.warn('Database connection environment variables (DB_USER, DB_NAME, DB_PASSWORD) are not fully set. Connection might fail depending on PostgreSQL configuration.');
 }
 
 const pool = new Pool({
-  connectionString: dbUrl,
-  ssl: {
-    rejectUnauthorized: false // Required for Render's PostgreSQL
-  }
+  user: dbUser,
+  host: dbHost,
+  database: dbName,
+  password: process.env.DB_PASSWORD,
+  port: dbPort ? parseInt(dbPort) : 5432, // Default to 5432 if not set
 });
 
 // Test the connection immediately
@@ -107,6 +97,14 @@ const notifyChange = async (channel, payload) => {
 
 // Initialize database listeners
 setupDatabaseListeners();
+
+const generateUniqueSku = () => {
+  let digits = '';
+  for (let i = 0; i < 12; i++) {
+    digits += Math.floor(Math.random() * 10); // Generate a random digit (0-9)
+  }
+  return `BC${digits}`;
+};
 
 module.exports = {
   pool,
