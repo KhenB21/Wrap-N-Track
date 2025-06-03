@@ -3,7 +3,6 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
-const { v4: uuidv4 } = require('uuid');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const { pool, wss, notifyChange } = require('./db');
@@ -938,107 +937,6 @@ app.get('/api/orders', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-app.post('/api/orders', async (req, res) => {
-  try {
-    console.log("Received order data:", req.body);
-
-    const {
-      name,
-      shipped_to,
-      order_date,
-      expected_delivery,
-      status,
-      shipping_address,
-      total_cost,
-      payment_type,
-      payment_method,
-      account_name,
-      remarks,
-      telephone,
-      cellphone,
-      email_address,
-      products
-    } = req.body;
-
-    // Generate a unique order ID
-    const order_id = uuidv4();
-
-    // Optional: basic validation
-    if (!name || !order_date || !expected_delivery) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    // Insert order
-    await pool.query(`
-      INSERT INTO orders (
-        order_id, name, shipped_to, order_date, expected_delivery, status, 
-        shipping_address, total_cost, payment_type, payment_method, 
-        account_name, remarks, telephone, cellphone, email_address
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-    `, [
-      order_id, name, shipped_to, order_date, expected_delivery, status,
-      shipping_address, total_cost, payment_type, payment_method,
-      account_name, remarks, telephone, cellphone, email_address
-    ]);
-
-    // Insert products with SKU lookup
-    if (Array.isArray(products) && products.length > 0) {
-      for (const product of products) {
-        const { name, quantity = 1 } = product;
-
-        const skuResult = await pool.query(
-          'SELECT sku FROM inventory_items WHERE name = $1 LIMIT 1',
-          [name]
-        );
-
-        if (skuResult.rows.length > 0) {
-          const sku = skuResult.rows[0].sku;
-
-          await pool.query(
-            `INSERT INTO order_products (order_id, sku, quantity) VALUES ($1, $2, $3)`,
-            [order_id, sku, quantity]
-          );
-        } else {
-          console.warn(`⚠️ Skipping product with unknown name: ${name}`);
-          // Optionally insert to a fallback table or log externally
-        }
-      }
-    }
-
-    res.status(201).json({ message: 'Order created successfully', order_id });
-  } catch (err) {
-    console.error('❌ Error creating order:', err);
-    res.status(500).json({ message: 'Failed to create order' });
-  }
-});
-
-//confirm order to be pack
-app.put('/api/orders/:order_id', async (req, res) => {
-  const { order_id } = req.params;
-  const { status } = req.body;
-
-  try {
-    if (!status) {
-      return res.status(400).json({ message: 'Missing status in request body' });
-    }
-
-    const result = await pool.query(
-      'UPDATE orders SET status = $1 WHERE order_id = $2 RETURNING *',
-      [status, order_id]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ message: 'Order not found' });
-    }
-
-    res.status(200).json({ message: 'Order status updated successfully', order: result.rows[0] });
-  } catch (err) {
-    console.error('❌ Error updating order status:', err);
-    res.status(500).json({ message: 'Failed to update order status' });
-  }
-});
-
 
 // Get all archived orders
 app.get('/api/orders/history', async (req, res) => {

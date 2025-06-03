@@ -9,7 +9,7 @@ import config from "../../config";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-function Inventory() {
+export default function Inventory() {
   const location = useLocation();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -249,8 +249,7 @@ function Inventory() {
           )}
         </div>
       </div>
-      {/* <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop /> */}   </div>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
+    </div>
   );
 }
-
-export default Inventory;
