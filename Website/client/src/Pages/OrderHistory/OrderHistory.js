@@ -43,7 +43,7 @@ export default function OrderHistory() {
         return;
       }
 
-      const response = await fetch('http://localhost:3001/api/orders', {
+      const response = await api.get('/api/orders', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

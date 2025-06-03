@@ -4,7 +4,7 @@ import TopBar from "../../Components/TopBar";
 import axios from "axios";
 import "./CustomerDetails.css";
 
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 const tabs = ["Overview", "Order History", "Ongoing orders"];
 

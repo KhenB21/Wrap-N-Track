@@ -156,7 +156,7 @@ function getProfilePictureUrl() {
   }
   if (user.profile_picture_path) {
     if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
-    return `http://localhost:3001${user.profile_picture_path}`;
+    return `${process.env.REACT_APP_API_URL || ''}${user.profile_picture_path}`;
   }
   return "/placeholder-profile.png";
 }
@@ -204,7 +204,7 @@ export default function OrderDetails() {
   const handleDeleteOrder = async () => {
     if (!selectedOrder) return;
     try {
-      const response = await axios.delete(`http://localhost:3001/api/orders/${selectedOrder.order_id}`);
+      const response = await api.delete(`/api/orders/${selectedOrder.order_id}`);
       if (response.data.success) {
         setShowDeleteConfirm(false);
         setSelectedOrderId(null); // Close the order details modal
@@ -235,7 +235,7 @@ export default function OrderDetails() {
 
   const fetchOrders = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/orders');
+      const response = await api.get('/api/orders');
       setOrders(response.data);
       console.log('Orders fetched successfully:', response.data);
     } catch (error) {
@@ -245,7 +245,7 @@ export default function OrderDetails() {
 
   const fetchOrderProducts = async (orderId) => {
     try {
-      const response = await axios.get(`http://localhost:3001/api/orders/${orderId}/products`);
+      const response = await api.get(`/api/orders/${orderId}/products`);
       setOrderProducts(response.data);
       console.log('Order products fetched successfully:', response.data);
     } catch (error) {
@@ -342,7 +342,7 @@ useEffect(() => {
       return;
     }
     try {
-      await axios.post(`http://localhost:3001/api/orders/${selectedOrderId}/products`, { products });
+      await api.post(`/api/orders/${selectedOrderId}/products`, { products });
       setShowProductModal(false);
       setProductSelection({});
       fetchOrderProducts(selectedOrderId);
@@ -356,7 +356,7 @@ useEffect(() => {
     setProductError("");
     setProductSelection({});
     try {
-      const res = await axios.get('http://localhost:3001/api/inventory');
+      const res = await api.get('/api/inventory');
       setInventory(res.data);
       setShowProductModal(true);
     } catch (err) {
@@ -386,7 +386,7 @@ useEffect(() => {
     setProfitMargins({});
     setProductError("");
     try {
-      const res = await axios.get('http://localhost:3001/api/inventory');
+      const res = await api.get('/api/inventory');
       setInventory(res.data);
       setShowModal(true);
     } catch (err) {
@@ -487,7 +487,7 @@ useEffect(() => {
           console.log("Adjusting inventory for new non-pending order");
           for (const product of selectedProducts) {
             try {
-              const adjustResponse = await axios.put(`http://localhost:3001/api/inventory/${product.sku}/adjust`, {
+              const adjustResponse = await api.put(`/api/inventory/${product.sku}/adjust`, {
                 quantity: product.quantity,
                 operation: 'subtract'
               }, {
@@ -651,7 +651,7 @@ useEffect(() => {
           // Return quantities to inventory for cancelled orders
           for (const product of selectedProducts) {
             try {
-              const adjustResponse = await axios.put(`http://localhost:3001/api/inventory/${product.sku}/adjust`, {
+              const adjustResponse = await api.put(`/api/inventory/${product.sku}/adjust`, {
                 quantity: product.quantity,
                 operation: 'add'
               }, {
@@ -670,7 +670,7 @@ useEffect(() => {
             // Deduct quantities from inventory for new non-pending orders
             for (const product of selectedProducts) {
               try {
-                const adjustResponse = await axios.put(`http://localhost:3001/api/inventory/${product.sku}/adjust`, {
+                const adjustResponse = await api.put(`/api/inventory/${product.sku}/adjust`, {
                   quantity: product.quantity,
                   operation: 'subtract'
                 }, {
@@ -788,7 +788,7 @@ useEffect(() => {
 
       // Deduct quantities from inventory
       for (const product of orderProducts) {
-        await axios.put(`http://localhost:3001/api/inventory/${product.sku}/adjust`, {
+        await api.put(`/api/inventory/${product.sku}/adjust`, {
           quantity: product.quantity,
           operation: 'subtract'
         }, {
@@ -843,7 +843,7 @@ useEffect(() => {
         .filter(([sku, qty]) => Number(qty) > 0)
         .map(([sku, quantity]) => ({ sku, quantity: Number(quantity) }));
       
-      await axios.put(`http://localhost:3001/api/orders/${selectedOrderId}/products`, { products });
+      await api.put(`/api/orders/${selectedOrderId}/products`, { products });
       setShowEditProductsModal(false);
       fetchOrderProducts(selectedOrderId);
     } catch (err) {
@@ -855,7 +855,7 @@ useEffect(() => {
   const handleRemoveProduct = async (sku) => {
     if (!selectedOrder) return;
     try {
-      await axios.delete(`http://localhost:3001/api/orders/${selectedOrderId}/products/${sku}`);
+      await api.delete(`/api/orders/${selectedOrderId}/products/${sku}`);
       fetchOrderProducts(selectedOrderId);
     } catch (err) {
       alert('Failed to remove product');
