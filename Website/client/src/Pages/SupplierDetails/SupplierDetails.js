@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
-import axios from "axios";
+import api from '../../api/axios';
 import "./SupplierDetails.css";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+
 
 const tabs = ["Overview", "Order History", "Ongoing orders"];
 
@@ -83,7 +83,7 @@ export default function SupplierDetails() {
     }
     console.log('Fetching products for supplier:', selectedSupplier.name);
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/suppliers/${supplierId}/products`);
+      const response = await api.get(`/api/suppliers/${supplierId}/products`);
       console.log('Fetched products:', response.data);
       setSupplierProducts(response.data);
     } catch (error) {
@@ -127,7 +127,7 @@ export default function SupplierDetails() {
       }
       
       console.log('Fetching customers with token:', token);
-      const response = await axios.get(`${API_BASE_URL}/api/suppliers`, {
+      const response = await api.get('/api/suppliers', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -155,11 +155,11 @@ export default function SupplierDetails() {
     console.log('Fetching orders for supplier:', selectedSupplier.name);
     try {
       // Fetch ongoing orders from supplier_orders table
-      const ongoingResponse = await axios.get(`${API_BASE_URL}/api/supplier-orders/supplier/${selectedSupplier.supplier_id}`);
+      const ongoingResponse = await api.get(`${API_BASE_URL}/api/supplier-orders/supplier/${selectedSupplier.supplier_id}`);
       console.log('Ongoing orders response:', ongoingResponse.data);
 
       // Fetch completed orders from supplier_order_history table
-      const completedResponse = await axios.get(`${API_BASE_URL}/api/supplier-orders/history/supplier/${selectedSupplier.supplier_id}`);
+      const completedResponse = await api.get(`${API_BASE_URL}/api/supplier-orders/history/supplier/${selectedSupplier.supplier_id}`);
       console.log('Completed orders response:', completedResponse.data);
 
       // Set the orders in state
@@ -329,7 +329,7 @@ export default function SupplierDetails() {
 
       let response;
       if (isAddingOrder) {
-        response = await axios.post(`${API_BASE_URL}/api/supplier-orders`, orderData, {
+        response = await api.post(`${API_BASE_URL}/api/supplier-orders`, orderData, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -342,7 +342,7 @@ export default function SupplierDetails() {
           ongoing: [...prev.ongoing, response.data]
         }));
       } else {
-        response = await axios.put(`${API_BASE_URL}/api/supplier-orders/${orderForm.supplier_order_id}`, orderData, {
+        response = await api.put(`${API_BASE_URL}/api/supplier-orders/${orderForm.supplier_order_id}`, orderData, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -397,7 +397,7 @@ export default function SupplierDetails() {
         ? `${API_BASE_URL}/api/supplier-orders/history/${order.supplier_order_id}/items`
         : `${API_BASE_URL}/api/supplier-orders/${order.supplier_order_id}/items`;
       
-      const itemsResponse = await axios.get(endpoint);
+      const itemsResponse = await api.get(endpoint);
       console.log('Order items response:', itemsResponse.data);
       const items = itemsResponse.data;
 
@@ -495,7 +495,7 @@ export default function SupplierDetails() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_BASE_URL}/api/suppliers`, editForm, {
+      const response = await api.post(`${API_BASE_URL}/api/suppliers`, editForm, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -563,7 +563,7 @@ export default function SupplierDetails() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.put(`${API_BASE_URL}/api/suppliers/${selectedSupplier.supplier_id}`, editForm, {
+      const response = await api.put(`/api/suppliers/${selectedSupplier.supplier_id}`, editForm, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
