@@ -53,7 +53,7 @@ function Register() {
     if (!email) return;
     try {
       setCheckingEmail(true);
-      const res = await axios.get("http://localhost:3001/api/auth/check-email", {
+      const res = await axios.get(`${config.API_URL}/api/auth/check-email`, {
         params: { email },
       });
 
@@ -74,7 +74,7 @@ function Register() {
     if (!name.trim()) return;
     try {
       setCheckingName(true);
-      const res = await axios.get("http://localhost:3001/api/auth/check-name", {
+      const res = await axios.get(`${config.API_URL}/api/auth/check-name`, {
         params: { name: name.trim() },
       });
 
@@ -170,7 +170,7 @@ function Register() {
       }
 
       const response = await axios.post(
-        "http://localhost:3001/api/auth/register",
+        `${config.API_URL}/api/auth/register`,
         formDataToSend,
         {
           headers: {

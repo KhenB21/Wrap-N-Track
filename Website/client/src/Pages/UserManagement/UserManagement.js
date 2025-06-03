@@ -95,7 +95,7 @@ const UserManagement = () => {
     try {
       const token = localStorage.getItem('token');
       const { profile_picture_data, mobile, department, status, ...userDataToSend } = editData;
-      const response = await fetch(`http://localhost:3001/api/users/${selectedUser.user_id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/users/${selectedUser.user_id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -120,7 +120,7 @@ const UserManagement = () => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/users/${selectedUser.user_id}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/users/${selectedUser.user_id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
