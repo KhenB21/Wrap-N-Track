@@ -33,7 +33,8 @@ export default function DanielPreview() {
   const [error, setError] = useState("");
 
   React.useEffect(() => {
-    api.get('/api/inventory')
+    axios
+      .get("http://localhost:3001/api/inventory")
       .then((res) => setInventory(res.data))
       .catch(() => setInventory([]));
   }, []);

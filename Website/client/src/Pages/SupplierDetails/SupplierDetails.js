@@ -83,7 +83,7 @@ export default function SupplierDetails() {
     }
     console.log('Fetching products for supplier:', selectedSupplier.name);
     try {
-      const response = await api.get(`/api/suppliers/${supplierId}/products`);
+      const response = await axios.get(`${API_BASE_URL}/api/suppliers/${supplierId}/products`);
       console.log('Fetched products:', response.data);
       setSupplierProducts(response.data);
     } catch (error) {
@@ -127,7 +127,7 @@ export default function SupplierDetails() {
       }
       
       console.log('Fetching customers with token:', token);
-      const response = await api.get('/api/suppliers', {
+      const response = await axios.get(`${API_BASE_URL}/api/suppliers`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -563,7 +563,7 @@ export default function SupplierDetails() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await api.put(`/api/suppliers/${selectedSupplier.supplier_id}`, editForm, {
+      const response = await axios.put(`${API_BASE_URL}/api/suppliers/${selectedSupplier.supplier_id}`, editForm, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

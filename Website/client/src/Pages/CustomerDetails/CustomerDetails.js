@@ -131,7 +131,7 @@ export default function CustomerDetails() {
 
             while (!updateSuccess && retryCount < maxRetries) {
               try {
-                await api.put(`/api/customers/${primaryCustomer.customer_id}`, updatedCustomer);
+                await axios.put(`${API_BASE_URL}/api/customers/${primaryCustomer.customer_id}`, updatedCustomer);
                 console.log(`Updated primary customer: ${primaryCustomer.name}`);
                 updateSuccess = true;
                 // Wait a bit after successful update
