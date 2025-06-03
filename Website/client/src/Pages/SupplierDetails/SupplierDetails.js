@@ -427,7 +427,7 @@ export default function SupplierDetails() {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${API_BASE_URL}/api/supplier-orders/${orderId}`, {
+      await api.delete(`${config.API_URL}/api/supplier-orders/${orderId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -543,7 +543,7 @@ export default function SupplierDetails() {
     if (window.confirm('Are you sure you want to delete this supplier?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`${API_BASE_URL}/api/suppliers/${supplierId}`, {
+        await api.delete(`${config.API_URL}/api/suppliers/${supplierId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
