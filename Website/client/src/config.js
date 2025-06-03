@@ -3,13 +3,22 @@ console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
 console.log('REACT_APP_WS_URL:', process.env.REACT_APP_WS_URL);
 
-// Determine if we're in development mode
-const isDevelopment = process.env.NODE_ENV === 'development';
+// Start API URL Configuration Block
+// To switch between local and deployed APIs, change the value of the 'useLocalAPI' variable below.
+// Set to true for local development API (http://localhost:3001).
+// Set to false for deployed API (https://wrap-n-track.onrender.com).
 
+const useLocalAPI = false; // <--- CHANGE THIS LINE TO SWITCH API
+
+const LOCAL_API_URL = 'http://localhost:3001';
+const DEPLOYED_API_URL = 'https://wrap-n-track.onrender.com';
+
+// Determine the API URL based on the useLocalAPI flag
 const config = {
-  API_URL: process.env.REACT_APP_API_URL || 'https://wrap-n-track.onrender.com',
+  API_URL: useLocalAPI ? LOCAL_API_URL : DEPLOYED_API_URL,
+// End API URL Configuration Block
   WS_URL: process.env.REACT_APP_WS_URL || 'wss://wrap-n-track.onrender.com',
-  isDevelopment,
+  isDevelopment: process.env.NODE_ENV === 'development', // Keep isDevelopment based on NODE_ENV for other purposes
   // Add environment verification
   verifyEnvironment: async () => {
     try {
