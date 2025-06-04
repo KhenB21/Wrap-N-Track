@@ -14,6 +14,7 @@ export default function ProductDetails() {
   const [products, setProducts] = useState([]);
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const navigate = useNavigate();
 
@@ -33,6 +34,36 @@ export default function ProductDetails() {
       setLoading(false);
     };
     fetchProducts();
+  }, [sku]);
+
+  useEffect(() => {
+    const fetchProductDetails = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+        const response = await api.get(`http://localhost:3001/api/inventory/${sku}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch product details');
+        }
+        const data = await response.json();
+        setProduct(data);
+        setError(null);
+      } catch (error) {
+        console.error('Error fetching product details:', error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProductDetails();
   }, [sku]);
 
   return (

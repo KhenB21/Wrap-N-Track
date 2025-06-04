@@ -40,47 +40,28 @@ function CustomerVerify() {
     return () => clearInterval(timer);
   }, [countdown]);
 
-  const handleVerification = async (e) => {
+  const handleVerify = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError(null);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await api.post('/api/customer/verify-email', 
-        {
-          email,
-          code: verificationCode
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await api.post('http://localhost:3001/api/customers/verify', {
+        email,
+        verificationCode
+      });
 
       if (response.data.success) {
-        // Update customer data in localStorage
-        const storedCustomer = JSON.parse(localStorage.getItem('customer'));
-        const updatedCustomer = {
-          ...storedCustomer,
-          is_verified: true
-        };
-        localStorage.setItem('customer', JSON.stringify(updatedCustomer));
-        
-        // Clear verification email from storage
-        localStorage.removeItem('verificationEmail');
-        
-        // Show success message and redirect to profile
-        navigate('/customer-user-details', { 
-          state: { 
-            message: 'Email verified successfully!' 
-          }
-        });
+        setMessage('Email verified successfully! You can now log in.');
+        setTimeout(() => {
+          navigate('/customer/login');
+        }, 2000);
+      } else {
+        setError('Verification failed. Please check your code and try again.');
       }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Verification failed. Please try again.');
+    } catch (error) {
+      console.error('Verification error:', error);
+      setError(error.response?.data?.message || 'An error occurred during verification.');
     } finally {
       setLoading(false);
     }
@@ -122,7 +103,7 @@ function CustomerVerify() {
         </p>
         {error && <div className="error-message">{error}</div>}
         {message && <div className="success-message">{message}</div>}
-        <form onSubmit={handleVerification}>
+        <form onSubmit={handleVerify}>
           <div className="form-group">
             <label htmlFor="verificationCode">Verification Code:</label>
             <input

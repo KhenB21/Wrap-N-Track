@@ -44,15 +44,15 @@ function Dashboard() {
       setLoading(true);
       try {
         // Fetch inventory
-        const inventoryRes = await api.get('/api/inventory');
+        const inventoryRes = await api.get('http://localhost:3001/api/inventory');
         setInventory(inventoryRes.data);
 
         // Fetch user details
-        const userRes = await api.get('/api/user/details');
+        const userRes = await api.get('http://localhost:3001/api/user/details');
         setUser(userRes.data);
 
         // Fetch order history
-        const historyRes = await api.get('/api/orders/history');
+        const historyRes = await api.get('http://localhost:3001/api/orders/history');
         setOrderHistory(historyRes.data);
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -87,7 +87,9 @@ function Dashboard() {
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar avatarUrl={getProfilePictureUrl()} />
+        <TopBar 
+          lowStockProducts={inventory.filter(item => Number(item.quantity || 0) < 300)}
+        />
         {/* Inventory Overview */}
         <div className="dashboard-section">
           <h3>Inventory Overview</h3>

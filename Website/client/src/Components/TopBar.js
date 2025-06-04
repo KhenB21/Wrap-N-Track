@@ -82,7 +82,7 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
     if (typeof lowStockProducts === 'undefined') {
       const fetchLowStockNotifications = async () => {
         try {
-          const response = await api.get('/api/notifications/low-stock');
+          const response = await api.get('http://localhost:3001/api/notifications/low-stock');
           setLowStockNotifications(response.data);
         } catch (error) {
           console.error('Error fetching low stock notifications:', error);

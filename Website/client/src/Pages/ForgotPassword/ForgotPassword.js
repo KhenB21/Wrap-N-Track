@@ -14,6 +14,7 @@ function ForgotPassword() {
   const [code, setCode] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendMessage, setResendMessage] = useState("");
+  const [success, setSuccess] = useState(null);
 
   const navigate = useNavigate();
 
@@ -62,29 +63,24 @@ function ForgotPassword() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage("");
-    setError("");
-
-    if (!validateEmail(email)) {
-      setEmailError("Please enter a valid email address.");
-      return;
-    }
-
     setLoading(true);
+    setError(null);
+    setSuccess(null);
 
     try {
+      const response = await api.post('http://localhost:3001/api/auth/forgot-password', {
+        email
+      });
 
-      const res = await api.post(`/api/auth/forgot-password`, { email });
-
-      setMessage(res.data.message);
-      setShowModal(true);
-      setCode("");
-    } catch (err) {
-      if (err.response?.status === 404) {
-        setError("This email address is not registered in our system.");
+      if (response.status === 200) {
+        setSuccess('Password reset instructions have been sent to your email.');
+        setEmail('');
       } else {
-        setError(err.response?.data?.message || "Something went wrong.");
+        setError('Failed to process request. Please try again.');
       }
+    } catch (error) {
+      console.error('Error:', error);
+      setError(error.response?.data?.message || 'An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }

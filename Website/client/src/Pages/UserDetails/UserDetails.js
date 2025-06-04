@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import api from '../../api/axios';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import './UserDetails.css';
@@ -30,7 +31,7 @@ export default function UserDetails() {
         }
         const parsedUser = JSON.parse(storedUser);
         setUserData(parsedUser);
-        const response = await api.get('/api/user/details', {
+        const response = await api.get('http://localhost:3001/api/user/details', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

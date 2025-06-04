@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import api from '../../api/axios';
+import config from '../../config';
 import './UserManagement.css';
 import { useNavigate } from 'react-router-dom';
 
@@ -14,12 +15,28 @@ const UserManagement = () => {
   const [editData, setEditData] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [confirmation, setConfirmation] = useState({ open: false, message: '' });
+  const [inventory, setInventory] = useState([]);
+  const [inventoryLoading, setInventoryLoading] = useState(true);
   const navigate = useNavigate();
+
+  const fetchInventory = async () => {
+    try {
+      const response = await api.get('http://localhost:3001/api/inventory');
+      if (response.data) {
+        setInventory(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching inventory:', err);
+    } finally {
+      setInventoryLoading(false);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       const user = JSON.parse(localStorage.getItem('user'));
+      const token = localStorage.getItem('token');
       
       if (!user || user.role !== 'admin') {
         setError('Access denied. Admins only.');
@@ -27,29 +44,25 @@ const UserManagement = () => {
         return;
       }
 
-
       console.log('Fetching users with token:', token);
-      const response = await api.get(`${config.API_URL}/api/users`, {
+      const response = await api.get('http://localhost:3001/api/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch users');
+      if (!response.data) {
+        throw new Error('Failed to fetch users');
       }
 
-      const data = await response.json();
-
-      console.log('Fetched users:', data);
+      console.log('Fetched users:', response.data);
       
-      if (!Array.isArray(data)) {
+      if (!Array.isArray(response.data)) {
         throw new Error('Invalid data format received from server');
       }
 
-      setUsers(data);
+      setUsers(response.data);
       setError(null);
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -61,6 +74,7 @@ const UserManagement = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchInventory();
   }, []);
 
   const handleCardClick = (user) => {
@@ -90,25 +104,21 @@ const UserManagement = () => {
     setActionError(null);
     try {
       const { profile_picture_data, mobile, department, status, ...userDataToSend } = editData;
-T
-      const response = await api.put(`${config.API_URL}/api/users/${selectedUser.user_id}`, {
-        method: 'PUT',
+      const token = localStorage.getItem('token');
+
+      const response = await api.put(`http://localhost:3001/api/users/${selectedUser.user_id}`, userDataToSend, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userDataToSend),
+        }
       });
-      if (!response.ok) {
-        if (response.status === 404) throw new Error('User not found (may have been deleted)');
-        throw new Error('Failed to update user');
-      }
 
       await fetchUsers();
       handleModalClose();
-      setConfirmation({ open: true, message: 'User updated successfully!' });
+      setConfirmation({ open: true, message: response.data.message || 'User updated successfully!' });
     } catch (err) {
-      setActionError(err.message);
+      console.error('Error updating user:', err);
+      setActionError(err.response?.data?.message || err.message || 'Failed to update user. Please try again.');
     }
   };
 
@@ -116,24 +126,19 @@ T
     setActionError(null);
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
-
       const token = localStorage.getItem('token');
-      const response = await api.put(`${config.API_URL}/api/users/${selectedUser.user_id}`, {
-        method: 'DELETE',
+      await api.delete(`http://localhost:3001/api/users/${selectedUser.user_id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-        },
+        }
       });
-      if (!response.ok) {
-        if (response.status === 404) throw new Error('User not found (may have been deleted)');
-        throw new Error('Failed to delete user');
-      }
 
       await fetchUsers();
       handleModalClose();
       setConfirmation({ open: true, message: 'User deleted successfully!' });
     } catch (err) {
-      setActionError(err.message);
+      console.error('Error deleting user:', err);
+      setActionError(err.response?.data?.message || err.message || 'Failed to delete user. Please try again.');
     }
   };
 
@@ -172,7 +177,9 @@ T
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar />
+        <TopBar 
+          lowStockProducts={inventory.filter(item => Number(item.quantity || 0) < 300)}
+        />
         <div className="user-management-container">
           <div className="user-management-header">
             <h1>Account Management</h1>

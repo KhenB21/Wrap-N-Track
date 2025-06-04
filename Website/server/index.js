@@ -10,6 +10,7 @@ const customersRouter = require('./routes/customers');
 const suppliersRouter = require('./routes/suppliers');
 const ordersRouter = require('./routes/orders');
 const supplierOrdersRouter = require('./routes/supplier-orders');
+const notificationsRouter = require('./routes/notifications');
 
 const authRouter = require('./routes/auth');
 const customerRoutes = require('./routes/customer');
@@ -198,6 +199,17 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(express.json());
+
+// Routes
+app.use('/api/customers', customersRouter);
+app.use('/api/suppliers', suppliersRouter);
+app.use('/api/orders', ordersRouter);
+app.use('/api/supplier-orders', supplierOrdersRouter);
+app.use('/api/notifications', notificationsRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/customer', customerRoutes);
+
 // Add error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
@@ -218,8 +230,6 @@ app.use((err, req, res, next) => {
     message: err.message || 'Internal server error'
   });
 });
-
-app.use(express.json());
 
 // Test database connection
 pool.connect((err, client, release) => {
@@ -1020,11 +1030,30 @@ app.put('/api/users/:user_id', verifyToken, async (req, res) => {
     }
     const { user_id } = req.params;
     const { name, email, role } = req.body;
+
+    // Check if email already exists for another user
+    const emailCheck = await pool.query(
+      'SELECT user_id FROM users WHERE email = $1 AND user_id != $2',
+      [email, user_id]
+    );
+    if (emailCheck.rows.length > 0) {
+      return res.status(400).json({ success: false, message: 'Email already registered' });
+    }
+
+    // Check if name already exists for another user
+    const nameCheck = await pool.query(
+      'SELECT user_id FROM users WHERE name = $1 AND user_id != $2',
+      [name, user_id]
+    );
+    if (nameCheck.rows.length > 0) {
+      return res.status(400).json({ success: false, message: 'Name already taken' });
+    }
+
     await pool.query(
       'UPDATE users SET name=$1, email=$2, role=$3 WHERE user_id=$4',
       [name, email, role, user_id]
     );
-    res.json({ success: true });
+    res.json({ success: true, message: 'User updated successfully' });
   } catch (error) {
     console.error('Error updating user:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -1372,6 +1401,32 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
 // Verify Reset Code
 app.post('/api/auth/verify-reset-code', async (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code) return res.status(400).json({ message: "Email and code are required" });
+
+  try {
+    const userResult = await pool.query(
+      'SELECT reset_code, reset_code_expires FROM users WHERE email = $1',
+      [email]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ message: "Invalid code or email" });
+    }
+    const { reset_code, reset_code_expires } = userResult.rows[0];
+    if (
+      !reset_code ||
+      reset_code !== code ||
+      !reset_code_expires ||
+      new Date(reset_code_expires) < new Date()
+    ) {
+      return res.status(400).json({ message: "Invalid or expired code" });
+    }
+    return res.json({ message: "Code verified" });
+  } catch (err) {
+    console.error('Verify reset code error:', err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
 
 // Reset Password: Update password after verifying code
 app.post('/api/auth/reset-password', async (req, res) => {
@@ -1412,33 +1467,6 @@ app.post('/api/auth/reset-password', async (req, res) => {
   }
 });
 
-  const { email, code } = req.body;
-  if (!email || !code) return res.status(400).json({ message: "Email and code are required" });
-
-  try {
-    const userResult = await pool.query(
-      'SELECT reset_code, reset_code_expires FROM users WHERE email = $1',
-      [email]
-    );
-    if (userResult.rows.length === 0) {
-      return res.status(400).json({ message: "Invalid code or email" });
-    }
-    const { reset_code, reset_code_expires } = userResult.rows[0];
-    if (
-      !reset_code ||
-      reset_code !== code ||
-      !reset_code_expires ||
-      new Date(reset_code_expires) < new Date()
-    ) {
-      return res.status(400).json({ message: "Invalid or expired code" });
-    }
-    return res.json({ message: "Code verified" });
-  } catch (err) {
-    console.error('Verify reset code error:', err);
-    return res.status(500).json({ message: "Server error" });
-  }
-});
-
 // Get products for an archived order
 app.get('/api/orders/history/:order_id/products', async (req, res) => {
   try {
@@ -1464,32 +1492,6 @@ app.get('/api/orders/history/:order_id/products', async (req, res) => {
   } catch (err) {
     console.error('Error fetching archived order products:', err);
     res.status(500).json({ message: 'Failed to fetch archived order products' });
-  }
-});
-
-// Routes
-app.use('/api/customers', customersRouter);
-app.use('/api/suppliers', suppliersRouter);
-app.use('/api/orders', ordersRouter);
-app.use('/api/supplier-orders', supplierOrdersRouter);
-app.use('/api/auth', authRouter);
-app.use('/api/customer', customerRoutes);
-
-// Example of how to use real-time updates in your routes
-app.post('/api/update-data', async (req, res) => {
-  try {
-    const { data } = req.body;
-    
-    // Update your database
-    await pool.query('UPDATE your_table SET data = $1 WHERE id = $2', [data, req.body.id]);
-    
-    // Notify all connected clients about the change
-    await notifyChange('data-update', { id: req.body.id, data });
-    
-    res.json({ success: true, message: 'Data updated successfully' });
-  } catch (error) {
-    console.error('Error updating data:', error);
-    res.status(500).json({ success: false, message: 'Error updating data' });
   }
 });
 

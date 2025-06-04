@@ -4,10 +4,12 @@ require('dotenv').config({ path: __dirname + '/.env' });
 
 // Database configuration
 const dbConfig = {
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  },
+  user: process.env.DB_USER || 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'wrapntrack_db',
+  password: process.env.DB_PASSWORD || 'postgres',
+  port: process.env.DB_PORT || 5432,
+  ssl: false,
   // Add connection timeout and retry settings
   connectionTimeoutMillis: 10000, // 10 seconds
   idleTimeoutMillis: 30000, // 30 seconds
@@ -20,7 +22,10 @@ const pool = new Pool(dbConfig);
 
 // Log database configuration (without sensitive data)
 console.log('Database configuration:', {
-  connectionString: process.env.DATABASE_URL ? '[REDACTED]' : 'Not set',
+  user: dbConfig.user,
+  host: dbConfig.host,
+  database: dbConfig.database,
+  port: dbConfig.port,
   ssl: dbConfig.ssl,
   connectionTimeoutMillis: dbConfig.connectionTimeoutMillis,
   idleTimeoutMillis: dbConfig.idleTimeoutMillis,
@@ -51,7 +56,10 @@ const testConnection = async (retries = 3, delay = 5000) => {
         stack: err.stack
       });
       console.error('Database configuration:', {
-        connectionString: process.env.DATABASE_URL ? '[REDACTED]' : 'Not set',
+        user: dbConfig.user,
+        host: dbConfig.host,
+        database: dbConfig.database,
+        port: dbConfig.port,
         ssl: dbConfig.ssl
       });
       

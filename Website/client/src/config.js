@@ -8,7 +8,7 @@ console.log('REACT_APP_WS_URL:', process.env.REACT_APP_WS_URL);
 // Set to true for local development API (http://localhost:3001).
 // Set to false for deployed API (https://wrap-n-track.onrender.com).
 
-const useLocalAPI = false; // Set to true for local development
+const useLocalAPI = true; // Set to true for local development
 
 const config = {
   API_URL: useLocalAPI ? 'http://localhost:3001' : 'https://wrap-n-track.onrender.com',

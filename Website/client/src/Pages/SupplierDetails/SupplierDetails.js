@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 import api from '../../api/axios';
+import config from '../../config';
 import "./SupplierDetails.css";
 
-
+const API_BASE_URL = config.API_URL;
 
 const tabs = ["Overview", "Order History", "Ongoing orders"];
 
@@ -127,7 +128,7 @@ export default function SupplierDetails() {
       }
       
       console.log('Fetching customers with token:', token);
-      const response = await api.get('/api/suppliers', {
+      const response = await api.get('http://localhost:3001/api/suppliers', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -155,11 +156,11 @@ export default function SupplierDetails() {
     console.log('Fetching orders for supplier:', selectedSupplier.name);
     try {
       // Fetch ongoing orders from supplier_orders table
-      const ongoingResponse = await api.get(`${API_BASE_URL}/api/supplier-orders/supplier/${selectedSupplier.supplier_id}`);
+      const ongoingResponse = await api.get(`http://localhost:3001/api/supplier-orders/supplier/${selectedSupplier.supplier_id}`);
       console.log('Ongoing orders response:', ongoingResponse.data);
 
       // Fetch completed orders from supplier_order_history table
-      const completedResponse = await api.get(`${API_BASE_URL}/api/supplier-orders/history/supplier/${selectedSupplier.supplier_id}`);
+      const completedResponse = await api.get(`http://localhost:3001/api/supplier-orders/history/supplier/${selectedSupplier.supplier_id}`);
       console.log('Completed orders response:', completedResponse.data);
 
       // Set the orders in state

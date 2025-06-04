@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import TopbarCustomer from "../../Components/TopbarCustomer";
-import "./CustomerPOV.css";
-import axios from "axios";
+import React, { useState, useEffect } from 'react';
+import TopbarCustomer from '../../Components/TopbarCustomer';
+import './CustomerPOV.css';
+import api from '../../api/axios';
 
 function generateOrderId() {
   const now = Date.now();

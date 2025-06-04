@@ -54,20 +54,18 @@ function Register() {
     if (!email) return;
     try {
       setCheckingEmail(true);
+      setEmailError("");
 
-      const res = await api.get(`${config.API_URL}/api/auth/check-email`, {
-
+      const res = await api.get('http://localhost:3001/api/auth/check-email', {
         params: { email },
       });
 
       if (res.data.exists) {
         setEmailError("Email is already registered");
-      } else {
-        setEmailError("");
       }
     } catch (err) {
       console.error("Email check failed:", err);
-      setEmailError("Could not check email");
+      setEmailError("Could not check email availability");
     } finally {
       setCheckingEmail(false);
     }
@@ -77,20 +75,18 @@ function Register() {
     if (!name.trim()) return;
     try {
       setCheckingName(true);
+      setNameError("");
 
-      const res = await api.get(`${config.API_URL}/api/auth/check-name`, {
-
+      const res = await api.get('http://localhost:3001/api/auth/check-name', {
         params: { name: name.trim() },
       });
 
       if (res.data.exists) {
         setNameError("Name is already taken (case-sensitive)");
-      } else {
-        setNameError("");
       }
     } catch (err) {
       console.error("Name check failed:", err);
-      setNameError("Could not check name");
+      setNameError("Could not check name availability");
     } finally {
       setCheckingName(false);
     }
@@ -128,7 +124,12 @@ function Register() {
     }
 
     if (name === "name") {
-      checkNameExists(value);
+      if (value.trim().length < 2) {
+        setNameError("Name must be at least 2 characters long");
+      } else {
+        setNameError("");
+        checkNameExists(value);
+      }
     }
   };
 

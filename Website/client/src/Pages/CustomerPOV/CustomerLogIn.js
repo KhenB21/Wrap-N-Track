@@ -78,40 +78,24 @@ function CustomerLogIn() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
+    setError(null);
 
     try {
-      console.log('Login component using API URL:', config.API_URL);
-      const response = await api.post('/api/auth/customer/login', {
-        username: formData.username,
+      const response = await api.post('http://localhost:3001/api/customers/login', {
+        email: formData.username,
         password: formData.password
       });
 
-      if (response.data.success) {
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("customer", JSON.stringify(response.data.customer));
-        navigate("/customer-user-details");
-      }
-    } catch (err) {
-      const message = err.response?.data?.message;
-      if (message === "Please verify your email before logging in") {
-        // Store the username temporarily for resend verification
-        localStorage.setItem("pendingVerificationUsername", formData.username);
-        setError(
-          <div>
-            <p>Please verify your email before logging in.</p>
-            <button 
-              onClick={handleResendVerification} 
-              className="resend-verification-button"
-              disabled={resending}
-            >
-              {resending ? 'Sending...' : 'Resend verification code'}
-            </button>
-          </div>
-        );
+      if (response.data.token) {
+        localStorage.setItem('customerToken', response.data.token);
+        localStorage.setItem('customer', JSON.stringify(response.data.customer));
+        navigate('/customer/dashboard');
       } else {
-        setError(message || "Login failed. Please try again.");
+        setError('Login failed. Please check your credentials.');
       }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError(error.response?.data?.message || 'An error occurred during login.');
     } finally {
       setLoading(false);
     }

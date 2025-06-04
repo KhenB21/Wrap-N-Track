@@ -5,6 +5,8 @@ import "./OrderDetails.css";
 import axios from "axios";
 import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
+import { useNavigate, useLocation } from 'react-router-dom';
+import api from '../../api/axios';
 
 // Add these styles at the top of the file
 const styles = {
@@ -217,6 +219,10 @@ export default function OrderDetails() {
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [archivingOrder, setArchivingOrder] = useState(false);
   const [showEditProductsModal, setShowEditProductsModal] = useState(false);
+  const [order, setOrder] = useState(null);
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [error, setError] = useState(null);
+  const [isOrderFulfillable, setIsOrderFulfillable] = useState(false);
 
   // Delete order: confirm and delete
   const handleDeleteOrder = async () => {
@@ -253,15 +259,35 @@ export default function OrderDetails() {
 
   const fetchOrders = async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
 
-      const response = await axios.get('http://localhost:3001/api/orders');
+      const response = await axios.get('http://localhost:3001/api/orders', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.data) {
+        throw new Error('No data received from server');
+      }
+
       const orders = response.data;
+      console.log('Fetched orders:', orders);
 
       // For each wedding order, fetch additional details
       const ordersWithDetails = await Promise.all(orders.map(async (order) => {
         if (order.order_type === 'wedding') {
           try {
-            const weddingResponse = await axios.get(`http://localhost:3001/api/wedding-orders/${order.order_id}`);
+            const weddingResponse = await axios.get(`http://localhost:3001/api/wedding-orders/${order.order_id}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
             return {
               ...order,
               wedding_details: weddingResponse.data
@@ -275,20 +301,37 @@ export default function OrderDetails() {
       }));
 
       setOrders(ordersWithDetails);
-
+      setError(null);
     } catch (error) {
       console.error('Error fetching orders:', error);
+      setError(error.message || 'Failed to fetch orders');
     }
   };
 
   const fetchOrderProducts = async (orderId) => {
     try {
-      const response = await api.get(`/api/orders/${orderId}/products`);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await axios.get(`http://localhost:3001/api/orders/${orderId}/products`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.data) {
+        throw new Error('No data received from server');
+      }
+
       setOrderProducts(response.data);
       console.log('Order products fetched successfully:', response.data);
     } catch (error) {
       console.error('Error fetching order products:', error);
       setOrderProducts([]); // Reset products on error
+      setError(error.message || 'Failed to fetch order products');
     }
   };
 
@@ -335,7 +378,7 @@ export default function OrderDetails() {
             setCarloProducts(defaultProductNames.map(name => ({
               name: name,
               quantity: selectedOrder.order_quantity
-            })))
+            })));
           });
       } else {
         setCarloProducts([]);
@@ -380,7 +423,16 @@ useEffect(() => {
       return;
     }
     try {
-      await api.post(`/api/orders/${selectedOrderId}/products`, { products });
+      const token = localStorage.getItem('token');
+      await axios.post(`http://localhost:3001/api/orders/${selectedOrderId}/products`, 
+        { products },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
       setShowProductModal(false);
       setProductSelection({});
       fetchOrderProducts(selectedOrderId);
@@ -394,7 +446,13 @@ useEffect(() => {
     setProductError("");
     setProductSelection({});
     try {
-      const res = await api.get('/api/inventory');
+      const token = localStorage.getItem('token');
+      const res = await axios.get('http://localhost:3001/api/inventory', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       setInventory(res.data);
       setShowProductModal(true);
     } catch (err) {
@@ -404,7 +462,7 @@ useEffect(() => {
 
   const handleAddOrder = async () => {
     setForm({
-      order_id: generateOrderId(), // Generate order ID automatically
+      order_id: generateOrderId(),
       name: '', 
       shipped_to: '', 
       order_date: '', 
@@ -424,7 +482,13 @@ useEffect(() => {
     setProfitMargins({});
     setProductError("");
     try {
-      const res = await api.get('/api/inventory');
+      const token = localStorage.getItem('token');
+      const res = await axios.get('http://localhost:3001/api/inventory', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       setInventory(res.data);
       setShowModal(true);
     } catch (err) {
@@ -461,6 +525,12 @@ useEffect(() => {
     e.preventDefault();
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please log in to complete this action');
+        return;
+      }
+
       const orderData = {
         ...form,
         products: Object.entries(productSelection).map(([sku, quantity]) => ({
@@ -477,241 +547,30 @@ useEffect(() => {
         orderData.custom_details = form.custom_details;
       }
 
-      const response = await axios.post('http://localhost:3001/api/orders', orderData);
-      if (response.data) {
+      const response = await axios.post('http://localhost:3001/api/orders', orderData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
+      if (response.data) {
         // If the order is not in Pending status, adjust inventory
         if (form.status !== 'Pending') {
-          console.log("Adjusting inventory for new non-pending order");
-          for (const product of selectedProducts) {
-            try {
-              const adjustResponse = await api.put(`/api/inventory/${product.sku}/adjust`, {
-                quantity: product.quantity,
-                operation: 'subtract'
-              }, {
-                headers: { 'Authorization': `Bearer ${token}` }
-              });
-              console.log(`Successfully deducted ${product.quantity} units of ${product.sku} from inventory:`, adjustResponse.data);
-            } catch (adjustError) {
-              console.error(`Failed to adjust inventory for product ${product.sku}:`, adjustError.response?.data || adjustError);
-              throw new Error(`Failed to deduct inventory for ${product.name}: ${adjustError.response?.data?.message || adjustError.message}`);
-            }
-          }
-        }
-
-
-        setShowModal(false);
-        fetchOrders();
-        setForm({
-          order_id: '', name: '', shipped_to: '', order_date: '', expected_delivery: '', status: '',
-          shipping_address: '', total_cost: '0.00', payment_type: '', payment_method: '', account_name: '', remarks: '',
-          telephone: '', cellphone: '', email_address: '', package_name: '', carlo_products: [], 
-          order_quantity: 0,
-          approximate_budget: 0.00,
-          order_type: 'regular',
-          wedding_details: {
-            wedding_style: '',
-            wedding_date: '',
-            guest_count: 0,
-            color_scheme: '',
-            special_requests: ''
-          },
-          custom_details: {
-            box_style: '',
-            box_size: '',
-            box_color: '',
-            contents: [],
-            accessories: [],
-            personalization_details: {},
-            quantity: 1
-          }
-        });
-        setProductSelection({});
-        setProfitMargins({});
-      }
-    } catch (error) {
-      console.error('Error submitting order:', error);
-      alert('Failed to submit order: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Edit order: open modal with selected order's data
-  const handleEditOrder = async () => {
-    if (!selectedOrder) return;
-    try {
-      // 1. Fetch inventory first
-      const inventoryRes = await api.get(`/api/inventory`);
-      setInventory(inventoryRes.data);
-
-      // 2. Fetch the latest order products for this specific order
-      const productsResponse = await api.get(`/api/orders/${selectedOrder.order_id}/products`);
-      const orderProducts = productsResponse.data;
-      console.log("Fetched products for order", selectedOrder.order_id, ":", orderProducts);
-
-      // 3. Map products to inventory
-      const initialProductSelection = {};
-      const initialProfitMargins = {};
-      for (const product of orderProducts) {
-        const inventoryItem = inventoryRes.data.find(item =>
-          item.sku === product.sku ||
-          item.name.toLowerCase() === product.name.toLowerCase()
-        );
-        if (inventoryItem) {
-          initialProductSelection[inventoryItem.sku] = product.quantity;
-          initialProfitMargins[inventoryItem.sku] = product.profit_margin;
-        }
-      }
-      setProductSelection(initialProductSelection);
-      setProfitMargins(initialProfitMargins);
-
-      // 4. Set form and show modal
-      setForm({
-        ...selectedOrder,
-        order_date: selectedOrder.order_date ? selectedOrder.order_date.split('T')[0] : '',
-        expected_delivery: selectedOrder.expected_delivery ? selectedOrder.expected_delivery.split('T')[0] : '',
-      });
-      setShowEditModal(true);
-      setSelectedOrderId(null); // Close the order details modal
-    } catch (error) {
-      console.error("Error fetching inventory or order products for editing:", error);
-      alert('Failed to load order or inventory for editing.');
-    }
-  };
-
-  // Save edited order
-  const handleEditOrderSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Please log in to complete this action');
-        return;
-      }
-
-      // Filter and map products with proper validation
-      const selectedProducts = Object.entries(productSelection)
-        .filter(([sku, qty]) => {
-          const quantity = Number(qty);
-          const isValid = sku && sku.trim() !== '' && !isNaN(quantity) && quantity > 0;
-          if (!isValid) {
-            console.log(`Filtering out invalid product - SKU: ${sku}, Quantity: ${qty}`);
-          }
-          return isValid;
-        })
-        .map(([sku, quantity]) => {
-          const inventoryItem = inventory.find(item => item.sku === sku);
-          if (!inventoryItem) {
-            alert(`Product with SKU ${sku} not found in inventory! This product will be skipped.`);
-            return null;
-          }
-          return {
-            sku: inventoryItem.sku,
-            name: inventoryItem.name,
-            quantity: Number(quantity),
-            profit_margin: Number(profitMargins[sku] || 0),
-            unit_price: Number(inventoryItem.unit_price || 0)
-          };
-        })
-        .filter(product => product && product.sku); // Only keep products with a valid SKU
-
-      // Extra validation: if any product is missing a SKU, show error and stop
-      if (selectedProducts.some(p => !p.sku)) {
-        alert('One or more products are missing a valid SKU. Please check your product selection.');
-        return;
-      }
-
-      console.log("Final selected products:", selectedProducts);
-
-      if (selectedProducts.length === 0) {
-        alert('Please select at least one product with a valid quantity');
-        return;
-      }
-
-      const calculatedTotalCost = selectedProducts.reduce((total, product) => {
-        return total + (product.unit_price * product.quantity);
-      }, 0);
-
-      const orderData = {
-        order_id: form.order_id,
-        name: form.name,
-        shipped_to: form.shipped_to,
-        order_date: form.order_date,
-        expected_delivery: form.expected_delivery,
-        status: form.status,
-        shipping_address: form.shipping_address,
-        total_cost: calculatedTotalCost.toString(),
-        payment_type: form.payment_type,
-        payment_method: form.payment_method,
-        account_name: form.account_name,
-        remarks: form.remarks,
-        telephone: form.telephone,
-        cellphone: form.cellphone,
-        email_address: form.email_address,
-        package_name: form.package_name,
-        order_quantity: selectedProducts.reduce((total, p) => total + p.quantity, 0),
-        items: selectedProducts
-      };
-
-      console.log("Final order data being sent:", orderData);
-
-      // If status is changing, handle inventory adjustments
-      if (selectedOrder && selectedOrder.status !== form.status) {
-        console.log("Status is changing from", selectedOrder.status, "to", form.status);
-
-        // Handle inventory adjustments based on status change
-        if (form.status === 'Cancelled') {
-          console.log("Returning quantities to inventory for cancelled order");
-          // Return quantities to inventory for cancelled orders
-          for (const product of selectedProducts) {
-            try {
-              const adjustResponse = await api.put(`/api/inventory/${product.sku}/adjust`, {
-                quantity: product.quantity,
-                operation: 'add'
-              }, {
-                headers: { 'Authorization': `Bearer ${token}` }
-              });
-              console.log(`Successfully returned ${product.quantity} units of ${product.sku} to inventory:`, adjustResponse.data);
-            } catch (adjustError) {
-              console.error(`Failed to adjust inventory for product ${product.sku}:`, adjustError.response?.data || adjustError);
-              throw new Error(`Failed to return inventory for ${product.name}: ${adjustError.response?.data?.message || adjustError.message}`);
-            }
-          }
-        } else if (form.status !== 'Pending') {
-          // If changing to a non-pending status, check if we need to deduct inventory
-          if (selectedOrder.status === 'Pending') {
-            console.log("Deducting quantities from inventory for new non-pending order");
-            // Deduct quantities from inventory for new non-pending orders
-            for (const product of selectedProducts) {
-              try {
-                const adjustResponse = await api.put(`/api/inventory/${product.sku}/adjust`, {
-                  quantity: product.quantity,
-                  operation: 'subtract'
-                }, {
-                  headers: { 'Authorization': `Bearer ${token}` }
-                });
-                console.log(`Successfully deducted ${product.quantity} units of ${product.sku} from inventory:`, adjustResponse.data);
-              } catch (adjustError) {
-                console.error(`Failed to adjust inventory for product ${product.sku}:`, adjustError.response?.data || adjustError);
-                throw new Error(`Failed to deduct inventory for ${product.name}: ${adjustError.response?.data?.message || adjustError.message}`);
+          for (const product of orderData.products) {
+            await axios.post('http://localhost:3001/api/inventory/adjust', {
+              sku: product.sku,
+              quantity: product.quantity,
+              operation: 'subtract'
+            }, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
               }
-            }
+            });
           }
         }
       }
-
-      // Update the order
-      const response = await axios.put(
-        `http://localhost:3001/api/orders/${encodeURIComponent(form.order_id)}`, 
-        orderData,
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
       
       if (response.data.success) {
         // Only archive if the order is being marked as completed or cancelled for the first time
@@ -854,11 +713,20 @@ useEffect(() => {
     setEditingProductsError("");
     setUpdatingProducts(true);
     try {
+      const token = localStorage.getItem('token');
       const products = Object.entries(editingProducts)
         .filter(([sku, qty]) => Number(qty) > 0)
         .map(([sku, quantity]) => ({ sku, quantity: Number(quantity) }));
       
-      await api.put(`/api/orders/${selectedOrderId}/products`, { products });
+      await axios.put(`http://localhost:3001/api/orders/${selectedOrderId}/products`, 
+        { products },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
       setShowEditProductsModal(false);
       fetchOrderProducts(selectedOrderId);
     } catch (err) {
@@ -870,7 +738,13 @@ useEffect(() => {
   const handleRemoveProduct = async (sku) => {
     if (!selectedOrder) return;
     try {
-      await api.delete(`/api/orders/${selectedOrderId}/products/${sku}`);
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:3001/api/orders/${selectedOrderId}/products/${sku}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       fetchOrderProducts(selectedOrderId);
     } catch (err) {
       alert('Failed to remove product');
@@ -961,6 +835,9 @@ useEffect(() => {
   const renderOrderDetails = () => {
     if (!selectedOrder) return null;
 
+    // Determine overall fulfillability based on the state variable
+    const fulfillableStatus = isOrderFulfillable ? 'text-green' : 'text-red';
+
     return (
       <div className="order-details">
         <div className="order-info">
@@ -990,23 +867,36 @@ useEffect(() => {
             <div className="info-section products-section">
               <h3>Products</h3>
               <div className="products-list">
-                {selectedOrder.products.map((product, index) => (
-                  <div key={product.sku || index} className="product-item" style={{ display: 'flex', alignItems: 'center', marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px solid #eee' }}>
-                    {product.image_data && (
-                      <img 
-                        src={`data:image/jpeg;base64,${product.image_data}`} 
-                        alt={product.name} 
-                        style={{ width: '70px', height: '70px', marginRight: '20px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ddd' }} 
-                      />
-                    )}
-                    <div className="product-details">
-                      <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', color: '#333' }}>{product.name}</p>
-                      <p style={{ margin: '0 0 5px 0', fontSize: '0.9em', color: '#555' }}>SKU: {product.sku}</p>
-                      <p style={{ margin: '0', fontSize: '0.9em', color: '#555' }}>Quantity: {product.quantity}</p>
-                      {product.unit_price && <p style={{ margin: '5px 0 0 0', fontSize: '0.9em', color: '#555' }}>Price: ${parseFloat(product.unit_price).toFixed(2)}</p>}
+                {selectedOrder.products.map((product, index) => {
+                  // Find the corresponding inventory item
+                  const inventoryItem = inventory.find(item => item.sku === product.sku);
+                  const availableQuantity = inventoryItem ? Number(inventoryItem.quantity || 0) : 0;
+                  const requiredQuantity = Number(product.quantity || 0);
+                  const isInStock = availableQuantity >= requiredQuantity;
+
+                  return (
+                    <div key={product.sku || index} className="product-item" style={{ display: 'flex', alignItems: 'center', marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px solid #eee' }}>
+                      {product.image_data && (
+                        <img 
+                          src={`data:image/jpeg;base64,${product.image_data}`} 
+                          alt={product.name} 
+                          style={{ width: '70px', height: '70px', marginRight: '20px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ddd' }} 
+                        />
+                      )}
+                      <div className="product-details">
+                        <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', color: '#333' }}>{product.name}</p>
+                        <p style={{ margin: '0 0 5px 0', fontSize: '0.9em', color: '#555' }}>SKU: {product.sku}</p>
+                        <p style={{ margin: '0', fontSize: '0.9em', color: isInStock ? '#555' : 'red' }}>
+                          Quantity: {requiredQuantity}
+                          {!isInStock && (
+                            <span style={{ color: 'red', fontWeight: 'bold', marginLeft: '5px' }}>(NOT ENOUGH STOCK)</span>
+                          )}
+                        </p>
+                        {product.unit_price && <p style={{ margin: '5px 0 0 0', fontSize: '0.9em', color: '#555' }}>Price: ${parseFloat(product.unit_price).toFixed(2)}</p>}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1052,6 +942,119 @@ useEffect(() => {
       </div>
     );
   };
+
+  const handleEditOrder = () => {
+    if (!selectedOrder) return;
+    setForm({
+      ...selectedOrder,
+      order_date: selectedOrder.order_date ? new Date(selectedOrder.order_date).toISOString().split('T')[0] : '',
+      expected_delivery: selectedOrder.expected_delivery ? new Date(selectedOrder.expected_delivery).toISOString().split('T')[0] : ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditOrderSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please log in to complete this action');
+        return;
+      }
+
+      const orderData = {
+        ...form,
+        products: Object.entries(productSelection).map(([sku, quantity]) => ({
+          sku,
+          quantity,
+          profit_margin: profitMargins[sku] || 0
+        }))
+      };
+
+      // Add order type specific data
+      if (form.order_type === 'wedding') {
+        orderData.wedding_details = form.wedding_details;
+      } else if (form.order_type === 'custom') {
+        orderData.custom_details = form.custom_details;
+      }
+
+      const response = await axios.put(`http://localhost:3001/api/orders/${form.order_id}`, orderData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.success) {
+        // Only archive if the order is being marked as completed or cancelled for the first time
+        if ((form.status === 'Completed' || form.status === 'Cancelled') && 
+            selectedOrder?.status !== 'Completed' && 
+            selectedOrder?.status !== 'Cancelled') {
+          try {
+            // Add a small delay to ensure the update is processed
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Archive the order
+            await axios.post(
+              `http://localhost:3001/api/orders/${encodeURIComponent(form.order_id)}/archive`,
+              {},
+              {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+          } catch (archiveErr) {
+            console.error('Error archiving order:', archiveErr);
+            alert('Order status was updated but failed to archive: ' + (archiveErr.response?.data?.message || archiveErr.message));
+          }
+        }
+        setShowEditModal(false);
+        fetchOrders();
+      } else {
+        throw new Error(response.data.message || 'Failed to update order');
+      }
+    } catch (err) {
+      console.error('Update order error:', err);
+      if (err.response) {
+        console.error('Error response:', err.response.data);
+        if (err.response.status === 401) {
+          alert('Your session has expired. Please log in again.');
+          // Clear the invalid token
+          localStorage.removeItem('token');
+          // Optionally redirect to login page
+          window.location.href = '/login';
+        } else {
+          alert('Failed to update order: ' + (err.response.data.message || err.message));
+        }
+      } else {
+        alert('Failed to update order: ' + err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check if order is fulfillable based on inventory
+  useEffect(() => {
+    if (!selectedOrder || !inventory || inventory.length === 0) {
+      setIsOrderFulfillable(false);
+      return;
+    }
+
+    let fulfillable = true;
+    for (const orderProduct of selectedOrder.products) {
+      const inventoryItem = inventory.find(item => item.sku === orderProduct.sku);
+      if (!inventoryItem || Number(inventoryItem.quantity || 0) < Number(orderProduct.quantity || 0)) {
+        fulfillable = false;
+        break;
+      }
+    }
+    setIsOrderFulfillable(fulfillable);
+
+  }, [selectedOrder, inventory]);
 
   return (
     <div className="dashboard-container">

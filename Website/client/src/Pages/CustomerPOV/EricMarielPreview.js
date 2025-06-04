@@ -1,6 +1,8 @@
-import React, { useState } from "react";
-import TopbarCustomer from "../../Components/TopbarCustomer";
-import "./CustomerPOV.css";
+import React, { useState, useEffect } from 'react';
+import TopbarCustomer from '../../Components/TopbarCustomer';
+import './CustomerPOV.css';
+import api from '../../api/axios';
+import config from '../../config';
 import axios from "axios";
 
 function generateOrderId() {

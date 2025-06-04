@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import "./OrderProcess.css";
 import TopbarCustomer from '../../Components/TopbarCustomer';
@@ -8,15 +7,11 @@ import api from '../../api/axios';
 const styles = {
   container: {
     minHeight: "100vh",
-    background: "#fff",
-    padding: "40px 24px",
-    background: "#f2efe3 !important",
+    background: "#f2efe3",
     fontFamily: "Cormorant Garamond, serif",
     color: "#444",
-    minHeight: "100vh",
     margin: "0",
-    padding: "0",
-
+    padding: "40px 24px",
   },
   header: {
     maxWidth: '1200px',
@@ -45,7 +40,6 @@ const styles = {
   },
   step: {
     flex: 1,
-
     textAlign: "center",
     padding: "20px",
     position: "relative",
@@ -83,9 +77,8 @@ const styles = {
     boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
   },
   formGroup: {
-    width: "50%",
-    marginBottom: "24px",
     width: "100%",
+    marginBottom: "24px",
   },
   label: {
     width: "100%",
@@ -1261,156 +1254,913 @@ export default function OrderProcess() {
         </p>
       </div>
 
-
       <div style={{padding: "0px 100px 100px 100px"}}>
-      <div style={{display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%", backgroundColor: "#696a8f", borderRadius: "12px", padding: "20px"}}>
-        
-        {/* Steps */}
-        <div style={styles.steps}>
-          <div 
-            style={{
-              ...styles.step,
-              backgroundColor: currentStep === 0 ? '#696a8f' : '#f0f0f0',
-              color: currentStep === 0 ? '#fff' : '#2c3e50',
-              border: "1px solid #f0f0f0",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-            onClick={() => handleStepClick(0)}
-          >
-            <h3 style={{
-              ...styles.stepTitle,
-              color: currentStep === 0 ? '#fff' : '#2c3e50'
-            }}>Wedding</h3>
-            <p style={{
-              ...styles.stepDescription,
-              color: currentStep === 0 ? '#fff' : '#6c757d'
-            }}>Select from our curated wedding styles</p>
+        <div style={{display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%", backgroundColor: "#696a8f", borderRadius: "12px", padding: "20px"}}>
+          {/* Steps */}
+          <div style={styles.steps}>
+            <div 
+              style={{
+                ...styles.step,
+                backgroundColor: currentStep === 0 ? '#696a8f' : '#f0f0f0',
+                color: currentStep === 0 ? '#fff' : '#2c3e50',
+                border: "1px solid #f0f0f0",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onClick={() => handleStepClick(0)}
+            >
+              <h3 style={{
+                ...styles.stepTitle,
+                color: currentStep === 0 ? '#fff' : '#2c3e50'
+              }}>Wedding</h3>
+              <p style={{
+                ...styles.stepDescription,
+                color: currentStep === 0 ? '#fff' : '#6c757d'
+              }}>Select from our curated wedding styles</p>
+            </div>
+            <div 
+              style={{
+                ...styles.step,
+                backgroundColor: currentStep === 1 ? '#696a8f' : '#f0f0f0',
+                color: currentStep === 1 ? '#fff' : '#2c3e50',
+                border: "1px solid #f0f0f0",
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onClick={() => handleStepClick(1)}
+            >
+              <div style={{
+                ...styles.stepNumber,
+                background: currentStep === 1 ? '#fff' : '#696a8f',
+                color: currentStep === 1 ? '#696a8f' : '#fff'
+              }}>1</div>
+              <h3 style={{
+                ...styles.stepTitle,
+                color: currentStep === 1 ? '#fff' : '#2c3e50'
+              }}>Choose Your Packaging</h3>
+              <p style={{
+                ...styles.stepDescription,
+                color: currentStep === 1 ? '#fff' : '#6c757d'
+              }}>Want to curate your own boxes? Start here!</p>
+            </div>
+            <div 
+              style={{
+                ...styles.step,
+                backgroundColor: currentStep === 2 ? '#696a8f' : '#f0f0f0',
+                color: currentStep === 2 ? '#fff' : '#2c3e50',
+                border: "1px solid #f0f0f0",
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onClick={() => handleStepClick(2)}
+            >
+              <div style={{
+                ...styles.stepNumber,
+                background: currentStep === 2 ? '#fff' : '#696a8f',
+                color: currentStep === 2 ? '#696a8f' : '#fff'
+              }}>2</div>
+              <h3 style={{
+                ...styles.stepTitle,
+                color: currentStep === 2 ? '#fff' : '#2c3e50'
+              }}>Choose the Contents</h3>
+            </div>
+            <div 
+              style={{
+                ...styles.step,
+                backgroundColor: currentStep === 3 ? '#696a8f' : '#f0f0f0',
+                color: currentStep === 3 ? '#fff' : '#2c3e50',
+                border: "1px solid #f0f0f0",
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onClick={() => handleStepClick(3)}
+            >
+              <div style={{
+                ...styles.stepNumber,
+                background: currentStep === 3 ? '#fff' : '#696a8f',
+                color: currentStep === 3 ? '#696a8f' : '#fff'
+              }}>3</div>
+              <h3 style={{
+                ...styles.stepTitle,
+                color: currentStep === 3 ? '#fff' : '#2c3e50'
+              }}>Make it Personal</h3>
+              <p style={{
+                ...styles.stepDescription,
+                color: currentStep === 3 ? '#fff' : '#6c757d'
+              }}>Add your personal touch</p>
+            </div>
+            <div 
+              style={{
+                ...styles.step,
+                backgroundColor: currentStep === 4 ? '#696a8f' : '#f0f0f0',
+                color: currentStep === 4 ? '#fff' : '#2c3e50',
+                border: "1px solid #f0f0f0",
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onClick={() => handleStepClick(4)}
+            >
+              <div style={{
+                ...styles.stepNumber,
+                background: currentStep === 4 ? '#fff' : '#696a8f',
+                color: currentStep === 4 ? '#696a8f' : '#fff'
+              }}>4</div>
+              <h3 style={{
+                ...styles.stepTitle,
+                color: currentStep === 4 ? '#fff' : '#2c3e50'
+              }}>Finalize Your Order & Submit!</h3>
+            </div>
           </div>
-          <div 
-            style={{
-              ...styles.step,
-              backgroundColor: currentStep === 1 ? '#696a8f' : '#f0f0f0',
-              color: currentStep === 1 ? '#fff' : '#2c3e50',
-              border: "1px solid #f0f0f0",
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-            onClick={() => handleStepClick(1)}
-          >
-            <div style={{
-              ...styles.stepNumber,
-              background: currentStep === 1 ? '#fff' : '#696a8f',
-              color: currentStep === 1 ? '#696a8f' : '#fff'
-            }}>1</div>
-            <h3 style={{
-              ...styles.stepTitle,
-              color: currentStep === 1 ? '#fff' : '#2c3e50'
-            }}>Choose Your Packaging</h3>
-            <p style={{
-              ...styles.stepDescription,
-              color: currentStep === 1 ? '#fff' : '#6c757d'
-            }}>Want to curate your own boxes? Start here!</p>
-          </div>
-          <div 
-            style={{
-              ...styles.step,
-              backgroundColor: currentStep === 2 ? '#696a8f' : '#f0f0f0',
-              color: currentStep === 2 ? '#fff' : '#2c3e50',
-              border: "1px solid #f0f0f0",
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-            onClick={() => handleStepClick(2)}
-          >
-            <div style={{
-              ...styles.stepNumber,
-              background: currentStep === 2 ? '#fff' : '#696a8f',
-              color: currentStep === 2 ? '#696a8f' : '#fff'
-            }}>2</div>
-            <h3 style={{
-              ...styles.stepTitle,
-              color: currentStep === 2 ? '#fff' : '#2c3e50'
-            }}>Choose the Contents</h3>
-          </div>
-          <div 
-            style={{
-              ...styles.step,
-              backgroundColor: currentStep === 3 ? '#696a8f' : '#f0f0f0',
-              color: currentStep === 3 ? '#fff' : '#2c3e50',
-              border: "1px solid #f0f0f0",
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-            onClick={() => handleStepClick(3)}
-          >
-            <div style={{
-              ...styles.stepNumber,
-              background: currentStep === 3 ? '#fff' : '#696a8f',
-              color: currentStep === 3 ? '#696a8f' : '#fff'
-            }}>3</div>
-            <h3 style={{
-              ...styles.stepTitle,
-              color: currentStep === 3 ? '#fff' : '#2c3e50'
-            }}>Make it Personal</h3>
-            <p style={{
-              ...styles.stepDescription,
-              color: currentStep === 3 ? '#fff' : '#6c757d'
-            }}>Add your personal touch</p>
-          </div>
-          <div 
-            style={{
-              ...styles.step,
-              backgroundColor: currentStep === 4 ? '#696a8f' : '#f0f0f0',
-              color: currentStep === 4 ? '#fff' : '#2c3e50',
-              border: "1px solid #f0f0f0",
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-            onClick={() => handleStepClick(4)}
-          >
-            <div style={{
-              ...styles.stepNumber,
-              background: currentStep === 4 ? '#fff' : '#696a8f',
-              color: currentStep === 4 ? '#696a8f' : '#fff'
-            }}>4</div>
-            <h3 style={{
-              ...styles.stepTitle,
-              color: currentStep === 4 ? '#fff' : '#2c3e50'
-            }}>Finalize Your Order & Submit!</h3>
-          </div>
-=======
-      {/* Steps */}
-      <div style={styles.steps}>
-        <div style={styles.step}>
-          <div style={styles.stepNumber}>1</div>
-          <h3 style={styles.stepTitle}>Choose Your Style</h3>
-          <p style={styles.stepDescription}>Select from our curated wedding styles</p>
-        </div>
-        <div style={styles.step}>
-          <div style={styles.stepNumber}>2</div>
-          <h3 style={styles.stepTitle}>Customize</h3>
-          <p style={styles.stepDescription}>Add your personal touch</p>
-        </div>
-        <div style={styles.step}>
-          <div style={styles.stepNumber}>3</div>
-          <h3 style={styles.stepTitle}>Review & Order</h3>
-          <p style={styles.stepDescription}>Finalize your gift boxes</p>
->>>>>>> main
-        </div>
 
-        {/* Step 0 Form */}
-        {currentStep === 0 && (
-          <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
-            <div style={{display: "flex", flexDirection: "row", gap: "50px"}}>
+          {/* Step Forms */}
+          {currentStep === 0 && (
+            <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
+              <div style={{display: "flex", flexDirection: "row", gap: "50px"}}>
+                <div style={{width: "50%"}}>
+
+                  <div style={styles.formGroup}>
+                    <label style={{...styles.label, color: "#f0f0f0"}}>Wedding Date</label>
+                    <input
+                      type="date"
+                      name="weddingDate"
+                      value={formData.weddingDate}
+                      onChange={handleInputChange}
+                      style={styles.input}
+                      required
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={{...styles.label, color: "#f0f0f0"}}>Expected Delivery Date</label>
+                    <input
+                      type="date"
+                      name="expectedDeliveryDate"
+                      value={formData.expectedDeliveryDate}
+                      onChange={handleInputChange}
+                      style={styles.input}
+                      required
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={{...styles.label, color: "#f0f0f0"}}>Number of Gift Boxes</label>
+                    <input
+                      type="number"
+                      name="guestCount"
+                      value={formData.guestCount}
+                      onChange={handleInputChange}
+                      style={styles.input}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{width: "50%"}}>
+                  <div style={styles.formGroup}>
+                    <label style={{...styles.label, color: "#f0f0f0"}}>Preferred Style</label>
+                    <select
+                      name="style"
+                      value={formData.style}
+                      onChange={(e) => {
+                        handleInputChange(e);
+                        handleStyleChange(e);
+                      }}
+                      style={styles.select}
+                      required
+                    >
+                      <option value="">Select a style</option>
+                      <option value="modern-romantic">Modern Romantic</option>
+                      <option value="boho-chic">Boho Chic</option>
+                      <option value="classic-elegance">Classic Elegance</option>
+                      <option value="minimalist-modern">Minimalist Modern</option>
+                    </select>
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={{...styles.label, color: "#f0f0f0"}}>Special Requests</label>
+                    <textarea
+                      name="specialRequests"
+                      value={formData.specialRequests}
+                      onChange={handleInputChange}
+                      style={{ ...styles.input, height: "120px" }}
+                      placeholder="Any specific requirements or preferences?"
+                      cols={50}
+                    />
+                  </div>
+
+                  <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
+                    <input
+                      type="checkbox"
+                      checked={Object.values(customProducts).every(Boolean)}
+                      onChange={handleStep0CustomProducts}
+                    />
+                    <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#f0f0f0"}}>I want to use my own products</label>
+                  </div>
+
+
+                  <button type="submit" style={styles.button}>
+                    Submit Order
+                  </button>
+                </div>
+
+                <div style={{width: "50%"}}>
+                  <h3 style={{fontWeight: "bold", color: "#f0f0f0", marginBottom: "20px"}}>Preferred Style Preview</h3>
+                  {renderStyleItems()}
+                </div>
+              </div>
+            </form>
+          )}
+          {currentStep === 1 && (
+            <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
+              <div style={{backgroundColor: "#2ECC71", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
+                <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
+              </div>
+
+              <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
+                <input
+                  type="checkbox"
+                  checked={customProducts.packaging}
+                  onChange={handleStep1CustomPackaging}
+                />
+                <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own packaging</label>
+              </div>
+
+              <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                {packagingOptions.map((option, index) => (
+                  <div 
+                    key={index}
+                    className="packagingOptions" 
+                    style={{
+                      border: "2px solid #f0f0f0", 
+                      borderRadius: "12px", 
+                      padding: "20px", 
+                      width: "16%",
+                      cursor: "pointer",
+                      transition: "all 0.3s ease",
+                      position: "relative"
+                    }}
+                    onClick={() => handlePackagingSelect(option)}
+                  >
+                    {selectedPackaging.includes(option.name) && (
+                      <div style={{
+                        position: "absolute",
+                        top: "-10px",
+                        right: "-10px",
+                        width: "24px",
+                        height: "24px",
+                        backgroundColor: "#2ECC71",
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "white",
+                        fontWeight: "bold",
+                        fontSize: "16px"
+                      }}>
+                        ✓
+                      </div>
+                    )}
+                    <div className="packagingImage">
+                      <img
+                        src={option.image}
+                        alt={`${option.name} - ${option.description}`}
+                        className={option.name.toLowerCase().replace(" ", "")}
+                      />
+                    </div>
+                    <h4>{option.name}</h4>
+                    <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                  </div>
+                ))}
+              </div>
+
+              <button type="submit" style={styles.button}>
+                Next
+              </button>
+            </form>
+          )}
+          {currentStep === 2 && (
+            <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
+
+              {/* Content Categories */}
+              <div style={styles.steps}>
+                <div 
+                  style={{
+                    ...styles.step,
+                    backgroundColor: currentConCat === 1 ? '#696a8f' : '#f0f0f0',
+                    color: currentConCat === 1 ? '#fff' : '#2c3e50',
+                    border: "1px solid #f0f0f0",
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                  }}
+                  onClick={() => handleContentCategoryClick(1)}
+                >
+                  <div style={{
+                    background: currentConCat === 1 ? '#fff' : '#696a8f',
+                    color: currentConCat === 1 ? '#696a8f' : '#fff'
+                  }}></div>
+                  <p style={{
+                    ...styles.stepTitle,
+                    color: currentConCat === 1 ? '#fff' : '#2c3e50',
+                    fontSize: "14px",
+                  }}>Beverage</p>
+                </div>
+                <div 
+                  style={{
+                    ...styles.step,
+                    backgroundColor: currentConCat === 2 ? '#696a8f' : '#f0f0f0',
+                    color: currentConCat === 2 ? '#fff' : '#2c3e50',
+                    border: "1px solid #f0f0f0",
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onClick={() => handleContentCategoryClick(2)}
+                >
+                  <div style={{
+                    background: currentConCat === 2 ? '#fff' : '#696a8f',
+                    color: currentConCat === 2 ? '#696a8f' : '#fff'
+                  }}></div>
+                  <p style={{
+                    ...styles.stepTitle,
+                    color: currentConCat === 2 ? '#fff' : '#2c3e50',
+                    fontSize: "14px",
+                  }}>Food</p>
+                </div>
+                <div 
+                  style={{
+                    ...styles.step,
+                    backgroundColor: currentConCat === 3 ? '#696a8f' : '#f0f0f0',
+                    color: currentConCat === 3 ? '#fff' : '#2c3e50',
+                    border: "1px solid #f0f0f0",
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onClick={() => handleContentCategoryClick(3)}
+                >
+                  <div style={{
+                    background: currentConCat === 3 ? '#fff' : '#696a8f',
+                    color: currentConCat === 3 ? '#696a8f' : '#fff'
+                  }}></div>
+                  <p style={{
+                    ...styles.stepTitle,
+                    color: currentConCat === 3 ? '#fff' : '#2c3e50',
+                    fontSize: "14px",
+                  }}>Kitchenware</p>
+                </div>
+                <div 
+                  style={{
+                    ...styles.step,
+                    backgroundColor: currentConCat === 4 ? '#696a8f' : '#f0f0f0',
+                    color: currentConCat === 4 ? '#fff' : '#2c3e50',
+                    border: "1px solid #f0f0f0",
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onClick={() => handleContentCategoryClick(4)}
+                >
+                  <div style={{
+                    background: currentConCat === 4 ? '#fff' : '#696a8f',
+                    color: currentConCat === 4 ? '#696a8f' : '#fff'
+                  }}></div>
+                  <p style={{
+                    ...styles.stepTitle,
+                    color: currentConCat === 4 ? '#fff' : '#2c3e50',
+                    fontSize: "14px",
+                  }}>Home Decor</p>
+                </div>
+                <div 
+                  style={{
+                    ...styles.step,
+                    backgroundColor: currentConCat === 5 ? '#696a8f' : '#f0f0f0',
+                    color: currentConCat === 5 ? '#fff' : '#2c3e50',
+                    border: "1px solid #f0f0f0",
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onClick={() => handleContentCategoryClick(5)}
+                >
+                  <div style={{
+                    background: currentConCat === 5 ? '#fff' : '#696a8f',
+                    color: currentConCat === 5 ? '#696a8f' : '#fff'
+                  }}></div>
+                  <p style={{
+                    ...styles.stepTitle,
+                    color: currentConCat === 5 ? '#fff' : '#2c3e50',
+                    fontSize: "14px",
+                  }}>Face and Body</p>
+                </div>
+                <div 
+                  style={{
+                    ...styles.step,
+                    display: "flex",
+                    justifyContent: "center",
+                    backgroundColor: currentConCat === 6 ? '#696a8f' : '#f0f0f0',
+                    color: currentConCat === 6 ? '#fff' : '#2c3e50',
+                    border: "1px solid #f0f0f0",
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onClick={() => handleContentCategoryClick(6)}
+                >
+                  <div style={{
+                    background: currentConCat === 6 ? '#fff' : '#696a8f',
+                    color: currentConCat === 6 ? '#696a8f' : '#fff'
+                  }}></div>
+                  <p style={{
+                    ...styles.stepTitle,
+                    color: currentConCat === 6 ? '#fff' : '#2c3e50',
+                    fontSize: "12px",
+                  }}>Clothing and Accessories</p>
+                </div>
+                <div 
+                  style={{
+                    ...styles.step,
+                    display: "flex",
+                    justifyContent: "center",
+                    backgroundColor: currentConCat === 7 ? '#696a8f' : '#f0f0f0',
+                    color: currentConCat === 7 ? '#fff' : '#2c3e50',
+                    border: "1px solid #f0f0f0",
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onClick={() => handleContentCategoryClick(7)}
+                >
+                  <div style={{
+                    background: currentConCat === 7 ? '#fff' : '#696a8f',
+                    color: currentConCat === 7 ? '#696a8f' : '#fff'
+                  }}></div>
+                  <p style={{
+                    ...styles.stepTitle,
+                    color: currentConCat === 7 ? '#fff' : '#2c3e50',
+                    fontSize: "12px",
+                  }}>Leather Products and Desk Essentials</p>
+                </div>
+                
+              </div>
+
+              <div style={{backgroundColor: "#2ECC71", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
+                <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
+              </div>
+              
+              {/* Beverage */}
+              {currentConCat === 1 && (
+                <>
+                  <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
+                    <input
+                      type="checkbox"
+                      checked={customProducts.beverages}
+                      onChange={() => handleStep2CustomCategory(1)}
+                    />
+                    <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
+                  </div>
+
+                  <p>MOQ for custom-labelled beer, mini wine, and mini whiskey is 6 pcs.</p>
+                  <p>MOQ for custom coffee and tea packaging is 12 pcs.</p>
+
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentBeverageOptions.map((option, index) => (
+                      <div 
+                        key={index}
+                        className="packagingOptions" 
+                        style={{
+                          border: "2px solid #f0f0f0", 
+                          borderRadius: "12px", 
+                          padding: "20px", 
+                          width: "16%",
+                          cursor: "pointer",
+                          transition: "all 0.3s ease",
+                          position: "relative"
+                        }}
+                        onClick={() => handleBeverageSelect(option)}
+                      >
+                        {selectedBeverages.includes(option.name) && (
+                          <div style={{
+                            position: "absolute",
+                            top: "-10px",
+                            right: "-10px",
+                            width: "24px",
+                            height: "24px",
+                            backgroundColor: "#2ECC71",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "16px"
+                          }}>
+                            ✓
+                          </div>
+                        )}
+                        <div className="packagingImage">
+                          <img
+                            src={option.image}
+                            alt={`${option.name} - ${option.description}`}
+                            className={option.name.toLowerCase().replace(" ", "")}
+                          />
+                        </div>
+                        <h4>{option.name}</h4>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Food */}
+              {currentConCat === 2 && (
+                <>
+                  <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
+                    <input
+                      type="checkbox"
+                      checked={customProducts.food}
+                      onChange={() => handleStep2CustomCategory(2)}
+                    />
+                    <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
+                  </div>
+
+                  <p>Infused Salts are sold as a set for retail orders.</p>
+
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentFoodOptions.map((option, index) => (
+                      <div 
+                        key={index}
+                        className="packagingOptions" 
+                        style={{
+                          border: "2px solid #f0f0f0", 
+                          borderRadius: "12px", 
+                          padding: "20px", 
+                          width: "16%",
+                          cursor: "pointer",
+                          transition: "all 0.3s ease",
+                          position: "relative"
+                        }}
+                        onClick={() => handleFoodSelect(option)}
+                      >
+                        {selectedFood.includes(option.name) && (
+                          <div style={{
+                            position: "absolute",
+                            top: "-10px",
+                            right: "-10px",
+                            width: "24px",
+                            height: "24px",
+                            backgroundColor: "#2ECC71",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "16px"
+                          }}>
+                            ✓
+                          </div>
+                        )}
+                        <div className="packagingImage">
+                          <img
+                            src={option.image}
+                            alt={`${option.name} - ${option.description}`}
+                            className={option.name.toLowerCase().replace(" ", "")}
+                          />
+                        </div>
+                        <h4>{option.name}</h4>
+                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Kitchenware */}
+              {currentConCat === 3 && (
+                <>
+                  <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
+                    <input
+                      type="checkbox"
+                      checked={customProducts.kitchenware}
+                      onChange={() => handleStep2CustomCategory(3)}
+                    />
+                    <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
+                  </div>
+
+                  <p>MOQ for personalized wooden kitchenware is 10 pcs.</p>
+
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentKitchenwareOptions.map((option, index) => (
+                      <div 
+                        key={index}
+                        className="packagingOptions" 
+                        style={{
+                          border: "2px solid #f0f0f0", 
+                          borderRadius: "12px", 
+                          padding: "20px", 
+                          width: "16%",
+                          cursor: "pointer",
+                          transition: "all 0.3s ease",
+                          position: "relative"
+                        }}
+                        onClick={() => handleKitchenwareSelect(option)}
+                      >
+                        {selectedKitchenware.includes(option.name) && (
+                          <div style={{
+                            position: "absolute",
+                            top: "-10px",
+                            right: "-10px",
+                            width: "24px",
+                            height: "24px",
+                            backgroundColor: "#2ECC71",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "16px"
+                          }}>
+                            ✓
+                          </div>
+                        )}
+                        <div className="packagingImage">
+                          <img
+                            src={option.image}
+                            alt={`${option.name} - ${option.description}`}
+                            className={option.name.toLowerCase().replace(" ", "")}
+                          />
+                        </div>
+                        <h4>{option.name}</h4>
+                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Home Decor */}
+              {currentConCat === 4 && (
+                <>
+                  <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
+                    <input
+                      type="checkbox"
+                      checked={customProducts.homeDecor}
+                      onChange={() => handleStep2CustomCategory(4)}
+                    />
+                    <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
+                  </div>
+
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentHomeDecorOptions.map((option, index) => (
+                      <div 
+                        key={index}
+                        className="packagingOptions" 
+                        style={{
+                          border: "2px solid #f0f0f0", 
+                          borderRadius: "12px", 
+                          padding: "20px", 
+                          width: "16%",
+                          cursor: "pointer",
+                          transition: "all 0.3s ease",
+                          position: "relative"
+                        }}
+                        onClick={() => handleHomeDecorSelect(option)}
+                      >
+                        {selectedHomeDecor.includes(option.name) && (
+                          <div style={{
+                            position: "absolute",
+                            top: "-10px",
+                            right: "-10px",
+                            width: "24px",
+                            height: "24px",
+                            backgroundColor: "#2ECC71",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "16px"
+                          }}>
+                            ✓
+                          </div>
+                        )}
+                        <div className="packagingImage">
+                          <img
+                            src={option.image}
+                            alt={`${option.name} - ${option.description}`}
+                            className={option.name.toLowerCase().replace(" ", "")}
+                          />
+                        </div>
+                        <h4>{option.name}</h4>
+                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Face and Body */}
+              {currentConCat === 5 && (
+                <>
+                  <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
+                    <input
+                      type="checkbox"
+                      checked={customProducts.faceAndBody}
+                      onChange={() => handleStep2CustomCategory(5)}
+                    />
+                    <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
+                  </div>
+
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentFaceAndBodyOptions.map((option, index) => (
+                      <div 
+                        key={index}
+                        className="packagingOptions" 
+                        style={{
+                          border: "2px solid #f0f0f0", 
+                          borderRadius: "12px", 
+                          padding: "20px", 
+                          width: "16%",
+                          cursor: "pointer",
+                          transition: "all 0.3s ease",
+                          position: "relative"
+                        }}
+                        onClick={() => handleFaceAndBodySelect(option)}
+                      >
+                        {selectedFaceAndBody.includes(option.name) && (
+                          <div style={{
+                            position: "absolute",
+                            top: "-10px",
+                            right: "-10px",
+                            width: "24px",
+                            height: "24px",
+                            backgroundColor: "#2ECC71",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "16px"
+                          }}>
+                            ✓
+                          </div>
+                        )}
+                        <div className="packagingImage">
+                          <img
+                            src={option.image}
+                            alt={`${option.name} - ${option.description}`}
+                            className={option.name.toLowerCase().replace(" ", "")}
+                          />
+                        </div>
+                        <h4>{option.name}</h4>
+                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Clothiing and Accessories */}
+              {currentConCat === 6 && (
+                <>
+                  <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
+                    <input
+                      type="checkbox"
+                      checked={customProducts.clothing}
+                      onChange={() => handleStep2CustomCategory(6)}
+                    />
+                    <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
+                  </div>
+
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentClothingAndAccessoriesOptions.map((option, index) => (
+                      <div 
+                        key={index}
+                        className="packagingOptions" 
+                        style={{
+                          border: "2px solid #f0f0f0", 
+                          borderRadius: "12px", 
+                          padding: "20px", 
+                          width: "16%",
+                          cursor: "pointer",
+                          transition: "all 0.3s ease",
+                          position: "relative"
+                        }}
+                        onClick={() => handleClothingSelect(option)}
+                      >
+                        {selectedClothing.includes(option.name) && (
+                          <div style={{
+                            position: "absolute",
+                            top: "-10px",
+                            right: "-10px",
+                            width: "24px",
+                            height: "24px",
+                            backgroundColor: "#2ECC71",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "16px"
+                          }}>
+                            ✓
+                          </div>
+                        )}
+                        <div className="packagingImage">
+                          <img
+                            src={option.image}
+                            alt={`${option.name} - ${option.description}`}
+                            className={option.name.toLowerCase().replace(" ", "")}
+                          />
+                        </div>
+                        <h4>{option.name}</h4>
+                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <button type="submit" style={styles.button}>
+                Next
+              </button>
+            </form>
+          )}
+          {currentStep === 3 && (
+            <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
+              <div style={{backgroundColor: "#2ECC71", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
+                <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
+              </div>
+
+              <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
+                <input
+                  type="checkbox"
+                  checked={customProducts.customization}
+                  onChange={handleStep3CustomCustomization}
+                />
+                <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products</label>
+              </div>
+
+              <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                {customizationOptions.map((option, index) => (
+                  <div 
+                    key={index}
+                    className="packagingOptions" 
+                    style={{
+                      border: "2px solid #f0f0f0", 
+                      borderRadius: "12px", 
+                      padding: "20px", 
+                      width: "16%",
+                      cursor: "pointer",
+                      transition: "all 0.3s ease",
+                      position: "relative"
+                    }}
+                    onClick={() => handleCustomizationSelect(option)}
+                  >
+                    {selectedCustomization.includes(option.name) && (
+                      <div style={{
+                        position: "absolute",
+                        top: "-10px",
+                        right: "-10px",
+                        width: "24px",
+                        height: "24px",
+                        backgroundColor: "#2ECC71",
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "white",
+                        fontWeight: "bold",
+                        fontSize: "16px"
+                      }}>
+                        ✓
+                      </div>
+                    )}
+                    <div className="packagingImage">
+                      <img
+                        src={option.image}
+                        alt={`${option.name} - ${option.description}`}
+                        className={option.name.toLowerCase().replace(" ", "")}
+                      />
+                    </div>
+                    <h4>{option.name}</h4>
+                    <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                  </div>
+                ))}
+              </div>
+
+              <button type="submit" style={styles.button}>
+                Next
+              </button>
+            </form>
+          )}
+          {currentStep === 4 && (
+            <form style={{...styles.form, width: "100%", display: "flex", flexDirection: "row", gap: "50px"}} onSubmit={handleSubmit}>
               <div style={{width: "50%"}}>
-
                 <div style={styles.formGroup}>
-                  <label style={{...styles.label, color: "#f0f0f0"}}>Wedding Date</label>
+                  <label style={styles.label}>Wedding Date</label>
                   <input
                     type="date"
                     name="weddingDate"
@@ -1422,7 +2172,7 @@ export default function OrderProcess() {
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={{...styles.label, color: "#f0f0f0"}}>Expected Delivery Date</label>
+                  <label style={styles.label}>Expected Delivery Date</label>
                   <input
                     type="date"
                     name="expectedDeliveryDate"
@@ -1434,7 +2184,7 @@ export default function OrderProcess() {
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={{...styles.label, color: "#f0f0f0"}}>Number of Gift Boxes</label>
+                  <label style={styles.label}>Number of Gift Boxes</label>
                   <input
                     type="number"
                     name="guestCount"
@@ -1444,31 +2194,9 @@ export default function OrderProcess() {
                     required
                   />
                 </div>
-              </div>
-
-              <div style={{width: "50%"}}>
-                <div style={styles.formGroup}>
-                  <label style={{...styles.label, color: "#f0f0f0"}}>Preferred Style</label>
-                  <select
-                    name="style"
-                    value={formData.style}
-                    onChange={(e) => {
-                      handleInputChange(e);
-                      handleStyleChange(e);
-                    }}
-                    style={styles.select}
-                    required
-                  >
-                    <option value="">Select a style</option>
-                    <option value="modern-romantic">Modern Romantic</option>
-                    <option value="boho-chic">Boho Chic</option>
-                    <option value="classic-elegance">Classic Elegance</option>
-                    <option value="minimalist-modern">Minimalist Modern</option>
-                  </select>
-                </div>
 
                 <div style={styles.formGroup}>
-                  <label style={{...styles.label, color: "#f0f0f0"}}>Special Requests</label>
+                  <label style={styles.label}>Special Requests</label>
                   <textarea
                     name="specialRequests"
                     value={formData.specialRequests}
@@ -1476,840 +2204,75 @@ export default function OrderProcess() {
                     style={{ ...styles.input, height: "120px" }}
                     placeholder="Any specific requirements or preferences?"
                     cols={50}
-                  />
+                  ></textarea>
                 </div>
 
-                <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
-                  <input
-                    type="checkbox"
-                    checked={Object.values(customProducts).every(Boolean)}
-                    onChange={handleStep0CustomProducts}
-                  />
-                  <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#f0f0f0"}}>I want to use my own products</label>
-                </div>
-
-<<<<<<< HANNAH-LATEST
                 <button type="submit" style={styles.button}>
                   Submit Order
                 </button>
               </div>
 
-              <div style={{width: "50%"}}>
-                <h3 style={{fontWeight: "bold", color: "#f0f0f0", marginBottom: "20px"}}>Preferred Style Preview</h3>
-                {renderStyleItems()}
-              </div>
-            </div>
-          </form>
-        )}
-
-        {/* Step 1 Form */}
-        {currentStep === 1 && (
-          <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
-            <div style={{backgroundColor: "#2ECC71", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
-              <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
-            </div>
-
-            <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
-              <input
-                type="checkbox"
-                checked={customProducts.packaging}
-                onChange={handleStep1CustomPackaging}
-              />
-              <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own packaging</label>
-            </div>
-
-            <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-              {packagingOptions.map((option, index) => (
-                <div 
-                  key={index}
-                  className="packagingOptions" 
-                  style={{
-                    border: "2px solid #f0f0f0", 
-                    borderRadius: "12px", 
-                    padding: "20px", 
-                    width: "16%",
-                    cursor: "pointer",
-                    transition: "all 0.3s ease",
-                    position: "relative"
-                  }}
-                  onClick={() => handlePackagingSelect(option)}
-                >
-                  {selectedPackaging.includes(option.name) && (
-                    <div style={{
-                      position: "absolute",
-                      top: "-10px",
-                      right: "-10px",
-                      width: "24px",
-                      height: "24px",
-                      backgroundColor: "#2ECC71",
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "white",
-                      fontWeight: "bold",
-                      fontSize: "16px"
-                    }}>
-                      ✓
-                    </div>
-                  )}
-                  <div className="packagingImage">
-                    <img
-                      src={option.image}
-                      alt={`${option.name} - ${option.description}`}
-                      className={option.name.toLowerCase().replace(" ", "")}
-                    />
-                  </div>
-                  <h4>{option.name}</h4>
-                  <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
-                </div>
-              ))}
-            </div>
-
-            <button type="submit" style={styles.button}>
-              Next
-            </button>
-          </form>
-        )}
-
-        {/* Step 2 Form */}
-        {currentStep === 2 && (
-          <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
-
-            {/* Content Categories */}
-            <div style={styles.steps}>
-              <div 
-                style={{
-                  ...styles.step,
-                  backgroundColor: currentConCat === 1 ? '#696a8f' : '#f0f0f0',
-                  color: currentConCat === 1 ? '#fff' : '#2c3e50',
-                  border: "1px solid #f0f0f0",
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                }}
-                onClick={() => handleContentCategoryClick(1)}
-              >
-                <div style={{
-                  background: currentConCat === 1 ? '#fff' : '#696a8f',
-                  color: currentConCat === 1 ? '#696a8f' : '#fff'
-                }}></div>
-                <p style={{
-                  ...styles.stepTitle,
-                  color: currentConCat === 1 ? '#fff' : '#2c3e50',
-                  fontSize: "14px",
-                }}>Beverage</p>
-              </div>
-              <div 
-                style={{
-                  ...styles.step,
-                  backgroundColor: currentConCat === 2 ? '#696a8f' : '#f0f0f0',
-                  color: currentConCat === 2 ? '#fff' : '#2c3e50',
-                  border: "1px solid #f0f0f0",
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-                onClick={() => handleContentCategoryClick(2)}
-              >
-                <div style={{
-                  background: currentConCat === 2 ? '#fff' : '#696a8f',
-                  color: currentConCat === 2 ? '#696a8f' : '#fff'
-                }}></div>
-                <p style={{
-                  ...styles.stepTitle,
-                  color: currentConCat === 2 ? '#fff' : '#2c3e50',
-                  fontSize: "14px",
-                }}>Food</p>
-              </div>
-              <div 
-                style={{
-                  ...styles.step,
-                  backgroundColor: currentConCat === 3 ? '#696a8f' : '#f0f0f0',
-                  color: currentConCat === 3 ? '#fff' : '#2c3e50',
-                  border: "1px solid #f0f0f0",
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-                onClick={() => handleContentCategoryClick(3)}
-              >
-                <div style={{
-                  background: currentConCat === 3 ? '#fff' : '#696a8f',
-                  color: currentConCat === 3 ? '#696a8f' : '#fff'
-                }}></div>
-                <p style={{
-                  ...styles.stepTitle,
-                  color: currentConCat === 3 ? '#fff' : '#2c3e50',
-                  fontSize: "14px",
-                }}>Kitchenware</p>
-              </div>
-              <div 
-                style={{
-                  ...styles.step,
-                  backgroundColor: currentConCat === 4 ? '#696a8f' : '#f0f0f0',
-                  color: currentConCat === 4 ? '#fff' : '#2c3e50',
-                  border: "1px solid #f0f0f0",
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-                onClick={() => handleContentCategoryClick(4)}
-              >
-                <div style={{
-                  background: currentConCat === 4 ? '#fff' : '#696a8f',
-                  color: currentConCat === 4 ? '#696a8f' : '#fff'
-                }}></div>
-                <p style={{
-                  ...styles.stepTitle,
-                  color: currentConCat === 4 ? '#fff' : '#2c3e50',
-                  fontSize: "14px",
-                }}>Home Decor</p>
-              </div>
-              <div 
-                style={{
-                  ...styles.step,
-                  backgroundColor: currentConCat === 5 ? '#696a8f' : '#f0f0f0',
-                  color: currentConCat === 5 ? '#fff' : '#2c3e50',
-                  border: "1px solid #f0f0f0",
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-                onClick={() => handleContentCategoryClick(5)}
-              >
-                <div style={{
-                  background: currentConCat === 5 ? '#fff' : '#696a8f',
-                  color: currentConCat === 5 ? '#696a8f' : '#fff'
-                }}></div>
-                <p style={{
-                  ...styles.stepTitle,
-                  color: currentConCat === 5 ? '#fff' : '#2c3e50',
-                  fontSize: "14px",
-                }}>Face and Body</p>
-              </div>
-              <div 
-                style={{
-                  ...styles.step,
-                  display: "flex",
-                  justifyContent: "center",
-                  backgroundColor: currentConCat === 6 ? '#696a8f' : '#f0f0f0',
-                  color: currentConCat === 6 ? '#fff' : '#2c3e50',
-                  border: "1px solid #f0f0f0",
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-                onClick={() => handleContentCategoryClick(6)}
-              >
-                <div style={{
-                  background: currentConCat === 6 ? '#fff' : '#696a8f',
-                  color: currentConCat === 6 ? '#696a8f' : '#fff'
-                }}></div>
-                <p style={{
-                  ...styles.stepTitle,
-                  color: currentConCat === 6 ? '#fff' : '#2c3e50',
-                  fontSize: "12px",
-                }}>Clothing and Accessories</p>
-              </div>
-              <div 
-                style={{
-                  ...styles.step,
-                  display: "flex",
-                  justifyContent: "center",
-                  backgroundColor: currentConCat === 7 ? '#696a8f' : '#f0f0f0',
-                  color: currentConCat === 7 ? '#fff' : '#2c3e50',
-                  border: "1px solid #f0f0f0",
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-                onClick={() => handleContentCategoryClick(7)}
-              >
-                <div style={{
-                  background: currentConCat === 7 ? '#fff' : '#696a8f',
-                  color: currentConCat === 7 ? '#696a8f' : '#fff'
-                }}></div>
-                <p style={{
-                  ...styles.stepTitle,
-                  color: currentConCat === 7 ? '#fff' : '#2c3e50',
-                  fontSize: "12px",
-                }}>Leather Products and Desk Essentials</p>
-              </div>
-              
-            </div>
-
-            <div style={{backgroundColor: "#2ECC71", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
-              <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
-            </div>
-            
-            {/* Beverage */}
-            {currentConCat === 1 && (
-              <>
-                <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
-                  <input
-                    type="checkbox"
-                    checked={customProducts.beverages}
-                    onChange={() => handleStep2CustomCategory(1)}
-                  />
-                  <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
-                </div>
-
-                <p>MOQ for custom-labelled beer, mini wine, and mini whiskey is 6 pcs.</p>
-                <p>MOQ for custom coffee and tea packaging is 12 pcs.</p>
-
-                <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                  {contentBeverageOptions.map((option, index) => (
-                    <div 
-                      key={index}
-                      className="packagingOptions" 
-                      style={{
-                        border: "2px solid #f0f0f0", 
-                        borderRadius: "12px", 
-                        padding: "20px", 
-                        width: "16%",
-                        cursor: "pointer",
-                        transition: "all 0.3s ease",
-                        position: "relative"
-                      }}
-                      onClick={() => handleBeverageSelect(option)}
-                    >
-                      {selectedBeverages.includes(option.name) && (
-                        <div style={{
-                          position: "absolute",
-                          top: "-10px",
-                          right: "-10px",
-                          width: "24px",
-                          height: "24px",
-                          backgroundColor: "#2ECC71",
-                          borderRadius: "50%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "white",
-                          fontWeight: "bold",
-                          fontSize: "16px"
-                        }}>
-                          ✓
-                        </div>
-                      )}
-                      <div className="packagingImage">
-                        <img
-                          src={option.image}
-                          alt={`${option.name} - ${option.description}`}
-                          className={option.name.toLowerCase().replace(" ", "")}
-                        />
-                      </div>
-                      <h4>{option.name}</h4>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Food */}
-            {currentConCat === 2 && (
-              <>
-                <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
-                  <input
-                    type="checkbox"
-                    checked={customProducts.food}
-                    onChange={() => handleStep2CustomCategory(2)}
-                  />
-                  <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
-                </div>
-
-                <p>Infused Salts are sold as a set for retail orders.</p>
-
-                <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                  {contentFoodOptions.map((option, index) => (
-                    <div 
-                      key={index}
-                      className="packagingOptions" 
-                      style={{
-                        border: "2px solid #f0f0f0", 
-                        borderRadius: "12px", 
-                        padding: "20px", 
-                        width: "16%",
-                        cursor: "pointer",
-                        transition: "all 0.3s ease",
-                        position: "relative"
-                      }}
-                      onClick={() => handleFoodSelect(option)}
-                    >
-                      {selectedFood.includes(option.name) && (
-                        <div style={{
-                          position: "absolute",
-                          top: "-10px",
-                          right: "-10px",
-                          width: "24px",
-                          height: "24px",
-                          backgroundColor: "#2ECC71",
-                          borderRadius: "50%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "white",
-                          fontWeight: "bold",
-                          fontSize: "16px"
-                        }}>
-                          ✓
-                        </div>
-                      )}
-                      <div className="packagingImage">
-                        <img
-                          src={option.image}
-                          alt={`${option.name} - ${option.description}`}
-                          className={option.name.toLowerCase().replace(" ", "")}
-                        />
-                      </div>
-                      <h4>{option.name}</h4>
-                      <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Kitchenware */}
-            {currentConCat === 3 && (
-              <>
-                <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
-                  <input
-                    type="checkbox"
-                    checked={customProducts.kitchenware}
-                    onChange={() => handleStep2CustomCategory(3)}
-                  />
-                  <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
-                </div>
-
-                <p>MOQ for personalized wooden kitchenware is 10 pcs.</p>
-
-                <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                  {contentKitchenwareOptions.map((option, index) => (
-                    <div 
-                      key={index}
-                      className="packagingOptions" 
-                      style={{
-                        border: "2px solid #f0f0f0", 
-                        borderRadius: "12px", 
-                        padding: "20px", 
-                        width: "16%",
-                        cursor: "pointer",
-                        transition: "all 0.3s ease",
-                        position: "relative"
-                      }}
-                      onClick={() => handleKitchenwareSelect(option)}
-                    >
-                      {selectedKitchenware.includes(option.name) && (
-                        <div style={{
-                          position: "absolute",
-                          top: "-10px",
-                          right: "-10px",
-                          width: "24px",
-                          height: "24px",
-                          backgroundColor: "#2ECC71",
-                          borderRadius: "50%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "white",
-                          fontWeight: "bold",
-                          fontSize: "16px"
-                        }}>
-                          ✓
-                        </div>
-                      )}
-                      <div className="packagingImage">
-                        <img
-                          src={option.image}
-                          alt={`${option.name} - ${option.description}`}
-                          className={option.name.toLowerCase().replace(" ", "")}
-                        />
-                      </div>
-                      <h4>{option.name}</h4>
-                      <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Home Decor */}
-            {currentConCat === 4 && (
-              <>
-                <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
-                  <input
-                    type="checkbox"
-                    checked={customProducts.homeDecor}
-                    onChange={() => handleStep2CustomCategory(4)}
-                  />
-                  <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
-                </div>
-
-                <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                  {contentHomeDecorOptions.map((option, index) => (
-                    <div 
-                      key={index}
-                      className="packagingOptions" 
-                      style={{
-                        border: "2px solid #f0f0f0", 
-                        borderRadius: "12px", 
-                        padding: "20px", 
-                        width: "16%",
-                        cursor: "pointer",
-                        transition: "all 0.3s ease",
-                        position: "relative"
-                      }}
-                      onClick={() => handleHomeDecorSelect(option)}
-                    >
-                      {selectedHomeDecor.includes(option.name) && (
-                        <div style={{
-                          position: "absolute",
-                          top: "-10px",
-                          right: "-10px",
-                          width: "24px",
-                          height: "24px",
-                          backgroundColor: "#2ECC71",
-                          borderRadius: "50%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "white",
-                          fontWeight: "bold",
-                          fontSize: "16px"
-                        }}>
-                          ✓
-                        </div>
-                      )}
-                      <div className="packagingImage">
-                        <img
-                          src={option.image}
-                          alt={`${option.name} - ${option.description}`}
-                          className={option.name.toLowerCase().replace(" ", "")}
-                        />
-                      </div>
-                      <h4>{option.name}</h4>
-                      <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Face and Body */}
-            {currentConCat === 5 && (
-              <>
-                <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
-                  <input
-                    type="checkbox"
-                    checked={customProducts.faceAndBody}
-                    onChange={() => handleStep2CustomCategory(5)}
-                  />
-                  <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
-                </div>
-
-                <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                  {contentFaceAndBodyOptions.map((option, index) => (
-                    <div 
-                      key={index}
-                      className="packagingOptions" 
-                      style={{
-                        border: "2px solid #f0f0f0", 
-                        borderRadius: "12px", 
-                        padding: "20px", 
-                        width: "16%",
-                        cursor: "pointer",
-                        transition: "all 0.3s ease",
-                        position: "relative"
-                      }}
-                      onClick={() => handleFaceAndBodySelect(option)}
-                    >
-                      {selectedFaceAndBody.includes(option.name) && (
-                        <div style={{
-                          position: "absolute",
-                          top: "-10px",
-                          right: "-10px",
-                          width: "24px",
-                          height: "24px",
-                          backgroundColor: "#2ECC71",
-                          borderRadius: "50%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "white",
-                          fontWeight: "bold",
-                          fontSize: "16px"
-                        }}>
-                          ✓
-                        </div>
-                      )}
-                      <div className="packagingImage">
-                        <img
-                          src={option.image}
-                          alt={`${option.name} - ${option.description}`}
-                          className={option.name.toLowerCase().replace(" ", "")}
-                        />
-                      </div>
-                      <h4>{option.name}</h4>
-                      <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Clothiing and Accessories */}
-            {currentConCat === 6 && (
-              <>
-                <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
-                  <input
-                    type="checkbox"
-                    checked={customProducts.clothing}
-                    onChange={() => handleStep2CustomCategory(6)}
-                  />
-                  <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
-                </div>
-
-                <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                  {contentClothingAndAccessoriesOptions.map((option, index) => (
-                    <div 
-                      key={index}
-                      className="packagingOptions" 
-                      style={{
-                        border: "2px solid #f0f0f0", 
-                        borderRadius: "12px", 
-                        padding: "20px", 
-                        width: "16%",
-                        cursor: "pointer",
-                        transition: "all 0.3s ease",
-                        position: "relative"
-                      }}
-                      onClick={() => handleClothingSelect(option)}
-                    >
-                      {selectedClothing.includes(option.name) && (
-                        <div style={{
-                          position: "absolute",
-                          top: "-10px",
-                          right: "-10px",
-                          width: "24px",
-                          height: "24px",
-                          backgroundColor: "#2ECC71",
-                          borderRadius: "50%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "white",
-                          fontWeight: "bold",
-                          fontSize: "16px"
-                        }}>
-                          ✓
-                        </div>
-                      )}
-                      <div className="packagingImage">
-                        <img
-                          src={option.image}
-                          alt={`${option.name} - ${option.description}`}
-                          className={option.name.toLowerCase().replace(" ", "")}
-                        />
-                      </div>
-                      <h4>{option.name}</h4>
-                      <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <button type="submit" style={styles.button}>
-              Next
-            </button>
-          </form>
-        )}
-
-        {/* Step 3 Form */}
-        {currentStep === 3 && (
-          <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
-            <div style={{backgroundColor: "#2ECC71", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
-              <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
-            </div>
-
-            <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
-              <input
-                type="checkbox"
-                checked={customProducts.customization}
-                onChange={handleStep3CustomCustomization}
-              />
-              <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products</label>
-            </div>
-
-            <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-              {customizationOptions.map((option, index) => (
-                <div 
-                  key={index}
-                  className="packagingOptions" 
-                  style={{
-                    border: "2px solid #f0f0f0", 
-                    borderRadius: "12px", 
-                    padding: "20px", 
-                    width: "16%",
-                    cursor: "pointer",
-                    transition: "all 0.3s ease",
-                    position: "relative"
-                  }}
-                  onClick={() => handleCustomizationSelect(option)}
-                >
-                  {selectedCustomization.includes(option.name) && (
-                    <div style={{
-                      position: "absolute",
-                      top: "-10px",
-                      right: "-10px",
-                      width: "24px",
-                      height: "24px",
-                      backgroundColor: "#2ECC71",
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "white",
-                      fontWeight: "bold",
-                      fontSize: "16px"
-                    }}>
-                      ✓
-                    </div>
-                  )}
-                  <div className="packagingImage">
-                    <img
-                      src={option.image}
-                      alt={`${option.name} - ${option.description}`}
-                      className={option.name.toLowerCase().replace(" ", "")}
-                    />
-                  </div>
-                  <h4>{option.name}</h4>
-                  <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
-                </div>
-              ))}
-            </div>
-
-            <button type="submit" style={styles.button}>
-              Next
-            </button>
-          </form>
-        )}
-
-        {currentStep === 4 && (
-          <form style={{...styles.form, width: "100%", display: "flex", flexDirection: "row", gap: "50px"}} onSubmit={handleSubmit}>
-            <div style={{width: "50%"}}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Wedding Date</label>
-                <input
-                  type="date"
-                  name="weddingDate"
-                  value={formData.weddingDate}
-                  onChange={handleInputChange}
-                  style={styles.input}
-                  required
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Expected Delivery Date</label>
-                <input
-                  type="date"
-                  name="expectedDeliveryDate"
-                  value={formData.expectedDeliveryDate}
-                  onChange={handleInputChange}
-                  style={styles.input}
-                  required
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Number of Gift Boxes</label>
-                <input
-                  type="number"
-                  name="guestCount"
-                  value={formData.guestCount}
-                  onChange={handleInputChange}
-                  style={styles.input}
-                  required
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Special Requests</label>
-                <textarea
-                  name="specialRequests"
-                  value={formData.specialRequests}
-                  onChange={handleInputChange}
-                  style={{ ...styles.input, height: "120px" }}
-                  placeholder="Any specific requirements or preferences?"
-                  cols={50}
-                />
-              </div>
-
-              <button type="submit" style={styles.button}>
-                Submit Order
-              </button>
-            </div>
-
-            <div style={{flex: 1, width: "50%"}}>
-              <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", width: "100%",}}>
-                <h3 style={{fontWeight: "bold", color: "#2c3e50"}}>Selected Items</h3>
-                <button 
-                  onClick={() => handleEditCategory('all')}
-                  style={{
-                    padding: "4px 8px",
-                    backgroundColor: "#696a8f",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    fontSize: "12px"
-                  }}
-                >
-                  Edit Selection
-                </button>
-              </div>
-
-              <p>Select an item to customize.</p>
-              
-              <div style={{
-                display: "flex",
-                gap: "20px",
-                overflowX: "auto",
-                padding: "10px 0",
-                scrollbarWidth: "thin",
-                scrollbarColor: "#696a8f #f0f0f0"
-              }}>
-                {getAllSelectedItems().map((item, index) => (
-                  <div 
-                    key={`${item.category}-${index}`}
-                    className="packagingOptions" 
+              <div style={{flex: 1, width: "50%"}}>
+                <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", width: "100%",}}>
+                  <h3 style={{fontWeight: "bold", color: "#2c3e50"}}>Selected Items</h3>
+                  <button 
+                    onClick={() => handleEditCategory('all')}
                     style={{
-                      border: "2px solid #f0f0f0", 
-                      borderRadius: "12px", 
-                      padding: "20px",
-                      maxWidth: "32.4%",
-                      flexShrink: 0,
-                      position: "relative"
+                      padding: "4px 8px",
+                      backgroundColor: "#696a8f",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "12px"
                     }}
                   >
-                    <div className="packagingImage">
-                      <img
-                        src={item.image}
-                        alt={`${item.name} - ${item.description}`}
-                        className={item.name.toLowerCase().replace(" ", "")}
-                      />
+                    Edit Selection
+                  </button>
+                </div>
+
+                <p>Select an item to customize.</p>
+                
+                <div style={{
+                  display: "flex",
+                  gap: "20px",
+                  overflowX: "auto",
+                  padding: "10px 0",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#696a8f #f0f0f0"
+                }}>
+                  {getAllSelectedItems().map((item, index) => (
+                    <div 
+                      key={`${item.category}-${index}`}
+                      className="packagingOptions" 
+                      style={{
+                        border: "2px solid #f0f0f0", 
+                        borderRadius: "12px", 
+                        padding: "20px",
+                        maxWidth: "32.4%",
+                        flexShrink: 0,
+                        position: "relative"
+                      }}
+                    >
+                      <div className="packagingImage">
+                        <img
+                          src={item.image}
+                          alt={`${item.name} - ${item.description}`}
+                          className={item.name.toLowerCase().replace(" ", "")}
+                        />
+                      </div>
+                      <h4>{item.name}</h4>
+                      <p style={{ fontStyle: "italic", fontSize: "12px"}}>{item.description}</p>
                     </div>
-                    <h4>{item.name}</h4>
-                    <p style={{ fontStyle: "italic", fontSize: "12px"}}>{item.description}</p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          </form>
-        )}
-        
-
+            </form>
+          )}
+          
+          {renderModal()}
+        </div>
       </div>
-      </div>
-
-
-      {renderModal()}
     </div>
   );
-} 
+}

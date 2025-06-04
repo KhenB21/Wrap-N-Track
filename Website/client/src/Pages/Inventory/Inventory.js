@@ -74,7 +74,7 @@ export default function Inventory() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/api/inventory');
+      const res = await api.get('http://localhost:3001/api/inventory');
       setProducts(res.data);
     } catch (err) {
       console.error('Error fetching inventory:', err);
@@ -96,8 +96,8 @@ export default function Inventory() {
       
       // Use apiFileUpload for file uploads, regular api for JSON
       const response = isFileUpload 
-        ? await apiFileUpload.post('/api/inventory', formData)
-        : await api.post('/api/inventory', formData);
+        ? await apiFileUpload.post('http://localhost:3001/api/inventory', formData)
+        : await api.post('http://localhost:3001/api/inventory', formData);
         
       if (response.data.success) {
         setShowModal(false);
