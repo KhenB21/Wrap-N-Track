@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../api/axios";
 import { useNavigate } from "react-router-dom";
 import "./ResetPassword.css";
 
@@ -18,6 +18,7 @@ function ResetPassword() {
   });
   const navigate = useNavigate();
   const email = localStorage.getItem("reset_email");
+  const code = localStorage.getItem("reset_code"); // Retrieve the verified code
 
   useEffect(() => {
     // Redirect if no email is stored
@@ -55,13 +56,20 @@ function ResetPassword() {
 
     setLoading(true);
     try {
-      await axios.post("http://localhost:3001/api/auth/reset-password", {
+      if (!code) {
+        setError("Verification code is missing. Please restart the reset process.");
+        setLoading(false);
+        return;
+      }
+      await api.post("/api/auth/reset-password", {
         email,
-        password: newPassword,
+        code,
+        newPassword,
       });
 
       setMessage("Password reset successful! Redirecting...");
       localStorage.removeItem("reset_email");
+      localStorage.removeItem("reset_code");
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
       setError(err.response?.data?.message || "Something went wrong.");

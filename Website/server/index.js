@@ -1186,6 +1186,133 @@ app.get('/api/orders/history', async (req, res) => {
   }
 });
 
+// --- PASSWORD RESET ENDPOINTS ---
+
+// Forgot Password: Generate and store reset code and send via email
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: "Email is required" });
+
+  try {
+    // Fetch all user columns to match registration resend flow
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (userResult.rows.length === 0) {
+      // Always respond the same to avoid leaking which emails are registered
+      return res.json({ message: "If this email exists, instructions have been sent." });
+    }
+
+    const user = userResult.rows[0];
+    // Generate secure OTP using crypto.randomInt (same as registration)
+    const resetCode = crypto.randomInt(100000, 999999).toString();
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+    // Store code and expiry
+    await pool.query('UPDATE users SET reset_code = $1, reset_code_expires = $2 WHERE user_id = $3', [resetCode, expires, user.user_id]);
+
+    // Nodemailer transporter (same as registration resend-code)
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    // Email content (match registration resend-code)
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: "Your Password Reset Code for Wrap N' Track",
+      text: `Hello ${user.name},\n\nYour password reset code is: ${resetCode}\n\nThis code will expire in 15 minutes.\n\nIf you did not request this, please ignore this email.\n\nThanks,\nThe Wrap N' Track Team`,
+      html: `<p>Hello ${user.name},</p><p>Your password reset code is: <strong>${resetCode}</strong></p><p>This code will expire in 15 minutes.</p><p>If you did not request this, please ignore this email.</p><p>Thanks,<br/>The Wrap N' Track Team</p>`
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+    } catch (emailError) {
+      console.error('Error sending forgot password email:', emailError);
+      if (emailError.code === 'EENVELOPE' || emailError.responseCode === 550) {
+        return res.status(500).json({ message: 'Failed to send reset email. Please check server email configuration or recipient address.' });
+      }
+      return res.status(500).json({ message: 'Internal server error while sending reset code.' });
+    }
+
+    return res.json({ message: "If this email exists, instructions have been sent." });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Verify Reset Code
+app.post('/api/auth/verify-reset-code', async (req, res) => {
+
+// Reset Password: Update password after verifying code
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { email, code, newPassword } = req.body;
+  if (!email || !code || !newPassword) {
+    return res.status(400).json({ message: "Email, code, and new password are required" });
+  }
+  try {
+    // Check code validity
+    const userResult = await pool.query(
+      'SELECT user_id, reset_code, reset_code_expires FROM users WHERE email = $1',
+      [email]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ message: "Invalid email or code" });
+    }
+    const { user_id, reset_code, reset_code_expires } = userResult.rows[0];
+    if (
+      !reset_code ||
+      reset_code !== code ||
+      !reset_code_expires ||
+      new Date(reset_code_expires) < new Date()
+    ) {
+      return res.status(400).json({ message: "Invalid or expired code" });
+    }
+    // Hash new password
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+    // Update password and clear reset code
+    await pool.query(
+      'UPDATE users SET password_hash = $1, reset_code = NULL, reset_code_expires = NULL WHERE user_id = $2',
+      [passwordHash, user_id]
+    );
+    res.json({ message: "Password reset successful" });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+  const { email, code } = req.body;
+  if (!email || !code) return res.status(400).json({ message: "Email and code are required" });
+
+  try {
+    const userResult = await pool.query(
+      'SELECT reset_code, reset_code_expires FROM users WHERE email = $1',
+      [email]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ message: "Invalid code or email" });
+    }
+    const { reset_code, reset_code_expires } = userResult.rows[0];
+    if (
+      !reset_code ||
+      reset_code !== code ||
+      !reset_code_expires ||
+      new Date(reset_code_expires) < new Date()
+    ) {
+      return res.status(400).json({ message: "Invalid or expired code" });
+    }
+    return res.json({ message: "Code verified" });
+  } catch (err) {
+    console.error('Verify reset code error:', err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
 // Get products for an archived order
 app.get('/api/orders/history/:order_id/products', async (req, res) => {
   try {
