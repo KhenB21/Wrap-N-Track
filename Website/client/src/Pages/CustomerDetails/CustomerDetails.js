@@ -479,7 +479,7 @@ export default function CustomerDetails() {
   const handleDelete = async (customerId) => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
       try {
-        await axios.delete(`${API_BASE_URL}/api/customers/${customerId}`);
+        await api.delete(`/api/customers/${customerId}`);
         setCustomers(customers.filter(c => c.customer_id !== customerId));
         setSelectedCustomer(null);
         setError(null);

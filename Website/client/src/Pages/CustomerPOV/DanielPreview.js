@@ -91,7 +91,7 @@ export default function DanielPreview() {
       products: products,
     };
     try {
-      await axios.post(`${config.API_URL}/api/orders`, order);
+      await api.post(`/api/orders`, order);
       setModalOpen(false);
       window.location.href = "/orders";
     } catch (err) {

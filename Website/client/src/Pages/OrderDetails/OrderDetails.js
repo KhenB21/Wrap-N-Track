@@ -527,11 +527,11 @@ useEffect(() => {
     if (!selectedOrder) return;
     try {
       // 1. Fetch inventory first
-      const inventoryRes = await axios.get('http://localhost:3001/api/inventory');
+      const inventoryRes = await api.get(`/api/inventory`);
       setInventory(inventoryRes.data);
 
       // 2. Fetch the latest order products for this specific order
-      const productsResponse = await axios.get(`http://localhost:3001/api/orders/${selectedOrder.order_id}/products`);
+      const productsResponse = await api.get(`/api/orders/${selectedOrder.order_id}/products`);
       const orderProducts = productsResponse.data;
       console.log("Fetched products for order", selectedOrder.order_id, ":", orderProducts);
 

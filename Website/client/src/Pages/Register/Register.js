@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import api from '../../api/axios';
 import config from '../../config';
 // (keep axios import only if needed for FormData compatibility, otherwise use api) "axios";
-import config from "../../config";
 import "./Register.css";
 
 function debounce(func, delay) {

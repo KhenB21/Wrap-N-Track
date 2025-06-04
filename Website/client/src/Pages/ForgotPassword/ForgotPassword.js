@@ -45,7 +45,7 @@ function ForgotPassword() {
     setLoading(true);
 
     try {
-      const res = await axios.post(`${config.API_URL}/api/auth/forgot-password`, { email });
+      const res = await api.post(`/api/auth/forgot-password`, { email });
       setMessage(res.data.message);
       setShowModal(true);
     } catch (err) {
@@ -61,7 +61,7 @@ function ForgotPassword() {
 
   const handleCodeSubmit = async () => {
     try {
-      const res = await axios.post(`${config.API_URL}/api/auth/verify-reset-code`, {
+      const res = await api.post(`/api/auth/verify-reset-code`, {
         email,
         code,
       });
