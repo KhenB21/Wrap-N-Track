@@ -13,9 +13,8 @@ import {
 } from "react-native";
 import Header from "../Components/Header";
 import { useTheme } from "../Context/ThemeContext";
-import Toast from "../Components/Toast";
 import CustomAlert from "../Components/CustomAlert";
-import * as ImagePicker from "expo-image-picker"; // Add this import
+import * as ImagePicker from "expo-image-picker"; 
 
 const { width, height } = Dimensions.get("window");
 

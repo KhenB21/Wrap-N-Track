@@ -9,7 +9,7 @@ export default function CustomAlert({
   message,
   onClose,
   buttonText = "OK",
-  logo = require("../Images/Logo/pensee-logo-only.png"), 
+  logo = require("../Images/Logo/pensee-logo-only.png"),
 }) {
   return (
     <Modal

@@ -84,12 +84,11 @@ const DeliveryTrackingScreen = ({ navigation, route }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      
       <Header
         showBack
         logoType="image"
         showCart
-        onBackPress={() => navigation.goBack()}
+        onBackPress={() => navigation.navigate("Home")}
         onCartPress={() => navigation.navigate("MyCart")}
         darkMode={darkMode}
         title="Delivery Tracking"
