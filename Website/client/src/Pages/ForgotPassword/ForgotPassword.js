@@ -68,13 +68,13 @@ function ForgotPassword() {
     setSuccess(null);
 
     try {
-      const response = await api.post('http://localhost:3001/api/auth/forgot-password', {
+      const response = await api.post('/api/auth/forgot-password', {
         email
       });
 
       if (response.status === 200) {
         setSuccess('Password reset instructions have been sent to your email.');
-        setEmail('');
+        setShowModal(true); // Show the modal after successful code sending
       } else {
         setError('Failed to process request. Please try again.');
       }
@@ -148,41 +148,41 @@ function ForgotPassword() {
         </div>
       </div>
 
-      {/* ✅ Modal for verification code */}
+      {/* Modal for verification code */}
       {showModal && (
-  <div className="modal">
-    <div className="modal-content">
-      <button className="modal-close" onClick={() => {
-        setShowModal(false);
-        setError("");
-        setMessage("");
-        setCode("");
-      }}>&times;</button>
-      {error && <div className="error-message modal-error">{error}</div>}
-      <h3>Enter Verification Code</h3>
-      <p className="modal-instructions">
-        Please enter the 6-digit code sent to your email address.
-      </p>
-      <input
-        type="text"
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        placeholder="Enter the code"
-        maxLength={6}
-        style={{letterSpacing:'0.3em',textAlign:'center'}}
-      />
-      <button onClick={handleCodeSubmit} style={{marginTop:'1em'}}>Verify</button>
-      <button
-        onClick={handleResendCode}
-        disabled={resendCooldown > 0 || loading}
-        style={{marginTop:'0.5em',marginLeft:'1em'}}
-      >
-        {resendCooldown > 0 ? `Resend Code (${resendCooldown}s)` : 'Resend Code'}
-      </button>
-      {resendMessage && <div className="success-message modal-success">{resendMessage}</div>}
-    </div>
-  </div>
-)}
+        <div className="modal">
+          <div className="modal-content">
+            <button className="modal-close" onClick={() => {
+              setShowModal(false);
+              setError("");
+              setMessage("");
+              setCode("");
+            }}>&times;</button>
+            {error && <div className="error-message modal-error">{error}</div>}
+            <h3>Enter Verification Code</h3>
+            <p className="modal-instructions">
+              Please enter the 6-digit code sent to your email address.
+            </p>
+            <input
+              type="text"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Enter the code"
+              maxLength={6}
+              style={{letterSpacing:'0.3em',textAlign:'center'}}
+            />
+            <button onClick={handleCodeSubmit} style={{marginTop:'1em'}}>Verify</button>
+            <button
+              onClick={handleResendCode}
+              disabled={resendCooldown > 0 || loading}
+              style={{marginTop:'0.5em',marginLeft:'1em'}}
+            >
+              {resendCooldown > 0 ? `Resend Code (${resendCooldown}s)` : 'Resend Code'}
+            </button>
+            {resendMessage && <div className="success-message modal-success">{resendMessage}</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
