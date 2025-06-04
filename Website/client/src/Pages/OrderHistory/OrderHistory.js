@@ -43,7 +43,10 @@ export default function OrderHistory() {
         return;
       }
 
-      const response = await api.get('/api/orders', {
+
+      // Fetch only archived orders
+      const response = await fetch('http://localhost:3001/api/orders/history', {
+
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -55,7 +58,9 @@ export default function OrderHistory() {
         throw new Error(errorData.message || 'Failed to fetch orders');
       }
 
-      const data = await response.json();
+      let data = await response.json();
+      // Only show Deleted, Cancelled, Completed, or Invoiced
+      data = data.filter(order => ['Deleted', 'Cancelled', 'Completed', 'Invoiced'].includes(order.status));
       setOrders(data);
       setError(null);
     } catch (err) {

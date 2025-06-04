@@ -181,7 +181,25 @@ export default function OrderDetails() {
     shipping_address: '', total_cost: '0.00', payment_type: '', payment_method: '', account_name: '', remarks: '',
     telephone: '', cellphone: '', email_address: '', package_name: '', carlo_products: [], 
     order_quantity: 0,
-    approximate_budget: 0.00
+    approximate_budget: 0.00,
+    // Add new fields for wedding and custom orders
+    order_type: 'regular', // 'regular', 'wedding', or 'custom'
+    wedding_details: {
+      wedding_style: '',
+      wedding_date: '',
+      guest_count: 0,
+      color_scheme: '',
+      special_requests: ''
+    },
+    custom_details: {
+      box_style: '',
+      box_size: '',
+      box_color: '',
+      contents: [],
+      accessories: [],
+      personalization_details: {},
+      quantity: 1
+    }
   });
   const [loading, setLoading] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -235,9 +253,29 @@ export default function OrderDetails() {
 
   const fetchOrders = async () => {
     try {
-      const response = await api.get('/api/orders');
-      setOrders(response.data);
-      console.log('Orders fetched successfully:', response.data);
+
+      const response = await axios.get('http://localhost:3001/api/orders');
+      const orders = response.data;
+
+      // For each wedding order, fetch additional details
+      const ordersWithDetails = await Promise.all(orders.map(async (order) => {
+        if (order.order_type === 'wedding') {
+          try {
+            const weddingResponse = await axios.get(`http://localhost:3001/api/wedding-orders/${order.order_id}`);
+            return {
+              ...order,
+              wedding_details: weddingResponse.data
+            };
+          } catch (error) {
+            console.error('Error fetching wedding details:', error);
+            return order;
+          }
+        }
+        return order;
+      }));
+
+      setOrders(ordersWithDetails);
+
     } catch (error) {
       console.error('Error fetching orders:', error);
     }
@@ -421,67 +459,27 @@ useEffect(() => {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    setProductError("");
-    setPlacingOrder(true);
-
+    setLoading(true);
     try {
-      // Get the token from localStorage
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Please log in to create an order');
-        return;
-      }
-
-      // Filter products that have both quantity and profit margin
-      const selectedProducts = Object.entries(productSelection)
-        .filter(([sku, qty]) => {
-          const quantity = Number(qty);
-          const margin = Number(profitMargins[sku] || 0);
-          // For Custom orders, require both quantity and profit margin
-          if (form.package_name === 'Custom') {
-            return quantity > 0 && margin > 0;
-          }
-          // For other orders, only require quantity
-          return quantity > 0;
-        })
-        .map(([sku, quantity]) => {
-          const inventoryItem = inventory.find(item => item.sku === sku);
-          return {
-            sku,
-            name: inventoryItem?.name || '',
-            quantity: Number(quantity),
-            profit_margin: form.package_name === 'Custom' ? Number(profitMargins[sku]) : 0
-          };
-        });
-
-      if (selectedProducts.length === 0) {
-        if (form.package_name === 'Custom') {
-          setProductError("Please select at least one product with quantity and profit margin");
-        } else {
-          setProductError("Please select at least one product with quantity");
-        }
-        setPlacingOrder(false);
-        return;
-      }
-
-      // Create order with products in a single request
       const orderData = {
         ...form,
-        // Remove order_id to let backend generate it
-        order_id: undefined,
-        products: selectedProducts,
-        total_cost: calculateTotalCost(productSelection)
+        products: Object.entries(productSelection).map(([sku, quantity]) => ({
+          sku,
+          quantity,
+          profit_margin: profitMargins[sku] || 0
+        }))
       };
 
-      console.log("Submitting order data:", orderData);
+      // Add order type specific data
+      if (form.order_type === 'wedding') {
+        orderData.wedding_details = form.wedding_details;
+      } else if (form.order_type === 'custom') {
+        orderData.custom_details = form.custom_details;
+      }
 
-      const response = await axios.post('http://localhost:3001/api/orders', orderData, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
+      const response = await axios.post('http://localhost:3001/api/orders', orderData);
       if (response.data) {
+
         // If the order is not in Pending status, adjust inventory
         if (form.status !== 'Pending') {
           console.log("Adjusting inventory for new non-pending order");
@@ -501,24 +499,41 @@ useEffect(() => {
           }
         }
 
+
         setShowModal(false);
+        fetchOrders();
+        setForm({
+          order_id: '', name: '', shipped_to: '', order_date: '', expected_delivery: '', status: '',
+          shipping_address: '', total_cost: '0.00', payment_type: '', payment_method: '', account_name: '', remarks: '',
+          telephone: '', cellphone: '', email_address: '', package_name: '', carlo_products: [], 
+          order_quantity: 0,
+          approximate_budget: 0.00,
+          order_type: 'regular',
+          wedding_details: {
+            wedding_style: '',
+            wedding_date: '',
+            guest_count: 0,
+            color_scheme: '',
+            special_requests: ''
+          },
+          custom_details: {
+            box_style: '',
+            box_size: '',
+            box_color: '',
+            contents: [],
+            accessories: [],
+            personalization_details: {},
+            quantity: 1
+          }
+        });
         setProductSelection({});
         setProfitMargins({});
-        fetchOrders(); // Refresh the orders list
-      } else {
-        setProductError(response.data.message || 'Failed to create order');
       }
-    } catch (err) {
-      console.error("Order submission error:", err);
-      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to create order';
-      setProductError(errorMessage);
-      console.error("Detailed error:", {
-        message: errorMessage,
-        response: err.response?.data,
-        status: err.response?.status
-      });
+    } catch (error) {
+      console.error('Error submitting order:', error);
+      alert('Failed to submit order: ' + (error.response?.data?.message || error.message));
     } finally {
-      setPlacingOrder(false);
+      setLoading(false);
     }
   };
 
@@ -862,15 +877,20 @@ useEffect(() => {
     }
   };
 
+  // Helper function to normalize status strings
+  const normalizeStatus = (status) => (status ? status.trim().toLowerCase() : '');
+
   // Filter orders by status with proper mapping
-  const pendingOrders = orders.filter(order => order.status === 'Pending');
-  const toBePackOrders = orders.filter(order => 
-    order.status === 'To be pack' || 
-    !['Pending', 'Ready to ship', 'En Route', 'Completed'].includes(order.status)
-  );
-  const readyToDeliverOrders = orders.filter(order => order.status === 'Ready to ship');
-  const enRouteOrders = orders.filter(order => order.status === 'En Route');
-  const completedOrders = orders.filter(order => order.status === 'Completed');
+  const pendingOrders = orders.filter(order => normalizeStatus(order.status) === 'pending');
+  const toBePackOrders = orders.filter(order => {
+    const normalizedStatus = normalizeStatus(order.status);
+    return normalizedStatus === 'to be pack' || 
+           (normalizedStatus !== 'pending' && 
+            !['ready to ship', 'en route', 'completed'].includes(normalizedStatus));
+  });
+  const readyToDeliverOrders = orders.filter(order => normalizeStatus(order.status) === 'ready to ship');
+  const enRouteOrders = orders.filter(order => normalizeStatus(order.status) === 'en route');
+  const completedOrders = orders.filter(order => normalizeStatus(order.status) === 'completed');
 
   // Update the product selection in the edit modal table
   const renderProductTable = () => {
@@ -935,6 +955,101 @@ useEffect(() => {
           })}
         </tbody>
       </table>
+    );
+  };
+
+  const renderOrderDetails = () => {
+    if (!selectedOrder) return null;
+
+    return (
+      <div className="order-details">
+        <div className="order-info">
+          <div className="info-section">
+            <h3>Order Information</h3>
+            <p><strong>Order ID:</strong> {selectedOrder.order_id}</p>
+            <p><strong>Order Date:</strong> {new Date(selectedOrder.order_date).toLocaleDateString()}</p>
+            <p><strong>Order Type:</strong> {selectedOrder.order_type ? selectedOrder.order_type.charAt(0).toUpperCase() + selectedOrder.order_type.slice(1) : 'Regular'}</p>
+            <p><strong>Total Amount:</strong> ${selectedOrder.total_cost}</p>
+            <p><strong>Status:</strong> {selectedOrder.status}</p>
+            <p><strong>Contact Number:</strong> {selectedOrder.cellphone || 'N/A'}</p>
+            <p><strong>Order Quantity (Gift Boxes):</strong> {selectedOrder.order_quantity !== undefined ? selectedOrder.order_quantity : 'N/A'}</p>
+            <p><strong>Expected Delivery Date:</strong> {selectedOrder.expected_delivery_date ? new Date(selectedOrder.expected_delivery_date).toLocaleDateString() : 'Not specified'}</p>
+            <p><strong>Package Name:</strong> {selectedOrder.package_name}</p>
+            <p><strong>Payment Type:</strong> {selectedOrder.payment_type}</p>
+            <p><strong>Payment Method:</strong> {selectedOrder.payment_method}</p>
+            <p><strong>Account Name:</strong> {selectedOrder.account_name}</p>
+            <p><strong>Shipped To:</strong> {selectedOrder.shipped_to}</p>
+            <p><strong>Shipping Address:</strong> {selectedOrder.shipping_address}</p>
+            <p><strong>Telephone:</strong> {selectedOrder.telephone}</p>
+            <p><strong>Email:</strong> {selectedOrder.email_address}</p>
+            {selectedOrder.remarks && <p><strong>Remarks:</strong> {selectedOrder.remarks}</p>}
+          </div>
+
+          {/* Products Section */}
+          {selectedOrder.products && selectedOrder.products.length > 0 && (
+            <div className="info-section products-section">
+              <h3>Products</h3>
+              <div className="products-list">
+                {selectedOrder.products.map((product, index) => (
+                  <div key={product.sku || index} className="product-item" style={{ display: 'flex', alignItems: 'center', marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px solid #eee' }}>
+                    {product.image_data && (
+                      <img 
+                        src={`data:image/jpeg;base64,${product.image_data}`} 
+                        alt={product.name} 
+                        style={{ width: '70px', height: '70px', marginRight: '20px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ddd' }} 
+                      />
+                    )}
+                    <div className="product-details">
+                      <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', color: '#333' }}>{product.name}</p>
+                      <p style={{ margin: '0 0 5px 0', fontSize: '0.9em', color: '#555' }}>SKU: {product.sku}</p>
+                      <p style={{ margin: '0', fontSize: '0.9em', color: '#555' }}>Quantity: {product.quantity}</p>
+                      {product.unit_price && <p style={{ margin: '5px 0 0 0', fontSize: '0.9em', color: '#555' }}>Price: ${parseFloat(product.unit_price).toFixed(2)}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {selectedOrder.order_type === 'wedding' && selectedOrder.wedding_details && (
+            <div className="info-section">
+              <h3>Wedding Details</h3>
+              <p><strong>Wedding Style:</strong> {selectedOrder.wedding_details.wedding_style}</p>
+              <p><strong>Wedding Date:</strong> {new Date(selectedOrder.wedding_details.wedding_date).toLocaleDateString()}</p>
+              <p><strong>Guest Count:</strong> {selectedOrder.wedding_details.guest_count}</p>
+              {selectedOrder.wedding_details.color_scheme && (
+                <p><strong>Color Scheme:</strong> {selectedOrder.wedding_details.color_scheme}</p>
+              )}
+              {selectedOrder.wedding_details.special_requests && (
+                <p><strong>Special Requests:</strong> {selectedOrder.wedding_details.special_requests}</p>
+              )}
+            </div>
+          )}
+
+          {selectedOrder.products && selectedOrder.products.length > 0 && (
+            <div className="info-section">
+              <h3>Products</h3>
+              <div className="order-items">
+                {selectedOrder.products.map((product, index) => (
+                  <div key={index} className="order-item">
+                    {product.image_data && (
+                      <img src={`data:image/jpeg;base64,${product.image_data}`} alt={product.name} />
+                    )}
+                    <div className="item-details">
+                      <h4>{product.name}</h4>
+                      <p><strong>SKU:</strong> {product.sku}</p>
+                      <p><strong>Quantity:</strong> {product.quantity}</p>
+                      {product.profit_margin && (
+                        <p><strong>Profit Margin:</strong> {product.profit_margin}%</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     );
   };
 
