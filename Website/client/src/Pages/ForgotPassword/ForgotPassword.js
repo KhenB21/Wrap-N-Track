@@ -73,9 +73,7 @@ function ForgotPassword() {
     setLoading(true);
 
     try {
-
-      const res = await api.post(`/api/auth/forgot-password`, { email });
-
+      const res = await api.post("/api/auth/forgot-password", { email });
       setMessage(res.data.message);
       setShowModal(true);
       setCode("");
@@ -92,9 +90,7 @@ function ForgotPassword() {
 
   const handleCodeSubmit = async () => {
     try {
-
-      const res = await api.post(`/api/auth/verify-reset-code`, {
-
+      const res = await api.post("/api/auth/verify-reset-code", {
         email,
         code,
       });

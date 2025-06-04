@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-
-import api from '../../api/axios';
-
+import api from "../../api/axios";
 import { useNavigate } from "react-router-dom";
 import "./ResetPassword.css";
 
@@ -58,14 +56,12 @@ function ResetPassword() {
 
     setLoading(true);
     try {
-
       if (!code) {
         setError("Verification code is missing. Please restart the reset process.");
         setLoading(false);
         return;
       }
       await api.post("/api/auth/reset-password", {
-
         email,
         code,
         newPassword,

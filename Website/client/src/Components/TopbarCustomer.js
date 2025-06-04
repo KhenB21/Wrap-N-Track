@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import './TopbarCustomer.css';
-import api from '../api/axios';
 
 const navLinks = [
   { label: 'HOME', path: '/customer-home' },
@@ -14,93 +13,6 @@ const navLinks = [
 
 export default function TopbarCustomer() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef();
-  const [customer, setCustomer] = useState(null);
-
-  useEffect(() => {
-    const fetchCustomerData = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
-        const response = await api.get('/api/customer/profile', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (response.data) {
-          const customerData = {
-            customer_id: response.data.customer_id,
-            name: response.data.name,
-            email: response.data.email_address,
-            username: response.data.username,
-            phone_number: response.data.phone_number,
-            profile_picture_data: response.data.profile_picture_data,
-            profile_picture_path: response.data.profile_picture_path
-          };
-          setCustomer(customerData);
-          // Update localStorage with the complete customer data
-          localStorage.setItem('customer', JSON.stringify(customerData));
-        }
-      } catch (error) {
-        console.error('Error fetching customer data:', error);
-      }
-    };
-
-    fetchCustomerData();
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('customer');
-    navigate('/customer-home');
-  };
-
-  const handleViewProfile = () => {
-    navigate('/customer-user-details');
-    setDropdownOpen(false);
-  };
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    if (dropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [dropdownOpen]);
-
-  const getProfilePictureUrl = () => {
-    if (!customer) return "/placeholder-profile.png";
-    
-    // If we have base64 data, use that
-    if (customer.profile_picture_data) {
-      return `data:image/jpeg;base64,${customer.profile_picture_data}`;
-    }
-    
-    // If we have a profile picture path, use that
-    if (customer.profile_picture_path) {
-      if (customer.profile_picture_path.startsWith('http')) {
-        return customer.profile_picture_path;
-      }
-      return `${process.env.REACT_APP_API_URL || 'http://localhost:3001'}${customer.profile_picture_path}`;
-    }
-    
-    return "/placeholder-profile.png";
-  };
-
   return (
     <header className="topbar-customer">
       <nav className="topbar-customer-nav">
@@ -123,7 +35,7 @@ export default function TopbarCustomer() {
           />
         </div>
         <div className="topbar-customer-links right">
-          {navLinks.slice(3, 6).map(link => (
+          {navLinks.slice(3).map(link => (
             <Link
               key={link.label}
               to={link.path}
@@ -132,41 +44,6 @@ export default function TopbarCustomer() {
               {link.label}
             </Link>
           ))}
-          {!customer ? (
-            <>
-              <Link
-                to="/customer-register"
-                className={`topbar-customer-link${location.pathname === '/customer-register' ? ' active' : ''}`}
-              >
-                REGISTER
-              </Link>
-              <Link
-                to="/customer-login"
-                className={`topbar-customer-link${location.pathname === '/customer-login' ? ' active' : ''}`}
-              >
-                LOG IN
-              </Link>
-            </>
-          ) : (
-            <div className="customer-profile" ref={dropdownRef}>
-              <img
-                src={getProfilePictureUrl()}
-                alt="Profile"
-                className="customer-avatar"
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = '/placeholder-profile.png';
-                }}
-              />
-              {dropdownOpen && (
-                <div className="customer-dropdown">
-                  <button onClick={handleViewProfile}>View Profile</button>
-                  <button onClick={handleLogout} className="logout-btn">Logout</button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </nav>
     </header>

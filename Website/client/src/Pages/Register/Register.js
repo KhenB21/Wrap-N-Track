@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from '../../api/axios';
-import config from '../../config';
-// (keep axios import only if needed for FormData compatibility, otherwise use api) "axios";
+import axios from "axios";
+import config from "../../config";
 import "./Register.css";
 
 function debounce(func, delay) {
@@ -54,9 +53,7 @@ function Register() {
     if (!email) return;
     try {
       setCheckingEmail(true);
-
-      const res = await api.get(`${config.API_URL}/api/auth/check-email`, {
-
+      const res = await axios.get(`${config.API_URL}/api/auth/check-email`, {
         params: { email },
       });
 
@@ -77,9 +74,7 @@ function Register() {
     if (!name.trim()) return;
     try {
       setCheckingName(true);
-
-      const res = await api.get(`${config.API_URL}/api/auth/check-name`, {
-
+      const res = await axios.get(`${config.API_URL}/api/auth/check-name`, {
         params: { name: name.trim() },
       });
 
@@ -174,8 +169,8 @@ function Register() {
         formDataToSend.append("profilePicture", profilePicture);
       }
 
-      const response = await api.post(
-        `${config.API_URL}/api/auth/register`,
+      const response = await axios.post(
+        "http://localhost:3001/api/auth/register",
         formDataToSend,
         {
           headers: {

@@ -26,10 +26,7 @@ import EricMarielPreview from "./Pages/CustomerPOV/EricMarielPreview";
 import DanielPreview from "./Pages/CustomerPOV/EricMarielPreview";
 import CustomerBespoke from "./Pages/CustomerBespoke";
 import CustomerAboutUs from "./Pages/CustomerAboutUs.js/CustomerAboutUs";
-import CustomerRegister from "./Pages/CustomerPOV/CustomerRegister";
-import CustomerLogIn from "./Pages/CustomerPOV/CustomerLogIn";
-import CustomerUserDetails from "./Pages/CustomerPOV/CustomerUserDetails";
-import CustomerVerify from "./Pages/CustomerPOV/CustomerVerify";
+
 
 function App() {
   return (
@@ -65,10 +62,6 @@ function App() {
 
         <Route path="/bespoke" element={<CustomerBespoke />} />
         <Route path="/about" element={<CustomerAboutUs />} />
-        <Route path="/customer-register" element={<CustomerRegister />} />
-        <Route path="/customer-login" element={<CustomerLogIn />} />
-        <Route path="/customer-user-details" element={<CustomerUserDetails />} />
-        <Route path="/customer/verify" element={<CustomerVerify />} />
 
       </Routes>
     </Router>

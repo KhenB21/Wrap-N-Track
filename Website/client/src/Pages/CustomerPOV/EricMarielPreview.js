@@ -34,7 +34,7 @@ export default function DanielPreview() {
 
   React.useEffect(() => {
     axios
-      .get(`${config.API_URL}/api/inventory`)
+      .get("http://localhost:3001/api/inventory")
       .then((res) => setInventory(res.data))
       .catch(() => setInventory([]));
   }, []);
@@ -92,7 +92,7 @@ export default function DanielPreview() {
       products: products,
     };
     try {
-      await api.post(`/api/orders`, order);
+      await axios.post("http://localhost:3001/api/orders", order);
       setModalOpen(false);
       window.location.href = "/orders";
     } catch (err) {

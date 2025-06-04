@@ -11,13 +11,6 @@ CREATE TABLE customer_details (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Add authentication fields to existing customer_details table
-ALTER TABLE customer_details
-ADD COLUMN IF NOT EXISTS username VARCHAR(50) UNIQUE,
-ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255),
-ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS profile_picture_data BYTEA;
-
 -- Down Migration:
 -- Drop the new table
 DROP TABLE IF EXISTS customer_details;
@@ -29,4 +22,4 @@ CREATE TABLE customer_details (
     phone_number VARCHAR(20),
     email_address VARCHAR(100),
     CONSTRAINT user_id_length CHECK (user_id >= 1000 AND user_id <= 9999)
-);
+); 

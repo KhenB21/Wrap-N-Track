@@ -7,18 +7,13 @@ const createAxiosInstance = (contentType = 'application/json') => {
     baseURL: config.API_URL,
     withCredentials: true,
     headers: {
-      'Content-Type': contentType,
-      'Accept': 'application/json'
+      'Content-Type': contentType
     }
   });
 
   // Add a request interceptor to add the auth token
   instance.interceptors.request.use(
     (config) => {
-      console.log('Making request to:', config.url);
-      console.log('Request headers:', config.headers);
-      console.log('Request origin:', window.location.origin);
-      
       const token = localStorage.getItem('token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -30,7 +25,6 @@ const createAxiosInstance = (contentType = 'application/json') => {
       return config;
     },
     (error) => {
-      console.error('Request interceptor error:', error);
       return Promise.reject(error);
     }
   );
@@ -46,37 +40,18 @@ const apiFileUpload = createAxiosInstance();
 
 // Add a response interceptor to handle errors
 api.interceptors.response.use(
-  (response) => {
-    console.log('Response received:', {
-      status: response.status,
-      headers: response.headers,
-      data: response.data
-    });
-    return response;
-  },
+  (response) => response,
   (error) => {
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
-      console.error('API Error:', {
-        status: error.response.status,
-        data: error.response.data,
-        headers: error.response.headers
-      });
+      console.error('API Error:', error.response.data);
     } else if (error.request) {
       // The request was made but no response was received
-      console.error('No response received:', {
-        request: error.request,
-        config: error.config,
-        message: error.message,
-        origin: window.location.origin
-      });
+      console.error('No response received:', error.request);
     } else {
       // Something happened in setting up the request that triggered an Error
-      console.error('Request setup error:', {
-        message: error.message,
-        stack: error.stack
-      });
+      console.error('Request setup error:', error.message);
     }
     return Promise.reject(error);
   }

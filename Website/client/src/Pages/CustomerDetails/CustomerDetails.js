@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
-
-import api from "../../api/axios";
+import axios from "axios";
 import "./CustomerDetails.css";
 
+const API_BASE_URL = 'http://localhost:3001';
 
 const tabs = ["Overview", "Order History", "Ongoing orders"];
 
@@ -53,9 +53,7 @@ export default function CustomerDetails() {
     if (order.order_id) {
       setLoadingProducts(true);
       try {
-
-        const response = await api.get(`/api/orders/${order.order_id}/products`);
-
+        const response = await axios.get(`${API_BASE_URL}/api/orders/${order.order_id}/products`);
         setOrderProducts(response.data);
       } catch (error) {
         console.error('Error fetching order products:', error);
@@ -77,9 +75,7 @@ export default function CustomerDetails() {
         console.log(`Starting cleanup attempt ${cleanupAttempt}`);
 
         // Fetch all customers
-
-        const response = await api.get(`/api/customers`);
-
+        const response = await axios.get(`${API_BASE_URL}/api/customers`);
         const allCustomers = response.data;
         
         // Group by name (case-insensitive)
@@ -135,7 +131,7 @@ export default function CustomerDetails() {
 
             while (!updateSuccess && retryCount < maxRetries) {
               try {
-                await api.put(`/api/customers/${primaryCustomer.customer_id}`, updatedCustomer);
+                await axios.put(`${API_BASE_URL}/api/customers/${primaryCustomer.customer_id}`, updatedCustomer);
                 console.log(`Updated primary customer: ${primaryCustomer.name}`);
                 updateSuccess = true;
                 // Wait a bit after successful update
@@ -157,7 +153,7 @@ export default function CustomerDetails() {
 
                 while (!deleteSuccess && retryCount < maxRetries) {
                   try {
-                    await api.delete(`/api/customers/${duplicates[i].customer_id}`);
+                    await axios.delete(`${API_BASE_URL}/api/customers/${duplicates[i].customer_id}`);
                     console.log(`Deleted duplicate customer: ${duplicates[i].name}`);
                     deleteSuccess = true;
                     // Wait a bit after successful deletion
@@ -179,10 +175,7 @@ export default function CustomerDetails() {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Verify if any duplicates remain
-
-        const verifyResponse = await api.get(`/api/customers`);
-
-
+        const verifyResponse = await axios.get(`${API_BASE_URL}/api/customers`);
         const remainingCustomers = verifyResponse.data;
         const remainingByName = new Map();
         
@@ -234,13 +227,11 @@ export default function CustomerDetails() {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Then proceed with normal sync
-
-      const existingCustomersResponse = await api.get(`/api/customers`);
+      const existingCustomersResponse = await axios.get(`${API_BASE_URL}/api/customers`);
       const existingCustomers = existingCustomersResponse.data;
 
       // Fetch all orders
-      const response = await api.get(`/api/orders`);
-
+      const response = await axios.get(`${API_BASE_URL}/api/orders`);
       const orders = response.data;
       
       // Group customers by name (case-insensitive)
@@ -295,9 +286,7 @@ export default function CustomerDetails() {
             };
             
             try {
-
-              await api.put(`/api/customers/${existingCustomer.customer_id}`, updatedCustomer);
-
+              await axios.put(`${API_BASE_URL}/api/customers/${existingCustomer.customer_id}`, updatedCustomer);
               console.log('Updated customer:', customerData.name);
             } catch (error) {
               console.error(`Failed to update customer ${customerData.name}:`, error);
@@ -312,9 +301,7 @@ export default function CustomerDetails() {
             };
             
             try {
-
-              await api.post(`/api/customers`, newCustomer);
-
+              await axios.post(`${API_BASE_URL}/api/customers`, newCustomer);
               console.log('Added new customer:', customerData.name);
             } catch (error) {
               console.error(`Failed to add customer ${customerData.name}:`, error);
@@ -338,19 +325,43 @@ export default function CustomerDetails() {
     }
   };
 
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  useEffect(() => {
+    // Filter customers based on search term and category
+    let filtered = customers;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(c => 
+        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.email_address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.phone_number?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    if (selectedCategory !== 'All') {
+      filtered = filtered.filter(c => c.category === selectedCategory);
+    }
+    
+    setFilteredCustomers(filtered);
+  }, [customers, searchTerm, selectedCategory]);
+
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-
-      const response = await api.get(`/api/customers`);
-      console.log('Fetched customers:', response.data);
-
+      console.log('Fetching customers...');
+      const response = await axios.get(`${API_BASE_URL}/api/customers`);
+      console.log('API Response:', response.data);
+      console.log('Number of customers received:', response.data.length);
       setCustomers(response.data);
       setFilteredCustomers(response.data);
       setError(null);
     } catch (error) {
       console.error('Error fetching customers:', error);
-      setError('Failed to load customers. Please try again later.');
+      console.error('Error response:', error.response?.data);
+      setError(error.response?.data?.message || 'Failed to load customers. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -364,23 +375,22 @@ export default function CustomerDetails() {
 
     console.log('Fetching orders for customer:', selectedCustomer.name);
     try {
+      // Fetch all orders for the customer
+      const ongoingResponse = await axios.get(`${API_BASE_URL}/api/orders/customer/${encodeURIComponent(selectedCustomer.name)}`);
+      console.log('All orders response:', ongoingResponse.data);
 
-      // Fetch ongoing orders for the customer
-      const ongoingResponse = await api.get(`/api/orders/customer/${encodeURIComponent(selectedCustomer.name)}`);
-      console.log('Ongoing orders response:', ongoingResponse.data);
-
-      // Fetch completed orders from order history
-      const historyResponse = await api.get('/api/orders/history');
-      const completedOrders = historyResponse.data.filter(order => 
-        order.name.toLowerCase() === selectedCustomer.name.toLowerCase()
-
+      // Separate orders based on status
+      const ongoing = ongoingResponse.data.filter(order => 
+        order.status !== 'Completed' && order.status !== 'Cancelled'
       );
-      console.log('Completed orders response:', completedOrders);
+      const completed = ongoingResponse.data.filter(order => 
+        order.status === 'Completed' || order.status === 'Cancelled'
+      );
 
       // Set the orders in state
       setCustomerOrders({
-        ongoing: ongoingResponse.data,
-        completed: completedOrders
+        ongoing: ongoing,
+        completed: completed
       });
     } catch (error) {
       console.error('Error fetching customer orders:', error);
@@ -394,29 +404,6 @@ export default function CustomerDetails() {
       fetchCustomerOrders(selectedCustomer.customer_id);
     }
   }, [selectedCustomer, fetchCustomerOrders]);
-
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  useEffect(() => {
-    // Filter customers based on search term and category
-    let filtered = customers;
-    
-    if (searchTerm) {
-      filtered = filtered.filter(c => 
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.email_address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.phone_number?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    if (selectedCategory !== 'All') {
-      filtered = filtered.filter(c => c.category === selectedCategory);
-    }
-    
-    setFilteredCustomers(filtered);
-  }, [customers, searchTerm, selectedCategory]);
 
   const handleAdd = () => {
     setIsAdding(true);
@@ -443,8 +430,8 @@ export default function CustomerDetails() {
     for (const email of emails) {
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         setError('Invalid email format: ' + email);
-        return false;
-      }
+      return false;
+    }
     }
     
     // Validate each phone number
@@ -452,7 +439,7 @@ export default function CustomerDetails() {
     for (const phone of phones) {
       if (phone && !/^\+?[\d\s-]{10,}$/.test(phone)) {
         setError('Invalid phone number format: ' + phone);
-        return false;
+      return false;
       }
     }
     
@@ -463,9 +450,7 @@ export default function CustomerDetails() {
     if (!validateForm()) return;
 
     try {
-
-      const response = await api.post(`/api/customers`, editForm);
-
+      const response = await axios.post(`${API_BASE_URL}/api/customers`, editForm);
       setCustomers([...customers, response.data]);
       setIsAdding(false);
       setEditForm({
@@ -494,7 +479,7 @@ export default function CustomerDetails() {
   const handleDelete = async (customerId) => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
       try {
-        await api.delete(`/api/customers/${customerId}`);
+        await axios.delete(`${API_BASE_URL}/api/customers/${customerId}`);
         setCustomers(customers.filter(c => c.customer_id !== customerId));
         setSelectedCustomer(null);
         setError(null);
@@ -509,9 +494,7 @@ export default function CustomerDetails() {
     if (!validateForm()) return;
 
     try {
-
-      const response = await api.put(`/api/customers/${selectedCustomer.customer_id}`, editForm);
-
+      const response = await axios.put(`${API_BASE_URL}/api/customers/${selectedCustomer.customer_id}`, editForm);
       setCustomers(customers.map(c => 
         c.customer_id === response.data.customer_id ? response.data : c
       ));
