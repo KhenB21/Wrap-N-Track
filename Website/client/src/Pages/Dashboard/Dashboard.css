@@ -350,3 +350,13 @@ body.dark .activity-link {
 body.dark .activity-time {
     color: #b0b0b0; /* Slightly lighter color for time */
 }
+
+.dashboard-content {
+  /* Add bottom margin to create space below inventory overview */
+  margin-bottom: 32px;
+}
+
+.dashboard-content h3 {
+  /* Add margin below the Inventory Overview title */
+  margin-bottom: 16px; /* You can adjust this value as needed */
+}
