@@ -22,107 +22,87 @@ const { width, height } = Dimensions.get("window");
 const packagingOptions = [
   {
     id: "box1",
-    label: "Classic Box",
-    image: require("../Images/Item/Eric.png"),
+    label: "Black Box",
+    image: require("../Images/Item/Blank Box.png"),
   },
   {
     id: "box2",
-    label: "Elegant Box",
-    image: require("../Images/Item/Eric.png"),
+    label: "Signature Box",
+    image: require("../Images/Item/Signature Box.png"),
   },
   {
     id: "box3",
-    label: "Minimalist Box",
-    image: require("../Images/Item/Eric.png"),
+    label: "Premium Box",
+    image: require("../Images/Item/Premium Box.png"),
   },
 ];
 
 const beverageOptions = [
-  { id: "bev1", label: "Coffee", image: require("../Images/Item/Eric.png") },
-  { id: "bev2", label: "Tea", image: require("../Images/Item/Eric.png") },
-  { id: "bev3", label: "Wine", image: require("../Images/Item/Eric.png") },
-  { id: "bev4", label: "Juice", image: require("../Images/Item/Eric.png") },
-  { id: "bev5", label: "Soda", image: require("../Images/Item/Eric.png") },
-  { id: "bev6", label: "Milk", image: require("../Images/Item/Eric.png") },
-  { id: "bev7", label: "Champagne", image: require("../Images/Item/Eric.png") },
-  { id: "bev8", label: "Whiskey", image: require("../Images/Item/Eric.png") },
-  { id: "bev9", label: "Beer", image: require("../Images/Item/Eric.png") },
+  { id: "bev1", label: "Local Coffee", image: require("../Images/Item/Local Coffee.png") },
+  { id: "bev2", label: "Loose-Leaf Tea", image: require("../Images/Item/Loose-Leaf Tea.png") },
+  { id: "bev3", label: "Bulk Packing", image: require("../Images/Item/Bulk Packaging.png") },
+  { id: "bev4", label: "Beer", image: require("../Images/Item/Beer.png") },
+  { id: "bev5", label: "Mini Wine", image: require("../Images/Item/Mini Wine.png") },
+  { id: "bev6", label: "Mini Whiskey", image: require("../Images/Item/Mini Whiskey.png") },
+  { id: "bev7", label: "Full-Sized Wine", image: require("../Images/Item/Full-sized Wine.png") },
+  { id: "bev8", label: "Full-Sized Whiskey", image: require("../Images/Item/Full-sized Whiskey.png") },
+  { id: "bev9", label: "Tablea De Cacao", image: require("../Images/Item/Tablea de Cacao.png") },
 ];
 
 // 3. Food options (7)
 const foodOptions = [
-  {
-    id: "food1",
-    label: "Chocolate",
-    image: require("../Images/Item/Eric.png"),
-  },
-  { id: "food2", label: "Cookies", image: require("../Images/Item/Eric.png") },
-  { id: "food3", label: "Nuts", image: require("../Images/Item/Eric.png") },
-  { id: "food4", label: "Chips", image: require("../Images/Item/Eric.png") },
-  { id: "food5", label: "Candy", image: require("../Images/Item/Eric.png") },
-  {
-    id: "food6",
-    label: "Dried Fruit",
-    image: require("../Images/Item/Eric.png"),
-  },
-  {
-    id: "food7",
-    label: "Granola Bar",
-    image: require("../Images/Item/Eric.png"),
-  },
+  {id: "food1", label: "Sweet Pastry & Cookie", image: require("../Images/Item/Sweet Pastry & Cookies.png")},
+  { id: "food2", label: "French Macaroons", image: require("../Images/Item/French Macaroons.png")},
+  { id: "food3", label: "Arsenal Chocolate Bar", image: require("../Images/Item/Arsenal Chocolate Bar.png")},
+  { id: "food4", label: "Custom Sugar Cookies", image: require("../Images/Item/Custom Sugar Cookies.png")},
+  { id: "food5", label: "Organic Raw Honey", image: require("../Images/Item/Organic Raw Honey.png")},
+  {id: "food6", label: "Infused Salt", image: require("../Images/Item/Infused Salt.png")},
+  {id: "food7", label: "Super Seed & Nuts", image: require("../Images/Item/Super seed & nuts.png")},
 ];
 
 // 4. Kitchenware options (8)
 const kitchenwareOptions = [
-  { id: "kit1", label: "Mug", image: require("../Images/Item/Eric.png") },
-  { id: "kit2", label: "Plate", image: require("../Images/Item/Eric.png") },
-  { id: "kit3", label: "Bowl", image: require("../Images/Item/Eric.png") },
-  { id: "kit4", label: "Spoon", image: require("../Images/Item/Eric.png") },
-  { id: "kit5", label: "Fork", image: require("../Images/Item/Eric.png") },
-  { id: "kit6", label: "Knife", image: require("../Images/Item/Eric.png") },
-  { id: "kit7", label: "Tumbler", image: require("../Images/Item/Eric.png") },
-  { id: "kit8", label: "Tray", image: require("../Images/Item/Eric.png") },
+  { id: "kit1", label: "Cheese Knives", image: require("../Images/Item/Cheese Knives.png") },
+  { id: "kit2", label: "Champagne Flute", image: require("../Images/Item/Champagne Flute.png") },
+  { id: "kit3", label: "Stemless Wine Glass", image: require("../Images/Item/Stemless wine glass.png") },
+  { id: "kit4", label: "Tea Infuser", image: require("../Images/Item/Tea Infuser.png") },
+  { id: "kit5", label: "Whiskey Glass", image: require("../Images/Item/Whiskey Glass.png") },
+  { id: "kit6", label: "Beer Mug", image: require("../Images/Item/Beer Mug.png") },
+  { id: "kit7", label: "Mug Engraving", image: require("../Images/Item/Mug Engraving.png") },
+  { id: "kit8", label: "Wooden Coaster", image: require("../Images/Item/Wooden Coaster.png") },
 ];
 
 // 5. Home decor (3, vertical)
 const homeDecorOptions = [
-  { id: "decor1", label: "Candle", image: require("../Images/Item/Eric.png") },
-  { id: "decor2", label: "Vase", image: require("../Images/Item/Eric.png") },
-  { id: "decor3", label: "Frame", image: require("../Images/Item/Eric.png") },
+  { id: "decor1", label: "Scented Candle", image: require("../Images/Item/Scented Candle.png") },
+  { id: "decor2", label: "Reed Defuser", image: require("../Images/Item/Reed Defuser.png") },
+  { id: "decor3", label: "Room & Linen Spray", image: require("../Images/Item/Room & linen spray.png") },
 ];
 
 // 6. Face & Body (8)
 const faceBodyOptions = [
-  { id: "fb1", label: "Soap", image: require("../Images/Item/Eric.png") },
-  { id: "fb2", label: "Lotion", image: require("../Images/Item/Eric.png") },
-  { id: "fb3", label: "Scrub", image: require("../Images/Item/Eric.png") },
-  { id: "fb4", label: "Mask", image: require("../Images/Item/Eric.png") },
-  { id: "fb5", label: "Shampoo", image: require("../Images/Item/Eric.png") },
-  {
-    id: "fb6",
-    label: "Conditioner",
-    image: require("../Images/Item/Eric.png"),
-  },
-  { id: "fb7", label: "Lip Balm", image: require("../Images/Item/Eric.png") },
-  { id: "fb8", label: "Hand Cream", image: require("../Images/Item/Eric.png") },
+  { id: "fb1", label: "Artisinal Soap", image: require("../Images/Item/Artisinal Soap.png") },
+  { id: "fb2", label: "Aromatherapy Hand Soap", image: require("../Images/Item/Aromatherapy hand soap.png") },
+  { id: "fb3", label: "Solid Lotion Bar", image: require("../Images/Item/Solid Lotion Bar.png") },
+  { id: "fb4", label: "Pomade", image: require("../Images/Item/Pomade.png") },
+  { id: "fb5", label: "Aromatherapy Body Wash", image: require("../Images/Item/Aromatherapy body wash.png") },
+  { id: "fb6", label: "Floral-Infused Multi-Purpose Body Oil", image: require("../Images/Item/Floral-infused milti-purpose body oil.png")},
+  { id: "fb7", label: "Sugar Body Polish", image: require("../Images/Item/Sugar Body Polish.png") },
+  { id: "fb8", label: "Bath Soak", image: require("../Images/Item/Bath Soak.png") },
 ];
 
 // 7. Clothing & Accessories (10)
 const clothingOptions = [
-  { id: "cloth1", label: "Scarf", image: require("../Images/Item/Eric.png") },
-  { id: "cloth2", label: "Socks", image: require("../Images/Item/Eric.png") },
-  { id: "cloth3", label: "Tie", image: require("../Images/Item/Eric.png") },
-  { id: "cloth4", label: "Hat", image: require("../Images/Item/Eric.png") },
-  { id: "cloth5", label: "Gloves", image: require("../Images/Item/Eric.png") },
+  { id: "cloth1", label: "Satin Robe", image: require("../Images/Item/Satin Robe.png") },
+  { id: "cloth2", label: "Men's Satin Robe", image: require("../Images/Item/Mens Satin Robe.png") },
+  { id: "cloth3", label: "Satin Headband", image: require("../Images/Item/Satin Headband.png") },
+  { id: "cloth4", label: "Crystal Stacker", image: require("../Images/Item/Crystal Stacker.png") },
+  { id: "cloth5", label: "Custom Clay Earings", image: require("../Images/Item/Custom clay earings.png") },
   { id: "cloth6", label: "Belt", image: require("../Images/Item/Eric.png") },
   { id: "cloth7", label: "Wallet", image: require("../Images/Item/Eric.png") },
   { id: "cloth8", label: "Watch", image: require("../Images/Item/Eric.png") },
   { id: "cloth9", label: "Bag", image: require("../Images/Item/Eric.png") },
-  {
-    id: "cloth10",
-    label: "Sunglasses",
-    image: require("../Images/Item/Eric.png"),
-  },
+  { id: "cloth10", label: "Sunglasses", image: require("../Images/Item/Eric.png")},
 ];
 
 // 8. Leather Products and Desk Essentials (5)

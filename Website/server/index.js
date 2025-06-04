@@ -411,7 +411,7 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 });
 
 // check if name already exists
-app.get('/api/auth/check-name', async (req, res) => {
+app.get('/api/auth/check-username', async (req, res) => {
   const { name } = req.query;
 
   if (!name || name.trim() === "") {

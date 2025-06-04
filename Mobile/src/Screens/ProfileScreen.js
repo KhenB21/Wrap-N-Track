@@ -11,12 +11,12 @@ export default function ProfileScreen() {
   const { profile, setProfile } = useProfile();
   const { darkMode } = useTheme();
   const navigation = useNavigation();
-  const [name, setName] = useState(profile.name);
-  const [avatar, setAvatar] = useState(profile.avatar);
-  const [username, setUsername] = useState(profile.username);
-  const [email, setEmail] = useState(profile.email);
-  const [address, setAddress] = useState(profile.address);
-  const [phone, setPhone] = useState(profile.phone);
+  const [name, setName] = useState(profile?.name || "");
+  const [avatar, setAvatar] = useState(profile?.avatar || "");
+  const [username, setUsername] = useState(profile?.username || "");
+  const [email, setEmail] = useState(profile?.email || "");
+  const [address, setAddress] = useState(profile?.address || "");
+  const [phone, setPhone] = useState(profile?.phone || "");
 
   const colors = {
     bg: darkMode ? "#18191A" : "#fff",

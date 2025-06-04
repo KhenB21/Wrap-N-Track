@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState } from "react";
 
 const ProfileContext = createContext();
 
-export const ProfileProvider = ({ children }) => {
+export function ProfileProvider({ children }) {
   const [profile, setProfile] = useState({
     name: "JUAN DELA CRUZ",
     username: "juancruz",
@@ -17,6 +17,6 @@ export const ProfileProvider = ({ children }) => {
       {children}
     </ProfileContext.Provider>
   );
-};
+}
 
 export const useProfile = () => useContext(ProfileContext);

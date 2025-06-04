@@ -13,6 +13,7 @@ import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../Context/ThemeContext";
 import { useOrders } from "../Context/OrdersContext";
+import { useProfile } from "../Context/ProfileContext";
 
 export default function OrderSummaryScreen({ navigation, route }) {
   const { product } = route.params;
@@ -20,6 +21,7 @@ export default function OrderSummaryScreen({ navigation, route }) {
   const [payment, setPayment] = useState("cod");
   const { darkMode } = useTheme();
   const { addOrder } = useOrders();
+  const { profile } = useProfile();
   const shipping = 49;
   const [quantity, setQuantity] = useState(product.quantity || 1);
   const price = product.price
@@ -119,7 +121,7 @@ export default function OrderSummaryScreen({ navigation, route }) {
               color={colors.text}
             />
             <Text style={[styles.addressText, { color: colors.text }]}>
-              123 MENDOZA, CENTRAL VILLAGE, MANILA, PHILIPPINESs
+              {profile?.address || 'No address set'}
             </Text>
           </View>
         </View>

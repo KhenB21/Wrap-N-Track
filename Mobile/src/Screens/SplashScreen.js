@@ -13,8 +13,7 @@ export default function SplashScreen({ navigation }) {
       </View>
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate("Login")}
-      >
+        onPress={() => navigation.navigate("Home")}>
         <Text style={styles.buttonText}>GET STARTED</Text>
       </TouchableOpacity>
     </View>

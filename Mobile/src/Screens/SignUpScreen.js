@@ -67,19 +67,7 @@ export default function SignUpScreen({ navigation }) {
         if (!value.trim()) return "Required";
         if (value.length < 3) return "Username must be at least 3 characters";
         if (!/^[A-Za-z0-9_]+$/.test(value)) return "Only letters, numbers, and underscores allowed";
-        if (isCheckingUsername) return "Checking availability...";
-        try {
-          setIsCheckingUsername(true);
-          const response = await axios.get(`${config.API_URL}/api/auth/check-username`, {
-            params: { username: value.trim() }
-          });
-          if (response.data.exists) return "Username already taken";
-          return "";
-        } catch (error) {
-          return "Error checking username";
-        } finally {
-          setIsCheckingUsername(false);
-        }
+        return "";
       case "password":
         if (!value) return "Required";
         if (value.length < 8) return "Password must be at least 8 characters";
@@ -105,6 +93,11 @@ export default function SignUpScreen({ navigation }) {
       case "postal":
         if (!value) return "Required";
         if (!/^\d{4,6}$/.test(value)) return "Invalid postal code";
+        return "";
+      case "email":
+        if (!value) return "Required";
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.trim()))
+          return "Invalid email format";
         return "";
       default:
         return "";
@@ -204,7 +197,6 @@ export default function SignUpScreen({ navigation }) {
         "firstName",
         "lastName",
         "username",
-        "email",
         "password",
         "confirmPassword",
       ].every(
@@ -258,13 +250,13 @@ export default function SignUpScreen({ navigation }) {
   
       if (response.data.success) {
         ToastAndroid.show(
-          "Registration successful! Please verify your email.",
+          "Registration successful! Please log in.",
           ToastAndroid.LONG
         );
-  
+
         navigation.reset({
           index: 0,
-          routes: [{ name: "Verification", params: { email: payload.email } }],
+          routes: [{ name: "Login" }],
         });
       } else {
         ToastAndroid.show(
@@ -431,6 +423,17 @@ export default function SignUpScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  loginLink: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  loginLinkText: {
+    color: '#4F8EF7',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
+  },
+  
   container: {
     flexGrow: 1,
     alignItems: "center",

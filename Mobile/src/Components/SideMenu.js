@@ -12,7 +12,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../Context/ThemeContext";
 import { useNavigation } from "@react-navigation/native";
-import { useProfile } from "../Context/ProfileContext"; // <-- Add this import
+import { useProfile } from "../Context/ProfileContext";
 
 const { width } = Dimensions.get("window");
 const MENU_WIDTH = width * 0.7;
@@ -23,7 +23,7 @@ export default function SideMenu({ visible, onClose }) {
   const [displayDropdown, setDisplayDropdown] = useState(false);
   const navigation = useNavigation();
 
-  const { profile } = useProfile(); // { name, avatar, ... }
+  const { profile, logout } = useProfile();
 
   const menuBg = darkMode ? "#242526" : "#6B6593";
   const cardBg = darkMode ? "#393A3B" : "#B6B3C6";
@@ -103,7 +103,7 @@ export default function SideMenu({ visible, onClose }) {
             style={styles.menuItem}
             onPress={() => {
               onClose && onClose();
-              setTimeout(() => navigation.navigate("OrderedItem"), 250);
+              setTimeout(() => navigation.navigate("OrderedItems"), 250);
             }}
           >
             <MaterialCommunityIcons
@@ -174,6 +174,16 @@ export default function SideMenu({ visible, onClose }) {
         {/* Logout */}
         <TouchableOpacity
           style={[styles.logoutRow, { backgroundColor: cardBg }]}
+          onPress={async () => {
+            onClose && onClose();
+            setTimeout(async () => {
+              await logout?.();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Login" }],
+              });
+            }, 250);
+          }}
         >
           <MaterialCommunityIcons
             name="logout"
