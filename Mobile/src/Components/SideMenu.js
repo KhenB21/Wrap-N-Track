@@ -8,9 +8,12 @@ import {
   Dimensions,
   Image,
   Pressable,
+  Alert,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../Context/ThemeContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation } from "@react-navigation/native";
 
 const { width, height } = Dimensions.get("window");
 const MENU_WIDTH = width * 0.7;
@@ -19,6 +22,7 @@ export default function SideMenu({ visible, onClose }) {
   const slideAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const { darkMode, setDarkMode } = useTheme();
   const [displayDropdown, setDisplayDropdown] = useState(false);
+  const navigation = useNavigation();
 
   // Facebook dark mode colors
   const menuBg = darkMode ? "#242526" : "#6B6593";
@@ -35,6 +39,36 @@ export default function SideMenu({ visible, onClose }) {
     }).start();
     if (!visible) setDisplayDropdown(false);
   }, [visible]);
+
+  const handleLogout = async () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Logout",
+          onPress: async () => {
+            try {
+              // Clear all stored data
+              await AsyncStorage.multiRemove(['token', 'user']);
+              // Navigate to login screen
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            } catch (error) {
+              console.error('Error during logout:', error);
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   if (!visible && slideAnim._value <= -MENU_WIDTH + 1) return null;
 
@@ -132,6 +166,7 @@ export default function SideMenu({ visible, onClose }) {
         {/* Logout */}
         <TouchableOpacity
           style={[styles.logoutRow, { backgroundColor: cardBg }]}
+          onPress={handleLogout}
         >
           <MaterialCommunityIcons
             name="logout"

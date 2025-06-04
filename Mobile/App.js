@@ -11,6 +11,7 @@ import MyCartScreen from "./src/Screens/MyCartScreen";
 import OrderSummaryScreen from "./src/Screens/OrderSummaryScreen";
 import { ThemeProvider } from "./src/Context/ThemeContext";
 import { CartProvider } from "./src/Context/CartContext";
+import VerificationScreen from './src/Screens/VerificationScreen';
 const Stack = createStackNavigator();
 
 export default function App() {
@@ -30,6 +31,7 @@ export default function App() {
                 name="OrderSummary"
                 component={OrderSummaryScreen}
               />
+              <Stack.Screen name="Verification" component={VerificationScreen} />
             </Stack.Navigator>
           </NavigationContainer>
         </CartProvider>

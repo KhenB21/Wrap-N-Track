@@ -6,6 +6,7 @@ const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+require('dotenv').config();
 const { pool, wss, notifyChange } = require('./db');
 const customersRouter = require('./routes/customers');
 const suppliersRouter = require('./routes/suppliers');
@@ -285,9 +286,11 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
   const { name, email, password, role } = req.body;
   let profilePictureData = null;
+
   if (req.file) {
     profilePictureData = req.file.buffer;
   }
+
 
   // Convert role to lowercase for validation
   const roleLower = role.toLowerCase();
@@ -297,14 +300,14 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
   });
 
   // Validate role
+
   const validRoles = [
     'business_developer',
     'creatives',
     'director',
     'admin',
     'sales_manager',
-    'assistant_sales',
-    'packer'
+    'assistant_sales'
   ];
 
   console.log('Validating role:', {
@@ -322,11 +325,7 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
   try {
     // Check if email already exists
-    const emailCheck = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
-
+    const emailCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (emailCheck.rows.length > 0) {
       return res.status(400).json({
         success: false,
@@ -334,63 +333,245 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
       });
     }
 
+    // Check if name exists
+    const nameCheck = await pool.query('SELECT * FROM users WHERE name = $1', [name.trim()]);
+    if (nameCheck.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name already taken'
+      });
+    }
+
     // Hash password
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    console.log('Attempting to insert user with role:', roleLower);
 
-    // Insert new user with profile picture data (using lowercase role)
+    // Generate 6-digit verification code
+    const verificationCode = crypto.randomInt(100000, 999999).toString();
+
+    // Insert new user (with is_verified: false)
     const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role, profile_picture_data) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email, role',
-      [name, email, passwordHash, roleLower, profilePictureData]
+      `INSERT INTO users 
+        (name, email, password_hash, role, profile_picture_data, is_active, is_verified, verification_code) 
+       VALUES ($1, $2, $3, $4, $5, true, false, $6) 
+       RETURNING user_id, name, email, role`,
+      [name, email, passwordHash, roleLower, profilePictureData, verificationCode] // ← includes lowercase role
     );
 
     const newUser = result.rows[0];
 
-    // Create JWT token
+    // Send email for verification
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+
+    // Email content
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Verify your email',
+      text: `Hi ${name},\n\nYour verification code is: ${verificationCode}\n\nThank you!`
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    // Generate JWT token
     const token = jwt.sign(
-      { 
-        user_id: newUser.user_id,
-        name: newUser.name,
-        role: newUser.role 
-      },
+      { userId: newUser.user_id, email: newUser.email, role: newUser.role },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '1h' }
     );
 
-    // Return success response
+    // Success response including token
     res.status(201).json({
       success: true,
-      token,
+      message: 'Registration successful. Please verify your email.',
       user: {
         user_id: newUser.user_id,
         name: newUser.name,
         email: newUser.email,
-        role: newUser.role,
-        profile_picture_data: profilePictureData ? profilePictureData.toString('base64') : null
-      }
+        role: newUser.role
+      },
+      token, // send token here
     });
 
   } catch (error) {
     console.error('Registration error:', error);
+
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// check if name already exists
+app.get('/api/auth/check-name', async (req, res) => {
+  const { name } = req.query;
+
+  if (!name || name.trim() === "") {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT 1 FROM users WHERE name = $1',
+      [name.trim()]
+    );
+
+    res.json({ exists: result.rowCount > 0 });
+  } catch (error) {
+    console.error('Name check error:', error);
     console.error('Error details:', {
       code: error.code,
       message: error.message,
       detail: error.detail
     });
-    // Check for specific database errors
-    if (error.code === '23514') { // Check constraint violation
-      res.status(400).json({
+
+    if (error.code === '23514') {
+      return res.status(400).json({
         success: false,
         message: 'Invalid role selected'
       });
-    } else {
-      res.status(500).json({
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+// check if email already exists
+app.get('/api/auth/check-email', async (req, res) => {
+  const { email } = req.query;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required' });
+  }
+
+  try {
+    const result = await pool.query('SELECT 1 FROM users WHERE email = $1', [email.trim()]);
+    const exists = result.rowCount > 0;
+
+    res.json({ exists });
+  } catch (error) {
+    console.error('Email check error:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      detail: error.detail
+    });
+
+    if (error.code === '23514') {
+      return res.status(400).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Invalid email format'
       });
     }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+//verify email
+app.post('/api/auth/verify', async (req, res) => {
+  const { email, code } = req.body;
+  try {
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+
+    if (user.is_verified) {
+      return res.status(400).json({ message: 'User already verified' });
+    }
+
+    if (user.verification_code !== code) {
+      return res.status(400).json({ message: 'Invalid verification code' });
+    }
+
+    await pool.query('UPDATE users SET is_verified = true, verification_code = NULL WHERE email = $1', [email]);
+
+    res.json({ message: 'Email verified successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+//resend code
+app.post('/api/auth/resend-code', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required.' });
+  }
+
+  try {
+    // Check if user exists and not verified
+    const userResult = await pool.query(
+      'SELECT user_id, name, is_verified FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'User not found.' });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.is_verified) {
+      return res.status(400).json({ success: false, message: 'Email already verified.' });
+    }
+
+    // Generate new code
+    const newCode = crypto.randomInt(100000, 999999).toString();
+
+    // Update the verification code in DB
+    await pool.query(
+      'UPDATE users SET verification_code = $1 WHERE user_id = $2',
+      [newCode, user.user_id]
+    );
+
+    // Send email with new code
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Your new email verification code',
+      text: `Hi ${user.name},\n\nYour new verification code is: ${newCode}\n\nThank you!`,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log("Verification email sent!");
+    } catch (err) {
+      console.error("Error sending email:", err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email. Please try again later.',
+      });
+    }
+
+    res.json({ success: true, message: 'Verification code resent.' });
+  } catch (error) {
+    console.error('Resend code error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 });
 

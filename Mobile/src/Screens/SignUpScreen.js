@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -8,12 +8,26 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ToastAndroid,
+  ActivityIndicator,
 } from "react-native";
+import axios from "axios";
+import config from "../../config";
 
 const regions = ["Region 1", "Region 2", "Region 3"];
 const provinces = ["Province 1", "Province 2", "Province 3"];
 const cities = ["City 1", "City 2", "City 3"];
 const barangays = ["Barangay 1", "Barangay 2", "Barangay 3"];
+
+function debounce(func, delay) {
+  let timeoutId;
+  return function (...args) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      func.apply(this, args);
+    }, delay);
+  };
+}
 
 export default function SignUpScreen({ navigation }) {
   const [step, setStep] = useState(1);
@@ -24,7 +38,6 @@ export default function SignUpScreen({ navigation }) {
     email: "",
     password: "",
     confirmPassword: "",
-    phone: "",
     address: "",
     region: "",
     province: "",
@@ -36,37 +49,52 @@ export default function SignUpScreen({ navigation }) {
   const [touched, setTouched] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const debouncedCheckRef = useRef(null);
+  const [emailError, setEmailError] = useState("");
 
-  // Validation functions
-  const validate = (field, value) => {
+  const validate = async (field, value) => {
     switch (field) {
       case "firstName":
       case "lastName":
-        if (!value) return "Required";
-        if (!/^[A-Za-z]+$/.test(value)) return "Only letters allowed";
+        if (!value.trim()) return "Required";
+        if (!/^[A-Za-z\s]+$/.test(value.trim()))
+          return "Only letters and spaces allowed";
         return "";
       case "username":
-        if (!value) return "Required";
-        if (value.length < 4) return "Min 4 characters";
-        return "";
-      case "email":
-        if (!value) return "Required";
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) return "Invalid email";
-        return "";
+        if (!value.trim()) return "Required";
+        if (value.length < 3) return "Username must be at least 3 characters";
+        if (!/^[A-Za-z0-9_]+$/.test(value)) return "Only letters, numbers, and underscores allowed";
+        if (isCheckingUsername) return "Checking availability...";
+        try {
+          setIsCheckingUsername(true);
+          const response = await axios.get(`${config.API_URL}/api/auth/check-username`, {
+            params: { username: value.trim() }
+          });
+          if (response.data.exists) return "Username already taken";
+          return "";
+        } catch (error) {
+          return "Error checking username";
+        } finally {
+          setIsCheckingUsername(false);
+        }
       case "password":
         if (!value) return "Required";
-        if (value.length < 6) return "Min 6 characters";
+        if (value.length < 8) return "Password must be at least 8 characters";
+        if (!/(?=.*[A-Z])/.test(value)) return "Must contain uppercase letter";
+        if (!/(?=.*[a-z])/.test(value)) return "Must contain lowercase letter";
+        if (!/(?=.*\d)/.test(value)) return "Must contain number";
+        if (!/(?=.*[!@#$%^&*])/.test(value))
+          return "Must contain special character";
         return "";
       case "confirmPassword":
         if (!value) return "Required";
         if (value !== form.password) return "Passwords do not match";
         return "";
-      case "phone":
-        if (!value) return "Required";
-        if (!/^\d{10,15}$/.test(value)) return "Invalid phone number";
-        return "";
       case "address":
-        if (!value) return "Required";
+        if (!value.trim()) return "Required";
         return "";
       case "region":
       case "province":
@@ -83,14 +111,93 @@ export default function SignUpScreen({ navigation }) {
     }
   };
 
-  // Real-time validation
+  useEffect(() => {
+    debouncedCheckRef.current = debounce(async (email) => {
+      if (!email) return;
+  
+      const trimmedEmail = email.trim().toLowerCase();
+  
+      try {
+        setIsCheckingEmail(true);
+  
+        const res = await axios.get(`${config.API_URL}/api/auth/check-email`, {
+          params: { email: trimmedEmail },
+        });
+  
+        if (res.data.exists) {
+          setErrors((prev) => ({
+            ...prev,
+            email: "Email is already registered",
+          }));
+        } else {
+          setErrors((prev) => ({ ...prev, email: "" }));
+        }
+      } catch (err) {
+        console.error("Email check failed:", err);
+        setErrors((prev) => ({ ...prev, email: "Could not check email" }));
+      } finally {
+        setIsCheckingEmail(false);
+      }
+    }, 500);
+  
+    return () => {
+      if (debouncedCheckRef.current?.cancel) {
+        debouncedCheckRef.current.cancel();
+      }
+    };
+  }, []);
+
   const handleChange = (field, value) => {
-    setForm({ ...form, [field]: value });
-    setTouched({ ...touched, [field]: true });
-    setErrors({ ...errors, [field]: validate(field, value) });
+    const newValue = field === "email" ? value.trimStart() : value;
+  
+    setForm((prev) => ({ ...prev, [field]: newValue }));
+  
+    if (!touched[field]) setTouched((prev) => ({ ...prev, [field]: true }));
+  
+    if (field === "password" || field === "confirmPassword") {
+      (async () => {
+        const validationError = await validate(field, newValue);
+        setErrors((prev) => ({ ...prev, [field]: validationError }));
+      })();
+      return;
+    }
+  
+    if (field === "email") {
+      const trimmedEmail = newValue.trim().toLowerCase();
+      const regex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  
+      if (!regex.test(trimmedEmail)) {
+        setErrors((prev) => ({ ...prev, email: "Invalid email format" }));
+        return;
+      } else {
+        setErrors((prev) => ({ ...prev, email: "" }));
+        debouncedCheckRef.current(trimmedEmail);
+      }
+    }
+
+    if (field === "username") {
+      const trimmedUsername = newValue.trim();
+      const regex = /^[A-Za-z0-9_]+$/;
+  
+      if (!regex.test(trimmedUsername)) {
+        setErrors((prev) => ({ ...prev, username: "Only letters, numbers, and underscores allowed" }));
+        return;
+      } else {
+        setErrors((prev) => ({ ...prev, username: "" }));
+        (async () => {
+          const validationError = await validate(field, trimmedUsername);
+          setErrors((prev) => ({ ...prev, [field]: validationError }));
+        })();
+      }
+    }
+  
+    clearTimeout(window.validationTimer);
+    window.validationTimer = setTimeout(async () => {
+      const validationError = await validate(field, newValue);
+      setErrors((prev) => ({ ...prev, [field]: validationError }));
+    }, 600);
   };
 
-  // Check if all fields in current step are valid
   const isStepValid = () => {
     if (step === 1) {
       return [
@@ -100,12 +207,8 @@ export default function SignUpScreen({ navigation }) {
         "email",
         "password",
         "confirmPassword",
-        "phone",
       ].every(
-        (field) =>
-          touched[field] &&
-          !validate(field, form[field]) &&
-          form[field].length > 0
+        (field) => touched[field] && !errors[field] && form[field].length > 0
       );
     } else {
       return [
@@ -116,36 +219,98 @@ export default function SignUpScreen({ navigation }) {
         "barangay",
         "postal",
       ].every(
-        (field) =>
-          touched[field] &&
-          !validate(field, form[field]) &&
-          form[field].length > 0
+        (field) => touched[field] && !errors[field] && form[field].length > 0
       );
     }
   };
 
-  // Render input with label and error
+  const handleSignUp = async () => {
+    if (!isStepValid()) {
+      ToastAndroid.show("Please fix all validation errors", ToastAndroid.SHORT);
+      return;
+    }
+  
+    setIsLoading(true);
+  
+    try {
+      const payload = {
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        username: form.username.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        address: form.address.trim(),
+        region: form.region.trim(),
+        province: form.province.trim(),
+        city: form.city.trim(),
+        barangay: form.barangay.trim(),
+        postal: form.postal.trim(),
+      };
+  
+      const response = await axios.post(
+        `${config.API_URL}/api/auth/register`,
+        payload,
+        {
+          headers: { "Content-Type": "application/json" },
+          validateStatus: () => true,
+        }
+      );
+  
+      if (response.data.success) {
+        ToastAndroid.show(
+          "Registration successful! Please verify your email.",
+          ToastAndroid.LONG
+        );
+  
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Verification", params: { email: payload.email } }],
+        });
+      } else {
+        ToastAndroid.show(
+          response.data.message || "Registration failed. Please try again.",
+          ToastAndroid.LONG
+        );
+      }
+    } catch (error) {
+      ToastAndroid.show(
+        error.response?.data?.message || "Registration failed. Please try again.",
+        ToastAndroid.LONG
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+
   const renderInput = (label, field, props = {}) => (
     <View style={{ marginBottom: 12 }}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
-        style={styles.input}
+        style={[
+          styles.input,
+          touched[field] && errors[field] && styles.inputError,
+        ]}
         value={form[field]}
         onChangeText={(v) => handleChange(field, v)}
-        onBlur={() => setTouched({ ...touched, [field]: true })}
+        onBlur={() => setTouched((prev) => ({ ...prev, [field]: true }))}
         {...props}
       />
-      {!!touched[field] && !!errors[field] && (
+      {touched[field] && errors[field] ? (
         <Text style={styles.error}>{errors[field]}</Text>
-      )}
+      ) : null}
     </View>
   );
 
-  // Render dropdown (simple picker)
   const renderPicker = (label, field, options) => (
     <View style={{ marginBottom: 12 }}>
       <Text style={styles.label}>{label}</Text>
-      <View style={styles.pickerWrapper}>
+      <View
+        style={[
+          styles.pickerWrapper,
+          touched[field] && errors[field] && styles.inputError,
+        ]}
+      >
         <TextInput
           style={styles.input}
           value={form[field]}
@@ -154,9 +319,9 @@ export default function SignUpScreen({ navigation }) {
           onChangeText={(v) => handleChange(field, v)}
         />
       </View>
-      {!!touched[field] && !!errors[field] && (
+      {touched[field] && errors[field] ? (
         <Text style={styles.error}>{errors[field]}</Text>
-      )}
+      ) : null}
     </View>
   );
 
@@ -185,8 +350,13 @@ export default function SignUpScreen({ navigation }) {
               })}
               {renderInput("Username:", "username", {
                 placeholder: "Username",
+                autoCapitalize: "none",
               })}
-              {renderInput("Email:", "email", { placeholder: "Email" })}
+              {renderInput("Email:", "email", {
+                placeholder: "Email",
+                keyboardType: "email-address",
+                autoCapitalize: "none",
+              })}
               {renderInput("Password:", "password", {
                 placeholder: "Password",
                 secureTextEntry: !showPassword,
@@ -194,10 +364,6 @@ export default function SignUpScreen({ navigation }) {
               {renderInput("Re-Enter Password:", "confirmPassword", {
                 placeholder: "Re-Enter Password",
                 secureTextEntry: !showConfirmPassword,
-              })}
-              {renderInput("Phone Number:", "phone", {
-                placeholder: "Phone Number",
-                keyboardType: "phone-pad",
               })}
               <TouchableOpacity
                 style={[styles.button, !isStepValid() && styles.buttonDisabled]}
@@ -209,8 +375,8 @@ export default function SignUpScreen({ navigation }) {
             </View>
           ) : (
             <View style={{ width: "100%" }}>
-              {renderInput("Full Address:", "address", {
-                placeholder: "Full Address",
+              {renderInput("House No. and Street", "address", {
+                placeholder: "House No. and Street",
               })}
               {renderPicker("Region", "region", regions)}
               {renderPicker("Province", "province", provinces)}
@@ -237,17 +403,23 @@ export default function SignUpScreen({ navigation }) {
                     styles.button,
                     !isStepValid() && styles.buttonDisabled,
                   ]}
-                  disabled={!isStepValid()}
-                  onPress={() => {
-                    /* handle sign up */
-                  }}
+                  disabled={!isStepValid() || isLoading}
+                  onPress={handleSignUp}
                 >
-                  <Text style={styles.buttonText}>Sign up</Text>
+                  {isLoading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Sign up</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
           )}
-          <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate("Verification", { email: form.email })
+            }
+          >
             <Text style={styles.loginText}>
               Have an account? <Text style={{ color: "#B76E79" }}>Log in.</Text>
             </Text>
@@ -305,6 +477,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     borderWidth: 1,
     borderColor: "#C7C5D1",
+  },
+  inputError: {
+    borderColor: "#B76E79",
   },
   pickerWrapper: {
     backgroundColor: "#fff",
