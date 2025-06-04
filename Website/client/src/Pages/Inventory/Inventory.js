@@ -8,14 +8,13 @@ import api, { apiFileUpload } from "../../api/axios";
 import config from "../../config";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+
 export default function Inventory() {
   const location = useLocation();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null); // Keep for potential autofill
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
@@ -113,71 +112,6 @@ export default function Inventory() {
     }
   };
 
-  const handleEdit = (product) => {
-    console.log('Editing product:', product);
-    setSelectedProduct(product);
-    setShowEditModal(true);
-  };
-
-  const handleEditSubmit = async (formData) => {
-    console.log('Submitting edit form with data:', formData);
-    try {
-      // Determine if this is a file upload (FormData) or JSON data
-      const isFileUpload = formData instanceof FormData;
-      
-      // Use the appropriate API instance and headers
-      const response = isFileUpload
-        ? await apiFileUpload.put(`/api/inventory/${selectedProduct.sku}`, formData)
-        : await api.put(
-            `/api/inventory/${selectedProduct.sku}`,
-            formData,
-            { headers: { 'Content-Type': 'application/json' } }
-          );
-      
-      console.log('Edit API response:', response);
-      
-      if (response.data) {
-        // If we have a success message, show it, otherwise assume success if we have data
-        if (response.data.success === false) {
-          throw new Error(response.data.message || 'Failed to update product');
-        }
-        
-        // Close the modal and refresh the product list
-        setShowEditModal(false);
-        await fetchProducts(); // Wait for the products to be refreshed
-        toast.success('Product updated successfully!');
-      } else {
-        throw new Error('No data received from server');
-      }
-    } catch (err) {
-      console.error('Error updating product:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to update product';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    }
-  };
-
-  const handleDelete = (product) => {
-    setSelectedProduct(product);
-    setShowDeleteDialog(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    try {
-      const response = await api.delete(`/api/inventory/${selectedProduct.sku}`);
-      if (response.data.success) {
-        fetchProducts();
-        toast.success('Product deleted successfully!');
-        setShowDeleteDialog(false);
-        setSelectedProduct(null);
-      }
-    } catch (err) {
-      console.error('Error deleting product:', err);
-      setError('Failed to delete product');
-      toast.error('Failed to delete product');
-    }
-  };
-
   const handleRowClick = (sku) => {
     navigate(`/product-details/${sku}`);
   };
@@ -234,7 +168,6 @@ export default function Inventory() {
                     <th style={{ width: '120px' }}>Unit Price</th>
                     <th style={{ width: '150px' }}>Category</th>
                     <th style={{ width: '150px' }}>Last Updated</th>
-                    <th style={{ width: '180px' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -242,7 +175,7 @@ export default function Inventory() {
                     <tr 
                       key={product.sku} 
                       style={{ cursor: 'pointer' }} 
-                      onClick={e => { if (e.target.tagName !== 'BUTTON') handleRowClick(product.sku); }}
+                      onClick={e => handleRowClick(product.sku)}
                       className={
                         Number(product.quantity || 0) <= 300 ? 'low-stock-row' :
                         Number(product.quantity || 0) > 800 ? 'high-stock-row' :
@@ -279,26 +212,6 @@ export default function Inventory() {
                         {product.category}
                       </td>
                       <td style={{ textAlign: 'center' }}>{new Date(product.last_updated).toLocaleString()}</td>
-                      <td>
-                        <div className="action-buttons">
-                          <button 
-                            className="text-btn edit-btn" 
-                            onClick={e => { e.stopPropagation(); handleEdit(product); }}
-                            title="Edit Product"
-                            aria-label="Edit product"
-                          >
-                            Edit
-                          </button>
-                          <button 
-                            className="text-btn delete-btn" 
-                            onClick={e => { e.stopPropagation(); handleDelete(product); }}
-                            title="Delete Product"
-                            aria-label="Delete product"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -306,27 +219,7 @@ export default function Inventory() {
             </div>
           </div>
           )}
-          {showModal && <AddProductModal onClose={() => setShowModal(false)} onAdd={handleAddProduct} />}
-          {showEditModal && selectedProduct && (
-            <AddProductModal 
-              onClose={() => { setShowEditModal(false); setSelectedProduct(null); }} 
-              onAdd={handleEditSubmit}
-              initialData={selectedProduct}
-              isEdit={true}
-            />
-          )}
-          {showDeleteDialog && selectedProduct && (
-            <div className="modal-overlay">
-              <div className="modal-content" style={{ maxWidth: 340, textAlign: 'center' }}>
-                <h3>Delete Product</h3>
-                <p>Are you sure you want to delete {selectedProduct.name}?</p>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 24 }}>
-                  <button className="delete-btn" onClick={handleDeleteConfirm}>Delete</button>
-                  <button className="edit-btn" onClick={() => { setShowDeleteDialog(false); setSelectedProduct(null); }}>Cancel</button>
-                </div>
-              </div>
-            </div>
-          )}
+          {showModal && <AddProductModal onClose={() => setShowModal(false)} onAdd={handleAddProduct} products={products} />}
         </div>
       </div>
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />

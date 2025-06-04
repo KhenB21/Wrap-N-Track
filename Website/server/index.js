@@ -274,6 +274,44 @@ app.post('/api/fix-role-constraint', async (req, res) => {
   }
 });
 
+// Check if name exists endpoint
+app.get('/api/auth/check-name', async (req, res) => {
+  const { name } = req.query;
+  if (!name) {
+    return res.status(400).json({ success: false, message: 'Name query parameter is required' });
+  }
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE name = $1', [name.trim()]);
+    if (result.rows.length > 0) {
+      res.json({ exists: true });
+    } else {
+      res.json({ exists: false });
+    }
+  } catch (error) {
+    console.error('Error checking name:', error);
+    res.status(500).json({ success: false, message: 'Internal server error while checking name' });
+  }
+});
+
+// Check if email exists endpoint
+app.get('/api/auth/check-email', async (req, res) => {
+  const { email } = req.query;
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email query parameter is required' });
+  }
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (result.rows.length > 0) {
+      res.json({ exists: true });
+    } else {
+      res.json({ exists: false });
+    }
+  } catch (error) {
+    console.error('Error checking email:', error);
+    res.status(500).json({ success: false, message: 'Internal server error while checking email' });
+  }
+});
+
 // Registration endpoint with file upload (store profile picture in DB)
 app.post('/api/auth/register', upload.single('profilePicture'), async (req, res) => {
   console.log('Registration request received:', {
@@ -456,6 +494,123 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Email verification endpoint
+app.post('/api/auth/verify', async (req, res) => {
+  const { email, code } = req.body;
+
+  if (!email || !code) {
+    return res.status(400).json({ success: false, message: 'Email and verification code are required.' });
+  }
+
+  try {
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.is_email_verified) {
+      return res.status(400).json({ success: false, message: 'Email is already verified.' });
+    }
+
+    // Check if 'email_verification_code' and 'email_verification_expires_at' columns exist before querying them
+    // This is a placeholder check; ideally, these columns should be guaranteed by migrations.
+    if (user.email_verification_code === undefined || user.email_verification_expires_at === undefined) {
+        console.error('Missing email verification columns in users table for user:', email);
+        return res.status(500).json({ success: false, message: 'Server configuration error for email verification.' });
+    }
+
+    if (user.email_verification_code !== code) {
+      return res.status(400).json({ success: false, message: 'Invalid verification code.' });
+    }
+
+    if (new Date() > new Date(user.email_verification_expires_at)) {
+      return res.status(400).json({ success: false, message: 'Verification code has expired.' });
+    }
+
+    // Mark email as verified and clear the code
+    await pool.query(
+      'UPDATE users SET is_email_verified = TRUE, email_verification_code = NULL, email_verification_expires_at = NULL WHERE user_id = $1',
+      [user.user_id]
+    );
+
+    res.json({ success: true, message: 'Email successfully verified.' });
+
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error during email verification.' });
+  }
+});
+
+// Resend verification code endpoint
+app.post('/api/auth/resend-code', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required.' });
+  }
+
+  try {
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.is_email_verified) {
+      return res.status(400).json({ success: false, message: 'Email is already verified.' });
+    }
+
+    // Generate new verification code (e.g., 6-digit number)
+    const verificationCode = crypto.randomInt(100000, 999999).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // Code expires in 15 minutes
+
+    await pool.query(
+      'UPDATE users SET email_verification_code = $1, email_verification_expires_at = $2 WHERE user_id = $3',
+      [verificationCode, expiresAt, user.user_id]
+    );
+
+    // Send email using nodemailer
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: 'Your Email Verification Code for Wrap N\' Track',
+      text: `Hello ${user.name},
+
+Your email verification code is: ${verificationCode}
+
+This code will expire in 15 minutes.
+
+If you did not request this, please ignore this email.
+
+Thanks,
+The Wrap N' Track Team`,
+      html: `<p>Hello ${user.name},</p><p>Your email verification code is: <strong>${verificationCode}</strong></p><p>This code will expire in 15 minutes.</p><p>If you did not request this, please ignore this email.</p><p>Thanks,<br/>The Wrap N' Track Team</p>`
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({ success: true, message: 'New verification code sent to your email.' });
+
+  } catch (error) {
+    console.error('Error resending verification code:', error);
+    if (error.code === 'EENVELOPE' || error.responseCode === 550) {
+        return res.status(500).json({ success: false, message: 'Failed to send verification email. Please check server email configuration or recipient address.' });
+    }
+    res.status(500).json({ success: false, message: 'Internal server error while resending code.' });
+  }
+});
+
 // User details endpoint (return profile_picture_data as base64)
 app.get('/api/user/details', verifyToken, async (req, res) => {
   try {
@@ -546,47 +701,106 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       }
     }
     
-    // Check if SKU already exists
-    const existingProduct = await client.query(
-      'SELECT sku FROM inventory_items WHERE sku = $1 FOR UPDATE',
+    // Check if SKU already exists for potential update
+    const { isUpdate } = req.body; // Hint from frontend, but DB check is source of truth
+    const existingProductQuery = await client.query(
+      'SELECT * FROM inventory_items WHERE sku = $1',
       [sku]
     );
 
-    if (existingProduct.rows.length > 0) {
-      console.log('Duplicate SKU found:', sku);
-      return res.status(400).json({ 
-        success: false, 
-        message: 'A product with this SKU already exists' 
+    let product;
+    let message;
+    let statusCode = 200;
+
+    if (existingProductQuery.rows.length > 0) {
+      // Product exists, so UPDATE
+      console.log('Product SKU exists, attempting update:', sku);
+      // const existingProductData = existingProductQuery.rows[0]; // Not strictly needed with new logic
+      let updateFieldsArray = []; // To store "column = $N" parts
+      const queryParams = [];
+      let paramIndex = 1;
+
+      // Dynamically build the SET part of the UPDATE query based on provided fields
+      if (name !== undefined) {
+        updateFieldsArray.push(`name = $${paramIndex++}`);
+        queryParams.push(name);
+      }
+      if (description !== undefined) {
+        updateFieldsArray.push(`description = $${paramIndex++}`);
+        queryParams.push(description);
+      }
+      if (quantity !== undefined) {
+        updateFieldsArray.push(`quantity = $${paramIndex++}`);
+        queryParams.push(Number(quantity));
+      }
+      if (unit_price !== undefined) {
+        updateFieldsArray.push(`unit_price = $${paramIndex++}`);
+        queryParams.push(Number(unit_price));
+      }
+      if (category !== undefined) {
+        updateFieldsArray.push(`category = $${paramIndex++}`);
+        queryParams.push(category);
+      }
+
+      if (req.file) {
+        updateFieldsArray.push(`image_data = $${paramIndex++}`);
+        queryParams.push(imageData); // imageData is req.file.buffer
+      } else if (req.body.removeImage === 'true') { 
+        // Frontend can send removeImage: 'true' to clear the image
+        updateFieldsArray.push(`image_data = $${paramIndex++}`);
+        queryParams.push(null);
+      }
+      // If no new image and no explicit removal, image_data column is not touched by these conditions.
+      
+      if (updateFieldsArray.length === 0 && !req.file && req.body.removeImage !== 'true') {
+        // No actual data fields were sent for update, and no image changes requested.
+        // We will still update last_updated as a 'touch' operation.
+        console.log('Update request for SKU:', sku, 'contained no new data fields; only updating last_updated.');
+      }
+      
+      // Always include last_updated in the update
+      updateFieldsArray.push(`last_updated = NOW()`);
+      
+      let updateQuery = `UPDATE inventory_items SET ${updateFieldsArray.join(', ')} WHERE sku = $${paramIndex++} RETURNING *`;
+      queryParams.push(sku); // Add sku for the WHERE clause
+      
+      console.log('Update Query:', updateQuery);
+      console.log('Update Params:', queryParams);
+
+      const result = await client.query(updateQuery, queryParams);
+      product = result.rows[0];
+      message = 'Product updated successfully';
+      statusCode = 200;
+      console.log('Product updated successfully:', product.sku);
+
+    } else {
+      // Product does not exist, so INSERT
+      console.log('Inserting new product with data:', {
+        sku, name, description, quantity, unit_price, category,
+        hasImage: !!imageData
       });
+      const result = await client.query(
+        `INSERT INTO inventory_items 
+         (sku, name, description, quantity, unit_price, category, image_data, last_updated) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) 
+         RETURNING *`,
+        [sku, name, description, Number(quantity), Number(unit_price), category, imageData]
+      );
+      product = result.rows[0];
+      message = 'Product added successfully';
+      statusCode = 201;
+      console.log('Product inserted successfully:', product.sku);
     }
-
-    console.log('Inserting new product with data:', {
-      sku, name, description, quantity, unit_price, category,
-      hasImage: !!imageData
-    });
-
-    // Insert the new product
-    const result = await client.query(
-      `INSERT INTO inventory_items 
-       (sku, name, description, quantity, unit_price, category, image_data, last_updated) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) 
-       RETURNING *`,
-      [sku, name, description, Number(quantity), Number(unit_price), category, imageData]
-    );
     
     await client.query('COMMIT');
     
-    // Convert image data to base64 for the response
-    const product = result.rows[0];
     if (product.image_data) {
       product.image_data = product.image_data.toString('base64');
     }
     
-    console.log('Product inserted successfully');
-    
-    res.status(201).json({
+    res.status(statusCode).json({
       success: true,
-      message: 'Product added successfully',
+      message,
       product
     });
   } catch (error) {
@@ -599,49 +813,6 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
     });
   } finally {
     client.release();
-  }
-});
-
-// Edit an inventory item (with optional image upload to DB)
-app.put('/api/inventory/:sku', upload.single('image'), async (req, res) => {
-  const { sku } = req.params;
-  const { name, description, quantity, unit_price, category } = req.body;
-  let imageData = null;
-  
-  if (req.file) {
-    imageData = req.file.buffer;
-  }
-
-  try {
-    let updateQuery = 'UPDATE inventory_items SET name=$1, description=$2, quantity=$3, unit_price=$4, category=$5';
-    let params = [name, description, quantity, unit_price, category];
-    let paramIndex = 6;
-
-    if (imageData) {
-      updateQuery += `, image_data=$${paramIndex}`;
-      params.push(imageData);
-      paramIndex++;
-    }
-
-    updateQuery += `, last_updated=NOW() WHERE sku=$${paramIndex} RETURNING *`;
-    params.push(sku);
-
-    const result = await pool.query(updateQuery, params);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Product not found' });
-    }
-
-    // Convert image data to base64 for the response
-    const product = result.rows[0];
-    if (product.image_data) {
-      product.image_data = product.image_data.toString('base64');
-    }
-
-    res.json(product);
-  } catch (error) {
-    console.error('Error editing inventory item:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 

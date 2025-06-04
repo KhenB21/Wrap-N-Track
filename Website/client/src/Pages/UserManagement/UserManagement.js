@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
+import api from '../../api/axios';
 import './UserManagement.css';
 import { useNavigate } from 'react-router-dom';
 
@@ -18,35 +19,16 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
       const user = JSON.parse(localStorage.getItem('user'));
       
-      if (!token) {
-        setError('No authentication token found. Please log in.');
-        setLoading(false);
-        return;
-      }
-
       if (!user || user.role !== 'admin') {
         setError('Access denied. Admins only.');
         setLoading(false);
         return;
       }
 
-      console.log('Fetching users with token:', token);
-      const response = await fetch('http://localhost:3001/api/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch users');
-      }
-
-      const data = await response.json();
+      const response = await api.get('/api/users');
+      const data = response.data;
       console.log('Fetched users:', data);
       
       if (!Array.isArray(data)) {
@@ -93,20 +75,8 @@ const UserManagement = () => {
   const handleSave = async () => {
     setActionError(null);
     try {
-      const token = localStorage.getItem('token');
       const { profile_picture_data, mobile, department, status, ...userDataToSend } = editData;
-      const response = await fetch(`http://localhost:3001/api/users/${selectedUser.user_id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userDataToSend),
-      });
-      if (!response.ok) {
-        if (response.status === 404) throw new Error('User not found (may have been deleted)');
-        throw new Error('Failed to update user');
-      }
+      const response = await api.put(`/api/users/${selectedUser.user_id}`, userDataToSend);
       await fetchUsers();
       handleModalClose();
       setConfirmation({ open: true, message: 'User updated successfully!' });
@@ -119,17 +89,7 @@ const UserManagement = () => {
     setActionError(null);
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/users/${selectedUser.user_id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        if (response.status === 404) throw new Error('User not found (may have been deleted)');
-        throw new Error('Failed to delete user');
-      }
+      const response = await api.delete(`/api/users/${selectedUser.user_id}`);
       await fetchUsers();
       handleModalClose();
       setConfirmation({ open: true, message: 'User deleted successfully!' });
@@ -166,8 +126,8 @@ const UserManagement = () => {
     );
   }
 
-  const admins = users.filter(u => u.role === 'admin');
-  const employees = users.filter(u => u.role !== 'admin');
+  // const admins = users.filter(u => u.role === 'admin'); // No longer needed for table display
+  // const employees = users.filter(u => u.role !== 'admin'); // No longer needed for table display
 
   return (
     <div className="dashboard-container">
@@ -183,71 +143,47 @@ const UserManagement = () => {
           {users.length === 0 ? (
             <div className="no-users-message">No users found. Click "Register Account" to add a new user.</div>
           ) : (
-            <>
-              {admins.length > 0 && (
-                <>
-                  <h2 className="user-section-title">Admins</h2>
-                  <div className="user-cards-list">
-                    {admins.map((user) => (
-                      <div className="user-card" key={user.user_id} onClick={() => handleCardClick(user)}>
-                        <div className="user-card-header">
-                          <img
-                            src={user.profile_picture_data ? `data:image/jpeg;base64,${user.profile_picture_data}` : '/placeholder-profile.png'}
-                            alt="Profile"
-                            className="user-profile-pic-large"
-                          />
-                          <div>
-                            <div className="user-card-name">{user.name}</div>
-                            <div className="user-card-role">{user.role}</div>
-                          </div>
-                        </div>
-                        <div className="user-card-info">
-                          <div><span className="user-card-label">User ID:</span> {user.user_id}</div>
-                          <div><span className="user-card-label">Email:</span> {user.email}</div>
-                          <div><span className="user-card-label">Role:</span> {user.role}</div>
-                          <div><span className="user-card-label">Created At:</span> {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</div>
-                          {user.mobile && <div><span className="user-card-label">Mobile:</span> {user.mobile}</div>}
-                          {user.department && <div><span className="user-card-label">Department:</span> {user.department}</div>}
-                          {user.status && <div><span className="user-card-label">Status:</span> {user.status}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {employees.length > 0 && (
-                <>
-                  <h2 className="user-section-title">Employees</h2>
-                  <div className="user-cards-list">
-                    {employees.map((user) => (
-                      <div className="user-card" key={user.user_id} onClick={() => handleCardClick(user)}>
-                        <div className="user-card-header">
-                          <img
-                            src={user.profile_picture_data ? `data:image/jpeg;base64,${user.profile_picture_data}` : '/placeholder-profile.png'}
-                            alt="Profile"
-                            className="user-profile-pic-large"
-                          />
-                          <div>
-                            <div className="user-card-name">{user.name}</div>
-                            <div className="user-card-role">{user.role}</div>
-                          </div>
-                        </div>
-                        <div className="user-card-info">
-                          <div><span className="user-card-label">User ID:</span> {user.user_id}</div>
-                          <div><span className="user-card-label">Email:</span> {user.email}</div>
-                          <div><span className="user-card-label">Role:</span> {user.role}</div>
-                          <div><span className="user-card-label">Created At:</span> {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</div>
-                          {user.mobile && <div><span className="user-card-label">Mobile:</span> {user.mobile}</div>}
-                          {user.department && <div><span className="user-card-label">Department:</span> {user.department}</div>}
-                          {user.status && <div><span className="user-card-label">Status:</span> {user.status}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </>
+            <div className="users-table-container">
+              <table className="users-table">
+                <thead>
+                  <tr>
+                    <th>Avatar</th>
+                    <th>Name</th>
+                    <th>User ID</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user.user_id}>
+                      <td>
+                        <img
+                          src={user.profile_picture_data ? `data:image/jpeg;base64,${user.profile_picture_data}` : '/placeholder-profile.png'}
+                          alt={user.name}
+                          className="user-table-profile-pic"
+                        />
+                      </td>
+                      <td>{user.name}</td>
+                      <td>{user.user_id}</td>
+                      <td>{user.email}</td>
+                      <td style={{ textTransform: 'capitalize' }}>{user.role}</td>
+                      <td>{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
+                      <td>
+                        <button 
+                          onClick={() => handleCardClick(user)} 
+                          className="edit-user-btn-table action-btn"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 

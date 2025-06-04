@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
-import AddProductModal from '../Inventory/AddProductModal';
+
 import './ProductDetails.css';
 import '../Inventory/Inventory.css';
 import api from '../../api/axios';
@@ -14,8 +14,6 @@ export default function ProductDetails() {
   const [products, setProducts] = useState([]);
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const navigate = useNavigate();
 
@@ -36,51 +34,6 @@ export default function ProductDetails() {
     };
     fetchProducts();
   }, [sku]);
-
-  const handleEdit = () => setShowEditModal(true);
-  const handleDelete = () => setShowDeleteDialog(true);
-
-  const handleEditSubmit = async (formData) => {
-    try {
-      const response = await api.put(`/api/inventory/${sku}`, formData);
-      if (response.data.success) {
-        setShowEditModal(false);
-        // Refresh product data without full page reload
-        const res = await api.get('/api/inventory');
-        setProducts(res.data);
-        const found = res.data.find(p => p.sku === sku);
-        setProduct(found);
-        toast.success('Product updated successfully!');
-      }
-    } catch (err) {
-      console.error('Error updating product:', err);
-      toast.error('Failed to update product');
-    }
-  };
-
-  const handleDeleteConfirm = async () => {
-    try {
-      const response = await api.delete(`/api/inventory/${sku}`);
-      if (response.data.success) {
-        setShowDeleteDialog(false);
-        toast.success('Product deleted successfully!');
-        
-        // Go to next product or inventory
-        const idx = products.findIndex(p => p.sku === sku);
-        if (products.length > 1) {
-          const next = products[idx === 0 ? 1 : idx < products.length - 1 ? idx + 1 : idx - 1];
-          navigate(`/product-details/${next.sku}`);
-        } else {
-          navigate('/inventory');
-        }
-      }
-    } catch (err) {
-      console.error('Error deleting product:', err);
-      toast.error('Failed to delete product');
-      setShowDeleteDialog(false);
-    }
-  };
-
 
   return (
     <div className="dashboard-container">
@@ -130,10 +83,7 @@ export default function ProductDetails() {
                     <h1 className="product-details-title">{product.name}</h1>
                     <p className="product-details-desc">{product.description}</p>
                   </div>
-                  <div className="product-details-actions">
-                    <button className="btn-edit" onClick={handleEdit}>Edit</button>
-                    <button className="btn-delete" onClick={handleDelete}>Delete</button>
-                  </div>
+
                 </div>
                 {/* Details Sections */}
                 <div className="product-details-content">
@@ -187,28 +137,6 @@ export default function ProductDetails() {
             )}
           </div>
         </div>
-        {/* Edit Modal */}
-        {showEditModal && product && (
-          <AddProductModal
-            onClose={() => setShowEditModal(false)}
-            onAdd={handleEditSubmit}
-            initialData={product}
-            isEdit
-          />
-        )}
-        {/* Delete Dialog */}
-        {showDeleteDialog && (
-          <div className="modal-overlay">
-            <div className="modal-content" style={{ maxWidth: 340, textAlign: 'center' }}>
-              <h3>Delete Product</h3>
-              <p>Are you sure you want to delete this product?</p>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 24 }}>
-                <button className="delete-btn" onClick={handleDeleteConfirm}>Delete</button>
-                <button className="edit-btn" onClick={() => setShowDeleteDialog(false)}>Cancel</button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
     </div>

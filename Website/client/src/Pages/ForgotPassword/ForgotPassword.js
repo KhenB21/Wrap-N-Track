@@ -1,6 +1,7 @@
 import { useState } from "react";
-import axios from "axios";
+
 import { useNavigate } from "react-router-dom"; // ✅ needed for navigate
+import api from "../../api/axios";
 import "./ForgotPassword.css";
 
 function ForgotPassword() {
@@ -45,7 +46,7 @@ function ForgotPassword() {
     setLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:3001/api/auth/forgot-password", { email });
+      const res = await api.post("/auth/forgot-password", { email });
       setMessage(res.data.message);
       setShowModal(true);
     } catch (err) {
@@ -61,7 +62,7 @@ function ForgotPassword() {
 
   const handleCodeSubmit = async () => {
     try {
-      const res = await axios.post("http://localhost:3001/api/auth/verify-reset-code", {
+      const res = await api.post("/auth/verify-reset-code", {
         email,
         code,
       });
