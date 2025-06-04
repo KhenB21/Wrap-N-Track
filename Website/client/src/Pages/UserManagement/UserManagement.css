@@ -215,3 +215,88 @@
   font-weight: 500;
   cursor: pointer;
 }
+
+/* Table Styles for User Management */
+.users-table-container {
+  width: 100%;
+  margin-top: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  overflow-x: auto;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.users-table thead th {
+  background: #f8f9fa;
+  padding: 14px 16px;
+  font-weight: 600;
+  border-bottom: 2px solid #e9ecef;
+  color: #495057;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: left;
+}
+
+.users-table tbody td {
+  padding: 12px 16px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+  color: #343a40;
+  text-align: left;
+}
+
+.users-table tbody tr:nth-child(even) {
+  background-color: #fdfdfe;
+}
+
+.users-table tbody tr:hover {
+  background-color: #f1f3f5;
+}
+
+.user-table-profile-pic {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #dee2e6;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.users-table .action-btn {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  font-weight: 500;
+}
+
+.edit-user-btn-table {
+  background-color: #e6f2ff;
+  color: #007bff;
+  border-color: #b8d6fb;
+}
+
+.edit-user-btn-table:hover {
+  background-color: #cce0ff;
+  border-color: #a1c4fd;
+  box-shadow: 0 2px 4px rgba(0,123,255,0.1);
+}
+
+/* Comment out or remove old card styles if confirmed they are no longer needed */
+/*
+.user-cards-list, .user-card, .user-section-title {
+  display: none;
+}
+*/

@@ -122,7 +122,7 @@ const generateUniqueSku = () => {
   return `BC${digits}`;
 };
 
-export default function AddProductModal({ onClose, onAdd, initialData = {}, isEdit = false }) {
+export default function AddProductModal({ onClose, onAdd, initialData = {}, isEdit = false, products = [] }) {
   const [form, setForm] = useState({
     sku: isEdit ? (initialData.sku || '') : generateUniqueSku(),
     name: initialData.name || '',
@@ -132,39 +132,47 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     category: initialData.category || '',
   });
   const [image, setImage] = useState(null);
-  const [preview, setPreview] = useState(null);
+  const [preview, setPreview] = useState(initialData.image_data ? `data:image/jpeg;base64,${initialData.image_data}` : null);
   const [errors, setErrors] = useState({});
-  const [existingProducts, setExistingProducts] = useState([]);
-  const [categoryInput, setCategoryInput] = useState('');
+  const [categoryInput, setCategoryInput] = useState(initialData.category || '');
+
+  // New state for name autocomplete
+  const [productNameSuggestions, setProductNameSuggestions] = useState([]);
+  const [showProductNameSuggestions, setShowProductNameSuggestions] = useState(false);
+  const [selectedExistingProduct, setSelectedExistingProduct] = useState(null); // To track if we are updating
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredCategories, setFilteredCategories] = useState([]);
 
   useEffect(() => {
-    // Fetch existing products for validation
-    const fetchProducts = async () => {
-      try {
-        const response = await api.get('/api/inventory');
-        setExistingProducts(response.data);
-      } catch (error) {
-        console.error('Error fetching products:', error);
+    if (isEdit && initialData && Object.keys(initialData).length > 0) { 
+      setForm({
+        sku: initialData.sku || generateUniqueSku(),
+        name: initialData.name || '',
+        description: initialData.description || '',
+        quantity: initialData.quantity || 0,
+        unit_price: initialData.unit_price || 0,
+        category: initialData.category || '',
+      });
+      setCategoryInput(initialData.category || '');
+      if (initialData.image_data) {
+        setPreview(`data:image/jpeg;base64,${initialData.image_data}`);
       }
-    };
-    fetchProducts();
+      setSelectedExistingProduct(initialData); 
+    }
 
-    // Set up WebSocket connection for real-time barcode updates
     const ws = new WebSocket(config.WS_URL);
-    
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'barcode_scanned') {
-        setForm(prev => ({ ...prev, sku: data.barcode }));
+        if (!selectedExistingProduct) { // Only update SKU if no existing product is selected
+          setForm(prev => ({ ...prev, sku: data.barcode }));
+        }
       }
     };
-
     return () => {
       ws.close();
     };
-  }, []);
+  }, [isEdit, initialData]); // Removed selectedExistingProduct from dep array to avoid loop on initialData set
 
   useEffect(() => {
     if (isEdit && initialData && Object.keys(initialData).length > 0) {
@@ -177,8 +185,8 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         category: initialData.category || '',
       });
       setCategoryInput(initialData.category || '');
-      if (initialData.image_path) {
-        setPreview(`${config.API_URL}${initialData.image_path}`);
+      if (initialData.image_data) {
+        setPreview(`data:image/jpeg;base64,${initialData.image_data}`);
       }
     }
   }, [isEdit, initialData]);
@@ -187,18 +195,18 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     const newErrors = {};
     
     // Check for duplicate name
-    const duplicateName = existingProducts.find(
+    const duplicateName = products.find(
       product => product.name.toLowerCase() === form.name.toLowerCase() && 
-      (!isEdit || product.sku !== form.sku)
+      product.sku !== form.sku // Check against the SKU in the form
     );
     if (duplicateName) {
       newErrors.name = 'A product with this name already exists';
     }
 
     // Check for duplicate description
-    const duplicateDescription = existingProducts.find(
+    const duplicateDescription = products.find(
       product => product.description.toLowerCase() === form.description.toLowerCase() && 
-      (!isEdit || product.sku !== form.sku)
+      product.sku !== form.sku // Check against the SKU in the form
     );
     if (duplicateDescription) {
       newErrors.description = 'A product with this description already exists';
@@ -225,13 +233,65 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleCategorySelect = (selectedCategory) => {
+    setForm(prevForm => ({ ...prevForm, category: selectedCategory }));
+    setCategoryInput(selectedCategory);
+    setShowSuggestions(false);
+    setErrors(prev => ({ ...prev, category: '' })); // Clear category error on select
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm({ ...form, [name]: value });
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors({ ...errors, [name]: '' });
+    setForm(prev => ({ ...prev, [name]: value }));
+    setErrors(prev => ({ ...prev, [name]: '' }));
+
+    if (name === 'name') {
+      if (value.trim() === '') {
+        setProductNameSuggestions([]);
+        setShowProductNameSuggestions(false);
+        if (selectedExistingProduct) { // If name is cleared, reset to "new product" mode
+          setSelectedExistingProduct(null);
+          setForm({ 
+            sku: generateUniqueSku(),
+            name: '',
+            description: '',
+            quantity: 0,
+            unit_price: 0,
+            category: '',
+          });
+          setCategoryInput('');
+          setPreview(null);
+          setImage(null);
+        }
+        return;
+      }
+      const suggestions = products.filter(p =>
+        p.name.toLowerCase().includes(value.toLowerCase())
+      );
+      setProductNameSuggestions(suggestions);
+      setShowProductNameSuggestions(suggestions.length > 0);
     }
+  };
+
+  const handleProductNameSelect = (product) => {
+    setSelectedExistingProduct(product); 
+    setForm({
+      sku: product.sku, 
+      name: product.name,
+      description: product.description || '',
+      quantity: product.quantity || 0,
+      unit_price: product.unit_price || 0,
+      category: product.category || '',
+    });
+    setCategoryInput(product.category || '');
+    if (product.image_data) {
+      setPreview(`data:image/jpeg;base64,${product.image_data}`);
+      setImage(null); 
+    } else {
+      setPreview(null);
+    }
+    setProductNameSuggestions([]);
+    setShowProductNameSuggestions(false);
   };
 
   const handleCategoryChange = (e) => {
@@ -251,76 +311,89 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     }
   };
 
-  const handleCategorySelect = (category) => {
-    setCategoryInput(category);
-    setForm(prev => ({ ...prev, category }));
-    setShowSuggestions(false);
-  };
-
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     setImage(file);
     if (file) {
       setPreview(URL.createObjectURL(file));
-    } else if (initialData.image_path) {
-      setPreview(`${config.API_URL}${initialData.image_path}`);
+    } else if (initialData.image_data) {
+      setPreview(`data:image/jpeg;base64,${initialData.image_data}`);
     } else {
       setPreview(null);
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
 
-    // Sync form.category with categoryInput before validation/submit
-    if (categoryInput !== form.category) {
-      setForm(prev => ({ ...prev, category: categoryInput }));
+    // Validation for unique SKU/Name if it's a new product (not selectedExistingProduct)
+    // or if SKU/Name is changed for an existing product.
+    if (!selectedExistingProduct) { // Truly new product
+      const skuExists = products.some(p => p.sku === form.sku);
+      if (skuExists) {
+        setErrors(prev => ({ ...prev, sku: 'SKU already exists.' }));
+        return;
+      }
+      const nameExists = products.some(p => p.name.toLowerCase() === form.name.toLowerCase());
+      if (nameExists) {
+        setErrors(prev => ({ ...prev, name: 'Product name already exists.' }));
+        return;
+      }
+    } else { // Updating an existing product
+      if (form.sku !== selectedExistingProduct.sku) {
+        const skuExists = products.some(p => p.sku === form.sku && p.sku !== selectedExistingProduct.sku);
+        if (skuExists) {
+          setErrors(prev => ({ ...prev, sku: 'This new SKU already exists for another product.' }));
+          return;
+        }
+      }
+      if (form.name.toLowerCase() !== selectedExistingProduct.name.toLowerCase()) {
+        const nameExists = products.some(p => p.name.toLowerCase() === form.name.toLowerCase() && p.sku !== selectedExistingProduct.sku);
+        if (nameExists) {
+          setErrors(prev => ({ ...prev, name: 'This new name already exists for another product.' }));
+          return;
+        }
+      }
     }
 
-    if (!validateForm()) {
-      return;
-    }
-
-    // For edit: send JSON, for add: send FormData
-    if (isEdit) {
-      const jsonData = {
-        sku: form.sku,
-        name: form.name,
-        description: form.description,
-        quantity: Number(form.quantity),
-        unit_price: Number(form.unit_price),
+    let dataToSend;
+    if (image) { // If a new image is uploaded, use FormData
+      dataToSend = new FormData();
+      dataToSend.append('sku', form.sku);
+      dataToSend.append('name', form.name);
+      dataToSend.append('description', form.description);
+      dataToSend.append('quantity', String(form.quantity));
+      dataToSend.append('unit_price', String(form.unit_price));
+      dataToSend.append('category', categoryInput || form.category);
+      dataToSend.append('image', image);
+      // If updating, add a flag or rely on backend to know it's an update based on SKU
+      if (selectedExistingProduct) dataToSend.append('isUpdate', 'true'); 
+    } else { // No new image, send JSON
+      dataToSend = {
+        ...form,
         category: categoryInput || form.category,
       };
-      console.log('Edit JSON before onAdd:', jsonData);
-      onAdd(jsonData);
-    } else {
-      const formData = new FormData();
-      formData.append('sku', form.sku);
-      formData.append('name', form.name);
-      formData.append('description', form.description);
-      formData.append('quantity', String(form.quantity));
-      formData.append('unit_price', String(form.unit_price));
-      formData.append('category', categoryInput || form.category);
-      if (image) {
-        formData.append('image', image);
-      }
-      console.log('Add FormData before onAdd:', Array.from(formData.entries()));
-      onAdd(formData);
+      // If updating, remove image_data if not changed, backend handles this
+      if (selectedExistingProduct) dataToSend.isUpdate = true;
     }
+    // The onAdd prop (handleAddProduct in Inventory.js) will receive this data.
+    // It currently only POSTs. The backend /api/inventory POST must handle upsert.
+    onAdd(dataToSend);
   };
 
   return (
     <div className="modal-overlay">
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <button className="close-btn" onClick={onClose}>&times;</button>
-        <h3>{isEdit ? 'Edit Item' : 'New Item'}</h3>
+        <h3>{selectedExistingProduct || (isEdit && initialData.sku) ? 'Edit Product Details' : 'Add New Product'}</h3>
         <form onSubmit={handleSubmit} className="add-product-form" encType="multipart/form-data">
           <label>Image
             <input type="file" accept="image/*" onChange={handleImageChange} />
             {preview && <img src={preview} alt="Preview" style={{ width: 60, height: 60, marginTop: 8, borderRadius: 6, objectFit: 'cover' }} />}
           </label>
           <label>SKU
-            <input name="sku" value={form.sku} onChange={handleChange} required disabled={!isEdit} />
+            <input name="sku" value={form.sku} onChange={handleChange} required disabled={true} />
           </label>
           <label>Name
             <input 
@@ -329,7 +402,21 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
               onChange={handleChange} 
               required 
               className={errors.name ? 'error' : ''}
+              autoComplete="off"
             />
+            {showProductNameSuggestions && productNameSuggestions.length > 0 && (
+              <div className="product-name-suggestions">
+                {productNameSuggestions.map((p, index) => (
+                  <div
+                    key={index}
+                    className="suggestion-item"
+                    onClick={() => handleProductNameSelect(p)}
+                  >
+                    {p.name} (SKU: {p.sku})
+                  </div>
+                ))}
+              </div>
+            )}
             {errors.name && <span className="error-message">{errors.name}</span>}
           </label>
           <label>Description
@@ -389,7 +476,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
             </div>
             {errors.category && <span className="error-message">{errors.category}</span>}
           </label>
-          <button type="submit" className="submit-btn">{isEdit ? 'Save Changes' : 'Add Product'}</button>
+          <button type="submit" className="submit-btn">{selectedExistingProduct || (isEdit && initialData.sku) ? 'Save Changes' : 'Add Product'}</button>
         </form>
       </div>
     </div>

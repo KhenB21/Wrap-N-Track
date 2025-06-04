@@ -54,7 +54,9 @@ function Register() {
     if (!email) return;
     try {
       setCheckingEmail(true);
+
       const res = await api.get(`${config.API_URL}/api/auth/check-email`, {
+
         params: { email },
       });
 
@@ -75,7 +77,9 @@ function Register() {
     if (!name.trim()) return;
     try {
       setCheckingName(true);
+
       const res = await api.get(`${config.API_URL}/api/auth/check-name`, {
+
         params: { name: name.trim() },
       });
 

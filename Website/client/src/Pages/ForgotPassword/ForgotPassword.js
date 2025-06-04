@@ -1,6 +1,7 @@
-import { useState } from "react";
-import axios from "axios";
+import React, { useState } from "react";
+
 import { useNavigate } from "react-router-dom"; // ✅ needed for navigate
+import api from "../../api/axios";
 import "./ForgotPassword.css";
 
 function ForgotPassword() {
@@ -11,8 +12,35 @@ function ForgotPassword() {
   const [emailError, setEmailError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [code, setCode] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendMessage, setResendMessage] = useState("");
 
   const navigate = useNavigate();
+
+  // Cooldown timer for resend
+  React.useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+  // Resend code handler
+  const handleResendCode = async () => {
+    setResendMessage("");
+    setError("");
+    setLoading(true);
+    try {
+      const res = await api.post("/api/auth/forgot-password", { email });
+      setMessage(res.data.message);
+      setResendMessage("A new code has been generated. Please check your email.");
+      setResendCooldown(30); // 30s cooldown
+    } catch (err) {
+      setError("Unable to resend code. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const validateEmail = (value) => {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -45,9 +73,12 @@ function ForgotPassword() {
     setLoading(true);
 
     try {
+
       const res = await api.post(`/api/auth/forgot-password`, { email });
+
       setMessage(res.data.message);
       setShowModal(true);
+      setCode("");
     } catch (err) {
       if (err.response?.status === 404) {
         setError("This email address is not registered in our system.");
@@ -61,12 +92,15 @@ function ForgotPassword() {
 
   const handleCodeSubmit = async () => {
     try {
+
       const res = await api.post(`/api/auth/verify-reset-code`, {
+
         email,
         code,
       });
 
       localStorage.setItem("reset_email", email);
+      localStorage.setItem("reset_code", code); // Store the verified code for reset-password step
       setShowModal(false);
       navigate("/reset-password");
     } catch (err) {
@@ -126,16 +160,30 @@ function ForgotPassword() {
         setShowModal(false);
         setError("");
         setMessage("");
+        setCode("");
       }}>&times;</button>
       {error && <div className="error-message modal-error">{error}</div>}
       <h3>Enter Verification Code</h3>
+      <p className="modal-instructions">
+        Please enter the 6-digit code sent to your email address.
+      </p>
       <input
         type="text"
         value={code}
         onChange={(e) => setCode(e.target.value)}
-        placeholder="Enter the code sent to your email"
+        placeholder="Enter the code"
+        maxLength={6}
+        style={{letterSpacing:'0.3em',textAlign:'center'}}
       />
-      <button onClick={handleCodeSubmit}>Verify</button>
+      <button onClick={handleCodeSubmit} style={{marginTop:'1em'}}>Verify</button>
+      <button
+        onClick={handleResendCode}
+        disabled={resendCooldown > 0 || loading}
+        style={{marginTop:'0.5em',marginLeft:'1em'}}
+      >
+        {resendCooldown > 0 ? `Resend Code (${resendCooldown}s)` : 'Resend Code'}
+      </button>
+      {resendMessage && <div className="success-message modal-success">{resendMessage}</div>}
     </div>
   </div>
 )}

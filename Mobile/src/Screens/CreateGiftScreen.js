@@ -9,9 +9,13 @@ import {
   ScrollView,
   Image,
   PanResponder,
+  TextInput,
 } from "react-native";
 import Header from "../Components/Header";
 import { useTheme } from "../Context/ThemeContext";
+import Toast from "../Components/Toast";
+import CustomAlert from "../Components/CustomAlert";
+import * as ImagePicker from "expo-image-picker"; // Add this import
 
 const { width, height } = Dimensions.get("window");
 
@@ -138,14 +142,15 @@ export default function CreateGiftScreen({ navigation }) {
   const { darkMode } = useTheme();
   const [step, setStep] = useState(1);
   const [selectedPackaging, setSelectedPackaging] = useState(null);
-  const [selectedBeverage, setSelectedBeverage] = useState(null);
+  const [selectedBeverages, setSelectedBeverages] = useState([]);
   // Add state for each new step
-  const [selectedFood, setSelectedFood] = useState(null);
-  const [selectedKitchenware, setSelectedKitchenware] = useState(null);
-  const [selectedHomeDecor, setSelectedHomeDecor] = useState(null);
-  const [selectedFaceBody, setSelectedFaceBody] = useState(null);
-  const [selectedClothing, setSelectedClothing] = useState(null);
-  const [selectedLeatherDesk, setSelectedLeatherDesk] = useState(null);
+  const [selectedFoods, setSelectedFoods] = useState([]);
+  const [selectedKitchenwares, setSelectedKitchenwares] = useState([]);
+  const [selectedHomeDecors, setSelectedHomeDecors] = useState([]);
+  const [selectedFaceBodies, setSelectedFaceBodies] = useState([]);
+  const [selectedClothings, setSelectedClothings] = useState([]);
+  const [selectedLeatherDesks, setSelectedLeatherDesks] = useState([]);
+  const [customProduct, setCustomProduct] = useState({ name: "", image: null });
 
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -222,12 +227,12 @@ export default function CreateGiftScreen({ navigation }) {
 
   const colors = {
     bg: darkMode ? "#18191A" : "#fff",
-    card: darkMode ? "#242526" : "#fff",
-    text: darkMode ? "#fff" : "#111",
-    accent: darkMode ? "#4F8EF7" : "#6B6593",
+    card: darkMode ? "#232323" : "#fff",
+    text: darkMode ? "#F5F5F7" : "#111",
+    accent: darkMode ? "#444" : "#6B6593", // neutral gray for dark mode accent
     border: darkMode ? "#393A3B" : "#C7C5D1",
-    box: darkMode ? "#23243a" : "#F5F5F7",
-    selected: darkMode ? "#4F8EF7" : "#B6B3C6",
+    box: darkMode ? "#232323" : "#F5F5F7",
+    selected: darkMode ? "#333" : "#B6B3C6", // slightly lighter for selected
   };
 
   // Render packaging step
@@ -255,10 +260,7 @@ export default function CreateGiftScreen({ navigation }) {
               },
             ]}
             activeOpacity={0.8}
-            onPress={() => {
-              setSelectedPackaging(option.id);
-              animateStepChange(2);
-            }}
+            onPress={() => setSelectedPackaging(option.id)}
           >
             <Image source={option.image} style={styles.boxImage} />
             <Text style={[styles.boxLabel, { color: colors.text }]}>
@@ -267,16 +269,39 @@ export default function CreateGiftScreen({ navigation }) {
           </TouchableOpacity>
         ))}
       </View>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "flex-end",
+          marginTop: 24,
+        }}
+      >
+        <TouchableOpacity
+          style={[
+            styles.box,
+            {
+              backgroundColor: selectedPackaging ? colors.accent : "#ccc",
+              flex: 1,
+              marginLeft: 8,
+            },
+          ]}
+          onPress={() => selectedPackaging && animateStepChange(2)}
+          disabled={!selectedPackaging}
+        >
+          <Text style={{ color: "#fff", textAlign: "center" }}>Next</Text>
+        </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 
   // Helper for 2-column grid with hidden box if odd
   const renderGridStep = (
     options,
-    selected,
-    setSelected,
+    selectedArray,
+    setSelectedArray,
     stepTitle,
-    nextStep
+    nextStep,
+    prevStep
   ) => {
     const rows = [];
     for (let i = 0; i < options.length; i += 2) {
@@ -314,20 +339,17 @@ export default function CreateGiftScreen({ navigation }) {
                     style={[
                       styles.box,
                       {
-                        backgroundColor:
-                          selected === option.id ? colors.selected : colors.box,
-                        borderColor:
-                          selected === option.id
-                            ? colors.accent
-                            : colors.border,
+                        backgroundColor: selectedArray.includes(option.id)
+                          ? colors.selected
+                          : colors.box,
+                        borderColor: selectedArray.includes(option.id)
+                          ? colors.accent
+                          : colors.border,
                         width: (width - 64 - 12) / 2,
                       },
                     ]}
                     activeOpacity={0.8}
-                    onPress={() => {
-                      setSelected(option.id);
-                      animateStepChange(nextStep);
-                    }}
+                    onPress={() => toggleSelect(selectedArray, setSelectedArray, option.id)}
                   >
                     <Image source={option.image} style={styles.boxImage} />
                     <Text style={[styles.boxLabel, { color: colors.text }]}>
@@ -338,6 +360,38 @@ export default function CreateGiftScreen({ navigation }) {
               )}
             </View>
           ))}
+        </View>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginTop: 24,
+          }}
+        >
+          <TouchableOpacity
+            style={[
+              styles.box,
+              { backgroundColor: colors.accent, flex: 1, marginRight: 8 },
+            ]}
+            onPress={() => animateStepChange(prevStep)}
+            disabled={prevStep < 1}
+          >
+            <Text style={{ color: "#fff", textAlign: "center" }}>Back</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.box,
+              {
+                backgroundColor: selectedArray.length > 0 ? colors.accent : "#ccc",
+                flex: 1,
+                marginLeft: 8,
+              },
+            ]}
+            onPress={() => selectedArray.length > 0 && animateStepChange(nextStep)}
+            disabled={selectedArray.length === 0}
+          >
+            <Text style={{ color: "#fff", textAlign: "center" }}>Next</Text>
+          </TouchableOpacity>
         </View>
       </Animated.View>
     );
@@ -368,10 +422,7 @@ export default function CreateGiftScreen({ navigation }) {
               },
             ]}
             activeOpacity={0.8}
-            onPress={() => {
-              setSelectedHomeDecor(option.id);
-              animateStepChange(6);
-            }}
+            onPress={() => setSelectedHomeDecor(option.id)}
           >
             <Image source={option.image} style={styles.boxImage} />
             <Text style={[styles.boxLabel, { color: colors.text }]}>
@@ -380,24 +431,98 @@ export default function CreateGiftScreen({ navigation }) {
           </TouchableOpacity>
         ))}
       </View>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          marginTop: 24,
+        }}
+      >
+        <TouchableOpacity
+          style={[
+            styles.box,
+            { backgroundColor: colors.accent, flex: 1, marginRight: 8 },
+          ]}
+          onPress={() => animateStepChange(4)}
+        >
+          <Text style={{ color: "#fff", textAlign: "center" }}>Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.box,
+            {
+              backgroundColor: selectedHomeDecor ? colors.accent : "#ccc",
+              flex: 1,
+              marginLeft: 8,
+            },
+          ]}
+          onPress={() => selectedHomeDecor && animateStepChange(6)}
+          disabled={!selectedHomeDecor}
+        >
+          <Text style={{ color: "#fff", textAlign: "center" }}>Next</Text>
+        </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 
-  // Get selected boxes for panel
   const selectedBoxes = [
-    selectedPackaging &&
-      packagingOptions.find((b) => b.id === selectedPackaging),
-    selectedBeverage && beverageOptions.find((b) => b.id === selectedBeverage),
-    selectedFood && foodOptions.find((b) => b.id === selectedFood),
-    selectedKitchenware &&
-      kitchenwareOptions.find((b) => b.id === selectedKitchenware),
-    selectedHomeDecor &&
-      homeDecorOptions.find((b) => b.id === selectedHomeDecor),
-    selectedFaceBody && faceBodyOptions.find((b) => b.id === selectedFaceBody),
-    selectedClothing && clothingOptions.find((b) => b.id === selectedClothing),
-    selectedLeatherDesk &&
-      leatherDeskOptions.find((b) => b.id === selectedLeatherDesk),
+    selectedPackaging && packagingOptions.find((b) => b.id === selectedPackaging),
+    ...selectedBeverages.map((id) => beverageOptions.find((b) => b.id === id)),
+    ...selectedFoods.map((id) => foodOptions.find((b) => b.id === id)),
+    ...selectedKitchenwares.map((id) => kitchenwareOptions.find((b) => b.id === id)),
+    ...selectedHomeDecors.map((id) => homeDecorOptions.find((b) => b.id === id)),
+    ...selectedFaceBodies.map((id) => faceBodyOptions.find((b) => b.id === id)),
+    ...selectedClothings.map((id) => clothingOptions.find((b) => b.id === id)),
+    ...selectedLeatherDesks.map((id) => leatherDeskOptions.find((b) => b.id === id)),
   ].filter(Boolean);
+
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    contact: "",
+    quantity: "",
+    shippingLocation: "",
+    deliveryDate: "",
+  });
+
+  const [formErrors, setFormErrors] = useState({});
+
+  const [alert, setAlert] = useState({ visible: false, message: "" });
+  const showAlert = (msg) => setAlert({ visible: true, message: msg });
+  const hideAlert = () => setAlert({ visible: false, message: "" });
+
+  const toggleSelect = (selectedArray, setSelectedArray, id) => {
+    setSelectedArray((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const validateForm = (field, value) => {
+    let errors = { ...formErrors };
+
+    if (field === "name" || !field) {
+      errors.name = form.name.trim() ? "" : "Name is required";
+    }
+    if (field === "email" || !field) {
+      errors.email = /\S+@\S+\.\S+/.test(form.email) ? "" : "Invalid email";
+    }
+    if (field === "contact" || !field) {
+      errors.contact = form.contact.trim().length >= 7 ? "" : "Contact is too short";
+    }
+    if (field === "quantity" || !field) {
+      errors.quantity = Number(form.quantity) > 0 ? "" : "Enter a valid quantity";
+    }
+    if (field === "shippingLocation" || !field) {
+      errors.shippingLocation = form.shippingLocation.trim() ? "" : "Required";
+    }
+    if (field === "deliveryDate" || !field) {
+      errors.deliveryDate = form.deliveryDate.trim() ? "" : "Required";
+    }
+
+    setFormErrors(errors);
+    // Return true if no errors
+    return Object.values(errors).every((e) => !e);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -411,59 +536,225 @@ export default function CreateGiftScreen({ navigation }) {
         title="Create Your Own Gift"
       />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {step === 1
-          ? renderPackaging()
-          : step === 2
-          ? renderGridStep(
-              beverageOptions,
-              selectedBeverage,
-              setSelectedBeverage,
-              "Choose your Beverage",
-              3
-            )
-          : step === 3
-          ? renderGridStep(
-              foodOptions,
-              selectedFood,
-              setSelectedFood,
-              "Choose your Food",
-              4
-            )
-          : step === 4
-          ? renderGridStep(
-              kitchenwareOptions,
-              selectedKitchenware,
-              setSelectedKitchenware,
-              "Choose your Kitchenware",
-              5
-            )
-          : step === 5
-          ? renderHomeDecor()
-          : step === 6
-          ? renderGridStep(
-              faceBodyOptions,
-              selectedFaceBody,
-              setSelectedFaceBody,
-              "Choose your Face & Body",
-              7
-            )
-          : step === 7
-          ? renderGridStep(
-              clothingOptions,
-              selectedClothing,
-              setSelectedClothing,
-              "Choose your Clothing & Accessories",
-              8
-            )
-          : step === 8
-          ? renderGridStep(
-              leatherDeskOptions,
-              selectedLeatherDesk,
-              setSelectedLeatherDesk,
-              "Choose your Leather Products and Desk Essentials",
-              9
-            )
-          : null}
+        {step === 1 ? (
+          renderPackaging()
+        ) : step === 2 ? (
+          renderGridStep(
+            beverageOptions,
+            selectedBeverages,
+            setSelectedBeverages,
+            "Choose your Beverage(s)",
+            3,
+            1
+          )
+        ) : step === 3 ? (
+          renderGridStep(
+            foodOptions,
+            selectedFoods,
+            setSelectedFoods,
+            "Choose your Food",
+            4,
+            2
+          )
+        ) : step === 4 ? (
+          renderGridStep(
+            kitchenwareOptions,
+            selectedKitchenwares,
+            setSelectedKitchenwares,
+            "Choose your Kitchenware",
+            5,
+            3
+          )
+        ) : step === 5 ? (
+          renderGridStep(
+            homeDecorOptions,
+            selectedHomeDecors,
+            setSelectedHomeDecors,
+            "Choose your Home Decor",
+            6,
+            4
+          )
+        ) : step === 6 ? (
+          renderGridStep(
+            faceBodyOptions,
+            selectedFaceBodies,
+            setSelectedFaceBodies,
+            "Choose your Face & Body",
+            7,
+            5
+          )
+        ) : step === 7 ? (
+          renderGridStep(
+            clothingOptions,
+            selectedClothings,
+            setSelectedClothings,
+            "Choose your Clothing & Accessories",
+            8,
+            6
+          )
+        ) : step === 8 ? (
+          renderGridStep(
+            leatherDeskOptions,
+            selectedLeatherDesks,
+            setSelectedLeatherDesks,
+            "Choose your Leather Products and Desk Essentials",
+            9,
+            7
+          )
+        ) : step === 9 ? (
+          <Animated.View style={{ opacity: fadeAnim, width: "100%" }}>
+            <Text style={[styles.stepTitle, { color: colors.text }]}>
+              Complete Your Order
+            </Text>
+            <View style={{ gap: 14 }}>
+              <TextInput
+                style={styles.input}
+                placeholder="Name"
+                value={form.name}
+                onChangeText={(v) => {
+                  setForm((f) => ({ ...f, name: v }));
+                  validateForm("name", v);
+                }}
+                onBlur={() => validateForm("name")}
+              />
+              {formErrors.name ? (
+                <Text style={{ color: "red", fontSize: 13 }}>{formErrors.name}</Text>
+              ) : null}
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                value={form.email}
+                onChangeText={(v) => {
+                  setForm((f) => ({ ...f, email: v }));
+                  validateForm("email", v);
+                }}
+                onBlur={() => validateForm("email")}
+              />
+              {formErrors.email ? (
+                <Text style={{ color: "red", fontSize: 13 }}>{formErrors.email}</Text>
+              ) : null}
+              <TextInput
+                style={styles.input}
+                placeholder="Contact Number"
+                value={form.contact}
+                onChangeText={(v) => {
+                  setForm((f) => ({ ...f, contact: v }));
+                  validateForm("contact", v);
+                }}
+                onBlur={() => validateForm("contact")}
+                keyboardType="phone-pad"
+              />
+              {formErrors.contact ? (
+                <Text style={{ color: "red", fontSize: 13 }}>{formErrors.contact}</Text>
+              ) : null}
+              <TextInput
+                style={styles.input}
+                placeholder="Order Quantity"
+                value={form.quantity}
+                onChangeText={(v) => {
+                  setForm((f) => ({ ...f, quantity: v }));
+                  validateForm("quantity", v);
+                }}
+                onBlur={() => validateForm("quantity")}
+                keyboardType="numeric"
+              />
+              {formErrors.quantity ? (
+                <Text style={{ color: "red", fontSize: 13 }}>{formErrors.quantity}</Text>
+              ) : null}
+              <TextInput
+                style={styles.input}
+                placeholder="Shipping Location"
+                value={form.shippingLocation}
+                onChangeText={(v) => {
+                  setForm((f) => ({ ...f, shippingLocation: v }));
+                  validateForm("shippingLocation", v);
+                }}
+                onBlur={() => validateForm("shippingLocation")}
+              />
+              {formErrors.shippingLocation ? (
+                <Text style={{ color: "red", fontSize: 13 }}>{formErrors.shippingLocation}</Text>
+              ) : null}
+              <TextInput
+                style={styles.input}
+                placeholder="Date of Delivery"
+                value={form.deliveryDate}
+                onChangeText={(v) => {
+                  setForm((f) => ({ ...f, deliveryDate: v }));
+                  validateForm("deliveryDate", v);
+                }}
+                onBlur={() => validateForm("deliveryDate")}
+              />
+              {formErrors.deliveryDate ? (
+                <Text style={{ color: "red", fontSize: 13 }}>{formErrors.deliveryDate}</Text>
+              ) : null}
+              {/* Add My Own Product section here */}
+              <View style={{ marginVertical: 16 }}>
+                <Text
+                  style={{ fontWeight: "bold", fontSize: 16, marginBottom: 8 }}
+                >
+                  Add My Own Product
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Product Name"
+                  value={customProduct.name}
+                  onChangeText={(v) => setCustomProduct((p) => ({ ...p, name: v }))}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.box,
+                    { backgroundColor: colors.box, alignItems: "center", marginTop: 8 },
+                  ]}
+                  onPress={async () => {
+                    let result = await ImagePicker.launchImageLibraryAsync({
+                      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                      allowsEditing: true,
+                      aspect: [1, 1],
+                      quality: 0.5,
+                    });
+                    if (!result.canceled) {
+                      setCustomProduct((p) => ({
+                        ...p,
+                        image: result.assets[0].uri,
+                      }));
+                    }
+                  }}
+                >
+                  <Text style={{ color: colors.text }}>
+                    {customProduct.image ? "Change Image" : "Add Image"}
+                  </Text>
+                  {customProduct.image && (
+                    <Image
+                      source={{ uri: customProduct.image }}
+                      style={{
+                        width: 60,
+                        height: 60,
+                        marginTop: 8,
+                        borderRadius: 8,
+                      }}
+                    />
+                  )}
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[styles.box, { backgroundColor: colors.accent }]}
+                onPress={() => {
+                  if (validateForm()) {
+                    showAlert("Order submitted! we will contact you soon.");
+                    setTimeout(() => {
+                      hideAlert();
+                      navigation.navigate("Home");
+                    }, 2000);
+                  }
+                }}
+              >
+                <Text style={{ color: "#fff", textAlign: "center" }}>
+                  Submit Order
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        ) : null}
       </ScrollView>
       {/* Slide Up Panel */}
       <Animated.View
@@ -473,7 +764,7 @@ export default function CreateGiftScreen({ navigation }) {
             backgroundColor: colors.card,
             top: panelAnim,
             borderColor: colors.border,
-            height: panelHeight, // Ensure panel fills the bottom
+            height: panelHeight,
           },
         ]}
         {...panResponder.panHandlers}
@@ -487,14 +778,49 @@ export default function CreateGiftScreen({ navigation }) {
             No items selected yet.
           </Text>
         ) : (
-          selectedBoxes.map((item) => (
-            <View key={item.id} style={styles.panelItemRow}>
-              <Image source={item.image} style={styles.panelItemImage} />
-              <Text style={[styles.panelItemLabel, { color: colors.text }]}>
-                {item.label}
-              </Text>
-            </View>
-          ))
+          <ScrollView>
+            {(() => {
+              // Group selectedBoxes into rows of 2
+              const rows = [];
+              for (let i = 0; i < selectedBoxes.length; i += 2) {
+                rows.push(selectedBoxes.slice(i, i + 2));
+              }
+              // If odd, add a dummy for alignment
+              if (rows.length && rows[rows.length - 1].length === 1) {
+                rows[rows.length - 1].push({ id: "dummy", dummy: true });
+              }
+              return rows.map((row, idx) => (
+                <View
+                  key={idx}
+                  style={{ flexDirection: "row", marginBottom: 10, gap: 12 }}
+                >
+                  {row.map((item) =>
+                    item.dummy ? (
+                      <View key="dummy" style={{ flex: 1 }} />
+                    ) : (
+                      <View
+                        key={item.id}
+                        style={[styles.panelItemRow, { flex: 1 }]}
+                      >
+                        <Image
+                          source={item.image}
+                          style={styles.panelItemImage}
+                        />
+                        <Text
+                          style={[
+                            styles.panelItemLabel,
+                            { color: colors.text },
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                      </View>
+                    )
+                  )}
+                </View>
+              ));
+            })()}
+          </ScrollView>
         )}
       </Animated.View>
       {/* Button to open panel */}
@@ -507,6 +833,14 @@ export default function CreateGiftScreen({ navigation }) {
           <View style={styles.panelHandleMini} />
         </TouchableOpacity>
       )}
+      <CustomAlert
+        visible={alert.visible}
+        message={alert.message}
+        onClose={() => {
+          hideAlert();
+          navigation.navigate("Home");
+        }}
+      />
     </View>
   );
 }
@@ -606,7 +940,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
   },
-
   panelHandleMini: {
     width: 48,
     height: 6,
@@ -614,5 +947,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#C7C5D1",
     marginBottom: 6,
     marginTop: 2,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#C7C5D1",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: "#111",
+    r: "#fff",
+    backgroundColor: "#fff",
+    width: "100%",
   },
 });

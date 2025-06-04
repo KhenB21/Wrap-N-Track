@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "./EmailVerify.css";
+import config from "../../config";
 
 function EmailVerify() {
   const [code, setCode] = useState("");
@@ -31,7 +32,9 @@ function EmailVerify() {
 
     try {
       // Pass email & code
+
       const res = await api.post(`/api/auth/verify`, { email, code });
+
 
       setMessage(res.data.message || "Email successfully verified.");
       setTimeout(() => navigate("/login"), 2000);
@@ -50,8 +53,10 @@ function EmailVerify() {
     const token = localStorage.getItem("token");
 
     try {
+
       const res = await api.post(
         `/api/auth/resend-code`,
+
         { email }, // send email in body
         {
           headers: {
