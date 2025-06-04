@@ -80,7 +80,7 @@ function Dashboard() {
     0
   );
   const lowStockProducts = inventory.filter(
-    (item) => Number(item.quantity || 0) < 10
+    (item) => Number(item.quantity || 0) <= 300
   ).length;
 
   return (
@@ -88,10 +88,10 @@ function Dashboard() {
       <Sidebar />
       <div className="dashboard-main">
         <TopBar 
-          lowStockProducts={inventory.filter(item => Number(item.quantity || 0) < 300)}
+          lowStockProducts={inventory.filter(item => Number(item.quantity || 0) <= 300)}
         />
         {/* Inventory Overview */}
-        <div className="dashboard-section">
+        <div className="dashboard-content">
           <h3>Inventory Overview</h3>
           <div className="dashboard-cards-row">
             <div className="dashboard-card card-red" onClick={handleTotalProductsClick} style={{ cursor: 'pointer' }}>
@@ -114,7 +114,9 @@ function Dashboard() {
             </div>
             <div className="dashboard-card card-blue" onClick={handleReplenishmentClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Replenishment Pending</div>
-              <div className="card-value">~~</div>
+              <div className="card-value">
+                {loading ? "..." : inventory.filter(item => Number(item.quantity || 0) <= 0).length}
+              </div>
             </div>
           </div>
         </div>
