@@ -10,9 +10,11 @@ const customersRouter = require('./routes/customers');
 const suppliersRouter = require('./routes/suppliers');
 const ordersRouter = require('./routes/orders');
 const supplierOrdersRouter = require('./routes/supplier-orders');
+
 const authRouter = require('./routes/auth');
 const customerRoutes = require('./routes/customer');
 require('dotenv').config({ path: __dirname + '/../.env' });
+
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -139,21 +141,84 @@ const upload = multer({
   }
 });
 
-// Error handling middleware
+// CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = process.env.CORS_ORIGIN 
+      ? process.env.CORS_ORIGIN.split(',')
+      : [
+          'https://wrap-n-track-b6z5.vercel.app',
+          'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app',
+          'http://localhost:3000'
+        ];
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked request from origin:', origin);
+      console.log('Allowed origins:', allowedOrigins);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
+};
+
+app.use(cors(corsOptions));
+
+// Add headers middleware
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
+// Add a middleware to log all requests
+app.use((req, res, next) => {
+  console.log('Incoming request:', {
+    method: req.method,
+    path: req.path,
+    origin: req.headers.origin,
+    headers: req.headers,
+    timestamp: new Date().toISOString()
+  });
+  next();
+});
+
+// Add error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
+  console.error('Request details:', {
+    method: req.method,
+    path: req.path,
+    origin: req.headers.origin,
+    headers: req.headers,
+    timestamp: new Date().toISOString()
+  });
+  console.error('Error details:', {
+    code: err.code,
+    message: err.message,
+    stack: err.stack
+  });
   res.status(500).json({
     success: false,
     message: err.message || 'Internal server error'
   });
 });
 
-// CORS configuration
-app.use(cors({
-  origin: 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-}));
 app.use(express.json());
 
 // Test database connection
@@ -165,10 +230,23 @@ pool.connect((err, client, release) => {
       host: process.env.DB_HOST,
       database: process.env.DB_NAME,
       port: process.env.DB_PORT || 5432,
+      // Don't log the actual password
+      hasPassword: !!process.env.DB_PASSWORD,
+      hasDatabaseUrl: !!process.env.DATABASE_URL
     });
+    console.error('Full error:', err);
     process.exit(1);
   }
   console.log('Successfully connected to PostgreSQL database');
+  console.log('Database connection details:', {
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT || 5432,
+    // Don't log the actual password
+    hasPassword: !!process.env.DB_PASSWORD,
+    hasDatabaseUrl: !!process.env.DATABASE_URL
+  });
 
   // Add profit-related columns to orders table
   client.query(`
@@ -273,6 +351,41 @@ app.post('/api/fix-role-constraint', async (req, res) => {
     res.status(500).json({ error: error.message });
   } finally {
     client.release();
+  }
+});
+
+// Add this before the registration endpoint
+app.get('/api/test/env', async (req, res) => {
+  try {
+    // Only return non-sensitive environment information
+    const envInfo = {
+      NODE_ENV: process.env.NODE_ENV,
+      PORT: process.env.PORT,
+      DATABASE_URL: process.env.DATABASE_URL ? 'Set' : 'Not Set',
+      JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Not Set',
+      CORS_ORIGIN: process.env.CORS_ORIGIN ? 'Set' : 'Not Set',
+      // Add server info
+      SERVER_TIME: new Date().toISOString(),
+      SERVER_TIMEZONE: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      DATABASE_CONNECTED: pool.totalCount > 0
+    };
+    
+    res.json({
+      success: true,
+      environment: envInfo
+    });
+  } catch (error) {
+    console.error('Error checking environment:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error checking environment',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -397,7 +510,20 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
 // Login endpoint
 app.post('/api/auth/login', async (req, res) => {
+  console.log('Login attempt received:', {
+    body: req.body,
+    origin: req.headers.origin,
+    headers: req.headers
+  });
+
   const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Username and password are required'
+    });
+  }
 
   try {
     // Get user from database
@@ -409,6 +535,7 @@ app.post('/api/auth/login', async (req, res) => {
     const user = result.rows[0];
 
     if (!user) {
+      console.log('Login failed: User not found');
       return res.status(401).json({
         success: false,
         message: 'Invalid username or password'
@@ -419,6 +546,7 @@ app.post('/api/auth/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!validPassword) {
+      console.log('Login failed: Invalid password');
       return res.status(401).json({
         success: false,
         message: 'Invalid username or password'
@@ -435,6 +563,8 @@ app.post('/api/auth/login', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
+
+    console.log('Login successful for user:', username);
 
     // Return success response with profile picture data
     res.json({
@@ -453,7 +583,8 @@ app.post('/api/auth/login', async (req, res) => {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -504,6 +635,7 @@ app.post('/api/user/profile-picture', verifyToken, upload.single('profilePicture
 
 // Add a new inventory item (with image upload to DB)
 app.post('/api/inventory', upload.single('image'), async (req, res) => {
+  const client = await pool.connect();
   try {
     console.log('Received inventory POST request');
     console.log('Request body:', req.body);
@@ -514,6 +646,8 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       size: req.file.size
     } : 'No file uploaded');
 
+    await client.query('BEGIN');
+    
     const { sku, name, description, quantity, unit_price, category } = req.body;
     let imageData = null;
     
@@ -534,14 +668,20 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       });
     }
     
+    // Process image if present
     if (req.file) {
       imageData = req.file.buffer;
       console.log('Image data read from memory, size:', imageData.length);
+      
+      // Validate image size (should already be validated by multer, but double-check)
+      if (imageData.length > 5 * 1024 * 1024) { // 5MB limit
+        throw new Error('Image size exceeds 5MB limit');
+      }
     }
     
     // Check if SKU already exists
-    const existingProduct = await pool.query(
-      'SELECT sku FROM inventory_items WHERE sku = $1',
+    const existingProduct = await client.query(
+      'SELECT sku FROM inventory_items WHERE sku = $1 FOR UPDATE',
       [sku]
     );
 
@@ -558,10 +698,16 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       hasImage: !!imageData
     });
 
-    const result = await pool.query(
-      'INSERT INTO inventory_items (sku, name, description, quantity, unit_price, category, image_data) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [sku, name, description, quantity, unit_price, category, imageData]
+    // Insert the new product
+    const result = await client.query(
+      `INSERT INTO inventory_items 
+       (sku, name, description, quantity, unit_price, category, image_data, last_updated) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) 
+       RETURNING *`,
+      [sku, name, description, Number(quantity), Number(unit_price), category, imageData]
     );
+    
+    await client.query('COMMIT');
     
     // Convert image data to base64 for the response
     const product = result.rows[0];
@@ -577,12 +723,15 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       product
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error adding inventory item:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Internal server error',
-      details: error.message 
+      message: 'Failed to add product. ' + error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  } finally {
+    client.release();
   }
 });
 
@@ -631,16 +780,35 @@ app.put('/api/inventory/:sku', upload.single('image'), async (req, res) => {
 
 // Get all inventory items
 app.get('/api/inventory', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const result = await pool.query('SELECT * FROM inventory_items ORDER BY last_updated DESC');
-    const products = result.rows.map(product => ({
-      ...product,
-      image_data: product.image_data ? product.image_data.toString('base64') : null
-    }));
-    res.json(products);
+    const result = await client.query(`
+      SELECT 
+        sku, 
+        name, 
+        description, 
+        quantity, 
+        unit_price, 
+        category, 
+        last_updated,
+        CASE 
+          WHEN image_data IS NOT NULL THEN encode(image_data, 'base64')
+          ELSE NULL 
+        END as image_data
+      FROM inventory_items 
+      ORDER BY last_updated DESC
+    `);
+    
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching inventory:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch inventory',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  } finally {
+    client.release();
   }
 });
 
@@ -761,6 +929,35 @@ app.get('/api/test', (req, res) => {
 // Create HTTP server
 const server = app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  console.log('Environment:', process.env.NODE_ENV);
+  console.log('CORS allowed origins:', corsOptions.origin);
+});
+
+// Error handling for the server
+server.on('error', (error) => {
+  console.error('Server error:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${port} is already in use`);
+    process.exit(1);
+  }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit the process in production
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process in production
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
 });
 
 // Upgrade HTTP server to WebSocket server

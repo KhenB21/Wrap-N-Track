@@ -43,8 +43,10 @@ export default function OrderHistory() {
         return;
       }
 
+
       // Fetch only archived orders
       const response = await fetch('http://localhost:3001/api/orders/history', {
+
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

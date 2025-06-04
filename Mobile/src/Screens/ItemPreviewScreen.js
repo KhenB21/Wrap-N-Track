@@ -76,13 +76,12 @@ export default function ItemPreviewScreen({ navigation, route }) {
   };
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      {/* Header: logo and cart only */}
       <Header
         showMenu
         showCart
         logoType="image"
         onMenuPress={() => setMenuVisible(true)}
-        onCartPress={() => {}}
+        onCartPress={() => navigation.navigate("MyCart")}
         darkMode={darkMode}
       />
       {/* Custom Back Button */}

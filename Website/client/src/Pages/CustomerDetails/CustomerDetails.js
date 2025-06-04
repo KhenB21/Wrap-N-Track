@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
+
 import api from "../../api/axios";
 import "./CustomerDetails.css";
+
 
 const tabs = ["Overview", "Order History", "Ongoing orders"];
 
@@ -51,7 +53,9 @@ export default function CustomerDetails() {
     if (order.order_id) {
       setLoadingProducts(true);
       try {
+
         const response = await api.get(`/api/orders/${order.order_id}/products`);
+
         setOrderProducts(response.data);
       } catch (error) {
         console.error('Error fetching order products:', error);
@@ -73,7 +77,9 @@ export default function CustomerDetails() {
         console.log(`Starting cleanup attempt ${cleanupAttempt}`);
 
         // Fetch all customers
+
         const response = await api.get(`/api/customers`);
+
         const allCustomers = response.data;
         
         // Group by name (case-insensitive)
@@ -173,7 +179,10 @@ export default function CustomerDetails() {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Verify if any duplicates remain
+
         const verifyResponse = await api.get(`/api/customers`);
+
+
         const remainingCustomers = verifyResponse.data;
         const remainingByName = new Map();
         
@@ -225,11 +234,13 @@ export default function CustomerDetails() {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Then proceed with normal sync
+
       const existingCustomersResponse = await api.get(`/api/customers`);
       const existingCustomers = existingCustomersResponse.data;
 
       // Fetch all orders
       const response = await api.get(`/api/orders`);
+
       const orders = response.data;
       
       // Group customers by name (case-insensitive)
@@ -284,7 +295,9 @@ export default function CustomerDetails() {
             };
             
             try {
+
               await api.put(`/api/customers/${existingCustomer.customer_id}`, updatedCustomer);
+
               console.log('Updated customer:', customerData.name);
             } catch (error) {
               console.error(`Failed to update customer ${customerData.name}:`, error);
@@ -299,7 +312,9 @@ export default function CustomerDetails() {
             };
             
             try {
+
               await api.post(`/api/customers`, newCustomer);
+
               console.log('Added new customer:', customerData.name);
             } catch (error) {
               console.error(`Failed to add customer ${customerData.name}:`, error);
@@ -326,8 +341,10 @@ export default function CustomerDetails() {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
+
       const response = await api.get(`/api/customers`);
       console.log('Fetched customers:', response.data);
+
       setCustomers(response.data);
       setFilteredCustomers(response.data);
       setError(null);
@@ -347,6 +364,7 @@ export default function CustomerDetails() {
 
     console.log('Fetching orders for customer:', selectedCustomer.name);
     try {
+
       // Fetch ongoing orders for the customer
       const ongoingResponse = await api.get(`/api/orders/customer/${encodeURIComponent(selectedCustomer.name)}`);
       console.log('Ongoing orders response:', ongoingResponse.data);
@@ -355,6 +373,7 @@ export default function CustomerDetails() {
       const historyResponse = await api.get('/api/orders/history');
       const completedOrders = historyResponse.data.filter(order => 
         order.name.toLowerCase() === selectedCustomer.name.toLowerCase()
+
       );
       console.log('Completed orders response:', completedOrders);
 
@@ -444,7 +463,9 @@ export default function CustomerDetails() {
     if (!validateForm()) return;
 
     try {
+
       const response = await api.post(`/api/customers`, editForm);
+
       setCustomers([...customers, response.data]);
       setIsAdding(false);
       setEditForm({
@@ -488,7 +509,9 @@ export default function CustomerDetails() {
     if (!validateForm()) return;
 
     try {
+
       const response = await api.put(`/api/customers/${selectedCustomer.customer_id}`, editForm);
+
       setCustomers(customers.map(c => 
         c.customer_id === response.data.customer_id ? response.data : c
       ));

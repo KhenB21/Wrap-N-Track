@@ -1,10 +1,10 @@
 /* Font Faces */
-@font-face {
+/* @font-face {
   font-family: "Cinzel";
   src: url("../../../public/Assets/Fonts/Cinzel-Regular.ttf") format("truetype");
   font-weight: normal;
   font-style: normal;
-}
+} */
 
 @font-face {
   font-family: "Cinzel";
@@ -361,4 +361,16 @@
   100% {
     transform: scale(1);
   }
+}
+
+/* Remove or override any capitalization for username input */
+#username {
+  font-family: 'Inter', Arial, Helvetica, sans-serif !important;
+  text-transform: none !important;
+  font-variant: normal !important;
+  letter-spacing: normal !important;
+}
+
+.input-container label[for="username"] {
+  text-transform: none !important;
 }

@@ -12,12 +12,14 @@ import {
 import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../Context/ThemeContext";
+import { useOrders } from "../Context/OrdersContext";
 
 export default function OrderSummaryScreen({ navigation, route }) {
   const { product } = route.params;
   const [note, setNote] = useState("");
   const [payment, setPayment] = useState("cod");
   const { darkMode } = useTheme();
+  const { addOrder } = useOrders();
   const shipping = 49;
   const [quantity, setQuantity] = useState(product.quantity || 1);
   const price = product.price
@@ -232,7 +234,8 @@ export default function OrderSummaryScreen({ navigation, route }) {
           style={[styles.buyNowBtn, { backgroundColor: colors.btn }]}
           onPress={() => {
             ToastAndroid.show("Order placed successfully!", ToastAndroid.SHORT);
-            navigation.navigate("Home"); // Navigate to Home after buying
+            addOrder(product); // Save the bought item
+            navigation.navigate("DeliveryTracking", { product });
           }}
         >
           <Text style={[styles.buyNowText, { color: colors.btnText }]}>

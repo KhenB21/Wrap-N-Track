@@ -2,39 +2,86 @@ const { Pool } = require('pg');
 const WebSocket = require('ws');
 require('dotenv').config({ path: __dirname + '/.env' });
 
-// Debug: Log the database connection details (with password masked)
-const dbUser = process.env.DB_USER;
-const dbHost = process.env.DB_HOST || 'localhost'; // Default to localhost
-const dbName = process.env.DB_NAME;
-const dbPort = process.env.DB_PORT;
-console.log('Database User:', dbUser || 'Not set (will use PG defaults)');
-console.log('Database Host:', dbHost);
-console.log('Database Name:', dbName || 'Not set (will use PG defaults)');
-console.log('Database Port:', dbPort || 'Not set (will use 5432)');
+// Database configuration
+const dbConfig = {
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  },
+  // Add connection timeout and retry settings
+  connectionTimeoutMillis: 10000, // 10 seconds
+  idleTimeoutMillis: 30000, // 30 seconds
+  max: 20, // Maximum number of clients in the pool
+  min: 4,  // Minimum number of clients in the pool
+};
 
-// Note: Connection might fail if DB_USER, DB_NAME, or DB_PASSWORD are not set depending on PG configuration
-if (!dbUser || !dbName || !process.env.DB_PASSWORD) {
-  console.warn('Database connection environment variables (DB_USER, DB_NAME, DB_PASSWORD) are not fully set. Connection might fail depending on PostgreSQL configuration.');
-}
+// Create a new pool using the configuration
+const pool = new Pool(dbConfig);
 
-const pool = new Pool({
-  user: dbUser,
-  host: dbHost,
-  database: dbName,
-  password: process.env.DB_PASSWORD,
-  port: dbPort ? parseInt(dbPort) : 5432, // Default to 5432 if not set
+// Log database configuration (without sensitive data)
+console.log('Database configuration:', {
+  connectionString: process.env.DATABASE_URL ? '[REDACTED]' : 'Not set',
+  ssl: dbConfig.ssl,
+  connectionTimeoutMillis: dbConfig.connectionTimeoutMillis,
+  idleTimeoutMillis: dbConfig.idleTimeoutMillis,
+  max: dbConfig.max,
+  min: dbConfig.min
 });
 
-// Test the connection immediately
-pool.connect()
-  .then(client => {
-    console.log('Successfully connected to PostgreSQL database');
-    client.release();
-  })
-  .catch(err => {
-    console.error('Error connecting to PostgreSQL database:', err);
-    process.exit(1);
+// Function to test database connection with retries
+const testConnection = async (retries = 3, delay = 5000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const client = await pool.connect();
+      console.log('Successfully connected to PostgreSQL database');
+      console.log('Database connection details:', {
+        host: client.connectionParameters.host,
+        port: client.connectionParameters.port,
+        database: client.connectionParameters.database,
+        user: client.connectionParameters.user,
+        ssl: client.connectionParameters.ssl
+      });
+      client.release();
+      return true;
+    } catch (err) {
+      console.error(`Connection attempt ${i + 1} failed:`, err);
+      console.error('Error details:', {
+        code: err.code,
+        message: err.message,
+        stack: err.stack
+      });
+      console.error('Database configuration:', {
+        connectionString: process.env.DATABASE_URL ? '[REDACTED]' : 'Not set',
+        ssl: dbConfig.ssl
+      });
+      
+      if (i < retries - 1) {
+        console.log(`Retrying in ${delay/1000} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error('All connection attempts failed');
+        process.exit(1);
+      }
+    }
+  }
+};
+
+// Test the connection with retries
+testConnection();
+
+// Add error handler for pool
+pool.on('error', (err, client) => {
+  console.error('Unexpected error on idle client', err);
+  console.error('Error details:', {
+    code: err.code,
+    message: err.message,
+    stack: err.stack
   });
+  // Don't exit the process in production, just log the error
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(-1);
+  }
+});
 
 // Create a WebSocket server instance
 const wss = new WebSocket.Server({ noServer: true });
@@ -77,6 +124,11 @@ const setupDatabaseListeners = async () => {
     console.log('Database listeners set up successfully');
   } catch (error) {
     console.error('Error setting up database listeners:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
   }
 };
 
@@ -90,6 +142,11 @@ const notifyChange = async (channel, payload) => {
     );
   } catch (error) {
     console.error('Error sending notification:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
   } finally {
     client.release();
   }

@@ -11,16 +11,20 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../Context/ThemeContext";
+import { useNavigation } from "@react-navigation/native";
+import { useProfile } from "../Context/ProfileContext"; // <-- Add this import
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 const MENU_WIDTH = width * 0.7;
 
 export default function SideMenu({ visible, onClose }) {
   const slideAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const { darkMode, setDarkMode } = useTheme();
   const [displayDropdown, setDisplayDropdown] = useState(false);
+  const navigation = useNavigation();
 
-  // Facebook dark mode colors
+  const { profile } = useProfile(); // { name, avatar, ... }
+
   const menuBg = darkMode ? "#242526" : "#6B6593";
   const cardBg = darkMode ? "#393A3B" : "#B6B3C6";
   const textColor = darkMode ? "#E4E6EB" : "#fff";
@@ -64,15 +68,53 @@ export default function SideMenu({ visible, onClose }) {
         {/* User Card */}
         <View style={[styles.userCard, { backgroundColor: cardBg }]}>
           <Image
-            source={{ uri: "https://randomuser.me/api/portraits/lego/1.jpg" }}
+            source={
+              profile?.avatar
+                ? { uri: profile.avatar }
+                : { uri: "https://randomuser.me/api/portraits/lego/1.jpg" }
+            }
             style={styles.avatar}
           />
           <Text style={[styles.userName, { color: textColor }]}>
-            JUAN DELA CRUZ
+            {profile?.name || "JUAN DELA CRUZ"}
           </Text>
         </View>
         {/* Menu Items */}
         <View style={styles.menuItems}>
+          {/* Profile Button */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              onClose && onClose();
+              setTimeout(() => navigation.navigate("Profile"), 250);
+            }}
+          >
+            <MaterialCommunityIcons
+              name="account-circle-outline"
+              size={28}
+              color={textColor}
+            />
+            <Text style={[styles.menuItemText, { color: textColor }]}>
+              Profile
+            </Text>
+          </TouchableOpacity>
+          {/* My Orders Button */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              onClose && onClose();
+              setTimeout(() => navigation.navigate("OrderedItem"), 250);
+            }}
+          >
+            <MaterialCommunityIcons
+              name="clipboard-list-outline"
+              size={28}
+              color={textColor}
+            />
+            <Text style={[styles.menuItemText, { color: textColor }]}>
+              My Orders
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem}>
             <MaterialCommunityIcons
               name="cog-outline"

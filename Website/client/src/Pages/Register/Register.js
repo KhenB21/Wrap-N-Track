@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import config from "../../config";
+import api from '../../api/axios';
+import config from '../../config';
+// (keep axios import only if needed for FormData compatibility, otherwise use api) "axios";
 import "./Register.css";
 
 function debounce(func, delay) {
@@ -21,7 +22,7 @@ function Register() {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "employee",
+    role: "business_developer", // Default to a valid backend role
   });
   const [profilePicture, setProfilePicture] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -53,7 +54,7 @@ function Register() {
     if (!email) return;
     try {
       setCheckingEmail(true);
-      const res = await axios.get("http://localhost:3001/api/auth/check-email", {
+      const res = await api.get(`${config.API_URL}/api/auth/check-email`, {
         params: { email },
       });
 
@@ -74,7 +75,7 @@ function Register() {
     if (!name.trim()) return;
     try {
       setCheckingName(true);
-      const res = await axios.get("http://localhost:3001/api/auth/check-name", {
+      const res = await api.get(`${config.API_URL}/api/auth/check-name`, {
         params: { name: name.trim() },
       });
 
@@ -169,8 +170,8 @@ function Register() {
         formDataToSend.append("profilePicture", profilePicture);
       }
 
-      const response = await axios.post(
-        "http://localhost:3001/api/auth/register",
+      const response = await api.post(
+        `${config.API_URL}/api/auth/register`,
         formDataToSend,
         {
           headers: {
@@ -191,11 +192,13 @@ function Register() {
 
       if (message === "Email already registered") {
         setEmailError(message); // shows below the email input
+      } else if (message === "Name already taken") {
+        setNameError(message);
+      } else if (message === "Invalid role selected") {
+        setError("Invalid role selected. Please choose a valid role.");
       } else {
         setError(message || "Registration failed. Please try again.");
       }
-
-
     }
   } finally {
     setLoading(false);

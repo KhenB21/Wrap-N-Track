@@ -35,7 +35,7 @@ function LoginPage() {
 
   useEffect(() => {
     if (failedAttempts >= getMaxAttempts()) {
-      const lockTime = Date.now() + 60000; // 1 minute
+      const lockTime = Date.now() + 1//60000; // 1 minute
       setLockoutTime(lockTime);
       setIsLockedOut(true);
       localStorage.setItem("lockoutTime", lockTime);

@@ -31,7 +31,7 @@ function EmailVerify() {
 
     try {
       // Pass email & code
-      const res = await axios.post("http://localhost:3001/api/auth/verify", { email, code });
+      const res = await api.post(`/api/auth/verify`, { email, code });
 
       setMessage(res.data.message || "Email successfully verified.");
       setTimeout(() => navigate("/login"), 2000);
@@ -50,8 +50,8 @@ function EmailVerify() {
     const token = localStorage.getItem("token");
 
     try {
-      const res = await axios.post(
-        "http://localhost:3001/api/auth/resend-code",
+      const res = await api.post(
+        `/api/auth/resend-code`,
         { email }, // send email in body
         {
           headers: {

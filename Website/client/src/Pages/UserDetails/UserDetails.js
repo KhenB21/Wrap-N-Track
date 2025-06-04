@@ -30,7 +30,7 @@ export default function UserDetails() {
         }
         const parsedUser = JSON.parse(storedUser);
         setUserData(parsedUser);
-        const response = await fetch('http://localhost:3001/api/user/details', {
+        const response = await api.get('/api/user/details', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -74,7 +74,7 @@ export default function UserDetails() {
       const formData = new FormData();
       formData.append('profilePicture', file);
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/user/profile-picture', {
+      const response = await api.post('/api/user/profile-picture', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

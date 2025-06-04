@@ -4,27 +4,102 @@ import './CustomerPOV.css';
 
 export default function CustomerHome() {
   return (
-    <div className="customerhome-container">
+    <div className="customerhome-container pensee-home">
       <TopbarCustomer />
-      <section className="customerhome-hero">
-        <div className="customerhome-hero-content">
-          <h1 className="customerhome-hero-title">Pensée Gifting Studio</h1>
-          <p className="customerhome-hero-subtitle">Curating thematic gift boxes for messages you want to send across</p>
-          <button className="customerhome-cta-btn">Get in Touch</button>
+      {/* Hero Section with Overlay */}
+      <section className="pensee-hero-image-section">
+        <img className="pensee-hero-bg" src="/Assets/Images/HomeBackground.jpg" alt="Gift box background" />
+        <div className="pensee-hero-overlay">
+          <h1 className="pensee-hero-title">Pensée Gifting Studio</h1>
+          <p className="pensee-hero-subtitle">Curating thematic gift boxes for messages you want to send across</p>
+          <button className="pensee-cta-btn">GET IN TOUCH</button>
         </div>
       </section>
-      <section className="customerhome-highlights">
-        <div className="customerhome-highlight">
-          <h2 className="customerhome-highlight-title">PENSÉE <span>highlights</span> FILIPINO BRANDS</h2>
-          <p className="customerhome-highlight-desc">We believe in the talents of Filipino artisans and entrepreneurs. By shopping small and locally, we not only give them an opportunity to showcase their skills, we also directly contribute to local employment.</p>
+
+      {/* Alternating Highlight Sections */}
+      <section className="pensee-highlight-section">
+        <div className="pensee-highlight-row">
+          <div className="pensee-highlight-text">
+            <h2>PENSÉE <em>advocates for</em> THOUGHTFUL GIFTING</h2>
+            <p>For us, a one-box-fits-all is a myth. We take you (the sender) and your recipient into account when designing gift boxes. We believe that gift-giving is extending a part of yourself and saying, "I thought about you while buying this."</p>
+            <a href="#contact" className="pensee-highlight-link">GET IN TOUCH →</a>
+          </div>
+          <div className="pensee-highlight-image">
+            <img src="/Assets/Images/Advocate.png" alt="Thoughtful gifting" />
+          </div>
         </div>
-        <div className="customerhome-highlight">
-          <h2 className="customerhome-highlight-title">PENSÉE <span>advocates for</span> THOUGHTFUL GIFTING</h2>
-          <p className="customerhome-highlight-desc">For us, a one-box-fits-all is a myth. We take you (the sender) and your recipient into account when designing gift boxes. We believe that gift-giving is extending a part of yourself and saying, "I thought about you while buying this."</p>
+        <div className="pensee-highlight-row reverse">
+          <div className="pensee-highlight-image">
+            <img src="/Assets/Images/femaleOwn.png" alt="Female owned" />
+          </div>
+          <div className="pensee-highlight-text">
+            <h2>PENSÉE <em>is</em> FEMALE-OWNED & LED</h2>
+            <p>We aspire for gender parity in entrepreneurship, and it just so happens that the majority of our brand partners are female-owned, too! It's truly empowering to be breaking the glass ceiling together.</p>
+          </div>
         </div>
-        <div className="customerhome-highlight">
-          <h2 className="customerhome-highlight-title">PENSÉE <span>is</span> FEMALE-OWNED & LED</h2>
-          <p className="customerhome-highlight-desc">We aspire for gender parity in entrepreneurship, and it just so happens that the majority of our brand partners are female-owned, too! It's truly empowering to be breaking the glass ceiling together.</p>
+        <div className="pensee-highlight-row">
+          <div className="pensee-highlight-text">
+            <h2>PENSÉE <em>highlights</em> FILIPINO BRANDS</h2>
+            <p>We believe in the talents of Filipino artisans and entrepreneurs. By shopping small and locally, we not only give them an opportunity to showcase their skills, we also directly contribute to local employment.</p>
+          </div>
+          <div className="pensee-highlight-image">
+            <img src="/Assets/Images/FilipinoBrands.jpg" alt="Filipino brands" />
+          </div>
+        </div>
+      </section>
+
+      {/* Steps Section */}
+      <section className="pensee-how-it-works pensee-steps-bg">
+        <h2 className="pensee-section-title">Curate your own Gift Box in 3 steps</h2>
+        <div className="pensee-steps">
+          <div className="pensee-step">
+            <span className="pensee-step-bgnum">1</span>
+            <span className="pensee-step-title">Choose your packaging</span>
+          </div>
+          <div className="pensee-step">
+            <span className="pensee-step-bgnum">2</span>
+            <span className="pensee-step-title">Choose the contents</span>
+          </div>
+          <div className="pensee-step">
+            <span className="pensee-step-bgnum">3</span>
+            <span className="pensee-step-title">Make it personal</span>
+          </div>
+        </div>
+        <button className="pensee-cta-btn pensee-cta-secondary">Curate your own gift box here</button>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="pensee-testimonials">
+        <h2 className="pensee-section-title">Client Love</h2>
+        <div className="pensee-testimonial-cards">
+          <div className="pensee-testimonial-card">
+            <h4>TIFFANY GO</h4>
+            <p>"Tempus elementum posuere facilisi sapien adipiscing fusce lectus molestie. Tellus aenean quisque laoreet penatibus odio urna nullam neque nibh inceptos maecenas."</p>
+          </div>
+          <div className="pensee-testimonial-card">
+            <h4>KIM NAMJOON</h4>
+            <p>"Commodo aliquam adipiscing senectus posuere nunc eros faucibus praesent dis semper ante. Adipiscing nullam massa sem class neque."</p>
+          </div>
+          <div className="pensee-testimonial-card">
+            <h4>AGATHA E.</h4>
+            <p>"Conubia vivamus purus maecenas cras est letius fames id. Tortor imperdiet adipiscing felis libero ultricies lorem nulla."</p>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ / Contact Section */}
+      <section className="pensee-faq-contact" id="contact">
+        <h2 className="pensee-section-title">Frequently Asked Questions</h2>
+        <ul className="pensee-faq-list">
+          <li><b>Do you have ready-to-ship gift boxes?</b> We currently don't offer pre-curated gift boxes. Please fill out our Order Form and our team will get in touch.</li>
+          <li><b>How can I customize my own box?</b> We love getting into the smallest details of customized orders. You will find everything you need to know about bespoke orders here.</li>
+          <li><b>What is your lead time?</b> For single-box orders, please allow us 1-2 weeks. For bulk orders, at least 1 month after payment is settled.</li>
+          <li><b>What are your payment terms?</b> For single-box orders, payment must be settled in full. For bulk orders, 70% down payment prior to production; the remaining 30% before delivery.</li>
+          <li><b>What are your modes of delivery?</b> We ship via LBC, Lalamove/Grab Express, or in-house delivery (Metro Manila).</li>
+        </ul>
+        <div className="pensee-contact-cta">
+          <span>Still have questions?</span>
+          <button className="pensee-cta-btn">Get in Touch</button>
         </div>
       </section>
     </div>
