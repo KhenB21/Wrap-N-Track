@@ -33,6 +33,40 @@ const verifyToken = (req, res, next) => {
 // Apply authentication middleware to all routes
 router.use(verifyToken);
 
+// Get all customer orders with product details
+router.get('/', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    try {
+      // Fetch all orders
+      const ordersResult = await client.query('SELECT * FROM orders ORDER BY order_date DESC');
+      const orders = ordersResult.rows;
+
+      // For each order, fetch its products
+      for (let order of orders) {
+        const productsResult = await client.query(`
+          SELECT op.sku, op.quantity, op.profit_margin, i.name, i.image_data, i.unit_price
+          FROM order_products op
+          JOIN inventory_items i ON op.sku = i.sku
+          WHERE op.order_id = $1
+        `, [order.order_id]);
+        order.products = productsResult.rows.map(p => ({
+          ...p,
+          image_data: p.image_data ? p.image_data.toString('base64') : null
+        }));
+      }
+
+      res.json(orders);
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+
 // Create new customer order
 router.post('/', async (req, res) => {
   try {
@@ -53,11 +87,12 @@ router.post('/', async (req, res) => {
       telephone,
       cellphone,
       email_address,
-      products // array of { sku, quantity, profit_margin }
+      products, // array of { sku, quantity, profit_margin }
+      wedding_details // for wedding orders
     } = req.body;
 
     // Validate required fields (excluding order_id since we'll generate it if needed)
-    if (!account_name || !name || !order_date || !expected_delivery || !status || !package_name || !products || !Array.isArray(products) || products.length === 0) {
+    if (!account_name || !name || !order_date || !expected_delivery || !status || !package_name) {
       return res.status(400).json({ error: 'Missing required fields for customer order' });
     }
 
@@ -128,16 +163,69 @@ router.post('/', async (req, res) => {
         return res.status(500).json({ error: 'Failed to create customer order' });
       }
 
-      // Insert order products
-      for (const product of products) {
-        if (!product.sku || !product.quantity) {
+      // If this is a wedding order, insert into customer_wedding_orders
+      if (package_name === 'wedding' && wedding_details) {
+        // First get the customer_id from customer_details
+        const customerResult = await client.query(
+          'SELECT customer_id FROM customer_details WHERE email_address = $1',
+          [email_address]
+        );
+
+        if (!customerResult.rows.length) {
           await client.query('ROLLBACK');
-          return res.status(400).json({ error: 'Each product must have sku and quantity' });
+          return res.status(400).json({ error: 'Customer not found' });
         }
+
+        const customer_id = customerResult.rows[0].customer_id;
+
+        // Insert into customer_wedding_orders
         await client.query(`
-          INSERT INTO order_products (order_id, sku, quantity, profit_margin)
-          VALUES ($1, $2, $3, $4)
-        `, [order_id, product.sku, product.quantity, product.profit_margin || 0]);
+          INSERT INTO customer_wedding_orders (
+            customer_id,
+            wedding_style,
+            wedding_date,
+            guest_count,
+            color_scheme,
+            special_requests,
+            total_cost,
+            status
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [
+          customer_id,
+          wedding_details.wedding_style,
+          wedding_details.wedding_date,
+          wedding_details.guest_count,
+          wedding_details.color_scheme || null,
+          wedding_details.special_requests || null,
+          total_cost,
+          status
+        ]);
+      }
+
+      // Insert order products if provided
+      if (products && Array.isArray(products) && products.length > 0) {
+        for (const product of products) {
+          // If itemName is provided instead of SKU, look up SKU
+          if (product.itemName && !product.sku) {
+            const skuResult = await client.query('SELECT sku FROM inventory_items WHERE name = $1', [product.itemName]);
+            if (skuResult.rows.length === 0) {
+              await client.query('ROLLBACK');
+              return res.status(400).json({ error: `Product not found in inventory: ${product.itemName}` });
+            }
+            product.sku = skuResult.rows[0].sku;
+          }
+
+          // Validate that SKU and quantity are present
+          if (!product.sku || product.quantity === undefined) { // Check quantity for undefined specifically
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Each product must have a valid SKU and quantity' });
+          }
+
+          await client.query(`
+            INSERT INTO order_products (order_id, sku, quantity, profit_margin)
+            VALUES ($1, $2, $3, $4)
+          `, [order_id, product.sku, product.quantity, product.profit_margin || 0]);
+        }
       }
 
       await client.query('COMMIT');
@@ -178,7 +266,9 @@ router.put('/:order_id', async (req, res) => {
       order_date,
       expected_delivery,
       remarks,
-      items
+      items,
+      status,
+      package_name
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -189,17 +279,21 @@ router.put('/:order_id', async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Update order
+      // Update order (now includes status and package_name)
       const orderResult = await client.query(`
         UPDATE orders SET
           order_date = $1,
           expected_delivery = $2,
-          remarks = $3
-        WHERE order_id = $4 RETURNING *
+          remarks = $3,
+          status = COALESCE($4, status),
+          package_name = COALESCE($5, package_name)
+        WHERE order_id = $6 RETURNING *
       `, [
         order_date,
         expected_delivery,
         remarks,
+        status,
+        package_name,
         order_id
       ]);
 
@@ -240,6 +334,52 @@ router.put('/:order_id', async (req, res) => {
     }
   } catch (error) {
     console.error('Error in supplier order update route:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get wedding order details by order ID
+router.get('/wedding-orders/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    // First get the order to get the customer email
+    const orderResult = await pool.query(
+      'SELECT email_address FROM orders WHERE order_id = $1',
+      [orderId]
+    );
+
+    if (!orderResult.rows.length) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const { email_address } = orderResult.rows[0];
+
+    // Get the customer ID
+    const customerResult = await pool.query(
+      'SELECT customer_id FROM customer_details WHERE email_address = $1',
+      [email_address]
+    );
+
+    if (!customerResult.rows.length) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    const { customer_id } = customerResult.rows[0];
+
+    // Get the wedding order details
+    const weddingResult = await pool.query(
+      'SELECT * FROM customer_wedding_orders WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [customer_id]
+    );
+
+    if (!weddingResult.rows.length) {
+      return res.status(404).json({ error: 'Wedding order details not found' });
+    }
+
+    res.json(weddingResult.rows[0]);
+  } catch (error) {
+    console.error('Error fetching wedding order details:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

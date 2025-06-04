@@ -10,7 +10,11 @@ const customersRouter = require('./routes/customers');
 const suppliersRouter = require('./routes/suppliers');
 const ordersRouter = require('./routes/orders');
 const supplierOrdersRouter = require('./routes/supplier-orders');
+
+const authRouter = require('./routes/auth');
+const customerRoutes = require('./routes/customer');
 require('dotenv').config({ path: __dirname + '/../.env' });
+
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -137,21 +141,84 @@ const upload = multer({
   }
 });
 
-// Error handling middleware
+// CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = process.env.CORS_ORIGIN 
+      ? process.env.CORS_ORIGIN.split(',')
+      : [
+          'https://wrap-n-track-b6z5.vercel.app',
+          'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app',
+          'http://localhost:3000'
+        ];
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked request from origin:', origin);
+      console.log('Allowed origins:', allowedOrigins);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
+};
+
+app.use(cors(corsOptions));
+
+// Add headers middleware
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
+// Add a middleware to log all requests
+app.use((req, res, next) => {
+  console.log('Incoming request:', {
+    method: req.method,
+    path: req.path,
+    origin: req.headers.origin,
+    headers: req.headers,
+    timestamp: new Date().toISOString()
+  });
+  next();
+});
+
+// Add error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
+  console.error('Request details:', {
+    method: req.method,
+    path: req.path,
+    origin: req.headers.origin,
+    headers: req.headers,
+    timestamp: new Date().toISOString()
+  });
+  console.error('Error details:', {
+    code: err.code,
+    message: err.message,
+    stack: err.stack
+  });
   res.status(500).json({
     success: false,
     message: err.message || 'Internal server error'
   });
 });
 
-// CORS configuration
-app.use(cors({
-  origin: 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-}));
 app.use(express.json());
 
 // Test database connection
@@ -163,10 +230,23 @@ pool.connect((err, client, release) => {
       host: process.env.DB_HOST,
       database: process.env.DB_NAME,
       port: process.env.DB_PORT || 5432,
+      // Don't log the actual password
+      hasPassword: !!process.env.DB_PASSWORD,
+      hasDatabaseUrl: !!process.env.DATABASE_URL
     });
+    console.error('Full error:', err);
     process.exit(1);
   }
   console.log('Successfully connected to PostgreSQL database');
+  console.log('Database connection details:', {
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT || 5432,
+    // Don't log the actual password
+    hasPassword: !!process.env.DB_PASSWORD,
+    hasDatabaseUrl: !!process.env.DATABASE_URL
+  });
 
   // Add profit-related columns to orders table
   client.query(`
@@ -274,41 +354,40 @@ app.post('/api/fix-role-constraint', async (req, res) => {
   }
 });
 
-// Check if name exists endpoint
-app.get('/api/auth/check-name', async (req, res) => {
-  const { name } = req.query;
-  if (!name) {
-    return res.status(400).json({ success: false, message: 'Name query parameter is required' });
-  }
-  try {
-    const result = await pool.query('SELECT * FROM users WHERE name = $1', [name.trim()]);
-    if (result.rows.length > 0) {
-      res.json({ exists: true });
-    } else {
-      res.json({ exists: false });
-    }
-  } catch (error) {
-    console.error('Error checking name:', error);
-    res.status(500).json({ success: false, message: 'Internal server error while checking name' });
-  }
-});
 
-// Check if email exists endpoint
-app.get('/api/auth/check-email', async (req, res) => {
-  const { email } = req.query;
-  if (!email) {
-    return res.status(400).json({ success: false, message: 'Email query parameter is required' });
-  }
+// Add this before the registration endpoint
+app.get('/api/test/env', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (result.rows.length > 0) {
-      res.json({ exists: true });
-    } else {
-      res.json({ exists: false });
-    }
+    // Only return non-sensitive environment information
+    const envInfo = {
+      NODE_ENV: process.env.NODE_ENV,
+      PORT: process.env.PORT,
+      DATABASE_URL: process.env.DATABASE_URL ? 'Set' : 'Not Set',
+      JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Not Set',
+      CORS_ORIGIN: process.env.CORS_ORIGIN ? 'Set' : 'Not Set',
+      // Add server info
+      SERVER_TIME: new Date().toISOString(),
+      SERVER_TIMEZONE: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      DATABASE_CONNECTED: pool.totalCount > 0
+    };
+    
+    res.json({
+      success: true,
+      environment: envInfo
+    });
   } catch (error) {
-    console.error('Error checking email:', error);
-    res.status(500).json({ success: false, message: 'Internal server error while checking email' });
+    console.error('Error checking environment:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error checking environment',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+
   }
 });
 
@@ -433,7 +512,20 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
 // Login endpoint
 app.post('/api/auth/login', async (req, res) => {
+  console.log('Login attempt received:', {
+    body: req.body,
+    origin: req.headers.origin,
+    headers: req.headers
+  });
+
   const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Username and password are required'
+    });
+  }
 
   try {
     // Get user from database
@@ -445,6 +537,7 @@ app.post('/api/auth/login', async (req, res) => {
     const user = result.rows[0];
 
     if (!user) {
+      console.log('Login failed: User not found');
       return res.status(401).json({
         success: false,
         message: 'Invalid username or password'
@@ -455,6 +548,7 @@ app.post('/api/auth/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!validPassword) {
+      console.log('Login failed: Invalid password');
       return res.status(401).json({
         success: false,
         message: 'Invalid username or password'
@@ -471,6 +565,8 @@ app.post('/api/auth/login', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
+
+    console.log('Login successful for user:', username);
 
     // Return success response with profile picture data
     res.json({
@@ -489,7 +585,8 @@ app.post('/api/auth/login', async (req, res) => {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -967,6 +1064,35 @@ app.get('/api/test', (req, res) => {
 // Create HTTP server
 const server = app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  console.log('Environment:', process.env.NODE_ENV);
+  console.log('CORS allowed origins:', corsOptions.origin);
+});
+
+// Error handling for the server
+server.on('error', (error) => {
+  console.error('Server error:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${port} is already in use`);
+    process.exit(1);
+  }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit the process in production
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process in production
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
 });
 
 // Upgrade HTTP server to WebSocket server
@@ -1346,6 +1472,8 @@ app.use('/api/customers', customersRouter);
 app.use('/api/suppliers', suppliersRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/supplier-orders', supplierOrdersRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/customer', customerRoutes);
 
 // Example of how to use real-time updates in your routes
 app.post('/api/update-data', async (req, res) => {

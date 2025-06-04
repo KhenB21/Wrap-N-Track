@@ -33,8 +33,7 @@ export default function DanielPreview() {
   const [error, setError] = useState("");
 
   React.useEffect(() => {
-    axios
-      .get("http://localhost:3001/api/inventory")
+    api.get('/api/inventory')
       .then((res) => setInventory(res.data))
       .catch(() => setInventory([]));
   }, []);
@@ -92,7 +91,7 @@ export default function DanielPreview() {
       products: products,
     };
     try {
-      await axios.post("http://localhost:3001/api/orders", order);
+      await api.post(`/api/orders`, order);
       setModalOpen(false);
       window.location.href = "/orders";
     } catch (err) {
