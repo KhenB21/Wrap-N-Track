@@ -20,25 +20,36 @@ const bannerImage = require("../Images/Background/background.png");
 const logo = require("../Images/Logo/pensee-logo-with-name-horizontal.png");
 
 const weddingProducts = [
-  { title: "ERIC & MARIEL", image: require("../Images/Item/Eric.png") },
-  { title: "CARLO & ISABELLE", image: require("../Images/Item/carlo.png") },
-  { title: "CHARLIE", image: require("../Images/Item/Charlie.png") },
+  { title: "ERIC & MARIEL", image: require("../Images/Item/Eric.png"), desc: "Elegant wedding gift set for Eric & Mariel." },
+  { title: "CARLO & ISABELLE", image: require("../Images/Item/carlo.png"), desc: "Personalized keepsake for Carlo & Isabelle." },
+  { title: "CHARLIE", image: require("../Images/Item/Charlie.png"), desc: "Chic and modern wedding box for Charlie." },
+  { title: "WEDDING 4", image: require("../Images/Item/Eric.png"), desc: "Classic wedding gift option 4." },
+  { title: "WEDDING 5", image: require("../Images/Item/carlo.png"), desc: "Classic wedding gift option 5." },
+  { title: "WEDDING 6", image: require("../Images/Item/Charlie.png"), desc: "Classic wedding gift option 6." },
+  { title: "WEDDING 7", image: require("../Images/Item/Eric.png"), desc: "Classic wedding gift option 7." },
+  { title: "WEDDING 8", image: require("../Images/Item/carlo.png"), desc: "Classic wedding gift option 8." },
+  { title: "WEDDING 9", image: require("../Images/Item/Charlie.png"), desc: "Classic wedding gift option 9." },
+  { title: "WEDDING 10", image: require("../Images/Item/Eric.png"), desc: "Classic wedding gift option 10." },
 ];
 const corporateProducts = [
-  { title: "LENOVO | AMD", image: require("../Images/Item/Legion.png") },
-  { title: "THE SHEEO SOCIETY", image: require("../Images/Item/Jccm.png") },
-  {
-    title: "MANNERS MAKETH",
-    image: require("../Images/Item/Mannersmaketh.png"),
-  },
+  { title: "LENOVO | AMD", image: require("../Images/Item/Legion.png"), desc: "Premium corporate gift for Lenovo | AMD." },
+  { title: "THE SHEEO SOCIETY", image: require("../Images/Item/Jccm.png"), desc: "Empowering gifts for SHEEO Society." },
+  { title: "MANNERS MAKETH", image: require("../Images/Item/Mannersmaketh.png"), desc: "Sophisticated set for Manners Maketh." },
+  { title: "CORPORATE 4", image: require("../Images/Item/Legion.png"), desc: "Corporate gift option 4." },
+  { title: "CORPORATE 5", image: require("../Images/Item/Jccm.png"), desc: "Corporate gift option 5." },
+  { title: "CORPORATE 6", image: require("../Images/Item/Mannersmaketh.png"), desc: "Corporate gift option 6." },
+  { title: "CORPORATE 7", image: require("../Images/Item/Legion.png"), desc: "Corporate gift option 7." },
+  { title: "CORPORATE 8", image: require("../Images/Item/Jccm.png"), desc: "Corporate gift option 8." },
 ];
 const bespokeProducts = [
-  { title: "IN FULL BLOOM", image: require("../Images/Item/Fullbloom.png") },
-  {
-    title: "SPICED SIPS & SAVORIES",
-    image: require("../Images/Item/Spiced.png"),
-  },
-  { title: "TAYLOR SWIFT", image: require("../Images/Item/Taylorswift.png") },
+  { title: "IN FULL BLOOM", image: require("../Images/Item/Fullbloom.png"), desc: "Floral-inspired bespoke gift." },
+  { title: "SPICED SIPS & SAVORIES", image: require("../Images/Item/Spiced.png"), desc: "A taste of spice and delight." },
+  { title: "TAYLOR SWIFT", image: require("../Images/Item/Taylorswift.png"), desc: "Inspired by Taylor Swift's style." },
+  { title: "BESPOKE 4", image: require("../Images/Item/Fullbloom.png"), desc: "Bespoke gift option 4." },
+  { title: "BESPOKE 5", image: require("../Images/Item/Spiced.png"), desc: "Bespoke gift option 5." },
+  { title: "BESPOKE 6", image: require("../Images/Item/Taylorswift.png"), desc: "Bespoke gift option 6." },
+  { title: "BESPOKE 7", image: require("../Images/Item/Fullbloom.png"), desc: "Bespoke gift option 7." },
+  { title: "BESPOKE 8", image: require("../Images/Item/Spiced.png"), desc: "Bespoke gift option 8." },
 ];
 
 const sectionData = [
@@ -65,6 +76,7 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const [menuVisible, setMenuVisible] = useState(false);
   const { darkMode } = useTheme();
+  const [expandedSections, setExpandedSections] = useState({});
 
   const colors = {
     bg: darkMode ? "#18191A" : "#fff",
@@ -218,6 +230,7 @@ export default function HomeScreen() {
               styles.createMineButton,
               { backgroundColor: colors.button },
             ]}
+            onPress={() => navigation.navigate("CreateGift")}
           >
             <Text style={[styles.createMineText, { color: colors.buttonText }]}>
               CREATE MINE
@@ -225,53 +238,84 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
         {/* Product Sections */}
-        {sectionData.map((section, idx) => (
-          <View
-            key={section.title}
-            style={[styles.sectionBlock, { backgroundColor: colors.bg }]}
-          >
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {section.title}
-              </Text>
-              <TouchableOpacity>
-                <Text style={[styles.seeMore, { color: colors.accent }]}>
-                  SEE MORE ▲
+        {sectionData.map((section, idx) => {
+          // Show 3 products by default, more if expanded
+          const isExpanded = expandedSections[section.title];
+          let showCount = 3;
+          if (section.title === "WEDDING") showCount = isExpanded ? 10 : 3;
+          if (section.title === "CORPORATE") showCount = isExpanded ? 8 : 3;
+          if (section.title === "BESPOKE") showCount = isExpanded ? 8 : 3;
+
+          return (
+            <View
+              key={section.title}
+              style={[styles.sectionBlock, { backgroundColor: colors.bg }]}
+            >
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  {section.title}
                 </Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.productRow}>
-              {section.products.map((prod, i) => (
-                <TouchableOpacity
-                  key={prod.title}
-                  style={[
-                    styles.productCard,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor: colors.border,
-                      opacity: 1,
-                    },
-                  ]}
-                  onPress={() =>
-                    navigation.navigate("ItemPreview", { product: prod })
-                  }
-                >
-                  <Image
-                    source={prod.image}
-                    style={[styles.productImage, { opacity: 1 }]}
-                    resizeMode="cover"
-                  />
-                  <Text style={[styles.productName, { color: colors.text }]}>
-                    {prod.title}
-                  </Text>
-                  <Text style={[styles.productDesc, { color: colors.subText }]}>
-                    Lorem ipsum dolor sit amet.
-                  </Text>
-                </TouchableOpacity>
+                {section.products.length > 3 && (
+                  <TouchableOpacity
+                    onPress={() =>
+                      setExpandedSections((prev) => ({
+                        ...prev,
+                        [section.title]: !isExpanded,
+                      }))
+                    }
+                  >
+                    <Text style={[styles.seeMore, { color: colors.accent }]}>
+                      {isExpanded ? "SEE LESS ▼" : "SEE MORE ▲"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {chunkArray(section.products.slice(0, showCount), 3).map((row, rowIdx) => (
+                <View key={rowIdx} style={styles.productRow}>
+                  {row.map((prod) => (
+                    <TouchableOpacity
+                      key={prod.title}
+                      style={[
+                        styles.productCard,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                          opacity: 1,
+                        },
+                      ]}
+                      onPress={() =>
+                        navigation.navigate("ItemPreview", { product: prod })
+                      }
+                    >
+                      <Image
+                        source={prod.image}
+                        style={[styles.productImage, { opacity: 1 }]}
+                        resizeMode="cover"
+                      />
+                      <Text style={[styles.productName, { color: colors.text }]}>
+                        {prod.title}
+                      </Text>
+                      <Text style={[styles.productDesc, { color: colors.subText }]}>
+                        {prod.desc}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  {/* Add empty views if row has less than 3 items */}
+                  {Array.from({ length: 3 - row.length }).map((_, i) => (
+                    <View
+                      key={`empty-${i}`}
+                      style={[
+                        styles.productCard,
+                        { backgroundColor: "transparent", borderColor: "transparent", elevation: 0, shadowOpacity: 0 }
+                      ]}
+                      pointerEvents="none"
+                    />
+                  ))}
+                </View>
               ))}
             </View>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
       <SideMenu
         visible={menuVisible}
@@ -483,3 +527,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+function chunkArray(array, size) {
+  const result = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
+  }
+  return result;
+}

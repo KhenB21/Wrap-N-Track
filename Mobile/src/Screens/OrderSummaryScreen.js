@@ -12,12 +12,14 @@ import {
 import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../Context/ThemeContext";
+import { useOrders } from "../Context/OrdersContext";
 
 export default function OrderSummaryScreen({ navigation, route }) {
   const { product } = route.params;
   const [note, setNote] = useState("");
   const [payment, setPayment] = useState("cod");
   const { darkMode } = useTheme();
+  const { addOrder } = useOrders();
   const shipping = 49;
   const [quantity, setQuantity] = useState(product.quantity || 1);
   const price = product.price
@@ -46,7 +48,7 @@ export default function OrderSummaryScreen({ navigation, route }) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Header
-        showBack // Change from showMenu to showBack
+        showBack 
         logoType="image"
         showCart
         onBackPress={() => navigation.goBack()} // Add back button handler
@@ -82,28 +84,24 @@ export default function OrderSummaryScreen({ navigation, route }) {
               </Text>
               <View style={styles.quantityBoxCard}>
                 <Text style={styles.quantityLabelCard}>QUANTITY</Text>
-                <View
+                <TextInput
                   style={[
-                    styles.quantitySelectorCard,
-                    { backgroundColor: darkMode ? colors.card : "#6B6593" },
+                    styles.quantityInputCard,
+                    {
+                      backgroundColor: colors.inputBg,
+                      color: colors.inputText,
+                      borderColor: colors.border,
+                    },
                   ]}
-                >
-                  <TouchableOpacity
-                    onPress={() => setQuantity((q) => (q > 1 ? q - 1 : 1))}
-                    style={styles.quantityBtnCard}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.quantityBtnTextCard}>-</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.quantityValueCard}>{quantity}</Text>
-                  <TouchableOpacity
-                    onPress={() => setQuantity((q) => q + 1)}
-                    style={styles.quantityBtnCard}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.quantityBtnTextCard}>+</Text>
-                  </TouchableOpacity>
-                </View>
+                  value={String(quantity)}
+                  onChangeText={(v) => {
+                    // Only allow numbers and prevent empty value
+                    const num = v.replace(/[^0-9]/g, "");
+                    setQuantity(num === "" ? 1 : parseInt(num, 10));
+                  }}
+                  keyboardType="numeric"
+                  maxLength={3}
+                />
               </View>
             </View>
           </View>
@@ -121,7 +119,7 @@ export default function OrderSummaryScreen({ navigation, route }) {
               color={colors.text}
             />
             <Text style={[styles.addressText, { color: colors.text }]}>
-              123 MENDOZA, CENTRAL VILLAGE, MANILA, PHILIPPINES
+              123 MENDOZA, CENTRAL VILLAGE, MANILA, PHILIPPINESs
             </Text>
           </View>
         </View>
@@ -232,7 +230,8 @@ export default function OrderSummaryScreen({ navigation, route }) {
           style={[styles.buyNowBtn, { backgroundColor: colors.btn }]}
           onPress={() => {
             ToastAndroid.show("Order placed successfully!", ToastAndroid.SHORT);
-            navigation.navigate("Home"); // Navigate to Home after buying
+            addOrder(product); // Save the bought item
+            navigation.navigate("DeliveryTracking", { product });
           }}
         >
           <Text style={[styles.buyNowText, { color: colors.btnText }]}>
@@ -307,42 +306,15 @@ const styles = StyleSheet.create({
     textAlign: "right",
     fontWeight: "400",
   },
-  quantitySelectorCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
+  quantityInputCard: {
+    borderWidth: 1,
     borderRadius: 5,
-    backgroundColor: "#6B6593",
-    padding: 1,
-    width: 70,
-    alignSelf: "flex-end",
-  },
-  quantityBtnCard: {
-    backgroundColor: "#fff",
-    borderRadius: 5,
-    width: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  quantityBtnTextCard: {
-    color: "#222",
-    fontSize: 15,
-    fontWeight: "400",
-    fontFamily: "serif",
-    textAlign: "center",
-  },
-  quantityValueCard: {
-    color: "#fff",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     fontSize: 14,
-    fontFamily: "serif",
+    width: 50,
     textAlign: "center",
-    width: 16,
+    marginTop: 2,
   },
   section: {
     borderRadius: 10,
