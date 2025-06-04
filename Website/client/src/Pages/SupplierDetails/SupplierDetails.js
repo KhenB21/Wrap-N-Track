@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
-import axios from "axios";
+import api from '../../api/axios';
 import "./SupplierDetails.css";
 
-const API_BASE_URL = 'http://localhost:3001';
+
 
 const tabs = ["Overview", "Order History", "Ongoing orders"];
 
@@ -83,7 +83,7 @@ export default function SupplierDetails() {
     }
     console.log('Fetching products for supplier:', selectedSupplier.name);
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/suppliers/${supplierId}/products`);
+      const response = await api.get(`/api/suppliers/${supplierId}/products`);
       console.log('Fetched products:', response.data);
       setSupplierProducts(response.data);
     } catch (error) {
@@ -127,7 +127,7 @@ export default function SupplierDetails() {
       }
       
       console.log('Fetching customers with token:', token);
-      const response = await axios.get(`${API_BASE_URL}/api/suppliers`, {
+      const response = await api.get('/api/suppliers', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -155,11 +155,11 @@ export default function SupplierDetails() {
     console.log('Fetching orders for supplier:', selectedSupplier.name);
     try {
       // Fetch ongoing orders from supplier_orders table
-      const ongoingResponse = await axios.get(`${API_BASE_URL}/api/supplier-orders/supplier/${selectedSupplier.supplier_id}`);
+      const ongoingResponse = await api.get(`${API_BASE_URL}/api/supplier-orders/supplier/${selectedSupplier.supplier_id}`);
       console.log('Ongoing orders response:', ongoingResponse.data);
 
       // Fetch completed orders from supplier_order_history table
-      const completedResponse = await axios.get(`${API_BASE_URL}/api/supplier-orders/history/supplier/${selectedSupplier.supplier_id}`);
+      const completedResponse = await api.get(`${API_BASE_URL}/api/supplier-orders/history/supplier/${selectedSupplier.supplier_id}`);
       console.log('Completed orders response:', completedResponse.data);
 
       // Set the orders in state
@@ -329,7 +329,7 @@ export default function SupplierDetails() {
 
       let response;
       if (isAddingOrder) {
-        response = await axios.post(`${API_BASE_URL}/api/supplier-orders`, orderData, {
+        response = await api.post(`${API_BASE_URL}/api/supplier-orders`, orderData, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -342,7 +342,7 @@ export default function SupplierDetails() {
           ongoing: [...prev.ongoing, response.data]
         }));
       } else {
-        response = await axios.put(`${API_BASE_URL}/api/supplier-orders/${orderForm.supplier_order_id}`, orderData, {
+        response = await api.put(`${API_BASE_URL}/api/supplier-orders/${orderForm.supplier_order_id}`, orderData, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -397,7 +397,7 @@ export default function SupplierDetails() {
         ? `${API_BASE_URL}/api/supplier-orders/history/${order.supplier_order_id}/items`
         : `${API_BASE_URL}/api/supplier-orders/${order.supplier_order_id}/items`;
       
-      const itemsResponse = await axios.get(endpoint);
+      const itemsResponse = await api.get(endpoint);
       console.log('Order items response:', itemsResponse.data);
       const items = itemsResponse.data;
 
@@ -427,7 +427,7 @@ export default function SupplierDetails() {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${API_BASE_URL}/api/supplier-orders/${orderId}`, {
+      await api.delete(`${config.API_URL}/api/supplier-orders/${orderId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -495,7 +495,7 @@ export default function SupplierDetails() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_BASE_URL}/api/suppliers`, editForm, {
+      const response = await api.post(`${API_BASE_URL}/api/suppliers`, editForm, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -543,7 +543,7 @@ export default function SupplierDetails() {
     if (window.confirm('Are you sure you want to delete this supplier?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`${API_BASE_URL}/api/suppliers/${supplierId}`, {
+        await api.delete(`${config.API_URL}/api/suppliers/${supplierId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -563,7 +563,7 @@ export default function SupplierDetails() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.put(`${API_BASE_URL}/api/suppliers/${selectedSupplier.supplier_id}`, editForm, {
+      const response = await api.put(`/api/suppliers/${selectedSupplier.supplier_id}`, editForm, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -581,7 +581,21 @@ export default function SupplierDetails() {
   };
 
   const handleCancel = () => {
+    setIsAdding(false);
     setIsEditing(false);
+    setEditForm({
+      name: '',
+      email_address: '',
+      telephone: '',
+      cellphone: '',
+      description: '',
+      province: '',
+      city_municipality: '',
+      barangay: '',
+      street_address: '',
+      zip_code: ''
+    });
+    setError(null);
   };
 
   const handleSupplierSelect = (supplier, event) => {
@@ -633,104 +647,117 @@ export default function SupplierDetails() {
   };
 
   const renderForm = () => (
-    <div className="edit-form">
-      {error && <div className="error-message">{error}</div>}
-      <div className="form-group">
-        <label>Name: *</label>
-        <input 
-          type="text" 
-          value={editForm.name}
-          onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-          required
-        />
-      </div>
-      <div className="form-group">
-        <label>Email: *</label>
-        <input 
-          type="email" 
-          value={editForm.email_address}
-          onChange={(e) => setEditForm({...editForm, email_address: e.target.value})}
-          required
-        />
-      </div>
-      <div className="form-group">
-        <label>Telephone:</label>
-        <input 
-          type="text" 
-          value={editForm.telephone}
-          onChange={(e) => setEditForm({...editForm, telephone: e.target.value})}
-          placeholder="Format: +63 or 0 followed by number"
-        />
-      </div>
-      <div className="form-group">
-        <label>Cellphone: *</label>
-        <input 
-          type="text" 
-          value={editForm.cellphone}
-          onChange={(e) => setEditForm({...editForm, cellphone: e.target.value})}
-          required
-          placeholder="Format: +63 or 0 followed by number"
-        />
-      </div>
-      <div className="form-group">
-        <label>Description:</label>
-        <textarea 
-          value={editForm.description}
-          onChange={(e) => setEditForm({...editForm, description: e.target.value})}
-          rows="3"
-        />
-      </div>
-      <div className="form-group">
-        <label>Province: *</label>
-        <input 
-          type="text" 
-          value={editForm.province}
-          onChange={(e) => setEditForm({...editForm, province: e.target.value})}
-          required
-        />
-      </div>
-      <div className="form-group">
-        <label>City/Municipality: *</label>
-        <input 
-          type="text" 
-          value={editForm.city_municipality}
-          onChange={(e) => setEditForm({...editForm, city_municipality: e.target.value})}
-          required
-        />
-      </div>
-      <div className="form-group">
-        <label>Barangay: *</label>
-        <input 
-          type="text" 
-          value={editForm.barangay}
-          onChange={(e) => setEditForm({...editForm, barangay: e.target.value})}
-          required
-        />
-      </div>
-      <div className="form-group">
-        <label>House/Building Number & Street: *</label>
-        <input 
-          type="text" 
-          value={editForm.street_address}
-          onChange={(e) => setEditForm({...editForm, street_address: e.target.value})}
-          required
-        />
-      </div>
-      <div className="form-group">
-        <label>ZIP Code: *</label>
-        <input 
-          type="text" 
-          value={editForm.zip_code}
-          onChange={(e) => setEditForm({...editForm, zip_code: e.target.value})}
-          required
-          placeholder="4-digit code"
-        />
-      </div>
-      <div className="form-actions">
-        <button className="btn-save" onClick={isAdding ? handleSaveAdd : handleSaveEdit}>
-          {isAdding ? 'Add Supplier' : 'Save Changes'}
-        </button>
-        <button className="btn-cancel" onClick={handleCancel}>Cancel</button>
+    <div className="modal-overlay" onClick={handleCancel}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="text-xl font-bold">{isAdding ? 'Add New Supplier' : 'Edit Supplier'}</h2>
+          <button className="modal-close" onClick={handleCancel}>×</button>
+        </div>
+        <div className="modal-body">
+          {error && <div className="error-message">{error}</div>}
+          <div className="form-group">
+            <label>Name: *</label>
+            <input
+              type="text"
+              value={editForm.name}
+              onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+              placeholder="Enter supplier name"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Email Address: *</label>
+            <input
+              type="email"
+              value={editForm.email_address}
+              onChange={(e) => setEditForm({...editForm, email_address: e.target.value})}
+              placeholder="Enter email address"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Telephone</label>
+            <input
+              type="tel"
+              value={editForm.telephone}
+              onChange={(e) => setEditForm({...editForm, telephone: e.target.value})}
+              placeholder="Enter telephone number"
+            />
+          </div>
+          <div className="form-group">
+            <label>Cellphone</label>
+            <input
+              type="tel"
+              value={editForm.cellphone}
+              onChange={(e) => setEditForm({...editForm, cellphone: e.target.value})}
+              placeholder="Enter cellphone number"
+            />
+          </div>
+          <div className="form-group">
+            <label>Description</label>
+            <textarea
+              value={editForm.description}
+              onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+              placeholder="Enter supplier description"
+            />
+          </div>
+          <div className="form-group">
+            <label>Province: *</label>
+            <input
+              type="text"
+              value={editForm.province}
+              onChange={(e) => setEditForm({...editForm, province: e.target.value})}
+              placeholder="Enter province"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>City/Municipality: *</label>
+            <input
+              type="text"
+              value={editForm.city_municipality}
+              onChange={(e) => setEditForm({...editForm, city_municipality: e.target.value})}
+              placeholder="Enter city/municipality"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Barangay: *</label>
+            <input
+              type="text"
+              value={editForm.barangay}
+              onChange={(e) => setEditForm({...editForm, barangay: e.target.value})}
+              placeholder="Enter barangay"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Street Address: *</label>
+            <input
+              type="text"
+              value={editForm.street_address}
+              onChange={(e) => setEditForm({...editForm, street_address: e.target.value})}
+              placeholder="Enter street address"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>ZIP Code: *</label>
+            <input
+              type="text"
+              value={editForm.zip_code}
+              onChange={(e) => setEditForm({...editForm, zip_code: e.target.value})}
+              placeholder="Enter ZIP code"
+              required
+            />
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-cancel" onClick={handleCancel}>Cancel</button>
+          <button className="btn-save" onClick={isAdding ? handleSaveAdd : handleSaveEdit}>
+            {isAdding ? 'Add Supplier' : 'Save Changes'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1177,17 +1204,53 @@ export default function SupplierDetails() {
                     </div>
                     <div className="supplier-details-content" style={{ overflowY: 'auto', height: 'calc(100% - 120px)' }}>
                       {activeTab === 0 && (
-                        <div className="supplier-details-section">
-                          <div className="supplier-details-label">SUPPLIER DETAILS</div>
-                          <div className="supplier-details-row">
-                            <span>Supplier Contact</span> 
-                            <span>{selectedSupplier?.telephone || 'Not provided'}</span>
+                        <>
+                          <div className="details-section">
+                            <div className="details-label">CONTACT DETAILS</div>
+                            <div className="details-row">
+                              <span>Email Address</span>
+                              <span>{selectedSupplier.email_address}</span>
+                            </div>
+                            <div className="details-row">
+                              <span>Telephone</span>
+                              <span>{selectedSupplier.telephone || 'N/A'}</span>
+                            </div>
+                            <div className="details-row">
+                              <span>Cellphone</span>
+                              <span>{selectedSupplier.cellphone || 'N/A'}</span>
+                            </div>
+                            {selectedSupplier.description && (
+                              <div className="details-row">
+                                <span>Description</span>
+                                <span>{selectedSupplier.description}</span>
+                              </div>
+                            )}
                           </div>
-                          <div className="supplier-details-row">
-                            <span>Email Address</span> 
-                            <span>{selectedSupplier?.email_address || 'Not provided'}</span>
+                          <div className="details-section">
+                            <div className="details-label">ADDRESS</div>
+                            <div className="details-row">
+                              <span>Street Address</span>
+                              <span>{selectedSupplier.street_address}</span>
+                            </div>
+                            <div className="details-row">
+                              <span>Barangay</span>
+                              <span>{selectedSupplier.barangay}</span>
+                            </div>
+                            <div className="details-row">
+                              <span>City/Municipality</span>
+                              <span>{selectedSupplier.city_municipality}</span>
+                            </div>
+                            <div className="details-row">
+                              <span>Province</span>
+                              <span>{selectedSupplier.province}</span>
+                            </div>
+                            <div className="details-row">
+                              <span>ZIP Code</span>
+                              <span>{selectedSupplier.zip_code}</span>
+                            </div>
                           </div>
-                        </div>
+                          {renderSupplierProducts()}
+                        </>
                       )}
                       {activeTab === 1 && (
                         <div className="orders-section">

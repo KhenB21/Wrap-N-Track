@@ -27,8 +27,22 @@ const UserManagement = () => {
         return;
       }
 
-      const response = await api.get('/api/users');
-      const data = response.data;
+
+      console.log('Fetching users with token:', token);
+      const response = await api.get(`${config.API_URL}/api/users`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch users');
+      }
+
+      const data = await response.json();
+
       console.log('Fetched users:', data);
       
       if (!Array.isArray(data)) {
@@ -76,7 +90,20 @@ const UserManagement = () => {
     setActionError(null);
     try {
       const { profile_picture_data, mobile, department, status, ...userDataToSend } = editData;
-      const response = await api.put(`/api/users/${selectedUser.user_id}`, userDataToSend);
+T
+      const response = await api.put(`${config.API_URL}/api/users/${selectedUser.user_id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userDataToSend),
+      });
+      if (!response.ok) {
+        if (response.status === 404) throw new Error('User not found (may have been deleted)');
+        throw new Error('Failed to update user');
+      }
+
       await fetchUsers();
       handleModalClose();
       setConfirmation({ open: true, message: 'User updated successfully!' });
@@ -89,7 +116,19 @@ const UserManagement = () => {
     setActionError(null);
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
-      const response = await api.delete(`/api/users/${selectedUser.user_id}`);
+
+      const token = localStorage.getItem('token');
+      const response = await api.put(`${config.API_URL}/api/users/${selectedUser.user_id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        if (response.status === 404) throw new Error('User not found (may have been deleted)');
+        throw new Error('Failed to delete user');
+      }
+
       await fetchUsers();
       handleModalClose();
       setConfirmation({ open: true, message: 'User deleted successfully!' });

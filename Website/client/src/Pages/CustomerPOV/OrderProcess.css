@@ -145,4 +145,10 @@ label {
 
 .form-control.is-invalid + .invalid-feedback {
   display: block;
-} 
+}
+
+
+.packagingOptions:hover {
+  transform: scale(1.05);
+  border-color: #696a8f;
+}
