@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import "./OrderProcess.css";
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import "./CustomerPOV.css";
+import api from '../../api/axios';
 
 const styles = {
   container: {
@@ -136,13 +137,10 @@ export default function OrderProcess() {
   const [showModal, setShowModal] = useState(false);
   const [modalCategory, setModalCategory] = useState('');
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
     weddingDate: "",
+    expectedDeliveryDate: "",
     guestCount: "",
     style: "",
-    budget: "",
     specialRequests: "",
   });
   const [selectedPackaging, setSelectedPackaging] = useState([]);
@@ -174,6 +172,7 @@ export default function OrderProcess() {
     customization: { name: 'Own Product', description: 'Custom Addition', image: null }
   });
   const [selectedStyle, setSelectedStyle] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const modernRomantic = [
     {
@@ -633,10 +632,109 @@ export default function OrderProcess() {
     setCurrentConCat(conCatNumber);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle form submission
-    console.log(formData);
+    setLoading(true);
+    try {
+      // Get customer details from localStorage
+      const customerData = JSON.parse(localStorage.getItem('customer'));
+      const token = localStorage.getItem('token');
+      
+      if (!customerData || !customerData.email) {
+        throw new Error('Customer email not found. Please log in again.');
+      }
+      
+      if (!token) {
+        throw new Error('Authentication token not found. Please log in again.');
+      }
+
+      // Determine products based on selected style
+      let selectedStyleProducts = [];
+      const styleIdentifier = formData.style; // e.g., "Modern Romantic"
+
+      // Assuming modernRomantic, bohoChic, etc., are defined in the component's scope
+      const styleDataMap = {
+        "Modern Romantic": modernRomantic,
+        "Bohemian Chic": bohoChic,
+        "Classic Elegance": classicElegance,
+        "Minimalist Modern": minimalistModern,
+      };
+
+      const selectedStyleArray = styleDataMap[styleIdentifier];
+
+      if (selectedStyleArray && selectedStyleArray.length > 0) {
+        // The first element is description/images, actual items start from index 1
+        selectedStyleProducts = selectedStyleArray.slice(1).map(item => ({
+          itemName: item.name,
+          quantity: 1 // Assuming quantity 1 for each item in a style
+        }));
+      } else {
+        console.warn(`No items found or style not recognized for: ${styleIdentifier}`);
+      }
+
+      // Format the order data
+      const orderData = {
+        package_name: formData.style,
+        name: customerData.name || 'Wedding Gift Box Order',
+        account_name: customerData.name || 'Wedding Gift Box Order',
+        order_date: new Date().toISOString().split('T')[0],
+        expected_delivery: formData.expectedDeliveryDate,
+        status: 'pending',
+        payment_type: 'pending',
+        payment_method: 'pending',
+        shipped_to: customerData.name || 'Wedding Gift Box Order',
+        shipping_address: customerData.address || 'To be provided',
+        total_cost: 0, // This will be calculated based on the selected items
+        remarks: formData.specialRequests || '',
+        telephone: customerData.telephone || '',
+        cellphone: customerData.cellphone || '',
+        email_address: customerData.email,
+        wedding_details: {
+          wedding_style: formData.style,
+          wedding_date: formData.weddingDate,
+          guest_count: parseInt(formData.guestCount),
+          color_scheme: formData.colorScheme || '',
+          special_requests: formData.specialRequests || '',
+        },
+        products: selectedStyleProducts,
+      };
+
+      // Add selected products
+      const products = [];
+      if (selectedPackaging.length > 0) {
+        products.push(...selectedPackaging.map(item => ({
+          sku: `PACK-${item.name}`,
+          quantity: parseInt(formData.guestCount),
+          profit_margin: 0
+        })));
+      }
+      if (selectedBeverages.length > 0) {
+        products.push(...selectedBeverages.map(item => ({
+          sku: `BEV-${item.name}`,
+          quantity: parseInt(formData.guestCount),
+          profit_margin: 0
+        })));
+      }
+      // Add other selected items similarly
+      // Only overwrite with these products if no style-specific products were chosen
+      if (!orderData.products || orderData.products.length === 0) {
+        orderData.products = products;
+      }
+
+      const response = await api.post('/api/orders', orderData);
+      
+      if (response.data) {
+        // Show success message
+        alert('Order submitted successfully!');
+        // Redirect to order confirmation page
+        window.location.href = '/order-confirmation';
+      }
+    } catch (error) {
+      console.error('Error submitting order:', error);
+      alert('Failed to submit order: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditCategory = (category) => {
@@ -1205,7 +1303,7 @@ export default function OrderProcess() {
             <h3 style={{
               ...styles.stepTitle,
               color: currentStep === 0 ? '#fff' : '#2c3e50'
-            }}>General Inquiry</h3>
+            }}>Wedding</h3>
             <p style={{
               ...styles.stepDescription,
               color: currentStep === 0 ? '#fff' : '#6c757d'
@@ -1310,41 +1408,6 @@ export default function OrderProcess() {
           <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
             <div style={{display: "flex", flexDirection: "row", gap: "50px"}}>
               <div style={{width: "50%"}}>
-                <div style={styles.formGroup}>
-                  <label style={{...styles.label, color: "#f0f0f0"}}>Your Name</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    style={styles.input}
-                    required
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={{...styles.label, color: "#f0f0f0"}}>Email Address</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    style={styles.input}
-                    required
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={{...styles.label, color: "#f0f0f0"}}>Phone Number</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    style={styles.input}
-                    required
-                  />
-                </div>
 
                 <div style={styles.formGroup}>
                   <label style={{...styles.label, color: "#f0f0f0"}}>Wedding Date</label>
@@ -1352,6 +1415,18 @@ export default function OrderProcess() {
                     type="date"
                     name="weddingDate"
                     value={formData.weddingDate}
+                    onChange={handleInputChange}
+                    style={styles.input}
+                    required
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={{...styles.label, color: "#f0f0f0"}}>Expected Delivery Date</label>
+                  <input
+                    type="date"
+                    name="expectedDeliveryDate"
+                    value={formData.expectedDeliveryDate}
                     onChange={handleInputChange}
                     style={styles.input}
                     required
@@ -1389,23 +1464,6 @@ export default function OrderProcess() {
                     <option value="boho-chic">Boho Chic</option>
                     <option value="classic-elegance">Classic Elegance</option>
                     <option value="minimalist-modern">Minimalist Modern</option>
-                  </select>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={{...styles.label, color: "#f0f0f0"}}>Budget Range</label>
-                  <select
-                    name="budget"
-                    value={formData.budget}
-                    onChange={handleInputChange}
-                    style={styles.select}
-                    required
-                  >
-                    <option value="">Select budget range</option>
-                    <option value="budget">Budget Friendly</option>
-                    <option value="standard">Standard</option>
-                    <option value="premium">Premium</option>
-                    <option value="luxury">Luxury</option>
                   </select>
                 </div>
 
@@ -2140,6 +2198,18 @@ export default function OrderProcess() {
                   type="date"
                   name="weddingDate"
                   value={formData.weddingDate}
+                  onChange={handleInputChange}
+                  style={styles.input}
+                  required
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Expected Delivery Date</label>
+                <input
+                  type="date"
+                  name="expectedDeliveryDate"
+                  value={formData.expectedDeliveryDate}
                   onChange={handleInputChange}
                   style={styles.input}
                   required

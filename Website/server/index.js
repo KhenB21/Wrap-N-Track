@@ -10,6 +10,8 @@ const customersRouter = require('./routes/customers');
 const suppliersRouter = require('./routes/suppliers');
 const ordersRouter = require('./routes/orders');
 const supplierOrdersRouter = require('./routes/supplier-orders');
+const authRouter = require('./routes/auth');
+const customerRoutes = require('./routes/customer');
 require('dotenv').config({ path: __dirname + '/../.env' });
 
 const app = express();
@@ -1011,6 +1013,8 @@ app.use('/api/customers', customersRouter);
 app.use('/api/suppliers', suppliersRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/supplier-orders', supplierOrdersRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/customer', customerRoutes);
 
 // Example of how to use real-time updates in your routes
 app.post('/api/update-data', async (req, res) => {
