@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './AddProductModal.css';
 import api from '../../api/axios';
 import config from '../../config';
+import Select from 'react-select';
 
 const CATEGORIES = [
   'Electronics',
@@ -113,6 +114,31 @@ const CATEGORIES = [
   'Others'
 ];
 
+const UOM_OPTIONS = [
+  { value: 'Each', label: 'Each' },
+  { value: 'Piece', label: 'Piece' },
+  { value: 'Set', label: 'Set' },
+  { value: 'Pair', label: 'Pair' },
+  { value: 'Dozen', label: 'Dozen' },
+  { value: 'Roll', label: 'Roll' },
+  { value: 'Sheet', label: 'Sheet' },
+  { value: 'Bag', label: 'Bag' },
+  { value: 'Box', label: 'Box' },
+  { value: 'Bundle', label: 'Bundle' },
+  { value: 'Meter', label: 'Meter' },
+  { value: 'Centimeter', label: 'Centimeter' },
+  { value: 'Foot', label: 'Foot' },
+  { value: 'Gram', label: 'Gram' },
+  { value: 'Kilogram', label: 'Kilogram' },
+  { value: 'Milliliter', label: 'Milliliter' },
+  { value: 'Liter', label: 'Liter' },
+  { value: 'Kit', label: 'Kit' },
+  { value: 'Unit', label: 'Unit' },
+  { value: 'Task', label: 'Task' }
+];
+
+const UOMS_REQUIRING_CONVERSION = ['Dozen', 'Box', 'Bundle', 'Set', 'Kit'];
+
 // Function to generate a unique-like SKU (simple implementation)
 const generateUniqueSku = () => {
   let digits = '';
@@ -130,6 +156,10 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     quantity: initialData.quantity || 0,
     unit_price: initialData.unit_price || 0,
     category: initialData.category || '',
+    uom: initialData.uom || '',
+    conversion_qty: initialData.conversion_qty || '',
+    expirable: initialData.expirable || false,
+    expiration: initialData.expiration || '',
   });
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(initialData.image_data ? `data:image/jpeg;base64,${initialData.image_data}` : null);
@@ -152,6 +182,10 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         quantity: initialData.quantity || 0,
         unit_price: initialData.unit_price || 0,
         category: initialData.category || '',
+        uom: initialData.uom || '',
+        conversion_qty: initialData.conversion_qty || '',
+        expirable: initialData.expirable || false,
+        expiration: initialData.expiration || '',
       });
       setCategoryInput(initialData.category || '');
       if (initialData.image_data) {
@@ -183,6 +217,10 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         quantity: initialData.quantity || 0,
         unit_price: initialData.unit_price || 0,
         category: initialData.category || '',
+        uom: initialData.uom || '',
+        conversion_qty: initialData.conversion_qty || '',
+        expirable: initialData.expirable || false,
+        expiration: initialData.expiration || '',
       });
       setCategoryInput(initialData.category || '');
       if (initialData.image_data) {
@@ -229,6 +267,13 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       newErrors.unit_price = 'Unit price cannot be negative';
     }
 
+    // Validate Conversion QTY if required
+    if (UOMS_REQUIRING_CONVERSION.includes(form.uom)) {
+      if (!form.conversion_qty || isNaN(form.conversion_qty) || Number(form.conversion_qty) <= 0 || !Number.isInteger(Number(form.conversion_qty))) {
+        newErrors.conversion_qty = 'Conversion QTY must be a positive integer';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -258,6 +303,10 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
             quantity: 0,
             unit_price: 0,
             category: '',
+            uom: '',
+            conversion_qty: '',
+            expirable: false,
+            expiration: '',
           });
           setCategoryInput('');
           setPreview(null);
@@ -282,6 +331,10 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       quantity: product.quantity || 0,
       unit_price: product.unit_price || 0,
       category: product.category || '',
+      uom: product.uom || '',
+      conversion_qty: product.conversion_qty || '',
+      expirable: product.expirable || false,
+      expiration: product.expiration || '',
     });
     setCategoryInput(product.category || '');
     if (product.image_data) {
@@ -364,19 +417,33 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       dataToSend.append('name', form.name);
       dataToSend.append('description', form.description);
       dataToSend.append('quantity', String(form.quantity));
+      dataToSend.append('uom', form.uom);
       dataToSend.append('unit_price', String(form.unit_price));
       dataToSend.append('category', categoryInput || form.category);
       dataToSend.append('image', image);
+      dataToSend.append('conversion_qty', form.conversion_qty || '');
+      dataToSend.append('expirable', String(form.expirable));
+      dataToSend.append('expiration', form.expiration || '');
       // If updating, add a flag or rely on backend to know it's an update based on SKU
       if (selectedExistingProduct) dataToSend.append('isUpdate', 'true'); 
     } else { // No new image, send JSON
       dataToSend = {
         ...form,
         category: categoryInput || form.category,
+        uom: form.uom,
+        conversion_qty: form.conversion_qty || '',
+        expirable: form.expirable,
+        expiration: form.expiration || '',
       };
       // If updating, remove image_data if not changed, backend handles this
       if (selectedExistingProduct) dataToSend.isUpdate = true;
     }
+
+    // In the handleSubmit function, before sending dataToSend, ensure expiration is '' if expirable is false
+    if (!form.expirable) {
+      dataToSend.expiration = '';
+    }
+
     // The onAdd prop (handleAddProduct in Inventory.js) will receive this data.
     // It currently only POSTs. The backend /api/inventory POST must handle upsert.
     onAdd(dataToSend);
@@ -386,16 +453,16 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     <div className="modal-overlay">
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <button className="close-btn" onClick={onClose}>&times;</button>
-        <h3>{selectedExistingProduct || (isEdit && initialData.sku) ? 'Edit Product Details' : 'Add New Product'}</h3>
-        <form onSubmit={handleSubmit} className="add-product-form" encType="multipart/form-data">
-          <label>Image
+        <h3 style={{ textAlign: 'center', fontWeight: 700, marginBottom: '1.5rem' }}>{selectedExistingProduct || (isEdit && initialData.sku) ? 'EDIT PRODUCT DETAILS' : 'ADD PRODUCT'}</h3>
+        <form onSubmit={handleSubmit} className="add-product-form" encType="multipart/form-data" style={{ gap: '0.5rem' }}>
+          <div className="file-input-wrapper">
+            {preview && <img src={preview} alt="Preview" />}
             <input type="file" accept="image/*" onChange={handleImageChange} />
-            {preview && <img src={preview} alt="Preview" style={{ width: 60, height: 60, marginTop: 8, borderRadius: 6, objectFit: 'cover' }} />}
+          </div>
+          <label style={{ width: '100%' }}>SKU
+            <input name="sku" value={form.sku} onChange={handleChange} required disabled={true} style={{ width: '100%' }} />
           </label>
-          <label>SKU
-            <input name="sku" value={form.sku} onChange={handleChange} required disabled={true} />
-          </label>
-          <label>Name
+          <label style={{ width: '100%' }}>NAME
             <input 
               name="name" 
               value={form.name} 
@@ -403,62 +470,19 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
               required 
               className={errors.name ? 'error' : ''}
               autoComplete="off"
+              style={{ width: '100%' }}
             />
-            {showProductNameSuggestions && productNameSuggestions.length > 0 && (
-              <div className="product-name-suggestions">
-                {productNameSuggestions.map((p, index) => (
-                  <div
-                    key={index}
-                    className="suggestion-item"
-                    onClick={() => handleProductNameSelect(p)}
-                  >
-                    {p.name} (SKU: {p.sku})
-                  </div>
-                ))}
-              </div>
-            )}
             {errors.name && <span className="error-message">{errors.name}</span>}
           </label>
-          <label>Description
-            <input 
-              name="description" 
-              value={form.description} 
-              onChange={handleChange}
-              className={errors.description ? 'error' : ''}
-            />
-            {errors.description && <span className="error-message">{errors.description}</span>}
-          </label>
-          <label>Quantity
-            <input 
-              name="quantity" 
-              type="number" 
-              value={form.quantity} 
-              onChange={handleChange} 
-              required
-              className={errors.quantity ? 'error' : ''}
-            />
-            {errors.quantity && <span className="error-message">{errors.quantity}</span>}
-          </label>
-          <label>Unit Price
-            <input 
-              name="unit_price" 
-              type="number" 
-              step="0.01" 
-              value={form.unit_price} 
-              onChange={handleChange} 
-              required
-              className={errors.unit_price ? 'error' : ''}
-            />
-            {errors.unit_price && <span className="error-message">{errors.unit_price}</span>}
-          </label>
-          <label>Category
-            <div className="category-input-container">
+          <label style={{ width: '100%' }}>CATEGORY
+            <div className="category-input-container" style={{ width: '100%' }}>
               <input 
                 name="category" 
                 value={categoryInput}
                 onChange={handleCategoryChange}
                 className={errors.category ? 'error' : ''}
                 placeholder="Select or type a category"
+                style={{ textAlign: 'left', width: '100%' }}
               />
               {showSuggestions && filteredCategories.length > 0 && (
                 <div className="category-suggestions">
@@ -476,7 +500,155 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
             </div>
             {errors.category && <span className="error-message">{errors.category}</span>}
           </label>
-          <button type="submit" className="submit-btn">{selectedExistingProduct || (isEdit && initialData.sku) ? 'Save Changes' : 'Add Product'}</button>
+          <div className="expirable-group" style={{ margin: '0.3rem 0 0.7rem 0', width: '100%' }}>
+            <label className="expirable-checkbox-label">
+              <input
+                type="checkbox"
+                id="expirable"
+                checked={form.expirable}
+                onChange={e => setForm(prev => ({ ...prev, expirable: e.target.checked, expiration: e.target.checked ? prev.expiration : '' }))}
+                className="expirable-checkbox"
+              />
+              <span>Expirable?</span>
+            </label>
+            {form.expirable ? (
+              <input
+                type="date"
+                name="expiration"
+                value={form.expiration}
+                onChange={e => setForm(prev => ({ ...prev, expiration: e.target.value }))}
+                className="expirable-date"
+              />
+            ) : (
+              <span className="dont-expire-badge">DONT EXPIRE</span>
+            )}
+          </div>
+          <label style={{ width: '100%' }}>DESCRIPTION
+            <input 
+              name="description" 
+              value={form.description} 
+              onChange={handleChange}
+              className={errors.description ? 'error' : ''}
+              style={{ width: '100%' }}
+            />
+            {errors.description && <span className="error-message">{errors.description}</span>}
+          </label>
+          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
+            <label style={{ flex: '0 1 48%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>QUANTITY (Base Unit)
+              <input 
+                name="quantity" 
+                type="number" 
+                value={form.quantity} 
+                onChange={handleChange} 
+                required
+                className={errors.quantity ? 'error' : ''}
+                style={{ height: 40, width: '100%' }}
+              />
+              {errors.quantity && <span className="error-message">{errors.quantity}</span>}
+            </label>
+            <label style={{ flex: '0 1 48%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>UOM
+              <div style={{ minHeight: 40, width: '100%' }}>
+                <Select
+                  name="uom"
+                  value={UOM_OPTIONS.find(option => option.value === form.uom) || null}
+                  onChange={option => {
+                    const newUom = option ? option.value : '';
+                    setForm(prev => ({
+                      ...prev,
+                      uom: newUom,
+                      conversion_qty: UOMS_REQUIRING_CONVERSION.includes(newUom) ? prev.conversion_qty : ''
+                    }));
+                  }}
+                  options={UOM_OPTIONS}
+                  classNamePrefix={errors.uom ? 'error react-select' : 'react-select'}
+                  placeholder="Select or search UoM"
+                  isClearable
+                  styles={{
+                    control: (base, state) => ({
+                      ...base,
+                      borderColor: errors.uom ? '#d93025' : state.isFocused ? '#4361ee' : '#ddd',
+                      boxShadow: state.isFocused ? '0 0 0 2px #4361ee33' : 'none',
+                      minHeight: 40,
+                      fontSize: 15,
+                      background: '#fff',
+                      zIndex: 2,
+                      width: '100%',
+                    }),
+                    menu: base => ({
+                      ...base,
+                      zIndex: 9999,
+                      boxShadow: '0 8px 24px rgba(67, 97, 238, 0.12), 0 1.5px 4px rgba(0,0,0,0.08)',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 8,
+                      marginTop: 2,
+                      background: '#fff',
+                    }),
+                    option: (base, state) => ({
+                      ...base,
+                      backgroundColor: state.isSelected
+                        ? '#4361ee'
+                        : state.isFocused
+                        ? '#f0f4ff'
+                        : '#fff',
+                      color: state.isSelected ? '#fff' : '#222',
+                      fontSize: 15,
+                      padding: '10px 16px',
+                      cursor: 'pointer',
+                    }),
+                    singleValue: base => ({
+                      ...base,
+                      color: '#222',
+                      fontWeight: 500,
+                    }),
+                    placeholder: base => ({
+                      ...base,
+                      color: '#b0b0b0',
+                      fontWeight: 400,
+                    }),
+                  }}
+                />
+              </div>
+              {errors.uom && <span className="error-message">{errors.uom}</span>}
+            </label>
+          </div>
+          {UOMS_REQUIRING_CONVERSION.includes(form.uom) && (
+            <div style={{ marginBottom: '0.5rem', width: '100%' }}>
+              <label style={{ width: '100%' }}>UNITS PER UOM
+                <input
+                  name="conversion_qty"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.conversion_qty}
+                  onChange={handleChange}
+                  required
+                  placeholder={`How many units in one ${form.uom || 'container'}?`}
+                  pattern="^[0-9]+$"
+                  inputMode="numeric"
+                  style={{ marginBottom: 4, width: '100%' }}
+                />
+                <span className="help-text">1 {form.uom} = {form.conversion_qty || '?'} Pieces</span>
+                {errors.conversion_qty && <span className="error-message">{errors.conversion_qty}</span>}
+              </label>
+            </div>
+          )}
+          <label style={{ width: '100%' }}>UNIT PRICE (Per UOM)
+            <input 
+              name="unit_price" 
+              type="number" 
+              step="0.01" 
+              value={form.unit_price} 
+              onChange={handleChange} 
+              required
+              className={errors.unit_price ? 'error' : ''}
+              style={{ width: '100%' }}
+            />
+            {errors.unit_price && <span className="error-message">{errors.unit_price}</span>}
+          </label>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+            <button type="submit" className="submit-btn" style={{ flex: 1, background: '#2ecc71', color: '#fff', fontWeight: 600 }}>SAVE</button>
+            <button type="button" className="submit-btn" style={{ flex: 1, background: '#f4f4f4', color: '#222', fontWeight: 600, border: '1px solid #ccc' }} onClick={onClose}>CANCEL</button>
+          </div>
         </form>
       </div>
     </div>

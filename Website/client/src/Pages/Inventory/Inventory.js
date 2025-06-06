@@ -9,6 +9,8 @@ import config from "../../config";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+const UOMS_REQUIRING_CONVERSION = ['Dozen', 'Box', 'Bundle', 'Set', 'Kit'];
+
 export default function Inventory() {
   const location = useLocation();
   const [products, setProducts] = useState([]);
@@ -116,6 +118,19 @@ export default function Inventory() {
     navigate(`/product-details/${sku}`);
   };
 
+  // Archive (delete) product
+  const handleArchive = async (sku) => {
+    if (window.confirm('Are you sure you want to archive (delete) this item?')) {
+      try {
+        await api.delete(`http://localhost:3001/api/inventory/${sku}`);
+        await fetchProducts();
+        toast.success('Product archived (deleted) successfully!');
+      } catch (err) {
+        toast.error('Failed to archive (delete) product');
+      }
+    }
+  };
+
   return (
     <div className="dashboard-container">
       <Sidebar />
@@ -164,10 +179,15 @@ export default function Inventory() {
                     <th style={{ width: '120px' }}>SKU</th>
                     <th style={{ width: '150px' }}>Name</th>
                     <th style={{ width: '200px' }}>Description</th>
-                    <th style={{ width: '100px' }}>Quantity</th>
                     <th style={{ width: '120px' }}>Unit Price</th>
                     <th style={{ width: '150px' }}>Category</th>
+                    <th style={{ width: '120px' }}>Expiration</th>
                     <th style={{ width: '150px' }}>Last Updated</th>
+                    <th style={{ width: '100px' }}>UOM</th>
+                    <th style={{ width: '100px' }}>In Stocks</th>
+                    <th style={{ width: '100px' }}>Ordered</th>
+                    <th style={{ width: '100px' }}>Delivered</th>
+                    <th style={{ width: '160px' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -206,12 +226,45 @@ export default function Inventory() {
                       <td className="ellipsis" title={product.description} style={{ textAlign: 'center' }}>
                         {product.description}
                       </td>
-                      <td style={{ textAlign: 'center' }}>{product.quantity}</td>
                       <td style={{ textAlign: 'center' }}>₱{parseFloat(product.unit_price).toFixed(2)}</td>
                       <td className="ellipsis" title={product.category} style={{ textAlign: 'center' }}>
                         {product.category}
                       </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {product.expiration ? new Date(product.expiration).toISOString().slice(0, 10) : ''}
+                      </td>
                       <td style={{ textAlign: 'center' }}>{new Date(product.last_updated).toLocaleString()}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        {UOMS_REQUIRING_CONVERSION.includes(product.uom) && product.conversion_qty
+                          ? `${product.uom} (${product.conversion_qty})`
+                          : product.uom}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          marginRight: '5px',
+                          backgroundColor: Number(product.quantity || 0) <= 300 ? 'red' :
+                                           Number(product.quantity || 0) > 800 ? 'green' :
+                                           'orange'
+                        }}></span>
+                        {product.quantity}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>{product.ordered}</td>
+                      <td style={{ textAlign: 'center' }}>{product.delivered}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button className="action-btn add" title="Add" onClick={e => { e.stopPropagation(); setSelectedProduct(null); setShowModal(true); }}>
+                          Add
+                        </button>
+                        <button className="action-btn edit" title="Edit" onClick={e => { e.stopPropagation(); setSelectedProduct(product); setShowModal(true); }}>
+                          Edit
+                        </button>
+                        <button className="action-btn archive" title="Archive" onClick={e => { e.stopPropagation(); handleArchive(product.sku); }}>
+                          Archive
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -219,7 +272,7 @@ export default function Inventory() {
             </div>
           </div>
           )}
-          {showModal && <AddProductModal onClose={() => setShowModal(false)} onAdd={handleAddProduct} products={products} />}
+          {showModal && <AddProductModal onClose={() => setShowModal(false)} onAdd={handleAddProduct} products={products} initialData={selectedProduct || {}} isEdit={!!selectedProduct} />}
         </div>
       </div>
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />

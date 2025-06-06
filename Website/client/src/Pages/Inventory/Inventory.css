@@ -261,35 +261,6 @@
   box-shadow: 0 0 0 2px rgba(59, 183, 126, 0.1);
 }
 
-/* Add stock level indicator to quantity column */
-.inventory-table td:nth-child(5) {
-  position: relative;
-  padding-left: 24px;
-}
-
-.inventory-table td:nth-child(5)::before {
-  content: '';
-  position: absolute;
-  left: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.low-stock-row td:nth-child(5)::before {
-  background-color: #ff0000;
-}
-
-.medium-stock-row td:nth-child(5)::before {
-  background-color: #ffa500;
-}
-
-.high-stock-row td:nth-child(5)::before {
-  background-color: #008000;
-}
-
 /* Inventory styles */
 
 /* Loading container */
@@ -527,4 +498,52 @@ body.dark .modal-content .delete-btn /* Modal Delete/Cancel button */ {
 
 body.dark .modal-content .delete-btn:hover {
     background-color: #505050;
+}
+
+/* Action buttons in inventory table */
+.action-btn {
+  padding: 6px 14px;
+  margin: 0 4px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  display: inline-block;
+}
+
+.action-btn.add {
+  background: #3bb77e;
+  color: #fff;
+}
+
+.action-btn.add:hover {
+  background: #319e6b;
+}
+
+.action-btn.edit {
+  background: #4361ee;
+  color: #fff;
+}
+
+.action-btn.edit:hover {
+  background: #2d47b5;
+}
+
+.action-btn.archive {
+  background: #e0e0e0;
+  color: #b71c1c;
+}
+
+.action-btn.archive:hover {
+  background: #b71c1c;
+  color: #fff;
+}
+
+.action-btn:active {
+  box-shadow: none;
+  transform: translateY(1px);
 } 

@@ -777,7 +777,7 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
 
     await client.query('BEGIN');
     
-    const { sku, name, description, quantity, unit_price, category } = req.body;
+    const { sku, name, description, quantity, unit_price, category, uom, conversion_qty, expiration } = req.body;
     let imageData = null;
     
     // Validate required fields
@@ -848,6 +848,18 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
         updateFieldsArray.push(`category = $${paramIndex++}`);
         queryParams.push(category);
       }
+      if (uom !== undefined) {
+        updateFieldsArray.push(`uom = $${paramIndex++}`);
+        queryParams.push(uom);
+      }
+      if (conversion_qty !== undefined) {
+        updateFieldsArray.push(`conversion_qty = $${paramIndex++}`);
+        queryParams.push(conversion_qty === '' ? null : Number(conversion_qty));
+      }
+      if (expiration !== undefined) {
+        updateFieldsArray.push(`expiration = $${paramIndex++}`);
+        queryParams.push(expiration === '' ? null : expiration);
+      }
 
       if (req.file) {
         updateFieldsArray.push(`image_data = $${paramIndex++}`);
@@ -883,15 +895,15 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
     } else {
       // Product does not exist, so INSERT
       console.log('Inserting new product with data:', {
-        sku, name, description, quantity, unit_price, category,
+        sku, name, description, quantity, unit_price, category, uom,
         hasImage: !!imageData
       });
       const result = await client.query(
         `INSERT INTO inventory_items 
-         (sku, name, description, quantity, unit_price, category, image_data, last_updated) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) 
+         (sku, name, description, quantity, unit_price, category, uom, conversion_qty, expiration, image_data, last_updated) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW()) 
          RETURNING *`,
-        [sku, name, description, Number(quantity), Number(unit_price), category, imageData]
+        [sku, name, description, Number(quantity), Number(unit_price), category, uom, conversion_qty === '' ? null : Number(conversion_qty), expiration === '' ? null : expiration, imageData]
       );
       product = result.rows[0];
       message = 'Product added successfully';
@@ -936,6 +948,9 @@ app.get('/api/inventory', async (req, res) => {
         unit_price, 
         category, 
         last_updated,
+        uom,
+        conversion_qty,
+        expiration,
         CASE 
           WHEN image_data IS NOT NULL THEN encode(image_data, 'base64')
           ELSE NULL 
