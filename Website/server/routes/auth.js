@@ -302,6 +302,7 @@ router.post('/customer/login', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      console.log(`[LOGIN DEBUG] Username not found: ${username}`);
       return res.status(401).json({
         success: false,
         message: 'Invalid username or password'
@@ -313,6 +314,7 @@ router.post('/customer/login', async (req, res) => {
     // Verify password
     const validPassword = await bcrypt.compare(password, customer.password_hash);
     if (!validPassword) {
+      console.log(`[LOGIN DEBUG] Password mismatch for username: ${username}`);
       return res.status(401).json({
         success: false,
         message: 'Invalid username or password'
@@ -321,6 +323,7 @@ router.post('/customer/login', async (req, res) => {
 
     // Check if email is verified
     if (!customer.is_verified) {
+      console.log(`[LOGIN DEBUG] Email not verified for username: ${username}`);
       return res.status(401).json({
         success: false,
         message: 'Please verify your email before logging in'

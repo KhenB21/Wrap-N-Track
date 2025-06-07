@@ -46,15 +46,15 @@ function CustomerVerify() {
     setError(null);
 
     try {
-      const response = await api.post('http://localhost:3001/api/customers/verify', {
+      const response = await api.post('/api/auth/customer/verify', {
         email,
-        verificationCode
+        code: verificationCode
       });
 
       if (response.data.success) {
         setMessage('Email verified successfully! You can now log in.');
         setTimeout(() => {
-          navigate('/customer/login');
+          navigate('/customer-login');
         }, 2000);
       } else {
         setError('Verification failed. Please check your code and try again.');
@@ -70,12 +70,10 @@ function CustomerVerify() {
   const handleResendCode = async () => {
     try {
       setResending(true);
-      const token = localStorage.getItem('token');
-      const response = await api.post('/api/customer/resend-verification', 
+      const response = await api.post('/api/auth/customer/resend-code', 
         { email },
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         }

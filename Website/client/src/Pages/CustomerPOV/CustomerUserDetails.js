@@ -39,21 +39,20 @@ export default function CustomerUserDetails() {
   const fieldOrder = ['username', 'name', 'email', 'phone_number'];
 
   useEffect(() => {
+    const token = localStorage.getItem('customerToken');
+    if (!token) {
+      navigate('/customer-login');
+      return;
+    }
     const fetchUserData = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No authentication token found');
-        }
-
         const response = await api.get('/api/customer/profile', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
-
         if (!response.data) {
           throw new Error('Failed to fetch user data');
         }
@@ -78,14 +77,20 @@ export default function CustomerUserDetails() {
         });
         setError(null);
       } catch (error) {
-        console.error('Error fetching user data:', error);
-        setError(error.message);
+        if (error.response && error.response.status === 401) {
+          localStorage.removeItem('customerToken');
+          localStorage.removeItem('customer');
+          navigate('/customer-login');
+        } else {
+          console.error('Error fetching user data:', error);
+          setError(error.message);
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchUserData();
-  }, []);
+  }, [navigate]);
 
   const getProfilePictureUrl = () => {
     if (userData.profile_picture_data) {
@@ -106,7 +111,7 @@ export default function CustomerUserDetails() {
     try {
       const formData = new FormData();
       formData.append('profilePicture', file);
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('customerToken');
       const response = await api.post('/api/customer/profile-picture', formData, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -170,7 +175,7 @@ export default function CustomerUserDetails() {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('customerToken');
       
       // Map the field name to match the database column names
       const fieldMapping = {
@@ -270,7 +275,7 @@ export default function CustomerUserDetails() {
     if (!newAddress.trim()) return;
     
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('customerToken');
       const response = await api.post('/api/customer/profile/address', 
         { address: newAddress.trim() },
         {
@@ -296,7 +301,7 @@ export default function CustomerUserDetails() {
   const handleRemoveAddress = async (e, addressToRemove) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('customerToken');
       const response = await api.delete('/api/customer/profile/address', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -320,7 +325,7 @@ export default function CustomerUserDetails() {
     if (!newPhone.trim()) return;
     
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('customerToken');
       const response = await api.put('/api/customer/phone', 
         { phone_number: newPhone.trim() },
         {
@@ -358,7 +363,7 @@ export default function CustomerUserDetails() {
     setError('');
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('customerToken');
       const response = await api.put('/api/customer/profile', 
         {
           name: userData.name,
@@ -409,7 +414,7 @@ export default function CustomerUserDetails() {
     formData.append('profilePicture', file);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('customerToken');
       const response = await api.post('/api/customer/profile-picture', formData, {
         headers: {
           'Authorization': `Bearer ${token}`,

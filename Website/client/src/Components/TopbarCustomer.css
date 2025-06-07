@@ -145,7 +145,54 @@ body{
 
 .customer-profile {
   position: relative;
-  margin-left: 20px;
+  display: inline-block;
+}
+
+.customer-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 110%;
+  right: 0;
+  min-width: 180px;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  z-index: 1000;
+  flex-direction: column;
+  padding: 8px 0 0 0;
+  font-family: inherit;
+  margin-top: 6px;
+}
+
+.customer-dropdown-menu button {
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  padding: 12px 20px;
+  font-size: 15px;
+  color: #444;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.customer-dropdown-menu button:hover {
+  background: #f5f5f5;
+  color: #21258f;
+}
+
+.customer-dropdown-menu .logout-btn {
+  background: #f44336;
+  color: #fff;
+  font-weight: bold;
+  margin-top: 6px;
+  border-radius: 0 0 4px 4px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.customer-dropdown-menu .logout-btn:hover {
+  background: #d32f2f;
+  color: #fff;
 }
 
 .customer-avatar {
@@ -153,50 +200,7 @@ body{
   height: 38px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #e0e0e0;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   cursor: pointer;
-  transition: border-color 0.2s;
-}
-
-.customer-avatar:hover {
-  border-color: #4a4a6a;
-}
-
-.customer-dropdown {
-  position: absolute;
-  top: 48px;
-  right: 0;
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
-  min-width: 160px;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  padding: 8px 0;
-}
-
-.customer-dropdown button {
-  background: none;
-  border: none;
-  color: #333;
-  text-align: left;
-  padding: 10px 20px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.customer-dropdown button:hover {
-  background: #f5f5f5;
-}
-
-.customer-dropdown .logout-btn {
-  color: #e74c3c;
-  font-weight: 600;
-}
-
-.customer-dropdown .logout-btn:hover {
-  background: #fdecea;
 } 

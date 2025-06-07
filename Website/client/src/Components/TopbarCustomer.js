@@ -15,14 +15,15 @@ const navLinks = [
 export default function TopbarCustomer() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef();
   const [customer, setCustomer] = useState(null);
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const hideDropdownTimeout = useRef(null);
 
   useEffect(() => {
     const fetchCustomerData = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('customerToken');
         if (!token) return;
 
         const response = await api.get('/api/customer/profile', {
@@ -55,32 +56,14 @@ export default function TopbarCustomer() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('customerToken');
     localStorage.removeItem('customer');
     navigate('/customer-home');
   };
 
   const handleViewProfile = () => {
     navigate('/customer-user-details');
-    setDropdownOpen(false);
   };
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    if (dropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [dropdownOpen]);
 
   const getProfilePictureUrl = () => {
     if (!customer) return "/placeholder-profile.png";
@@ -100,6 +83,23 @@ export default function TopbarCustomer() {
     
     return "/placeholder-profile.png";
   };
+
+  // Close dropdown if clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownVisible(false);
+      }
+    }
+    if (dropdownVisible) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [dropdownVisible]);
 
   return (
     <header className="topbar-customer">
@@ -140,29 +140,34 @@ export default function TopbarCustomer() {
               >
                 REGISTER
               </Link>
-              <Link
-                to="/customer-login"
+              <button
                 className={`topbar-customer-link${location.pathname === '/customer-login' ? ' active' : ''}`}
+                style={{ background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
+                onClick={() => navigate('/customer-login')}
               >
                 LOG IN
-              </Link>
+              </button>
             </>
           ) : (
-            <div className="customer-profile" ref={dropdownRef}>
+            <div
+              className="customer-profile"
+              ref={dropdownRef}
+              onClick={() => setDropdownVisible((prev) => !prev)}
+            >
               <img
                 src={getProfilePictureUrl()}
                 alt="Profile"
                 className="customer-avatar"
-                onClick={() => setDropdownOpen(!dropdownOpen)}
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = '/placeholder-profile.png';
                 }}
               />
-              {dropdownOpen && (
-                <div className="customer-dropdown">
-                  <button onClick={handleViewProfile}>View Profile</button>
-                  <button onClick={handleLogout} className="logout-btn">Logout</button>
+              {dropdownVisible && (
+                <div className="customer-dropdown-menu">
+                  <button onClick={() => { setDropdownVisible(false); navigate('/customer-user-details'); }}>My Account</button>
+                  <button onClick={() => { setDropdownVisible(false); navigate('/customer-cart'); }}>My Purchase</button>
+                  <button onClick={() => { setDropdownVisible(false); handleLogout(); }} className="logout-btn">Logout</button>
                 </div>
               )}
             </div>

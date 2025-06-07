@@ -63,6 +63,15 @@ function CustomerLogIn() {
     }
   }, [lockoutTime]);
 
+  useEffect(() => {
+    // If already logged in, redirect to customer details
+    const token = localStorage.getItem('customerToken');
+    const customer = localStorage.getItem('customer');
+    if (token && customer) {
+      navigate('/customer-user-details');
+    }
+  }, [navigate]);
+
   // Log the API URL being used
   console.log('Login component using API URL:', config.API_URL);
 
@@ -80,18 +89,30 @@ function CustomerLogIn() {
     setLoading(true);
     setError(null);
 
+    // If already logged in, redirect to customer details
+    const token = localStorage.getItem('customerToken');
+    const customer = localStorage.getItem('customer');
+    if (token && customer) {
+      navigate('/customer-user-details');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await api.post('http://localhost:3001/api/customers/login', {
-        email: formData.username,
+      const response = await api.post('/api/auth/customer/login', {
+        username: formData.username,
         password: formData.password
       });
 
-      if (response.data.token) {
+      if (response.data.success) {
         localStorage.setItem('customerToken', response.data.token);
         localStorage.setItem('customer', JSON.stringify(response.data.customer));
-        navigate('/customer/dashboard');
+        // Remove old keys if present
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/customer-home');
       } else {
-        setError('Login failed. Please check your credentials.');
+        setError(response.data.message || 'Login failed. Please check your credentials.');
       }
     } catch (error) {
       console.error('Login error:', error);
