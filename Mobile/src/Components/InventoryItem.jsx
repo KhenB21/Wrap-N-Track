@@ -5,33 +5,55 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { Menu } from "react-native-paper";
 
-const InventoryItem = ({handleItemLongpress, handleItemPress, isLongpress}) => {
+const InventoryItem = ({
+  item,
+  handleItemLongpress,
+  handleItemPress,
+  isLongpress,
+}) => {
   const { themeStyles } = useTheme();
 
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={{
-        width: '100%', 
-        backgroundColor: themeStyles.containerColor, 
-        marginTop: 4, 
-        borderRadius: 5, 
-        flexDirection: 'row', 
-        padding: 8, 
-        justifyContent: 'space-between',
-      }} 
-      onPress={() => handleItemPress()}
-      onLongPress={() => handleItemLongpress()}
+        width: "100%",
+        backgroundColor: themeStyles.containerColor,
+        marginTop: 4,
+        borderRadius: 5,
+        flexDirection: "row",
+        padding: 8,
+        justifyContent: "space-between",
+      }}
+      onPress={() => handleItemPress(item)}
+      onLongPress={() => handleItemLongpress(item)}
     >
-      <View style={{flexDirection: 'row'}}>
-        <Image style={{height: 90, width: 90, borderRadius: 3}} resizeMethod='contain' source={require('../../assets/inventory/oolong-tea.jpg')}/>
-        <View style={{marginLeft: 8}}>
-          <Text style={{fontWeight: 'bold', color: themeStyles.textColor}}>Artisan teas</Text>
-          <Text style = {{color: themeStyles.textColor}}>Oolong tea</Text>
-          <Text style={{color: themeStyles.textColor}}>Qty: 314</Text>
+      <View style={{ flexDirection: "row" }}>
+        <Image
+          style={{ height: 90, width: 90, borderRadius: 3 }}
+          resizeMethod="contain"
+          source={{ uri: item.image_url || "https://via.placeholder.com/80" }}
+          defaultSource={require("../../assets/Pensee logos/pensee-logo-only.png")}
+        />
+        <View style={{ marginLeft: 8 }}>
+          <Text style={{ fontWeight: "bold", color: themeStyles.textColor }}>
+            {item.category}
+          </Text>
+          <Text style={{ color: themeStyles.textColor }}>{item.name}</Text>
+          <Text style={{ color: themeStyles.textColor }}>
+            Qty: {item.quantity}
+          </Text>
         </View>
       </View>
       <View>
-        <Text style={{fontWeight: 'bold', textAlign: 'right', color: themeStyles.textColor}}>₱195.00</Text>
+        <Text
+          style={{
+            fontWeight: "bold",
+            textAlign: "right",
+            color: themeStyles.textColor,
+          }}
+        >
+          ₱{parseFloat(item.unit_price).toFixed(2)}
+        </Text>
       </View>
     </TouchableOpacity>
   );

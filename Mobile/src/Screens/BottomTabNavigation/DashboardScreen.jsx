@@ -5,16 +5,16 @@ import {
   ScrollView,
   Alert,
   BackHandler,
+  Platform,
 } from "react-native";
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import MenuTitle from "../../Components/MenuTitle";
-import { useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../Screens/DrawerNavigation/ThemeContect";
 import { InventoryContext } from "../../Context/InventoryContext";
 import { SalesContext } from "../../Context/SalesContext";
+// import SideMenu from "../../Components/SideMenu";
 
 const DashboardScreen = ({ route }) => {
   const { pageTitle } = route.params;
@@ -22,6 +22,7 @@ const DashboardScreen = ({ route }) => {
   const { themeStyles } = useTheme();
   const { items } = useContext(InventoryContext);
   const { orders } = useContext(SalesContext);
+  const [menuVisible, setMenuVisible] = React.useState(false);
 
   // Calculate inventory statistics
   const totalProducts = items.length;
@@ -41,15 +42,14 @@ const DashboardScreen = ({ route }) => {
   const totalRevenue = orders.reduce(
     (sum, order) =>
       sum +
-      (parseFloat(order.item?.price) || 0) *
-        (parseInt(order.item?.quantity) || 0),
+      (parseFloat(order.total_amount) || 0),
     0
   );
   const totalUnitsSold = orders.reduce(
-    (sum, order) => sum + (parseInt(order.item?.quantity) || 0),
+    (sum, order) => sum + (parseInt(order.total_items) || 0),
     0
   );
-  const totalCustomers = new Set(orders.map((order) => order.customerName))
+  const totalCustomers = new Set(orders.map((order) => order.customer_name))
     .size;
 
   useEffect(() => {
@@ -72,7 +72,8 @@ const DashboardScreen = ({ route }) => {
   }, [pageTitle]);
 
   return (
-    <View style={{ flex: 1, alignItems: "center", paddingBottom: 165 }}>
+    <View style={{ flex: 1, backgroundColor: themeStyles.backgroundColor }}>
+      {/* <SideMenu visible={menuVisible} onClose={() => setMenuVisible(false)} /> */}
       <View
         style={{
           width: "100%",
@@ -83,446 +84,313 @@ const DashboardScreen = ({ route }) => {
         }}
       >
         <View style={{ width: "100%", flex: 1 }}>
-          <MenuTitle pageTitle={pageTitle} />
+          <MenuTitle pageTitle={pageTitle} onMenuPress={() => setMenuVisible(true)} />
           <Text style={{ color: "#F0F0F0" }}>Welcome, Terence!</Text>
         </View>
       </View>
-      <View
-        style={{
-          width: "100%",
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          padding: 10,
+          paddingBottom: Platform.OS === 'ios' ? 100 : 80,
           alignItems: "center",
-          backgroundColor: themeStyles.backgroundColor,
         }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView
-          style={{ width: "100%", height: "100%" }}
-          contentContainerStyle={{
+        {/* Inventory Overview */}
+        <View
+          style={{
+            width: "100%",
             padding: 10,
-            paddingBottom: 75,
-            alignItems: "center",
+            borderRadius: 10,
+            backgroundColor: themeStyles.containerColor,
+            marginBottom: 10,
           }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
         >
-          {/* Inventory Overview */}
-          <View
+          {/* Title */}
+          <Text
             style={{
-              width: "100%",
-              padding: 10,
-              borderRadius: 10,
-              backgroundColor: themeStyles.containerColor,
-              marginBottom: 10,
+              fontWeight: "bold",
+              fontSize: 16,
+              marginBottom: 20,
+              color: themeStyles.textColor,
             }}
           >
-            {/* Title */}
-            <Text
-              style={{
-                fontWeight: "bold",
-                fontSize: 16,
-                marginBottom: 20,
-                color: themeStyles.textColor,
-              }}
-            >
-              Inventory Overview
-            </Text>
+            Inventory Overview
+          </Text>
 
-            {/* Buttons */}
-            <View
-              style={{ flexDirection: "row", width: "100%", marginBottom: 16 }}
-            >
-              <View style={{ flexDirection: "row", width: "50%" }}>
-                <View
-                  style={{
-                    height: 50,
-                    width: 5,
-                    backgroundColor: "#187498",
-                    borderRadius: 5,
-                  }}
-                />
-                <View
-                  style={{ justifyContent: "space-between", marginLeft: 10 }}
+          {/* Stats */}
+          <View
+            style={{ flexDirection: "row", width: "100%", marginBottom: 16 }}
+          >
+            <View style={{ flexDirection: "row", width: "50%" }}>
+              <View
+                style={{
+                  height: 50,
+                  width: 5,
+                  backgroundColor: "#187498",
+                  borderRadius: 5,
+                }}
+              />
+              <View
+                style={{ justifyContent: "space-between", marginLeft: 10 }}
+              >
+                <Text
+                  style={{ fontWeight: 400, color: themeStyles.textColor }}
                 >
-                  <Text
-                    style={{ fontWeight: 400, color: themeStyles.textColor }}
-                  >
-                    Total Products
-                  </Text>
-                  <Text
-                    style={{
-                      fontWeight: 500,
-                      fontSize: 18,
-                      color: themeStyles.textColor,
-                    }}
-                  >
-                    {totalProducts}
-                  </Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: "row", width: "50%" }}>
-                <View
+                  Total Products
+                </Text>
+                <Text
                   style={{
-                    height: 50,
-                    width: 5,
-                    backgroundColor: "#36AE7C",
-                    borderRadius: 5,
+                    fontWeight: 500,
+                    fontSize: 18,
+                    color: themeStyles.textColor,
                   }}
-                />
-                <View
-                  style={{ justifyContent: "space-between", marginLeft: 10 }}
                 >
-                  <Text
-                    style={{ fontWeight: 400, color: themeStyles.textColor }}
-                  >
-                    Total Product Units
-                  </Text>
-                  <Text
-                    style={{
-                      fontWeight: 500,
-                      fontSize: 18,
-                      color: themeStyles.textColor,
-                    }}
-                  >
-                    {totalProductUnits}
-                  </Text>
-                </View>
+                  {totalProducts}
+                </Text>
               </View>
             </View>
-            <View style={{ flexDirection: "row", width: "100%" }}>
-              <View style={{ flexDirection: "row", width: "50%" }}>
-                <View
-                  style={{
-                    height: 50,
-                    width: 5,
-                    backgroundColor: "#F9D923",
-                    borderRadius: 5,
-                  }}
-                />
-                <View
-                  style={{ justifyContent: "space-between", marginLeft: 10 }}
+            <View style={{ flexDirection: "row", width: "50%" }}>
+              <View
+                style={{
+                  height: 50,
+                  width: 5,
+                  backgroundColor: "#36AE7C",
+                  borderRadius: 5,
+                }}
+              />
+              <View
+                style={{ justifyContent: "space-between", marginLeft: 10 }}
+              >
+                <Text
+                  style={{ fontWeight: 400, color: themeStyles.textColor }}
                 >
-                  <Text
-                    style={{ fontWeight: 400, color: themeStyles.textColor }}
-                  >
-                    Replenishment
-                  </Text>
-                  <Text
-                    style={{
-                      fontWeight: 500,
-                      fontSize: 18,
-                      color: themeStyles.textColor,
-                    }}
-                  >
-                    {needsReplenishment}
-                  </Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: "row", width: "50%" }}>
-                <View
+                  Total Product Units
+                </Text>
+                <Text
                   style={{
-                    height: 50,
-                    width: 5,
-                    backgroundColor: "#ff595e",
-                    borderRadius: 5,
+                    fontWeight: 500,
+                    fontSize: 18,
+                    color: themeStyles.textColor,
                   }}
-                />
-                <View
-                  style={{ justifyContent: "space-between", marginLeft: 10 }}
                 >
-                  <Text style={{ fontWeight: 400, color: "#D61414" }}>
-                    Low in Stock
-                  </Text>
-                  <Text
-                    style={{
-                      fontWeight: 500,
-                      fontSize: 18,
-                      color: themeStyles.textColor,
-                    }}
-                  >
-                    {lowInStock}
-                  </Text>
-                </View>
+                  {totalProductUnits}
+                </Text>
               </View>
             </View>
           </View>
-
-          {/* Sales Overview */}
-          <View
-            style={{
-              width: "100%",
-              padding: 10,
-              borderRadius: 10,
-              backgroundColor: themeStyles.containerColor,
-              marginBottom: 10,
-            }}
-          >
-            {/* Title */}
-            <Text
-              style={{
-                fontWeight: "bold",
-                fontSize: 16,
-                color: themeStyles.textColor,
-              }}
-            >
-              Sales Overview
-            </Text>
-            <Text
-              style={{
-                fontWeight: 500,
-                fontSize: 12,
-                color: "#888888",
-                marginBottom: 20,
-                color: themeStyles.textColor,
-              }}
-            >
-              February
-            </Text>
-
-            {/* Buttons */}
-            <View
-              style={{ flexDirection: "row", width: "100%", marginBottom: 16 }}
-            >
-              <View style={{ flexDirection: "row", width: "50%" }}>
-                <View
-                  style={{
-                    height: 50,
-                    width: 5,
-                    backgroundColor: "blue",
-                    borderRadius: 5,
-                  }}
-                />
-                <View
-                  style={{ justifyContent: "space-between", marginLeft: 10 }}
+          <View style={{ flexDirection: "row", width: "100%" }}>
+            <View style={{ flexDirection: "row", width: "50%" }}>
+              <View
+                style={{
+                  height: 50,
+                  width: 5,
+                  backgroundColor: "#F9D923",
+                  borderRadius: 5,
+                }}
+              />
+              <View
+                style={{ justifyContent: "space-between", marginLeft: 10 }}
+              >
+                <Text
+                  style={{ fontWeight: 400, color: themeStyles.textColor }}
                 >
-                  <Text
-                    style={{ fontWeight: 400, color: themeStyles.textColor }}
-                  >
-                    Total Revenue
-                  </Text>
-                  <Text
-                    style={{
-                      fontWeight: 500,
-                      fontSize: 18,
-                      color: themeStyles.textColor,
-                    }}
-                  >
-                    {totalRevenue}
-                  </Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: "row", width: "50%" }}>
-                <View
+                  Replenishment
+                </Text>
+                <Text
                   style={{
-                    height: 50,
-                    width: 5,
-                    backgroundColor: "#F5DB13",
-                    borderRadius: 5,
+                    fontWeight: 500,
+                    fontSize: 18,
+                    color: themeStyles.textColor,
                   }}
-                />
-                <View
-                  style={{ justifyContent: "space-between", marginLeft: 10 }}
                 >
-                  <Text
-                    style={{ fontWeight: 400, color: themeStyles.textColor }}
-                  >
-                    Total Orders
-                  </Text>
-                  <Text
-                    style={{
-                      fontWeight: 500,
-                      fontSize: 18,
-                      color: themeStyles.textColor,
-                    }}
-                  >
-                    {totalOrders}
-                  </Text>
-                </View>
+                  {needsReplenishment}
+                </Text>
               </View>
             </View>
-            <View style={{ flexDirection: "row", width: "100%" }}>
-              <View style={{ flexDirection: "row", width: "50%" }}>
-                <View
+            <View style={{ flexDirection: "row", width: "50%" }}>
+              <View
+                style={{
+                  height: 50,
+                  width: 5,
+                  backgroundColor: "#ff595e",
+                  borderRadius: 5,
+                }}
+              />
+              <View
+                style={{ justifyContent: "space-between", marginLeft: 10 }}
+              >
+                <Text style={{ fontWeight: 400, color: "#D61414" }}>
+                  Low in Stock
+                </Text>
+                <Text
                   style={{
-                    height: 50,
-                    width: 5,
-                    backgroundColor: "#F58413",
-                    borderRadius: 5,
+                    fontWeight: 500,
+                    fontSize: 18,
+                    color: themeStyles.textColor,
                   }}
-                />
-                <View
-                  style={{ justifyContent: "space-between", marginLeft: 10 }}
                 >
-                  <Text
-                    style={{ fontWeight: 400, color: themeStyles.textColor }}
-                  >
-                    Total Units Sold
-                  </Text>
-                  <Text
-                    style={{
-                      fontWeight: 500,
-                      fontSize: 18,
-                      color: themeStyles.textColor,
-                    }}
-                  >
-                    {totalUnitsSold}
-                  </Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: "row", width: "50%" }}>
-                <View
-                  style={{
-                    height: 50,
-                    width: 5,
-                    backgroundColor: "#D61414",
-                    borderRadius: 5,
-                  }}
-                />
-                <View
-                  style={{ justifyContent: "space-between", marginLeft: 10 }}
-                >
-                  <Text
-                    style={{ fontWeight: 400, color: themeStyles.textColor }}
-                  >
-                    Total Customers
-                  </Text>
-                  <Text
-                    style={{
-                      fontWeight: 500,
-                      fontSize: 18,
-                      color: themeStyles.textColor,
-                    }}
-                  >
-                    {totalCustomers}
-                  </Text>
-                </View>
+                  {lowInStock}
+                </Text>
               </View>
             </View>
           </View>
-          <View
+        </View>
+
+        {/* Sales Overview */}
+        <View
+          style={{
+            width: "100%",
+            padding: 10,
+            borderRadius: 10,
+            backgroundColor: themeStyles.containerColor,
+            marginBottom: 10,
+          }}
+        >
+          {/* Title */}
+          <Text
             style={{
-              width: "100%",
-              padding: 10,
-              borderRadius: 10,
-              backgroundColor: themeStyles.containerColor,
+              fontWeight: "bold",
+              fontSize: 16,
+              color: themeStyles.textColor,
             }}
           >
-            {/* Sales Activity */}
-            <Text
-              style={{
-                fontWeight: "bold",
-                fontSize: 16,
-                marginBottom: 20,
-                color: themeStyles.textColor,
-              }}
-            >
-              Sales Overview
-            </Text>
-            <View
-              style={{
-                flexDirection: "row",
-                width: "100%",
-                flexDirection: "column",
-              }}
-            >
-              <View style={{ flexDirection: "row", marginBottom: 20 }}>
-                <View
+            Sales Overview
+          </Text>
+          <Text
+            style={{
+              fontWeight: 500,
+              fontSize: 12,
+              color: "#888888",
+              marginBottom: 20,
+            }}
+          >
+            February
+          </Text>
+
+          {/* Stats */}
+          <View
+            style={{ flexDirection: "row", width: "100%", marginBottom: 16 }}
+          >
+            <View style={{ flexDirection: "row", width: "50%" }}>
+              <View
+                style={{
+                  height: 50,
+                  width: 5,
+                  backgroundColor: "#6B6593",
+                  borderRadius: 5,
+                }}
+              />
+              <View
+                style={{ justifyContent: "space-between", marginLeft: 10 }}
+              >
+                <Text
+                  style={{ fontWeight: 400, color: themeStyles.textColor }}
+                >
+                  Total Revenue
+                </Text>
+                <Text
                   style={{
-                    height: 50,
-                    width: 50,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    borderRadius: 25,
-                    backgroundColor: "#D61414",
+                    fontWeight: 500,
+                    fontSize: 18,
+                    color: themeStyles.textColor,
                   }}
                 >
-                  <Icon name="package" size={32} color={"#FDFDFD"} />
-                </View>
-                <View
-                  style={{ justifyContent: "space-between", marginLeft: 10 }}
-                >
-                  <Text
-                    style={{ fontWeight: 400, color: themeStyles.textColor }}
-                  >
-                    Total Customers
-                  </Text>
-                  <Text
-                    style={{
-                      fontWeight: 500,
-                      fontSize: 18,
-                      color: themeStyles.textColor,
-                    }}
-                  >
-                    {totalCustomers}
-                  </Text>
-                </View>
+                  ₱{totalRevenue.toFixed(2)}
+                </Text>
               </View>
-              <View style={{ flexDirection: "row", marginBottom: 20 }}>
-                <View
+            </View>
+            <View style={{ flexDirection: "row", width: "50%" }}>
+              <View
+                style={{
+                  height: 50,
+                  width: 5,
+                  backgroundColor: "#F5DB13",
+                  borderRadius: 5,
+                }}
+              />
+              <View
+                style={{ justifyContent: "space-between", marginLeft: 10 }}
+              >
+                <Text
+                  style={{ fontWeight: 400, color: themeStyles.textColor }}
+                >
+                  Total Orders
+                </Text>
+                <Text
                   style={{
-                    height: 50,
-                    width: 50,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    borderRadius: 25,
-                    backgroundColor: "#F58413",
+                    fontWeight: 500,
+                    fontSize: 18,
+                    color: themeStyles.textColor,
                   }}
                 >
-                  <Icon name="package" size={32} color={"#FDFDFD"} />
-                </View>
-                <View
-                  style={{ justifyContent: "space-between", marginLeft: 10 }}
-                >
-                  <Text
-                    style={{ fontWeight: 400, color: themeStyles.textColor }}
-                  >
-                    Total Customers
-                  </Text>
-                  <Text
-                    style={{
-                      fontWeight: 500,
-                      fontSize: 18,
-                      color: themeStyles.textColor,
-                    }}
-                  >
-                    {totalCustomers}
-                  </Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: "row" }}>
-                <View
-                  style={{
-                    height: 50,
-                    width: 50,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    borderRadius: 25,
-                    backgroundColor: "blue",
-                  }}
-                >
-                  <Icon name="package" size={32} color={"#FDFDFD"} />
-                </View>
-                <View
-                  style={{ justifyContent: "space-between", marginLeft: 10 }}
-                >
-                  <Text
-                    style={{ fontWeight: 400, color: themeStyles.textColor }}
-                  >
-                    Total Customers
-                  </Text>
-                  <Text
-                    style={{
-                      fontWeight: 500,
-                      fontSize: 18,
-                      color: themeStyles.textColor,
-                    }}
-                  >
-                    {totalCustomers}
-                  </Text>
-                </View>
+                  {totalOrders}
+                </Text>
               </View>
             </View>
           </View>
-        </ScrollView>
-      </View>
+          <View style={{ flexDirection: "row", width: "100%" }}>
+            <View style={{ flexDirection: "row", width: "50%" }}>
+              <View
+                style={{
+                  height: 50,
+                  width: 5,
+                  backgroundColor: "#F58413",
+                  borderRadius: 5,
+                }}
+              />
+              <View
+                style={{ justifyContent: "space-between", marginLeft: 10 }}
+              >
+                <Text
+                  style={{ fontWeight: 400, color: themeStyles.textColor }}
+                >
+                  Total Units Sold
+                </Text>
+                <Text
+                  style={{
+                    fontWeight: 500,
+                    fontSize: 18,
+                    color: themeStyles.textColor,
+                  }}
+                >
+                  {totalUnitsSold}
+                </Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", width: "50%" }}>
+              <View
+                style={{
+                  height: 50,
+                  width: 5,
+                  backgroundColor: "#D61414",
+                  borderRadius: 5,
+                }}
+              />
+              <View
+                style={{ justifyContent: "space-between", marginLeft: 10 }}
+              >
+                <Text
+                  style={{ fontWeight: 400, color: themeStyles.textColor }}
+                >
+                  Total Customers
+                </Text>
+                <Text
+                  style={{
+                    fontWeight: 500,
+                    fontSize: 18,
+                    color: themeStyles.textColor,
+                  }}
+                >
+                  {totalCustomers}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 };

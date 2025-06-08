@@ -11,6 +11,8 @@ import LoginScreen from '../Screens/StackNavigation/LoginScreen';
 import SupplierOrderForm from '../Screens/StackNavigation/SupplierOrderForm'
 import AccountProfileScreen from '../Screens/DrawerNavigation/AccountProfileScreen';
 import DashboardScreen from '../Screens/BottomTabNavigation/DashboardScreen';
+import BottomTabNavigation from './BottomTabNavigation';
+import InventoryScreen from '../Screens/BottomTabNavigation/InventoryScreen';
 
 
 const Navbar = () => {
@@ -32,6 +34,9 @@ const Navbar = () => {
             <Stack.Screen name='OrderDetails' component={OrderDetails}/>     
             <Stack.Screen name='Profile' component={AccountProfileScreen}/>
             <Stack.Screen name='Dashboard' component={DashboardScreen}/>
+            <Stack.Screen name='Inventory' component={InventoryScreen}/>
+
+
              
         </Stack.Navigator>
     )
