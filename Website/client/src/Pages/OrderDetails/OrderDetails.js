@@ -1808,21 +1808,16 @@ useEffect(() => {
 
                 <div className="order-details-modal-products-col" style={{flex:1,background:'#f8f9fa',borderLeft:'1.5px solid #ececec',borderRadius:'0 18px 18px 0',padding:'40px 32px 40px 32px',display:'flex',flexDirection:'column',alignItems:'flex-start',minWidth:220,maxWidth:340}}>
                   <h3 style={{fontSize:22,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50',marginBottom:14,fontWeight:700,letterSpacing:'0.04em',borderBottom:'1.5px solid #ece9e6',paddingBottom:6,width:'100%'}}>What's Inside</h3>
-                  {loadingProductDetails ? (
-                    <div style={{color:'#888',fontSize:16}}>Loading products...</div>
-                  ) : selectedOrder.package_name === "Carlo" && carloProducts.length > 0 ? (
+                  {selectedOrder.products && selectedOrder.products.length > 0 ? (
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
-                      {carloProducts.map((product, idx) => {
-                        const inInventory = inventory.some(
-                          item =>
-                            (product.sku && item.sku === product.sku) ||
-                            item.name.toLowerCase() === product.name.toLowerCase()
-                        );
+                      {selectedOrder.products.map((product, idx) => {
+                        // Match product by name in inventory
+                        const inventoryItem = inventory.find(item => item.name.toLowerCase() === product.name.toLowerCase());
                         return (
                           <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-                            {product.image_data ? (
+                            {inventoryItem && inventoryItem.image_data ? (
                               <img 
-                                src={`data:image/jpeg;base64,${product.image_data}`} 
+                                src={`data:image/jpeg;base64,${inventoryItem.image_data}`} 
                                 alt={product.name} 
                                 style={{ 
                                   width: 48, 
@@ -1852,84 +1847,8 @@ useEffect(() => {
                               <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
                                 {product.name}
                               </div>
-                              <div
-                                style={{
-                                  fontSize: 14,
-                                  color: inInventory ? '#888' : '#e53935',
-                                  fontWeight: inInventory ? 400 : 700,
-                                  background: inInventory ? 'none' : '#fff0f0',
-                                  borderRadius: inInventory ? 0 : 4,
-                                  padding: inInventory ? 0 : '2px 8px',
-                                  display: 'inline-block'
-                                }}
-                              >
+                              <div style={{ fontSize: 14, color: '#888', fontWeight: 400 }}>
                                 Qty: {product.quantity}
-                                {!inInventory && (
-                                  <span style={{ marginLeft: 6, fontWeight: 600 }}>(Not in inventory)</span>
-                                )}
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : selectedOrder.products && selectedOrder.products.length > 0 ? (
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%' }}>
-                      {selectedOrder.products.map((p, idx) => {
-                        const inInventory = inventory.some(
-                          item =>
-                            (p.sku && item.sku === p.sku) ||
-                            item.name.toLowerCase() === p.name.toLowerCase()
-                        );
-                        return (
-                          <li key={p.sku || idx} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-                            {p.image_data ? (
-                              <img 
-                                src={`data:image/jpeg;base64,${p.image_data}`} 
-                                alt={p.name} 
-                                style={{ 
-                                  width: 48, 
-                                  height: 48, 
-                                  borderRadius: 8, 
-                                  objectFit: 'cover', 
-                                  background: '#eee', 
-                                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)' 
-                                }} 
-                              />
-                            ) : (
-                              <div style={{ 
-                                width: 48, 
-                                height: 48, 
-                                background: '#eee', 
-                                borderRadius: 8, 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                color: '#bbb', 
-                                fontSize: 22 
-                              }}>
-                                ?
-                              </div>
-                            )}
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 600, fontSize: 16, fontFamily: 'Lora,serif', color: '#333' }}>
-                                {p.name}
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: 14,
-                                  color: inInventory ? '#888' : '#e53935',
-                                  fontWeight: inInventory ? 400 : 700,
-                                  background: inInventory ? 'none' : '#fff0f0',
-                                  borderRadius: inInventory ? 0 : 4,
-                                  padding: inInventory ? 0 : '2px 8px',
-                                  display: 'inline-block'
-                                }}
-                              >
-                                Qty: {p.quantity}
-                                {!inInventory && (
-                                  <span style={{ marginLeft: 6, fontWeight: 600 }}>(Not in inventory)</span>
-                                )}
                               </div>
                             </div>
                           </li>
