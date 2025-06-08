@@ -64,7 +64,7 @@ export default function LoginScreen({ navigation }) {
     setErrors((prev) => ({ ...prev, password: error }));
   };
 
-  // Lockout effect
+  //for failed login timer
   useEffect(() => {
     if (failedAttempts >= 3) {
       const lockTime = Date.now() + 60000; // 1 minute lockout
@@ -77,7 +77,7 @@ export default function LoginScreen({ navigation }) {
     }
   }, [failedAttempts]);
 
-  // Countdown effect
+  // countdown timer
   useEffect(() => {
     if (lockoutTime) {
       const interval = setInterval(() => {
@@ -106,7 +106,6 @@ export default function LoginScreen({ navigation }) {
   const handleLogin = async () => {
     if (isLoading || isLockedOut) return;
 
-    // Trigger all validations and mark as touched
     const usernameError = validateUsername(username);
     const passwordError = validatePassword(password);
     setErrors({ username: usernameError, password: passwordError });

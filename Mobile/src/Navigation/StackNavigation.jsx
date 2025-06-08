@@ -10,6 +10,7 @@ import SupplierForm from '../Screens/StackNavigation/SupplierForm';
 import LoginScreen from '../Screens/StackNavigation/LoginScreen';
 import SupplierOrderForm from '../Screens/StackNavigation/SupplierOrderForm'
 import AccountProfileScreen from '../Screens/DrawerNavigation/AccountProfileScreen';
+import DashboardScreen from '../Screens/BottomTabNavigation/DashboardScreen';
 
 
 const Navbar = () => {
@@ -29,7 +30,9 @@ const Navbar = () => {
             <Stack.Screen name='SalesForm' component={SalesForm} initialParams={{pageTitle: 'New Order'}}/>
             <Stack.Screen name='SupplierOrderForm' component={SupplierOrderForm} initialParams={{pageTitle: 'New Supplier Order'}}/>
             <Stack.Screen name='OrderDetails' component={OrderDetails}/>     
-            <Stack.Screen name='Profile' component={AccountProfileScreen}/> 
+            <Stack.Screen name='Profile' component={AccountProfileScreen}/>
+            <Stack.Screen name='Dashboard' component={DashboardScreen}/>
+             
         </Stack.Navigator>
     )
 }
