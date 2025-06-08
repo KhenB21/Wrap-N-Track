@@ -287,4 +287,137 @@
     width: 120px;
     height: 120px;
   }
+}
+
+/* Modern Customer Profile Card Styles */
+.profile-card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(44,62,80,0.10), 0 1.5px 6px rgba(74,144,226,0.06);
+  max-width: 480px;
+  margin: 48px auto 0 auto;
+  padding: 2.5rem 2rem 2rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-pic-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.profile-picture {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #fff;
+  box-shadow: 0 2px 8px rgba(44,62,80,0.10);
+  background: #f5f5f5;
+}
+
+.edit-profile-pic-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: #696a8f;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  font-size: 1.2rem;
+}
+.edit-profile-pic-btn:hover {
+  background: #5a5b7f;
+}
+
+.profile-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.profile-form h2 {
+  font-size: 1.2rem;
+  color: #2c3e50;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  margin-top: 1.2rem;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.form-row label {
+  font-size: 0.98rem;
+  color: #444;
+  font-weight: 500;
+  margin-bottom: 0.1rem;
+}
+
+.profile-form input[type="text"],
+.profile-form input[type="email"] {
+  padding: 0.7rem 1rem;
+  border: 1.2px solid #e0e0e0;
+  border-radius: 7px;
+  font-size: 1rem;
+  background: #fcfcfa;
+  transition: border 0.2s;
+}
+.profile-form input:focus {
+  outline: none;
+  border-color: #696a8f;
+}
+
+.address-row {
+  flex-direction: row;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.address-row > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.save-btn {
+  background: #3b5bfe;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 0.9rem 2.2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 1.2rem;
+  cursor: pointer;
+  transition: background 0.18s;
+  align-self: flex-end;
+}
+.save-btn:hover {
+  background: #2541b2;
+}
+
+@media (max-width: 700px) {
+  .profile-card {
+    max-width: 98vw;
+    padding: 1.2rem 0.5rem 1.5rem 0.5rem;
+  }
+  .address-row {
+    flex-direction: column;
+    gap: 0.7rem;
+  }
 } 

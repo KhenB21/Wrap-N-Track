@@ -47,7 +47,7 @@ router.get('/profile', async (req, res) => {
     console.log('Fetching profile for customer_id:', customerId);
     
     const result = await pool.query(
-      'SELECT customer_id, name, username, email_address, phone_number, profile_picture_data, is_verified FROM customer_details WHERE customer_id = $1',
+      'SELECT customer_id, name, username, email_address, phone_number, street, city, zipcode, profile_picture_data, is_verified FROM customer_details WHERE customer_id = $1',
       [customerId]
     );
 
@@ -65,6 +65,9 @@ router.get('/profile', async (req, res) => {
     res.json({
       success: true,
       ...customer,
+      street: customer.street,
+      city: customer.city,
+      zipcode: customer.zipcode,
       profile_picture_data: customer.profile_picture_data ? customer.profile_picture_data.toString('base64') : null
     });
   } catch (error) {
@@ -80,7 +83,7 @@ router.get('/profile', async (req, res) => {
 router.put('/profile', async (req, res) => {
   try {
     const customerId = req.user.customer_id;
-    const { name, username, email_address, phone_number } = req.body;
+    const { name, username, email_address, phone_number, street, city, zipcode } = req.body;
 
     // Validate required fields
     if (!name?.trim()) {
@@ -157,8 +160,8 @@ router.put('/profile', async (req, res) => {
     }
 
     const result = await pool.query(
-      'UPDATE customer_details SET name = $1, username = $2, email_address = $3, phone_number = $4 WHERE customer_id = $5 RETURNING *',
-      [name.trim(), username.trim(), email_address.trim(), phone_number, customerId]
+      'UPDATE customer_details SET name = $1, username = $2, email_address = $3, phone_number = $4, street = $5, city = $6, zipcode = $7 WHERE customer_id = $8 RETURNING *',
+      [name.trim(), username.trim(), email_address.trim(), phone_number, street || '', city || '', zipcode || '', customerId]
     );
 
     if (result.rows.length === 0) {
@@ -178,6 +181,9 @@ router.put('/profile', async (req, res) => {
         username: updatedCustomer.username,
         email_address: updatedCustomer.email_address,
         phone_number: updatedCustomer.phone_number,
+        street: updatedCustomer.street,
+        city: updatedCustomer.city,
+        zipcode: updatedCustomer.zipcode,
         is_verified: updatedCustomer.is_verified
       }
     });
@@ -324,6 +330,45 @@ router.post('/resend-verification', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to resend verification code'
+    });
+  }
+});
+
+// Add or update address for customer
+router.post('/profile/address', async (req, res) => {
+  try {
+    const customerId = req.user.customer_id;
+    const { address } = req.body;
+
+    if (!address || !address.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Address is required'
+      });
+    }
+
+    // Save address to the database
+    const result = await pool.query(
+      'UPDATE customer_details SET street = $1 WHERE customer_id = $2 RETURNING street',
+      [address.trim(), customerId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      street: result.rows[0].street
+    });
+  } catch (error) {
+    console.error('Error saving address:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save address'
     });
   }
 });

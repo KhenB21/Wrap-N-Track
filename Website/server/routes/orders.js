@@ -384,4 +384,41 @@ router.get('/wedding-orders/:orderId', async (req, res) => {
   }
 });
 
+// Delete an order by order_id
+router.delete('/:order_id', async (req, res) => {
+  const { order_id } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Delete order products first
+    await client.query('DELETE FROM order_products WHERE order_id = $1', [order_id]);
+    // Delete the order itself
+    const result = await client.query('DELETE FROM orders WHERE order_id = $1 RETURNING *', [order_id]);
+    await client.query('COMMIT');
+    if (!result.rows.length) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    res.json({ success: true, message: 'Order deleted successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting order:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete order' });
+  } finally {
+    client.release();
+  }
+});
+
+// Get all gift details
+router.get('/gift-details', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query('SELECT * FROM order_gift_details ORDER BY name');
+    client.release();
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching gift details:', error);
+    res.status(500).json({ error: 'Failed to fetch gift details' });
+  }
+});
+
 module.exports = router;

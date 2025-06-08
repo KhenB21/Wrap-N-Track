@@ -21,7 +21,9 @@ function CustomerRegister() {
     name: "",
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    phone_number: "",
+    address: ""
   });
   const [profilePicture, setProfilePicture] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -36,6 +38,7 @@ function CustomerRegister() {
   const [checkingName, setCheckingName] = useState(false);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
 
   const navigate = useNavigate();
 
@@ -152,6 +155,29 @@ function CustomerRegister() {
         checkUsernameExists(value);
       }
     }
+
+    // Phone number validation for PH
+    if (name === "phone_number") {
+      // Allow only digits and optional leading +
+      let cleaned = value.replace(/[^\d+]/g, "");
+      // Only allow one leading +
+      if (cleaned.startsWith("++")) cleaned = cleaned.replace(/^\++/, "+");
+      // Limit to 13 chars (+639XXXXXXXXX) or 11 chars (09XXXXXXXXX)
+      if (cleaned.startsWith("+")) cleaned = cleaned.slice(0, 13);
+      else cleaned = cleaned.slice(0, 11);
+      // Set cleaned value
+      setFormData((prev) => ({ ...prev, [name]: cleaned }));
+      setError("");
+      // Validate PH number
+      if (
+        !(cleaned.match(/^09\d{9}$/) || cleaned.match(/^\+639\d{9}$/))
+      ) {
+        setPhoneError("Enter a valid PH mobile number (09XXXXXXXXX or +639XXXXXXXXX)");
+      } else {
+        setPhoneError("");
+      }
+      return;
+    }
   };
 
   const handleFileChange = (e) => {
@@ -184,6 +210,13 @@ function CustomerRegister() {
       return;
     }
 
+    // Phone number validation before submit
+    if (!formData.phone_number.match(/^09\d{9}$/) && !formData.phone_number.match(/^\+639\d{9}$/)) {
+      setError("Please enter a valid PH mobile number (09XXXXXXXXX or +639XXXXXXXXX)");
+      setLoading(false);
+      return;
+    }
+
     try {
       console.log('Attempting registration with API URL:', config.API_URL);
       const formDataToSend = new FormData();
@@ -191,6 +224,8 @@ function CustomerRegister() {
       formDataToSend.append("email", formData.email);
       formDataToSend.append("password", formData.password);
       formDataToSend.append("username", formData.username);
+      formDataToSend.append("phone_number", formData.phone_number);
+      formDataToSend.append("address", formData.address);
       if (profilePicture) {
         formDataToSend.append("profilePicture", profilePicture);
       }
@@ -308,6 +343,35 @@ function CustomerRegister() {
             {passwordMatchError && (
               <div className="error-message">{passwordMatchError}</div>
             )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="phone_number">Phone Number:</label>
+            <input
+              type="tel"
+              id="phone_number"
+              name="phone_number"
+              value={formData.phone_number}
+              onChange={handleChange}
+              required
+              pattern="(09\d{9}|\+639\d{9})"
+              placeholder="09XXXXXXXXX or +639XXXXXXXXX"
+              maxLength={13}
+            />
+            {phoneError && <div className="error-message">{phoneError}</div>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="address">Address:</label>
+            <input
+              type="text"
+              id="address"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              required
+              placeholder="Enter your address"
+            />
           </div>
 
           <div className="form-group">

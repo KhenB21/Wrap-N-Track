@@ -84,22 +84,25 @@ export default function TopbarCustomer() {
     return "/placeholder-profile.png";
   };
 
-  // Close dropdown if clicking outside
+  // Add this new function to handle profile click
+  const handleProfileClick = (e) => {
+    e.stopPropagation();
+    setDropdownVisible(prev => !prev);
+  };
+
+  // Modify the useEffect for click outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setDropdownVisible(false);
       }
     }
-    if (dropdownVisible) {
-      document.addEventListener('mousedown', handleClickOutside);
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside);
-    }
+
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [dropdownVisible]);
+  }, []);
 
   return (
     <header className="topbar-customer">
@@ -152,7 +155,7 @@ export default function TopbarCustomer() {
             <div
               className="customer-profile"
               ref={dropdownRef}
-              onClick={() => setDropdownVisible((prev) => !prev)}
+              onClick={handleProfileClick}
             >
               <img
                 src={getProfilePictureUrl()}
@@ -165,9 +168,9 @@ export default function TopbarCustomer() {
               />
               {dropdownVisible && (
                 <div className="customer-dropdown-menu">
-                  <button onClick={() => { setDropdownVisible(false); navigate('/customer-user-details'); }}>My Account</button>
-                  <button onClick={() => { setDropdownVisible(false); navigate('/customer-cart'); }}>My Purchase</button>
-                  <button onClick={() => { setDropdownVisible(false); handleLogout(); }} className="logout-btn">Logout</button>
+                  <button onClick={(e) => { e.stopPropagation(); setDropdownVisible(false); navigate('/customer-user-details'); }}>My Account</button>
+                  <button onClick={(e) => { e.stopPropagation(); setDropdownVisible(false); navigate('/customer-cart'); }}>My Purchase</button>
+                  <button onClick={(e) => { e.stopPropagation(); setDropdownVisible(false); handleLogout(); }} className="logout-btn">Logout</button>
                 </div>
               )}
             </div>

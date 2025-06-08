@@ -63,7 +63,7 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
     } : 'No file uploaded'
   });
 
-  const { username, name, email, password } = req.body;
+  const { username, name, email, password, phone_number, address } = req.body;
   let profilePictureData = null;
 
   if (req.file) {
@@ -140,8 +140,8 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
     // Insert new customer
     console.log('Inserting new customer into database...');
     const result = await pool.query(
-      'INSERT INTO customer_details (username, name, email_address, password_hash, is_verified, profile_picture_data) VALUES ($1, $2, $3, $4, $5, $6) RETURNING customer_id, username, name, email_address',
-      [username, name, email, passwordHash, false, profilePictureData]
+      'INSERT INTO customer_details (username, name, email_address, password_hash, is_verified, profile_picture_data, phone_number, address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING customer_id, username, name, email_address, phone_number, address',
+      [username, name, email, passwordHash, false, profilePictureData, phone_number, address]
     );
 
     const newCustomer = result.rows[0];
@@ -156,7 +156,9 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
         customer_id: newCustomer.customer_id,
         username: newCustomer.username,
         name: newCustomer.name,
-        email: newCustomer.email_address
+        email: newCustomer.email_address,
+        phone_number: newCustomer.phone_number,
+        address: newCustomer.address
       }
     });
 

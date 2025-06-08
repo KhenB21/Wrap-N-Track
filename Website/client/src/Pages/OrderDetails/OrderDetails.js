@@ -215,7 +215,6 @@ export default function OrderDetails() {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [productError, setProductError] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [archivingOrder, setArchivingOrder] = useState(false);
   const [showEditProductsModal, setShowEditProductsModal] = useState(false);
@@ -226,11 +225,24 @@ export default function OrderDetails() {
 
   // Delete order: confirm and delete
   const handleDeleteOrder = async () => {
-    if (!selectedOrder) return;
+    console.log('selectedOrder:', selectedOrder);
+    if (!selectedOrder || !selectedOrder.order_id) {
+      alert('Order ID is missing. Cannot delete order.');
+      return;
+    }
     try {
-      const response = await api.delete(`/api/orders/${selectedOrder.order_id}`);
+      // Use customerToken if present, otherwise fallback to token
+      const token = localStorage.getItem('customerToken') || localStorage.getItem('token');
+      const response = await api.delete(`/api/orders/${selectedOrder.order_id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
       if (response.data.success) {
-        setShowDeleteConfirm(false);
+        setShowCompleteConfirm(false);
         setSelectedOrderId(null); // Close the order details modal
         fetchOrders();
       } else {
@@ -1421,7 +1433,7 @@ useEffect(() => {
 
         {/* Edit Order Modal */}
         {showEditModal && (
-          <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <div className={`modal-backdrop${showCompleteConfirm ? ' order-details-modal-dim' : ''}`} style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
             <div className="modal" style={{
               background:'#fff',
               borderRadius:16,
@@ -1678,32 +1690,6 @@ useEffect(() => {
           </div>
         )}
 
-        {/* Delete Order Confirm Modal */}
-        {showDeleteConfirm && (
-          <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#0008',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <div className="modal" style={{background:'#fff',padding:32,borderRadius:12,minWidth:400,maxWidth:500,width:'90vw',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
-              <h2 style={{marginBottom:20}}>Delete Order</h2>
-              <div style={{marginBottom:18}}>Are you sure you want to delete this order?</div>
-              <div style={{display:'flex',justifyContent:'flex-end',gap:10}}>
-                <button 
-                  type="button" 
-                  onClick={() => setShowDeleteConfirm(false)} 
-                  style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="button" 
-                  onClick={handleDeleteOrder} 
-                  style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#e74c3c',color:'#fff',fontWeight:600,cursor:'pointer'}}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Complete Order Confirm Modal */}
         {showCompleteConfirm && (
           <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#0008',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -1773,7 +1759,16 @@ useEffect(() => {
                       <FaEdit /> Edit Order
                     </button>
                     <button 
-                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={!selectedOrder || !selectedOrder.order_id}
+                      onClick={() => {
+                        if (!selectedOrder || !selectedOrder.order_id) {
+                          alert('No order selected or order ID missing.');
+                          return;
+                        }
+                        if (window.confirm('Are you sure you want to delete this order?')) {
+                          handleDeleteOrder();
+                        }
+                      }}
                       style={{
                         padding:'7px 18px',
                         borderRadius:6,

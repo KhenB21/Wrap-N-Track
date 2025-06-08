@@ -15,6 +15,9 @@ export default function CustomerUserDetails() {
     profile_picture_path: '',
     profile_picture_data: '',
     phone_number: '',
+    street: '',
+    city: '',
+    zipcode: '',
     addresses: []
   });
   const [loading, setLoading] = useState(true);
@@ -32,11 +35,14 @@ export default function CustomerUserDetails() {
     username: '',
     name: '',
     email: '',
-    phone_number: ''
+    phone_number: '',
+    street: '',
+    city: '',
+    zipcode: ''
   });
 
   // Define the order of fields
-  const fieldOrder = ['username', 'name', 'email', 'phone_number'];
+  const fieldOrder = ['username', 'name', 'email', 'phone_number', 'street', 'city', 'zipcode'];
 
   useEffect(() => {
     const token = localStorage.getItem('customerToken');
@@ -58,12 +64,18 @@ export default function CustomerUserDetails() {
         }
 
         // Ensure we have default values for all fields
+        const street = response.data.street || '';
+        const city = response.data.city || '';
+        const zipcode = response.data.zipcode || '';
         const userData = {
           user_id: response.data.customer_id,
           name: response.data.name || '',
           username: response.data.username || '',
           email: response.data.email_address || '',
           phone_number: response.data.phone_number || '',
+          street,
+          city,
+          zipcode,
           profile_picture_data: response.data.profile_picture_data,
           addresses: response.data.addresses || []
         };
@@ -73,7 +85,10 @@ export default function CustomerUserDetails() {
           username: userData.username,
           name: userData.name,
           email: userData.email,
-          phone_number: userData.phone_number
+          phone_number: userData.phone_number,
+          street: userData.street,
+          city: userData.city,
+          zipcode: userData.zipcode
         });
         setError(null);
       } catch (error) {
@@ -144,7 +159,10 @@ export default function CustomerUserDetails() {
       username: userData.username,
       email: userData.email,
       name: userData.name,
-      phone_number: userData.phone_number
+      phone_number: userData.phone_number,
+      street: userData.street,
+      city: userData.city,
+      zipcode: userData.zipcode
     });
   };
 
@@ -157,7 +175,10 @@ export default function CustomerUserDetails() {
       username: userData.username,
       email: userData.email,
       name: userData.name,
-      phone_number: userData.phone_number
+      phone_number: userData.phone_number,
+      street: userData.street,
+      city: userData.city,
+      zipcode: userData.zipcode
     });
   };
 
@@ -182,18 +203,23 @@ export default function CustomerUserDetails() {
         username: 'username',
         email: 'email_address',
         name: 'name',
-        phone_number: 'phone_number'
+        phone_number: 'phone_number',
+        street: 'street',
+        city: 'city',
+        zipcode: 'zipcode'
       };
 
       const dbField = fieldMapping[field];
       const value = editValues[field].trim();
 
       // Create update object with all required fields
+      const addressString = `${editValues.street}, ${editValues.city}, ${editValues.zipcode}`;
       const updateData = {
         name: field === 'name' ? value : userData.name,
         username: field === 'username' ? value : userData.username,
         email_address: field === 'email' ? value : userData.email,
-        phone_number: field === 'phone_number' ? value : userData.phone_number || ''
+        phone_number: field === 'phone_number' ? value : userData.phone_number || '',
+        address: field === 'street' || field === 'city' || field === 'zipcode' ? addressString : `${userData.street}, ${userData.city}, ${userData.zipcode}`
       };
 
       console.log('Sending update request with data:', updateData); // Debug log
@@ -238,10 +264,19 @@ export default function CustomerUserDetails() {
         }
 
         // Update the userData state with the new value
+        if (['street', 'city', 'zipcode'].includes(field)) {
+          setUserData(prev => ({
+            ...prev,
+            street: editValues.street,
+            city: editValues.city,
+            zipcode: editValues.zipcode
+          }));
+        } else {
         setUserData(prev => ({
           ...prev,
           [field]: value
         }));
+        }
         
         // Update localStorage with new data
         const storedCustomer = JSON.parse(localStorage.getItem('customer'));
@@ -263,7 +298,10 @@ export default function CustomerUserDetails() {
         username: userData.username,
         email: userData.email,
         name: userData.name,
-        phone_number: userData.phone_number
+        phone_number: userData.phone_number,
+        street: userData.street,
+        city: userData.city,
+        zipcode: userData.zipcode
       });
     } finally {
       setLoading(false);
@@ -366,8 +404,13 @@ export default function CustomerUserDetails() {
       const token = localStorage.getItem('customerToken');
       const response = await api.put('/api/customer/profile', 
         {
-          name: userData.name,
-          phone_number: userData.phone_number
+          name: editValues.name,
+          username: editValues.username,
+          email_address: editValues.email,
+          phone_number: editValues.phone_number,
+          street: editValues.street,
+          city: editValues.city,
+          zipcode: editValues.zipcode
         },
         {
           headers: {
@@ -382,8 +425,13 @@ export default function CustomerUserDetails() {
         const storedCustomer = JSON.parse(localStorage.getItem('customer'));
         const updatedCustomer = { 
           ...storedCustomer, 
-          name: userData.name,
-          phone_number: userData.phone_number
+          name: editValues.name,
+          username: editValues.username,
+          email: editValues.email,
+          phone_number: editValues.phone_number,
+          street: editValues.street,
+          city: editValues.city,
+          zipcode: editValues.zipcode
         };
         localStorage.setItem('customer', JSON.stringify(updatedCustomer));
         setError('Profile updated successfully!');
@@ -468,113 +516,60 @@ export default function CustomerUserDetails() {
         <div className="customer-user-details-header">
           <h2>User Details</h2>
         </div>
-        <div className="customer-user-details-form">
-          {error && <div className="error">{error}</div>}
-          {success && <div className="success">{success}</div>}
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <div className="profile-picture-container">
-                <img
-                  src={previewUrl || getProfilePictureUrl()}
-                  alt="Profile"
-                  className="profile-picture"
-                />
-                <button
-                  type="button"
-                  className="edit-profile-pic-btn"
-                  title="Change profile picture"
-                  onClick={handlePencilClick}
-                  disabled={uploading}
-                >
-                  <span role="img" aria-label="Edit">✏️</span>
-                </button>
+        <div className="profile-card">
+          <div className="profile-pic-section">
+            <img src={previewUrl || getProfilePictureUrl()} alt="Profile" className="profile-picture" />
+            <button className="edit-profile-pic-btn" onClick={handlePencilClick} title="Change profile picture">
+              <span role="img" aria-label="Edit">✏️</span>
+            </button>
+            <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleProfilePictureChange} />
+          </div>
+          <form className="profile-form" onSubmit={handleSubmit}>
+            <h2>Profile</h2>
+            <div className="form-row">
+              <label>Username</label>
+              <input type="text" name="username" value={editValues.username} onChange={handleInputChange} required />
+            </div>
+            <div className="form-row">
+              <label>Name</label>
+              <input type="text" name="name" value={editValues.name} onChange={handleInputChange} required />
+            </div>
+            <div className="form-row">
+              <label>Email</label>
+              <input type="email" name="email" value={editValues.email} onChange={handleInputChange} required />
+            </div>
+            <div className="form-row">
+              <label>Phone Number</label>
+              <input type="text" name="phone_number" value={editValues.phone_number} onChange={handleInputChange} required />
+            </div>
+            <h2>Address</h2>
+            <div className="form-row address-row" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <div style={{ flex: 2, minWidth: 180 }}>
+                <label>Street</label>
+                <input type="text" name="street" value={editValues.street} onChange={handleInputChange} required />
+              </div>
+              <div style={{ flex: 1, minWidth: 100 }}>
+                <label>Zip Code</label>
                 <input
-                  type="file"
-                  accept="image/*"
-                  ref={fileInputRef}
-                  style={{ display: 'none' }}
-                  onChange={handleProfilePictureChange}
-                  disabled={uploading}
+                  type="text"
+                  name="zipcode"
+                  value={editValues.zipcode}
+                  onChange={e => {
+                    const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                    setEditValues(prev => ({ ...prev, zipcode: val }));
+                  }}
+                  required
+                  maxLength={4}
+                  pattern="[0-9]{4}"
+                  inputMode="numeric"
                 />
               </div>
-              {uploading && <div className="loading">Uploading...</div>}
-            </div>
-
-            {fieldOrder.map((field) => (
-              <div key={field} className="form-group">
-                <label>{field.charAt(0).toUpperCase() + field.slice(1)}:</label>
-                <div className="edit-field-container">
-                  <input
-                    type={field === 'email' ? 'email' : 'text'}
-                    name={field}
-                    value={editValues[field]}
-                    onChange={handleInputChange}
-                    disabled={editingField !== field}
-                    required
-                  />
-                  {editingField === field ? (
-                    <div className="edit-buttons">
-                      <button 
-                        type="button"
-                        className="save-btn"
-                        onClick={(e) => handleSave(e, field)}
-                        disabled={loading}
-                      >
-                        Save
-                      </button>
-                      <button 
-                        type="button"
-                        className="cancel-btn"
-                        onClick={handleCancel}
-                        disabled={loading}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button 
-                      type="button"
-                      onClick={(e) => handleEdit(e, field)}
-                    >
-                      Edit
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            <div className="form-group addresses-section">
-              <label>Addresses:</label>
-              <div className="addresses-list">
-                {userData.addresses.map((address, index) => (
-                  <div key={index} className="address-item">
-                    <span>{address}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => handleRemoveAddress(e, address)}
-                      className="remove-address-btn"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-                <div className="add-address">
-                  <input
-                    type="text"
-                    value={newAddress}
-                    onChange={(e) => setNewAddress(e.target.value)}
-                    placeholder="Add new address"
-                  />
-                  <button 
-                    type="button"
-                    onClick={handleAddAddress}
-                  >
-                    Add
-                  </button>
-                </div>
+              <div style={{ flex: 1, minWidth: 120 }}>
+                <label>City</label>
+                <input type="text" name="city" value={editValues.city} onChange={handleInputChange} required />
               </div>
             </div>
-
+            <button className="save-btn" type="submit" style={{ marginTop: 24 }}>Save</button>
           </form>
         </div>
       </div>

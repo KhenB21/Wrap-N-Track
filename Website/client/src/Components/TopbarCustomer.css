@@ -149,7 +149,7 @@ body{
 }
 
 .customer-dropdown-menu {
-  display: none;
+  display: block;
   position: absolute;
   top: 110%;
   right: 0;
@@ -162,6 +162,14 @@ body{
   padding: 8px 0 0 0;
   font-family: inherit;
   margin-top: 6px;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s, visibility 0.2s;
+}
+
+.customer-dropdown-menu.hidden {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .customer-dropdown-menu button {
