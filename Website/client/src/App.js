@@ -18,6 +18,7 @@ import CarloPreview from "./Pages/CustomerPOV/CarloPreview";
 import CustomerHome from "./Pages/CustomerPOV/CustomerHome";
 import CustomerCorporate from "./Pages/CustomerCorporate/CustomerCorporate";
 
+
 import ForgotPassword from "./Pages/ForgotPassword/ForgotPassword";
 import EmailVerify from "./Pages/EmailVerify/EmailVerify";
 import ResetPassword from "./Pages/ResetPassword/ResetPassword";
@@ -30,6 +31,7 @@ import CustomerRegister from "./Pages/CustomerPOV/CustomerRegister";
 import CustomerLogIn from "./Pages/CustomerPOV/CustomerLogIn";
 import CustomerUserDetails from "./Pages/CustomerPOV/CustomerUserDetails";
 import CustomerVerify from "./Pages/CustomerPOV/CustomerVerify";
+import TermsOfService from "./Pages/TermsOfService/TermsOfService";
 
 function App() {
   return (

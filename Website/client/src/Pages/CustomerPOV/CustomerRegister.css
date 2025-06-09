@@ -164,3 +164,7 @@
   input[type="file"]::-webkit-file-upload-button:hover {
     background-color: #5a5b7f;
   } 
+
+  .tos-notifier p {
+    font-size: 10px;
+  }

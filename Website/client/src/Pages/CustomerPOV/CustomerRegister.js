@@ -325,6 +325,10 @@ function CustomerRegister() {
             )}
           </div>
 
+          <div className="tos-notifier">
+            <p>By creating an account, you agree to our <a href="/terms-of-service">Terms of Service and Privacy Policy</a></p>
+          </div>
+
           <button type="submit" className="submit-button" disabled={loading}>
             {loading ? "Registering..." : "Register"}
           </button>
