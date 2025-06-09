@@ -240,6 +240,24 @@ function generateOrderId() {
   return `#CO${now}${rand}`;
 }
 
+const calculateOrderTotal = (order) => {
+  if (order && order.products && order.products.length > 0) {
+    return order.products.reduce((sum, product) => {
+      const price = parseFloat(product.unit_price) || 0;
+      // Use order_quantity from the main order for calculation if available and makes sense for the business logic
+      // otherwise, use product.quantity if each product in a box can have different quantities (less likely for gift boxes)
+      // For now, assuming each product's listed quantity IS the quantity per box, and order_quantity is the number of boxes.
+      // If the goal is total value of ONE box, then product.quantity (as items per box) * unit_price, summed up.
+      // If the goal is total value of ALL boxes, then (sum of (product.quantity_in_box * unit_price)) * order.order_quantity.
+      // The current request implies total for the order based on products listed.
+      // Let's assume product.quantity IS the total quantity for that product line in the order.
+      const quantity = parseInt(product.quantity, 10) || 0; 
+      return sum + (price * quantity);
+    }, 0);
+  }
+  return 0;
+};
+
 const normalizeStatus = (status) => {
   if (typeof status !== 'string') return '';
   // Converts to lowercase, removes all spaces, and removes hyphens
@@ -506,7 +524,13 @@ export default function OrderDetails() {
                   <div style={styles.orderName}>{order.name}</div>
                   <div style={styles.orderInfo}>
                     <span>{order.order_id}</span>
-                    <span>₱{Number(order.total_cost).toLocaleString()}</span>
+                    <span>
+                      ₱{
+                        (order.total_cost && Number(order.total_cost) > 0)
+                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      }
+                    </span>
                   </div>
                 </div>
               ))}
@@ -529,7 +553,13 @@ export default function OrderDetails() {
                   <div style={styles.orderName}>{order.name}</div>
                   <div style={styles.orderInfo}>
                     <span>{order.order_id}</span>
-                    <span>₱{Number(order.total_cost).toLocaleString()}</span>
+                    <span>
+                      ₱{
+                        (order.total_cost && Number(order.total_cost) > 0)
+                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      }
+                    </span>
                   </div>
                 </div>
               ))}
@@ -552,7 +582,13 @@ export default function OrderDetails() {
                   <div style={styles.orderName}>{order.name}</div>
                   <div style={styles.orderInfo}>
                     <span>{order.order_id}</span>
-                    <span>₱{Number(order.total_cost).toLocaleString()}</span>
+                    <span>
+                      ₱{
+                        (order.total_cost && Number(order.total_cost) > 0)
+                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      }
+                    </span>
                   </div>
                 </div>
               ))}
@@ -595,7 +631,13 @@ export default function OrderDetails() {
                       <div style={styles.orderName}>{order.name}</div>
                       <div style={styles.orderInfo}>
                         <span>{order.order_id}</span>
-                        <span>₱{Number(order.total_cost).toLocaleString()}</span>
+                        <span>
+                      ₱{
+                        (order.total_cost && Number(order.total_cost) > 0)
+                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      }
+                    </span>
                       </div>
                     </div>
                   ))}
@@ -618,7 +660,13 @@ export default function OrderDetails() {
                       <div style={styles.orderName}>{order.name}</div>
                       <div style={styles.orderInfo}>
                         <span>{order.order_id}</span>
-                        <span>₱{Number(order.total_cost).toLocaleString()}</span>
+                        <span>
+                      ₱{
+                        (order.total_cost && Number(order.total_cost) > 0)
+                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      }
+                    </span>
                       </div>
                     </div>
                   ))}
