@@ -299,259 +299,55 @@ export default function OrderProcess() {
     },
   ];
 
-  const packagingOptions = [
-    {
-      name: "Blanc Box",
-      image: "/Assets/Images/Products/blanc-box.png",
-      description: "white mailer",
-    },
-    {
-      name: "Signature Box",
-      image: "/Assets/Images/Products/signature-box.png",
-      description: "wooden box with acrylic cover",
-    },
-    {
-      name: "Premium Box",
-      image: "/Assets/Images/Products/premium-box.png",
-      description: "wooden box with wooden cover",
-    },
-  ];
+  const CATEGORY_MAP = {
+    packaging: ["Others"],
+    beverages: ["Beverages", "Wine and Spirits"],
+    food: [
+      "Bakery", "Snacks", "Canned Goods", "International Foods", "Organic and Natural",
+      "Groceries", "Dairy and Eggs", "Meat and Seafood", "Frozen Foods", "Fresh Produce"
+    ],
+    kitchenware: ["Kitchenware", "Cookware", "Tableware", "Barware"],
+    homedecor: ["Decor", "Wall Art", "Rugs and Carpets", "Curtains and Blinds", "Bedding", "Lighting"],
+    faceandbody: [ "Skincare", "Bath and Body", "Hair Care", "Perfume and Fragrances", "Cosmetics", "Beauty and Personal Care"],
+    clothing: [
+      "Men's Clothing", "Women's Clothing", "Kids' Clothing", "Shoes", "Accessories",
+      "Jewelry", "Watches", "Underwear and Sleepwear", "Activewear", "Formal Wear"
+    ],
+    leatheranddesk: ["Travel Accessories","Office Supplies", "Office Furniture", "Stationery", "Art Supplies", "Bags and Luggage"],
+  };
+  
+  // State variables for all categories
+  const [packagingProducts, setPackagingProducts] = useState([]);
+  const [beverageProducts, setBeverageProducts] = useState([]);
+  const [foodProducts, setFoodProducts] = useState([]);
+  const [kitchenwareProducts, setKitchenwareProducts] = useState([]);
+  const [homeDecorProducts, setHomeDecorProducts] = useState([]);
+  const [faceAndBodyProducts, setFaceAndBodyProducts] = useState([]);
+  const [clothingProducts, setClothingProducts] = useState([]);
+  const [leatherDeskProducts, setLeatherDeskProducts] = useState([]);
+  
+  // Fetch all categories on component mount
+  useEffect(() => {
+    fetchProductsByCategory('packaging', setPackagingProducts);
+    fetchProductsByCategory('beverages', setBeverageProducts);
+    fetchProductsByCategory('food', setFoodProducts);
+    fetchProductsByCategory('kitchenware', setKitchenwareProducts);
+    fetchProductsByCategory('homedecor', setHomeDecorProducts);
+    fetchProductsByCategory('faceandbody', setFaceAndBodyProducts);
+    fetchProductsByCategory('clothing', setClothingProducts);
+    fetchProductsByCategory('leatheranddesk', setLeatherDeskProducts);
+  }, []);
 
-  const contentBeverageOptions = [
-    {
-      name: "Local Coffee",
-      image: "/Assets/Images/Products/local-coffee.png",
-      description: "Local Coffee",
-    },
-    {
-      name: "Loose-leaf Tea",
-      image: "/Assets/Images/Products/loose-leaf-tea.png",
-      description: "Loose-leaf Tea",
-    },
-    {
-      name: "Beer",
-      image: "/Assets/Images/Products/beer.png",
-      description: "Beer",
-    },
-    {
-      name: "Mini Wine",
-      image: "/Assets/Images/Products/mini-wine.png",
-      description: "Mini Wine",
-    },
-    {
-      name: "Mini Whiskey",
-      image: "/Assets/Images/Products/mini-whiskey.png",
-      description: "Mini Whiskey",
-    },
-    {
-      name: "Full-sized Wine",
-      image: "/Assets/Images/Products/full-sized-wine.png",
-      description: "Full-sized Wine",
-    },
-    {
-      name: "Full-sized Spirits/Liquor",
-      image: "/Assets/Images/Products/full-sized-spirits-liquor.png",
-      description: "Full-sized Spirits/Liquor",
-    },
-    {
-      name: "Tablea de Cacao",
-      image: "/Assets/Images/Products/tablea-de-cacao.png",
-      description: "Tablea de Cacao",
-    },
-  ];
-
-  const contentFoodOptions = [
-    {
-      name: "Sweet Pastries & Cookies",
-      image: "/Assets/Images/Products/sweet-pastries-and-cookies.png",
-      description: "MOQ: 6 pcs., sold as a set",
-    },
-    {
-      name: "French Macarons",
-      image: "/Assets/Images/Products/french-macarons.png",
-      description: "MOQ: 6 pcs.",
-    },
-    {
-      name: "Artisanal Chocolate bar",
-      image: "/Assets/Images/Products/artisanal-chocolate-bar.png",
-      description: "",
-    },
-    {
-      name: "Custom Sugar Cookies",
-      image: "/Assets/Images/Products/custom-sugar-cookies.png",
-      description: "MOQ: 12 pcs. per design",
-    },
-    {
-      name: "Organic Raw Honey",
-      image: "/Assets/Images/Products/organic-raw-honey.png",
-      description: "",
-    },
-    {
-      name: "Infused Salt",
-      image: "/Assets/Images/Products/infused-salt.png",
-      description: "set",
-    },
-    {
-      name: "Super Seeds & Nuts",
-      image: "/Assets/Images/Products/super-seeds-and-nuts.png",
-      description: "",
-    },
-  ];
-
-  const contentKitchenwareOptions = [
-    {
-      name: "Cheese Knives",
-      image: "/Assets/Images/Products/cheese-knives.png",
-      description: "set",
-    },
-    {
-      name: "Champagne Flute",
-      image: "/Assets/Images/Products/champagne-flute.png",
-      description: "",
-    },
-    {
-      name: "Stemless Wine Glass",
-      image: "/Assets/Images/Products/stemless-wine-glass.png",
-      description: "customizable",
-    },
-    {
-      name: "Tea Infuser",
-      image: "/Assets/Images/Products/tea-infuser.png",
-      description: "",
-    },
-    {
-      name: "Whiskey Glass",
-      image: "/Assets/Images/Products/whiskey-glass.png",
-      description: "",
-    },
-    {
-      name: "Beer Mug",
-      image: "/Assets/Images/Products/beer-mug.png",
-      description: "set",
-    },
-    {
-      name: "Mug",
-      image: "/Assets/Images/Products/mug.png",
-      description: "MOQ: 10 pcs., Customizable: Engraving",
-    },
-    {
-      name: "Wooden Coaster",
-      image: "/Assets/Images/Products/wooden-coaster.png",
-      description: "customizable",
-    },
-  ];
-
-  const contentHomeDecorOptions = [
-    {
-      name: "Scented Candle",
-      image: "/Assets/Images/Products/scented-candle.png",
-      description: "",
-    },
-    {
-      name: "Reed Difuser",
-      image: "/Assets/Images/Products/reed-difuser.png",
-      description: "",
-    },
-    {
-      name: "Room & Linen Spray",
-      image: "/Assets/Images/Products/room-and-linen-Spray.png",
-      description: "",
-    },
-  ];
-
-  const contentFaceAndBodyOptions = [
-    {
-      name: "Artisanal Soap",
-      image: "/Assets/Images/Products/artisanal-soap.png",
-      description: "",
-    },
-    {
-      name: "Aromatherapy Hand Wash",
-      image: "/Assets/Images/Products/aromatherapy-hand-wash.png",
-      description: "",
-    },
-    {
-      name: "Aromatherapy Body Wash",
-      image: "/Assets/Images/Products/aromatherapy-body-wash.png",
-      description: "",
-    },
-    {
-      name: "Solid Lotion bar",
-      image: "/Assets/Images/Products/solid-lotion-bar.png",
-      description: "",
-    },
-    {
-      name: "Pomade",
-      image: "/Assets/Images/Products/pomade.png",
-      description: "",
-    },
-    {
-      name: "Bath Soak",
-      image: "/Assets/Images/Products/bath-soak.png",
-      description: "",
-    },
-    {
-      name: "Sugar Body Polish",
-      image: "/Assets/Images/Products/sugar-body-polish.png",
-      description: "",
-    },
-  ];
-
-  const contentClothingAndAccessoriesOptions = [
-    {
-      name: "Satin Robe",
-      image: "/Assets/Images/Products/satin-robe.png",
-      description: "customizable",
-    },
-    {
-      name: "Men's Satin Robe",
-      image: "/Assets/Images/Products/mens-satin-robe.png",
-      description: "customizble",
-    },
-    {
-      name: "Satin Headband",
-      image: "/Assets/Images/Products/satin-headband.png",
-      description: "",
-    },
-    {
-      name: "Crystal Stacker",
-      image: "/Assets/Images/Products/crystal-stacker.png",
-      description: "",
-    },
-    {
-      name: "Custom Clay Earrings",
-      image: "/Assets/Images/Products/custom-clay-earrings.png",
-      description: "",
-    },
-  ];
-
-  const contentLeatherProductsDeskEssentialOptions = [
-    {
-      name: "Bullet Pen",
-      image: "/Assets/Images/Products/satin-robe.png",
-      description: "customizable",
-    },
-    {
-      name: "Key Holder",
-      image: "/Assets/Images/Products/mens-satin-robe.png",
-      description: "customizble",
-    },
-    {
-      name: "Card Holder with Money Clip",
-      image: "/Assets/Images/Products/satin-headband.png",
-      description: "",
-    },
-    {
-      name: "Luggage Tag",
-      image: "/Assets/Images/Products/crystal-stacker.png",
-      description: "",
-    },
-    {
-      name: "Vanity Pouch",
-      image: "/Assets/Images/Products/custom-clay-earrings.png",
-      description: "",
-    },
-  ];
+const fetchProductsByCategory = async (frontendCategory, setProducts) => {
+  const dbCategories = CATEGORY_MAP[frontendCategory];
+  if (!dbCategories) return;
+  try {
+    const response = await api.get(`/api/products?categories=${dbCategories.join(',')}`);
+    setProducts(response.data);
+  } catch (error) {
+    console.error(`Error fetching products for ${frontendCategory}:`, error);
+  }
+};
 
   const customizationOptions = [
     {
@@ -656,13 +452,13 @@ export default function OrderProcess() {
 
   const handleLeatherDeskEssentialsSelect = (option) => {
   setSelectedLeatherDeskEssentials(prev => {
-    if (prev.includes(option.name)) {
-      return prev.filter(name => name !== option.name);
-    } else {
-      return [...prev, option.name];
-    }
-  });
-};
+      if (prev.includes(option.name)) {
+        return prev.filter(name => name !== option.name);
+      } else {
+        return [...prev, option.name];
+      }
+    });
+  };
 
   const handleCustomizationSelect = (option) => {
     setSelectedCustomization(prev => {
@@ -847,42 +643,42 @@ export default function OrderProcess() {
 
     // Add regular selected items
     selectedPackaging.forEach(name => {
-      const item = packagingOptions.find(opt => opt.name === name);
+      const item = packagingProducts.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'packaging' });
     });
 
     selectedBeverages.forEach(name => {
-      const item = contentBeverageOptions.find(opt => opt.name === name);
+      const item = beverageProducts.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'beverages' });
     });
 
     selectedFood.forEach(name => {
-      const item = contentFoodOptions.find(opt => opt.name === name);
+      const item = foodProducts.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'food' });
     });
 
     selectedKitchenware.forEach(name => {
-      const item = contentKitchenwareOptions.find(opt => opt.name === name);
+      const item = kitchenwareProducts.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'kitchenware' });
     });
 
     selectedHomeDecor.forEach(name => {
-      const item = contentHomeDecorOptions.find(opt => opt.name === name);
+      const item = homeDecorProducts.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'homedecor' });
     });
 
     selectedFaceAndBody.forEach(name => {
-      const item = contentFaceAndBodyOptions.find(opt => opt.name === name);
+      const item = faceAndBodyProducts.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'faceandbody' });
     });
 
     selectedClothing.forEach(name => {
-      const item = contentClothingAndAccessoriesOptions.find(opt => opt.name === name);
+      const item = clothingProducts.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'clothing' });
     });
 
     selectedLeatherDeskEssentials.forEach(name => {
-      const item = contentLeatherProductsDeskEssentialOptions.find(opt => opt.name === name);
+      const item = leatherDeskProducts.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'leatherDesk' });
     });
 
@@ -899,13 +695,13 @@ export default function OrderProcess() {
 
     const renderCategoryContent = () => {
       const allItems = [
-        ...packagingOptions.map(item => ({ ...item, category: 'packaging' })),
-        ...contentBeverageOptions.map(item => ({ ...item, category: 'beverages' })),
-        ...contentFoodOptions.map(item => ({ ...item, category: 'food' })),
-        ...contentKitchenwareOptions.map(item => ({ ...item, category: 'kitchenware' })),
-        ...contentHomeDecorOptions.map(item => ({ ...item, category: 'homedecor' })),
-        ...contentFaceAndBodyOptions.map(item => ({ ...item, category: 'faceandbody' })),
-        ...contentClothingAndAccessoriesOptions.map(item => ({ ...item, category: 'clothing' })),
+        ...packagingProducts.map(item => ({ ...item, category: 'packaging' })),
+        ...beverageProducts.map(item => ({ ...item, category: 'beverages' })),
+        ...foodProducts.map(item => ({ ...item, category: 'food' })),
+        ...kitchenwareProducts.map(item => ({ ...item, category: 'kitchenware' })),
+        ...homeDecorProducts.map(item => ({ ...item, category: 'homedecor' })),
+        ...faceAndBodyProducts.map(item => ({ ...item, category: 'faceandbody' })),
+        ...clothingProducts.map(item => ({ ...item, category: 'clothing' })),
         ...customizationOptions.map(item => ({ ...item, category: 'customization' }))
       ];
 
@@ -1492,12 +1288,12 @@ useEffect(() => {
                   <li><strong>STEP 3:</strong> Choose packaging enhancements</li>
                   <li><strong>STEP 4:</strong> Finalize and submit</li>
                 </ol>
-              </div>
+                  </div>
           )}
-    
+
           {currentStep === 1 && (
             <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
-              <div style={styles.formGroup}>
+                  <div style={styles.formGroup}>
                 <label style={styles.label}>Order Type</label>
                 <div style={{ display: 'flex', gap: '20px' }}>
                   <label>
@@ -1521,8 +1317,8 @@ useEffect(() => {
                     />{" "}
                     Single Order (only packaging customizable)
                   </label>
+                  </div>
                 </div>
-              </div>
 
               <div style={{backgroundColor: "#2ECC71", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
                 <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
@@ -1540,9 +1336,9 @@ useEffect(() => {
               </div>
 
               <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                {packagingOptions.map((option, index) => (
+                {packagingProducts.map((product) => (
                   <div 
-                    key={index}
+                    key={product.sku}
                     className="packagingOptions" 
                     style={{
                       border: "2px solid #f0f0f0", 
@@ -1553,9 +1349,9 @@ useEffect(() => {
                       transition: "all 0.3s ease",
                       position: "relative"
                     }}
-                    onClick={() => handlePackagingSelect(option)}
+                    onClick={() => handlePackagingSelect(product)}
                   >
-                    {selectedPackaging.includes(option.name) && (
+                    {selectedPackaging.includes(product.name) && (
                       <div style={{
                         position: "absolute",
                         top: "-10px",
@@ -1576,13 +1372,13 @@ useEffect(() => {
                     )}
                     <div className="packagingImage">
                       <img
-                        src={option.image}
-                        alt={`${option.name} - ${option.description}`}
-                        className={option.name.toLowerCase().replace(" ", "")}
+                        src={product.image ? `data:image/jpeg;base64,${product.image}` : '/Assets/Images/placeholder.png'}
+                        alt={`${product.name} - ${product.description}`}
+                        className={product.name.toLowerCase().replace(" ", "")}
                       />
                     </div>
-                    <h4>{option.name}</h4>
-                    <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                    <h4>{product.name}</h4>
+                    <p style={{ fontStyle: "italic", fontSize: "12px"}}>{product.description}</p>
                   </div>
                 ))}
               </div>
@@ -1773,9 +1569,9 @@ useEffect(() => {
                   <p>MOQ for custom coffee and tea packaging is 12 pcs.</p>
 
                   <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                    {contentBeverageOptions.map((option, index) => (
+                    {beverageProducts.map((product) => (
                       <div 
-                        key={index}
+                        key={product.sku}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
@@ -1786,9 +1582,9 @@ useEffect(() => {
                           transition: "all 0.3s ease",
                           position: "relative"
                         }}
-                        onClick={() => handleBeverageSelect(option)}
+                        onClick={() => handleBeverageSelect(product)}
                       >
-                        {selectedBeverages.includes(option.name) && (
+                        {selectedBeverages.includes(product.name) && (
                           <div style={{
                             position: "absolute",
                             top: "-10px",
@@ -1809,12 +1605,19 @@ useEffect(() => {
                         )}
                         <div className="packagingImage">
                           <img
-                            src={option.image}
-                            alt={`${option.name} - ${option.description}`}
-                            className={option.name.toLowerCase().replace(" ", "")}
+                            src={product.image ? `data:image/jpeg;base64,${product.image}` : '/Assets/Images/placeholder.png'}
+                            alt={`${product.name} - ${product.description}`}
+                            className={product.name.toLowerCase().replace(" ", "")}
+                            style={{
+                              width: "150px",  // Fixed width
+                              height: "150px", // Same as width to make it square
+                              objectFit: "contain",
+                              display: "block",
+                              margin: "0 auto" // Centers the image
+                            }}
                           />
                         </div>
-                        <h4>{option.name}</h4>
+                        <h4>{product.name}</h4>
                       </div>
                     ))}
                   </div>
@@ -1838,9 +1641,9 @@ useEffect(() => {
                   <p>Infused Salts are sold as a set for retail orders.</p>
 
                   <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                    {contentFoodOptions.map((option, index) => (
+                    {foodProducts.map((product) => (
                       <div 
-                        key={index}
+                        key={product.sku}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
@@ -1851,9 +1654,9 @@ useEffect(() => {
                           transition: "all 0.3s ease",
                           position: "relative"
                         }}
-                        onClick={() => handleFoodSelect(option)}
+                        onClick={() => handleFoodSelect(product)}
                       >
-                        {selectedFood.includes(option.name) && (
+                        {selectedFood.includes(product.name) && (
                           <div style={{
                             position: "absolute",
                             top: "-10px",
@@ -1874,13 +1677,13 @@ useEffect(() => {
                         )}
                         <div className="packagingImage">
                           <img
-                            src={option.image}
-                            alt={`${option.name} - ${option.description}`}
-                            className={option.name.toLowerCase().replace(" ", "")}
+                            src={product.image ? `data:image/jpeg;base64,${product.image}` : '/Assets/Images/placeholder.png'}
+                            alt={`${product.name} - ${product.description}`}
+                            className={product.name.toLowerCase().replace(" ", "")}
                           />
                         </div>
-                        <h4>{option.name}</h4>
-                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                        <h4>{product.name}</h4>
+                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{product.description}</p>
                       </div>
                     ))}
                   </div>
@@ -1904,9 +1707,9 @@ useEffect(() => {
                   <p>MOQ for personalized wooden kitchenware is 10 pcs.</p>
 
                   <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                    {contentKitchenwareOptions.map((option, index) => (
+                    {kitchenwareProducts.map((product) => (
                       <div 
-                        key={index}
+                        key={product.sku}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
@@ -1917,9 +1720,9 @@ useEffect(() => {
                           transition: "all 0.3s ease",
                           position: "relative"
                         }}
-                        onClick={() => handleKitchenwareSelect(option)}
+                        onClick={() => handleKitchenwareSelect(product)}
                       >
-                        {selectedKitchenware.includes(option.name) && (
+                        {selectedKitchenware.includes(product.name) && (
                           <div style={{
                             position: "absolute",
                             top: "-10px",
@@ -1940,13 +1743,13 @@ useEffect(() => {
                         )}
                         <div className="packagingImage">
                           <img
-                            src={option.image}
-                            alt={`${option.name} - ${option.description}`}
-                            className={option.name.toLowerCase().replace(" ", "")}
+                            src={product.image ? `data:image/jpeg;base64,${product.image}` : '/Assets/Images/placeholder.png'}
+                            alt={`${product.name} - ${product.description}`}
+                            className={product.name.toLowerCase().replace(" ", "")}
                           />
                         </div>
-                        <h4>{option.name}</h4>
-                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                        <h4>{product.name}</h4>
+                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{product.description}</p>
                       </div>
                     ))}
                   </div>
@@ -1968,9 +1771,9 @@ useEffect(() => {
                   </div>
 
                   <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                    {contentHomeDecorOptions.map((option, index) => (
+                    {homeDecorProducts.map((product) => (
                       <div 
-                        key={index}
+                        key={product.sku}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
@@ -1981,9 +1784,9 @@ useEffect(() => {
                           transition: "all 0.3s ease",
                           position: "relative"
                         }}
-                        onClick={() => handleHomeDecorSelect(option)}
+                        onClick={() => handleHomeDecorSelect(product)}
                       >
-                        {selectedHomeDecor.includes(option.name) && (
+                        {selectedHomeDecor.includes(product.name) && (
                           <div style={{
                             position: "absolute",
                             top: "-10px",
@@ -2004,13 +1807,13 @@ useEffect(() => {
                         )}
                         <div className="packagingImage">
                           <img
-                            src={option.image}
-                            alt={`${option.name} - ${option.description}`}
-                            className={option.name.toLowerCase().replace(" ", "")}
+                            src={product.image ? `data:image/jpeg;base64,${product.image}` : '/Assets/Images/placeholder.png'}
+                            alt={`${product.name} - ${product.description}`}
+                            className={product.name.toLowerCase().replace(" ", "")}
                           />
                         </div>
-                        <h4>{option.name}</h4>
-                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                        <h4>{product.name}</h4>
+                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{product.description}</p>
                       </div>
                     ))}
                   </div>
@@ -2032,9 +1835,9 @@ useEffect(() => {
                   </div>
 
                   <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                    {contentFaceAndBodyOptions.map((option, index) => (
+                    {faceAndBodyProducts.map((product) => (
                       <div 
-                        key={index}
+                        key={product.sku}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
@@ -2045,9 +1848,9 @@ useEffect(() => {
                           transition: "all 0.3s ease",
                           position: "relative"
                         }}
-                        onClick={() => handleFaceAndBodySelect(option)}
+                        onClick={() => handleFaceAndBodySelect(product)}
                       >
-                        {selectedFaceAndBody.includes(option.name) && (
+                        {selectedFaceAndBody.includes(product.name) && (
                           <div style={{
                             position: "absolute",
                             top: "-10px",
@@ -2068,13 +1871,13 @@ useEffect(() => {
                         )}
                         <div className="packagingImage">
                           <img
-                            src={option.image}
-                            alt={`${option.name} - ${option.description}`}
-                            className={option.name.toLowerCase().replace(" ", "")}
+                            src={product.image ? `data:image/jpeg;base64,${product.image}` : '/Assets/Images/placeholder.png'}
+                            alt={`${product.name} - ${product.description}`}
+                            className={product.name.toLowerCase().replace(" ", "")}
                           />
                         </div>
-                        <h4>{option.name}</h4>
-                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                        <h4>{product.name}</h4>
+                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{product.description}</p>
                       </div>
                     ))}
                   </div>
@@ -2096,9 +1899,9 @@ useEffect(() => {
                   </div>
 
                   <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                    {contentClothingAndAccessoriesOptions.map((option, index) => (
+                    {clothingProducts.map((product) => (
                       <div 
-                        key={index}
+                        key={product.sku}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
@@ -2109,9 +1912,9 @@ useEffect(() => {
                           transition: "all 0.3s ease",
                           position: "relative"
                         }}
-                        onClick={() => handleClothingSelect(option)}
+                        onClick={() => handleClothingSelect(product)}
                       >
-                        {selectedClothing.includes(option.name) && (
+                        {selectedClothing.includes(product.name) && (
                           <div style={{
                             position: "absolute",
                             top: "-10px",
@@ -2132,13 +1935,13 @@ useEffect(() => {
                         )}
                         <div className="packagingImage">
                           <img
-                            src={option.image}
-                            alt={`${option.name} - ${option.description}`}
-                            className={option.name.toLowerCase().replace(" ", "")}
+                            src={product.image ? `data:image/jpeg;base64,${product.image}` : '/Assets/Images/placeholder.png'}
+                            alt={`${product.name} - ${product.description}`}
+                            className={product.name.toLowerCase().replace(" ", "")}
                           />
                         </div>
-                        <h4>{option.name}</h4>
-                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                        <h4>{product.name}</h4>
+                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{product.description}</p>
                       </div>
                     ))}
                   </div>
@@ -2161,9 +1964,9 @@ useEffect(() => {
                   </div>
 
                   <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
-                    {contentLeatherProductsDeskEssentialOptions.map((option, index) => (
+                    {leatherDeskProducts.map((product) => (
                       <div 
-                        key={index}
+                        key={product.sku}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
@@ -2174,9 +1977,9 @@ useEffect(() => {
                           transition: "all 0.3s ease",
                           position: "relative"
                         }}
-                        onClick={() => handleLeatherDeskEssentialsSelect(option)}
+                        onClick={() => handleLeatherDeskEssentialsSelect(product)}
                       >
-                        {selectedLeatherDeskEssentials.includes(option.name) && (
+                        {selectedLeatherDeskEssentials.includes(product.name) && (
                           <div style={{
                             position: "absolute",
                             top: "-10px",
@@ -2197,13 +2000,20 @@ useEffect(() => {
                         )}
                         <div className="packagingImage">
                           <img
-                            src={option.image}
-                            alt={`${option.name} - ${option.description}`}
-                            className={option.name.toLowerCase().replace(" ", "")}
+                            src={product.image ? `data:image/jpeg;base64,${product.image}` : '/Assets/Images/placeholder.png'}
+                            alt={`${product.name} - ${product.description}`}
+                            className={product.name.toLowerCase().replace(" ", "")}
+                            style={{
+                              width: "150px",  // Fixed width
+                              height: "150px", // Same as width to make it square
+                              objectFit: "contain",
+                              display: "block",
+                              margin: "0 auto" // Centers the image
+                            }}
                           />
                         </div>
-                        <h4>{option.name}</h4>
-                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                        <h4>{product.name}</h4>
+                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{product.description}</p>
                       </div>
                     ))}
                   </div>
@@ -2286,55 +2096,55 @@ useEffect(() => {
             </form>
           )}
           {currentStep === 4 && (
-  <form style={{...styles.form, width: "100%", display: "flex", flexDirection: "row", gap: "50px"}} onSubmit={handleSubmit}>
-    <div style={{width: "50%"}}>
-      <div style={styles.formGroup}>
+            <form style={{...styles.form, width: "100%", display: "flex", flexDirection: "row", gap: "50px"}} onSubmit={handleSubmit}>
+              <div style={{width: "50%"}}>
+                <div style={styles.formGroup}>
         <label style={styles.label}>Event Date</label>
-        <input
-          type="date"
+                  <input
+                    type="date"
           name="eventDate"
           value={formData.eventDate}
-          onChange={handleInputChange}
-          style={styles.input}
-          required
-        />
-      </div>
+                    onChange={handleInputChange}
+                    style={styles.input}
+                    required
+                  />
+                </div>
 
-      <div style={styles.formGroup}>
+                <div style={styles.formGroup}>
         <label style={styles.label}>Preferred Delivery Date</label>
-        <input
-          type="date"
+                  <input
+                    type="date"
           name="preferredDeliveryDate"
           value={formData.preferredDeliveryDate}
-          onChange={handleInputChange}
-          style={styles.input}
-          required
-        />
-      </div>
+                    onChange={handleInputChange}
+                    style={styles.input}
+                    required
+                  />
+                </div>
 
-      <div style={styles.formGroup}>
-        <label style={styles.label}>Number of Gift Boxes</label>
-        <input
-          type="number"
-          name="guestCount"
-          value={formData.guestCount}
-          onChange={handleInputChange}
-          style={styles.input}
-          required
-        />
-      </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Number of Gift Boxes</label>
+                  <input
+                    type="number"
+                    name="guestCount"
+                    value={formData.guestCount}
+                    onChange={handleInputChange}
+                    style={styles.input}
+                    required
+                  />
+                </div>
 
-      <div style={styles.formGroup}>
-        <label style={styles.label}>Special Requests</label>
-        <textarea
-          name="specialRequests"
-          value={formData.specialRequests}
-          onChange={handleInputChange}
-          style={{ ...styles.input, height: "120px" }}
-          placeholder="Any specific requirements or preferences?"
-          cols={50}
-        ></textarea>
-      </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Special Requests</label>
+                  <textarea
+                    name="specialRequests"
+                    value={formData.specialRequests}
+                    onChange={handleInputChange}
+                    style={{ ...styles.input, height: "120px" }}
+                    placeholder="Any specific requirements or preferences?"
+                    cols={50}
+                  ></textarea>
+                </div>
 
       <div style={styles.formGroup}>
         <label style={styles.label}>Payment Method</label>
@@ -2394,68 +2204,68 @@ useEffect(() => {
         />
       </div>
 
-      <button type="submit" style={styles.button}>
-        Submit Order
-      </button>
-    </div>
+                <button type="submit" style={styles.button}>
+                  Submit Order
+                </button>
+              </div>
 
-    <div style={{flex: 1, width: "50%"}}>
+              <div style={{flex: 1, width: "50%"}}>
       <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", width: "100%"}}>
-        <h3 style={{fontWeight: "bold", color: "#2c3e50"}}>Selected Items</h3>
-        <button 
-          onClick={() => handleEditCategory('all')}
-          style={{
-            padding: "4px 8px",
-            backgroundColor: "#696a8f",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-            fontSize: "12px"
-          }}
-        >
-          Edit Selection
-        </button>
-      </div>
+                  <h3 style={{fontWeight: "bold", color: "#2c3e50"}}>Selected Items</h3>
+                  <button 
+                    onClick={() => handleEditCategory('all')}
+                    style={{
+                      padding: "4px 8px",
+                      backgroundColor: "#696a8f",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "12px"
+                    }}
+                  >
+                    Edit Selection
+                  </button>
+                </div>
 
-      <p>Select an item to customize.</p>
-      
-      <div style={{
-        display: "flex",
-        gap: "20px",
-        overflowX: "auto",
-        padding: "10px 0",
-        scrollbarWidth: "thin",
-        scrollbarColor: "#696a8f #f0f0f0"
-      }}>
-        {getAllSelectedItems().map((item, index) => (
-          <div 
-            key={`${item.category}-${index}`}
-            className="packagingOptions" 
-            style={{
-              border: "2px solid #f0f0f0", 
-              borderRadius: "12px", 
-              padding: "20px",
-              maxWidth: "32.4%",
-              flexShrink: 0,
-              position: "relative"
-            }}
-          >
-            <div className="packagingImage">
-              <img
-                src={item.image}
-                alt={`${item.name} - ${item.description}`}
-                className={item.name.toLowerCase().replace(" ", "")}
-              />
-            </div>
-            <h4>{item.name}</h4>
-            <p style={{ fontStyle: "italic", fontSize: "12px"}}>{item.description}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  </form>
-)}
+                <p>Select an item to customize.</p>
+                
+                <div style={{
+                  display: "flex",
+                  gap: "20px",
+                  overflowX: "auto",
+                  padding: "10px 0",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#696a8f #f0f0f0"
+                }}>
+                  {getAllSelectedItems().map((item, index) => (
+                    <div 
+                      key={`${item.category}-${index}`}
+                      className="packagingOptions" 
+                      style={{
+                        border: "2px solid #f0f0f0", 
+                        borderRadius: "12px", 
+                        padding: "20px",
+                        maxWidth: "32.4%",
+                        flexShrink: 0,
+                        position: "relative"
+                      }}
+                    >
+                      <div className="packagingImage">
+                        <img
+                          src={item.image}
+                          alt={`${item.name} - ${item.description}`}
+                          className={item.name.toLowerCase().replace(" ", "")}
+                        />
+                      </div>
+                      <h4>{item.name}</h4>
+                      <p style={{ fontStyle: "italic", fontSize: "12px"}}>{item.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </form>
+          )}
           
           {renderModal()}
         </div>

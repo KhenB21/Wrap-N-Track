@@ -1610,3 +1610,20 @@ app.put('/api/inventory/:sku/adjust', async (req, res) => {
     client.release();
   }
 });
+
+// Add this to your Express app
+app.get('/api/products', async (req, res) => {
+  try {
+    const categories = req.query.categories ? req.query.categories.split(',') : [];
+    let query = 'SELECT sku, name, description, ENCODE(image_data, \'base64\') as image, category FROM inventory_items';
+    let params = [];
+    if (categories.length > 0) {
+      query += ` WHERE category = ANY($1)`;
+      params.push(categories);
+    }
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
