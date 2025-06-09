@@ -7,6 +7,7 @@ import VerifyEmailScreen from "../Screen/VerifyEmailScreen";
 import ForgotPasswordScreen from "../Screen/ForgotPasswordScreen";
 import ResetPasswordScreen from "../Screen/ResetPasswordScreen";
 import MainDrawer from "./MainDrawer";
+import ProductDetailsScreen from "../Screen/ProductDetailsScreen";
 
 const Stack = createStackNavigator();
 
@@ -18,6 +19,7 @@ export default function AppNavigator() {
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />

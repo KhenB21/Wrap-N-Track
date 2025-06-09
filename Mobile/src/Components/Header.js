@@ -1,5 +1,11 @@
 import React from "react";
-import { View, Image, TouchableOpacity, StyleSheet, Platform } from "react-native";
+import {
+  View,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function Header({ onMenuPress, onCartPress }) {
@@ -24,20 +30,20 @@ export default function Header({ onMenuPress, onCartPress }) {
 
 const styles = StyleSheet.create({
   header: {
-    position: "absolute",      // <-- makes it overlay the top
+    position: "absolute", // <-- makes it overlay the top
     left: 0,
     right: 0,
     top: 0,
     zIndex: 100,
-    height: 90,                // adjust for status bar
+    height: 90, // adjust for status bar
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#747497",
     borderBottomColor: "#fff",
     borderBottomWidth: 4,
-    paddingHorizontal: 0,      // no padding on the sides!
-    marginHorizontal: 0,       // no margin
+    paddingHorizontal: 0, 
+    marginHorizontal: 0, 
   },
   iconBtn: {
     width: 54,
