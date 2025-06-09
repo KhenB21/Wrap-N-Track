@@ -635,23 +635,41 @@ export default function OrderProcess() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Get customer details from localStorage
       const customerData = JSON.parse(localStorage.getItem('customer'));
       const token = localStorage.getItem('customerToken');
       
       if (!customerData || !customerData.email) {
         throw new Error('Customer email not found. Please log in again.');
       }
-      
       if (!token) {
         throw new Error('Authentication token not found. Please log in again.');
       }
 
-      // Determine products based on selected style
-      let selectedStyleProducts = [];
-      const styleIdentifier = formData.style; // e.g., "Modern Romantic"
+      const guestQuantity = parseInt(formData.guestCount, 10) || 1;
+      let productsForOrder = [];
 
-      // Assuming modernRomantic, bohoChic, etc., are defined in the component's scope
+      const productNameToSku = {
+        "Blanc Box": "BC2350939297462", "Signature Box": "BC8201847934939", "Premium Box": "BC3344504438612",
+        "Local Coffee": "BC269406629240", "Loose-leaf Tea": "BC2360282995737", "Beer": "BC6208896644655",
+        "Mini Wine": "BC757578736643", "Mini Whiskey": "BC3887477589362", "Full-sized Wine": "BC1321769559491",
+        "Full-sized Spirits/Liquor": "BC7274786312457", "Tablea de Cacao": "BC3186447262236",
+        "Sweet Pastries & Cookies": "BC6504520384101", "French Macarons": "BC2963086375030",
+        "Artisanal Chocolate bar": "BC352716219829", "Custom Sugar Cookies": "BC8241518941445",
+        "Organic Raw Honey": "BC8767512856380", "Infused Salt": "BC2160387016651", "Super Seeds & Nuts": "BC5968201169394",
+        "Cheese Knives": "BC4520175179555", "Champagne Flute": "BC8137496597892", "Stemless Wine Glass": "BC8790157063642",
+        "Tea Infuser": "BC6290184562919", "Whiskey Glass": "BC9173714065328", "Beer Mug": "BC6932939746925",
+        "Mug": "BC6534577553291", "Wooden Coaster": "BC6878103181476",
+        "Scented Candle": "BC3616708759217", "Reed Difuser": "BC343941550747", "Room & Linen Spray": "BC8317480767987",
+        "Artisanal Soap": "BC3213216763921", "Aromatherapy Hand Wash": "BC9787162074680",
+        "Solid Lotion bar": "BC6739184583665", "Pomade": "BC2620000656869", "Bath Soak": "BC2742264316931",
+        "Sugar Body Polish": "BC3613916221081",
+        "Satin Robe": "BC7663681213353", "Men's Satin Robe": "BC671943150722", "Satin Headband": "BC9879107744493",
+        "Crystal Stacker": "BC7429663734593", "Custom Clay Earrings": "BC8964056704789",
+        "Wax-sealed Letter": "BC7894930788030", "Decal Sticker": "BC2804181838933", "Logo Engraving": "BC7681940021375",
+        "Ribbon Color": "BC5479159416742", "Envelope": "BC7771541356794",
+        "Wellsmith sprinkle": "BC913143711469", "palapa seasoning": "BC883738015619",
+      };
+
       const styleDataMap = {
         "Modern Romantic": modernRomantic,
         "Bohemian Chic": bohoChic,
@@ -659,142 +677,88 @@ export default function OrderProcess() {
         "Minimalist Modern": minimalistModern,
       };
 
-      const selectedStyleArray = styleDataMap[styleIdentifier];
-
-      if (selectedStyleArray && selectedStyleArray.length > 0) {
-        // The first element is description/images, actual items start from index 1
-        selectedStyleProducts = selectedStyleArray.slice(1).map(item => ({
-          itemName: item.name,
-          quantity: 1 // Assuming quantity 1 for each item in a style
-        }));
-      } else {
-        console.warn(`No items found or style not recognized for: ${styleIdentifier}`);
-      }
-
-      // Build shipping address from customer details
-      let shippingAddress = '';
-      if (customerData.street && customerData.street !== '') shippingAddress += customerData.street;
-      if (customerData.city && customerData.city !== '') shippingAddress += (shippingAddress ? ', ' : '') + customerData.city;
-      if (customerData.zipcode && customerData.zipcode !== '') shippingAddress += (shippingAddress ? ', ' : '') + customerData.zipcode;
-      if (!shippingAddress) shippingAddress = 'Unknown Address';
-
-      // Fetch inventory from localStorage if available (for SKU lookup)
-      let inventory = [];
-      try {
-        const inv = localStorage.getItem('inventory');
-        if (inv) inventory = JSON.parse(inv);
-      } catch (e) { inventory = []; }
-
-      // Product name to SKU mapping based on your inventory
-      const productNameToSku = {
-        // Packaging Options
-        "Blanc Box": "BC2350939297462",
-        "Signature Box": "BC8201847934939",
-        "Premium Box": "BC3344504438612",
-      
-        // contentBeverageOptions
-        "Local Coffee": "BC269406629240",
-        "Loose-leaf Tea": "BC2360282995737",
-        "Beer": "BC6208896644655",
-        "Mini Wine": "BC757578736643",
-        "Mini Whiskey": "BC3887477589362",
-        "Full-sized Wine": "BC1321769559491",
-        "Full-sized Spirits/Liquor": "BC7274786312457",
-        "Tablea de Cacao": "BC3186447262236",
-      
-        // contentFoodOptions
-        "Sweet Pastries & Cookies": "BC6504520384101",
-        "French Macarons": "BC2963086375030",
-        "Artisanal Chocolate bar": "BC352716219829",
-        "Custom Sugar Cookies": "BC8241518941445",
-        "Organic Raw Honey": "BC8767512856380",
-        "Infused Salt": "BC2160387016651",
-        "Super Seeds & Nuts": "BC5968201169394",
-      
-        // contentKitchenwareOptions
-        "Cheese Knives": "BC4520175179555",
-        "Champagne Flute": "BC8137496597892",
-        "Stemless Wine Glass": "BC8790157063642",
-        "Tea Infuser": "BC6290184562919",
-        "Whiskey Glass": "BC9173714065328",
-        "Beer Mug": "BC6932939746925",
-        "Mug": "BC6534577553291",
-        "Wooden Coaster": "BC6878103181476",
-      
-        // contentHomeDecorOptions
-        "Scented Candle": "BC3616708759217",
-        "Reed Difuser": "BC343941550747",
-        "Room & Linen Spray": "BC8317480767987",
-      
-        // contentFaceAndBodyOptions
-        "Artisanal Soap": "BC3213216763921",
-        "Aromatherapy Hand Wash": "BC9787162074680",
-        // (Aromatherapy Body Wash not matched in screenshots)
-        "Solid Lotion bar": "BC6739184583665",
-        "Pomade": "BC2620000656869",
-        "Bath Soak": "BC2742264316931",
-        "Sugar Body Polish": "BC3613916221081",
-      
-        // contentClothingAndAccessoriesOptions
-        "Satin Robe": "BC7663681213353",
-        "Men's Satin Robe": "BC671943150722",
-        "Satin Headband": "BC9879107744493",
-        "Crystal Stacker": "BC7429663734593",
-        "Custom Clay Earrings": "BC8964056704789",
-      
-        // customizationOptions
-        "Wax-sealed Letter": "BC7894930788030",
-        "Decal Sticker": "BC2804181838933",
-        "Logo Engraving": "BC7681940021375",
-        "Ribbon Color": "BC5479159416742",
-        "Envelope": "BC7771541356794",
-        "Wellsmith sprinkle": "BC913143711469",
-        "palapa seasoning": "BC883738015619",
-      };
-      
-
-      const orderData = {
-        name: customerData.name || 'Order',
-        account_name: customerData.name || 'Order',
-        order_date: new Date().toISOString().split('T')[0],
-        expected_delivery: formData.expectedDeliveryDate,
-        status: 'pending',
-        payment_type: 'pending',
-        payment_method: 'pending',
-        shipped_to: customerData.name || 'Order',
-        shipping_address: shippingAddress,
-        total_cost: 0,
-        remarks: formData.specialRequests || '',
-        telephone: customerData.telephone && customerData.telephone !== '' ? customerData.telephone : (customerData.phone_number && customerData.phone_number !== '' ? customerData.phone_number : 'N/A'),
-        cellphone: customerData.cellphone && customerData.cellphone !== '' ? customerData.cellphone : (customerData.phone_number && customerData.phone_number !== '' ? customerData.phone_number : 'N/A'),
-        email_address: customerData.email,
-        order_quantity: parseInt(formData.guestCount) || 1,
-        package_name: formData.style ? formData.style : "Handpick",
-        products: getAllSelectedItems().map(item => {
+      if (formData.style && styleDataMap[formData.style]) {
+        const selectedStyleArray = styleDataMap[formData.style];
+        if (selectedStyleArray && selectedStyleArray.length > 0) {
+          productsForOrder = selectedStyleArray.slice(1).map(styleItem => {
+            const sku = productNameToSku[styleItem.name];
+            if (!sku) {
+              console.warn(`SKU not found for item '${styleItem.name}' in style '${formData.style}'. Item will be skipped.`);
+              return null;
+            }
+            return {
+              name: styleItem.name,
+              quantity: guestQuantity,
+              sku: sku
+            };
+          }).filter(Boolean);
+        } else {
+          console.warn(`Style '${formData.style}' selected but no items found or style data is invalid. Falling back to handpicked items if any.`);
+          productsForOrder = getAllSelectedItems().map(item => {
+            const sku = productNameToSku[item.name];
+            if (!sku) {
+              alert(`Product '${item.name}' (handpicked fallback) does not have a matching SKU and will not be included.`);
+              return null;
+            }
+            return { name: item.name, quantity: guestQuantity, sku };
+          }).filter(Boolean);
+        }
+      } else { 
+        productsForOrder = getAllSelectedItems().map(item => {
           const sku = productNameToSku[item.name];
           if (!sku) {
-            alert(`Product '${item.name}' does not have a matching SKU in the database and will not be included in the order.`);
+            alert(`Product '${item.name}' does not have a matching SKU and will not be included in the order.`);
             return null;
           }
           return {
             name: item.name,
-            quantity: parseInt(formData.guestCount) || 1,
+            quantity: guestQuantity,
             sku
           };
-        }).filter(Boolean),
+        }).filter(Boolean);
+      }
+
+      if (!productsForOrder || productsForOrder.length === 0) {
+        alert('No products selected or available for the order. Please select items or a valid style.');
+        setLoading(false);
+        return;
+      }
+
+      let shippingAddress = '';
+      if (customerData.street && customerData.street !== '') shippingAddress += customerData.street;
+      if (customerData.city && customerData.city !== '') shippingAddress += (shippingAddress ? ', ' : '') + customerData.city;
+      if (customerData.zipcode && customerData.zipcode !== '') shippingAddress += (shippingAddress ? ', ' : '') + customerData.zipcode;
+      if (!shippingAddress) shippingAddress = 'Default Address'; 
+
+      const orderPayload = {
+        name: customerData.name || 'Customer Order',
+        account_name: customerData.name || 'Customer Account',
+        order_date: new Date().toISOString().split('T')[0],
+        expected_delivery: formData.expectedDeliveryDate,
+        status: 'Pending',
+        payment_type: 'Pending',
+        payment_method: 'Pending',
+        shipped_to: customerData.name || 'Customer',
+        shipping_address: shippingAddress,
+        total_cost: 0, 
+        remarks: formData.specialRequests || '',
+        telephone: customerData.telephone || customerData.phone_number || 'N/A',
+        cellphone: customerData.cellphone || customerData.phone_number || 'N/A',
+        email_address: customerData.email,
+        order_quantity: guestQuantity, 
+        package_name: formData.style || "Handpick",
+        products: productsForOrder,
       };
 
-      const response = await api.post('/api/orders', orderData, {
+      const response = await api.post('/api/orders', orderPayload, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       
       if (response.data) {
-        // Show success message
         alert('Order submitted successfully!');
-        // Redirect to order confirmation page
-        window.location.href = '/orders';
+        window.location.href = '/orders'; 
       }
     } catch (error) {
       console.error('Error submitting order:', error);

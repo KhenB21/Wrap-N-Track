@@ -47,7 +47,7 @@ router.get('/profile', async (req, res) => {
     console.log('Fetching profile for customer_id:', customerId);
     
     const result = await pool.query(
-      'SELECT customer_id, name, username, email_address, phone_number, street, city, zipcode, profile_picture_data, is_verified FROM customer_details WHERE customer_id = $1',
+      'SELECT customer_id, name, username, email_address, phone_number, address, profile_picture_data, is_verified FROM customer_details WHERE customer_id = $1',
       [customerId]
     );
 
@@ -65,9 +65,7 @@ router.get('/profile', async (req, res) => {
     res.json({
       success: true,
       ...customer,
-      street: customer.street,
-      city: customer.city,
-      zipcode: customer.zipcode,
+      address: customer.address,
       profile_picture_data: customer.profile_picture_data ? customer.profile_picture_data.toString('base64') : null
     });
   } catch (error) {

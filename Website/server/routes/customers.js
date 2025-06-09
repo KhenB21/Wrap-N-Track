@@ -117,4 +117,39 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Get customer by email
+router.get('/email/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    console.log('Fetching customer details for email:', email);
+    
+    const result = await pool.query(
+      'SELECT customer_id, name, email_address, phone_number, address FROM customer_details WHERE email_address = $1',
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      console.log('No customer found with email:', email);
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    const customer = result.rows[0];
+    console.log('Found customer:', customer);
+    
+    res.json({
+      success: true,
+      ...customer
+    });
+  } catch (error) {
+    console.error('Error fetching customer details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch customer details'
+    });
+  }
+});
+
 module.exports = router; 

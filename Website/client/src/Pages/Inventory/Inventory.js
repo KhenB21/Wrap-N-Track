@@ -76,7 +76,7 @@ export default function Inventory() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await api.get('http://localhost:3001/api/inventory');
+      const res = await api.get('/api/inventory');
       setProducts(res.data);
     } catch (err) {
       console.error('Error fetching inventory:', err);
@@ -98,8 +98,8 @@ export default function Inventory() {
       
       // Use apiFileUpload for file uploads, regular api for JSON
       const response = isFileUpload 
-        ? await apiFileUpload.post('http://localhost:3001/api/inventory', formData)
-        : await api.post('http://localhost:3001/api/inventory', formData);
+        ? await apiFileUpload.post('/api/inventory', formData)
+        : await api.post('/api/inventory', formData);
         
       if (response.data.success) {
         setShowModal(false);
@@ -252,8 +252,8 @@ export default function Inventory() {
                         }}></span>
                         {product.quantity}
                       </td>
-                      <td style={{ textAlign: 'center' }}>{product.ordered}</td>
-                      <td style={{ textAlign: 'center' }}>{product.delivered}</td>
+                      <td style={{ textAlign: 'center' }}>{product.ordered_quantity || 0}</td>
+                      <td style={{ textAlign: 'center' }}>{product.delivered_quantity || 0}</td>
                       <td style={{ textAlign: 'center' }}>
                         <button className="action-btn add" title="Add" onClick={e => { e.stopPropagation(); setSelectedProduct(null); setShowModal(true); }}>
                           Add

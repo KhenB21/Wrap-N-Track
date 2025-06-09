@@ -112,6 +112,13 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
       timestamp: Date.now()
     });
 
+    // Insert new customer
+    console.log('Inserting new customer into database...');
+    const result = await pool.query(
+      'INSERT INTO customer_details (username, name, email_address, password_hash, is_verified, profile_picture_data, phone_number, address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING customer_id, username, name, email_address, phone_number, address',
+      [username, name, email, passwordHash, false, profilePictureData, phone_number, address]
+    );
+
     let emailSent = false;
     try {
       // Send verification email
@@ -136,13 +143,6 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
       // Continue with registration even if email fails
       console.log('Continuing with registration despite email error');
     }
-
-    // Insert new customer
-    console.log('Inserting new customer into database...');
-    const result = await pool.query(
-      'INSERT INTO customer_details (username, name, email_address, password_hash, is_verified, profile_picture_data, phone_number, address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING customer_id, username, name, email_address, phone_number, address',
-      [username, name, email, passwordHash, false, profilePictureData, phone_number, address]
-    );
 
     const newCustomer = result.rows[0];
     console.log('Customer registered successfully:', newCustomer);

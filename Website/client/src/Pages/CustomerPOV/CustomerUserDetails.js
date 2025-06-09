@@ -15,9 +15,7 @@ export default function CustomerUserDetails() {
     profile_picture_path: '',
     profile_picture_data: '',
     phone_number: '',
-    street: '',
-    city: '',
-    zipcode: '',
+    address: '',
     addresses: []
   });
   const [loading, setLoading] = useState(true);
@@ -36,13 +34,11 @@ export default function CustomerUserDetails() {
     name: '',
     email: '',
     phone_number: '',
-    street: '',
-    city: '',
-    zipcode: ''
+    address: ''
   });
 
   // Define the order of fields
-  const fieldOrder = ['username', 'name', 'email', 'phone_number', 'street', 'city', 'zipcode'];
+  const fieldOrder = ['username', 'name', 'email', 'phone_number', 'address'];
 
   useEffect(() => {
     const token = localStorage.getItem('customerToken');
@@ -62,33 +58,24 @@ export default function CustomerUserDetails() {
         if (!response.data) {
           throw new Error('Failed to fetch user data');
         }
-
-        // Ensure we have default values for all fields
-        const street = response.data.street || '';
-        const city = response.data.city || '';
-        const zipcode = response.data.zipcode || '';
+        const address = response.data.address || '';
         const userData = {
           user_id: response.data.customer_id,
           name: response.data.name || '',
           username: response.data.username || '',
           email: response.data.email_address || '',
           phone_number: response.data.phone_number || '',
-          street,
-          city,
-          zipcode,
+          address,
           profile_picture_data: response.data.profile_picture_data,
           addresses: response.data.addresses || []
         };
-
         setUserData(userData);
         setEditValues({
           username: userData.username,
           name: userData.name,
           email: userData.email,
           phone_number: userData.phone_number,
-          street: userData.street,
-          city: userData.city,
-          zipcode: userData.zipcode
+          address: userData.address
         });
         setError(null);
       } catch (error) {
@@ -160,9 +147,7 @@ export default function CustomerUserDetails() {
       email: userData.email,
       name: userData.name,
       phone_number: userData.phone_number,
-      street: userData.street,
-      city: userData.city,
-      zipcode: userData.zipcode
+      address: userData.address
     });
   };
 
@@ -170,15 +155,12 @@ export default function CustomerUserDetails() {
     e.preventDefault();
     setEditingField(null);
     setError(null);
-    // Reset edit values to current user data when canceling
     setEditValues({
       username: userData.username,
       email: userData.email,
       name: userData.name,
       phone_number: userData.phone_number,
-      street: userData.street,
-      city: userData.city,
-      zipcode: userData.zipcode
+      address: userData.address
     });
   };
 
@@ -187,43 +169,29 @@ export default function CustomerUserDetails() {
     setLoading(true);
     setError(null);
     setSuccess(null);
-
-    // Validate required fields
     if (!editValues[field]?.trim()) {
       setError(`${field.charAt(0).toUpperCase() + field.slice(1)} cannot be empty`);
       setLoading(false);
       return;
     }
-
     try {
       const token = localStorage.getItem('customerToken');
-      
-      // Map the field name to match the database column names
       const fieldMapping = {
         username: 'username',
         email: 'email_address',
         name: 'name',
         phone_number: 'phone_number',
-        street: 'street',
-        city: 'city',
-        zipcode: 'zipcode'
+        address: 'address'
       };
-
       const dbField = fieldMapping[field];
       const value = editValues[field].trim();
-
-      // Create update object with all required fields
-      const addressString = `${editValues.street}, ${editValues.city}, ${editValues.zipcode}`;
       const updateData = {
         name: field === 'name' ? value : userData.name,
         username: field === 'username' ? value : userData.username,
         email_address: field === 'email' ? value : userData.email,
         phone_number: field === 'phone_number' ? value : userData.phone_number || '',
-        address: field === 'street' || field === 'city' || field === 'zipcode' ? addressString : `${userData.street}, ${userData.city}, ${userData.zipcode}`
+        address: field === 'address' ? value : userData.address
       };
-
-      console.log('Sending update request with data:', updateData); // Debug log
-
       const response = await api.put('/api/customer/profile', 
         updateData,
         {
@@ -233,16 +201,9 @@ export default function CustomerUserDetails() {
           }
         }
       );
-
-      console.log('Update response:', response.data); // Debug log
-
       if (response.data.success) {
-        // If email was changed and it's different from current email
         if (field === 'email' && value !== userData.email) {
-          console.log('Email changed, redirecting to verification'); // Debug log
-          // Store the new email for verification
           localStorage.setItem('verificationEmail', value);
-          // Store the current user data
           const storedCustomer = JSON.parse(localStorage.getItem('customer'));
           const updatedCustomer = { 
             ...storedCustomer, 
@@ -250,58 +211,37 @@ export default function CustomerUserDetails() {
             is_verified: false
           };
           localStorage.setItem('customer', JSON.stringify(updatedCustomer));
-          // Update the userData state
           setUserData(prev => ({
             ...prev,
             email: value,
             is_verified: false
           }));
-          // Reset editing state
           setEditingField(null);
-          // Redirect to verification page
           navigate('/customer/verify');
           return;
         }
-
-        // Update the userData state with the new value
-        if (['street', 'city', 'zipcode'].includes(field)) {
-          setUserData(prev => ({
-            ...prev,
-            street: editValues.street,
-            city: editValues.city,
-            zipcode: editValues.zipcode
-          }));
-        } else {
         setUserData(prev => ({
           ...prev,
           [field]: value
         }));
-        }
-        
-        // Update localStorage with new data
         const storedCustomer = JSON.parse(localStorage.getItem('customer'));
         const updatedCustomer = { 
           ...storedCustomer, 
           [field]: value
         };
         localStorage.setItem('customer', JSON.stringify(updatedCustomer));
-        
-        // Reset editing state and show success message
         setEditingField(null);
         setSuccess('Profile updated successfully!');
       }
     } catch (err) {
       console.error('Error updating profile:', err);
       setError(err.response?.data?.message || 'Failed to update profile');
-      // Reset edit values to current user data on error
       setEditValues({
         username: userData.username,
         email: userData.email,
         name: userData.name,
         phone_number: userData.phone_number,
-        street: userData.street,
-        city: userData.city,
-        zipcode: userData.zipcode
+        address: userData.address
       });
     } finally {
       setLoading(false);
@@ -399,7 +339,6 @@ export default function CustomerUserDetails() {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
       const token = localStorage.getItem('customerToken');
       const response = await api.put('/api/customer/profile', 
@@ -408,9 +347,7 @@ export default function CustomerUserDetails() {
           username: editValues.username,
           email_address: editValues.email,
           phone_number: editValues.phone_number,
-          street: editValues.street,
-          city: editValues.city,
-          zipcode: editValues.zipcode
+          address: editValues.address
         },
         {
           headers: {
@@ -419,9 +356,7 @@ export default function CustomerUserDetails() {
           }
         }
       );
-
       if (response.data) {
-        // Update localStorage with new data
         const storedCustomer = JSON.parse(localStorage.getItem('customer'));
         const updatedCustomer = { 
           ...storedCustomer, 
@@ -429,9 +364,7 @@ export default function CustomerUserDetails() {
           username: editValues.username,
           email: editValues.email,
           phone_number: editValues.phone_number,
-          street: editValues.street,
-          city: editValues.city,
-          zipcode: editValues.zipcode
+          address: editValues.address
         };
         localStorage.setItem('customer', JSON.stringify(updatedCustomer));
         setError('Profile updated successfully!');
@@ -540,34 +473,11 @@ export default function CustomerUserDetails() {
             </div>
             <div className="form-row">
               <label>Phone Number</label>
-              <input type="text" name="phone_number" value={editValues.phone_number} onChange={handleInputChange} required />
+              <input type="text" value={userData.phone_number} disabled />
             </div>
-            <h2>Address</h2>
-            <div className="form-row address-row" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              <div style={{ flex: 2, minWidth: 180 }}>
-                <label>Street</label>
-                <input type="text" name="street" value={editValues.street} onChange={handleInputChange} required />
-              </div>
-              <div style={{ flex: 1, minWidth: 100 }}>
-                <label>Zip Code</label>
-                <input
-                  type="text"
-                  name="zipcode"
-                  value={editValues.zipcode}
-                  onChange={e => {
-                    const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
-                    setEditValues(prev => ({ ...prev, zipcode: val }));
-                  }}
-                  required
-                  maxLength={4}
-                  pattern="[0-9]{4}"
-                  inputMode="numeric"
-                />
-              </div>
-              <div style={{ flex: 1, minWidth: 120 }}>
-                <label>City</label>
-                <input type="text" name="city" value={editValues.city} onChange={handleInputChange} required />
-              </div>
+            <div className="form-row">
+              <label>Address</label>
+              <input type="text" value={userData.address || ''} disabled />
             </div>
             <button className="save-btn" type="submit" style={{ marginTop: 24 }}>Save</button>
           </form>

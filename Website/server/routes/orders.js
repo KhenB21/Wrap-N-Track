@@ -119,6 +119,19 @@ router.post('/', async (req, res) => {
         }
       }
 
+      // Get customer's address from customer_details
+      const customerResult = await client.query(
+        'SELECT address FROM customer_details WHERE email_address = $1',
+        [email_address]
+      );
+
+      if (!customerResult.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Customer not found' });
+      }
+
+      const customerAddress = customerResult.rows[0].address || 'Unknown Address';
+
       // Insert into orders table
       const orderResult = await client.query(`
         INSERT INTO orders (
@@ -150,7 +163,7 @@ router.post('/', async (req, res) => {
         payment_method,
         payment_type,
         shipped_to,
-        shipping_address,
+        customerAddress,
         total_cost,
         remarks,
         telephone,
@@ -258,83 +271,153 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update supplier order
+// Update customer order status and details, and manage inventory
 router.put('/:order_id', async (req, res) => {
+  const { order_id } = req.params;
+  const {
+    account_name,
+    name, // customer name
+    order_date,
+    expected_delivery,
+    status, // e.g., "To be pack"
+    package_name,
+    payment_method,
+    payment_type,
+    shipped_to,
+    shipping_address,
+    total_cost,
+    remarks,
+    telephone,
+    cellphone,
+    email_address,
+    products, // array of { sku, quantity, profit_margin, name (product name) }
+    // total_profit_estimation is also in the payload, handle if needed for 'orders' table
+  } = req.body;
+
+  // Validate products array
+  if (!products || !Array.isArray(products) || products.length === 0) {
+    return res.status(400).json({ error: 'Products are required and must be a non-empty array.' });
+  }
+  for (const product of products) {
+    if (!product.sku || typeof product.quantity !== 'number' || product.quantity <= 0) {
+      return res.status(400).json({ error: 'Each product must have a valid SKU and a positive quantity.' });
+    }
+  }
+
+  const client = await pool.connect();
   try {
-    const { order_id } = req.params;
-    const {
-      order_date,
-      expected_delivery,
-      remarks,
-      items,
-      status,
-      package_name
-    } = req.body;
+    await client.query('BEGIN');
 
-    if (!items || items.length === 0) {
-      return res.status(400).json({ error: 'Items are required' });
-    }
+    // 1. Inventory Check
+    for (const product of products) {
+      const inventoryResult = await client.query(
+        'SELECT quantity FROM inventory_items WHERE sku = $1',
+        [product.sku]
+      );
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-
-      // Update order (now includes status and package_name)
-      const orderResult = await client.query(`
-        UPDATE orders SET
-          order_date = $1,
-          expected_delivery = $2,
-          remarks = $3,
-          status = COALESCE($4, status),
-          package_name = COALESCE($5, package_name)
-        WHERE order_id = $6 RETURNING *
-      `, [
-        order_date,
-        expected_delivery,
-        remarks,
-        status,
-        package_name,
-        order_id
-      ]);
-
-      if (!orderResult.rows.length) {
+      if (inventoryResult.rows.length === 0) {
         await client.query('ROLLBACK');
-        return res.status(404).json({ error: 'Order not found' });
+        return res.status(400).json({ error: `Product with SKU ${product.sku} not found in inventory.` });
       }
-
-      // Delete existing order products
-      await client.query('DELETE FROM order_products WHERE order_id = $1', [order_id]);
-
-      // Insert updated order products
-      const productPromises = items.map(async (item) => {
-        try {
-          await client.query(`
-            INSERT INTO order_products (order_id, sku, quantity)
-            VALUES ($1, $2, $3)
-          `, [order_id, item.product_id, item.quantity]);
-        } catch (error) {
-          console.error('Error updating order product:', error);
-          throw error;
-        }
-      });
-
-      await Promise.all(productPromises);
-
-      await client.query('COMMIT');
-      res.json({
-        ...orderResult.rows[0],
-        items
-      });
-    } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('Error updating supplier order:', error);
-      res.status(500).json({ error: 'Failed to update supplier order' });
-    } finally {
-      client.release();
+      const availableQuantity = inventoryResult.rows[0].quantity;
+      if (availableQuantity < product.quantity) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `Insufficient stock for SKU ${product.sku}. Available: ${availableQuantity}, Requested: ${product.quantity}.` });
+      }
     }
+
+    // 2. Update Order Details
+    const updateFields = [];
+    const updateValues = [];
+    let valueIndex = 1;
+
+    const addUpdateField = (fieldName, value) => {
+      if (value !== undefined) {
+        updateFields.push(`${fieldName} = $${valueIndex++}`);
+        updateValues.push(value);
+      }
+    };
+    
+    addUpdateField('account_name', account_name);
+    addUpdateField('name', name);
+    addUpdateField('order_date', order_date);
+    addUpdateField('expected_delivery', expected_delivery);
+    addUpdateField('status', status); 
+    addUpdateField('package_name', package_name);
+    addUpdateField('payment_method', payment_method);
+    addUpdateField('payment_type', payment_type);
+    addUpdateField('shipped_to', shipped_to);
+    addUpdateField('shipping_address', shipping_address);
+    addUpdateField('total_cost', total_cost);
+    addUpdateField('remarks', remarks);
+    addUpdateField('telephone', telephone);
+    addUpdateField('cellphone', cellphone);
+    addUpdateField('email_address', email_address);
+    // const { total_profit_estimation } = req.body; // Get it if you need to update it
+    // addUpdateField('total_profit_estimation', total_profit_estimation);
+
+
+    if (updateFields.length === 0 && status === undefined) { // Ensure at least status is being updated or some field
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'No fields to update for the order, or status is missing.' });
+    }
+    
+    // If only status is being updated and it's the only field, this is fine.
+    // If updateFields is empty but status is defined, it means only status is being updated (handled by addUpdateField)
+
+    updateValues.push(order_id); 
+    const updateOrderQuery = `UPDATE orders SET ${updateFields.join(', ')} WHERE order_id = $${valueIndex} RETURNING *`;
+    
+    const orderResult = await client.query(updateOrderQuery, updateValues);
+
+    if (orderResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found.' });
+    }
+
+    // 3. Delete existing order products
+    await client.query('DELETE FROM order_products WHERE order_id = $1', [order_id]);
+
+    // 4. Insert updated order products (without 'name' column for order_products)
+    for (const product of products) {
+      await client.query(
+        `INSERT INTO order_products (order_id, sku, quantity, profit_margin)
+         VALUES ($1, $2, $3, $4)`,
+        [order_id, product.sku, product.quantity, parseFloat(product.profit_margin) || 0]
+      );
+    }
+
+    // 5. Deduct Stock from Inventory
+    for (const product of products) {
+      await client.query(
+        'UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2',
+        [product.quantity, product.sku]
+      );
+    }
+
+    await client.query('COMMIT');
+    
+    const updatedOrderData = orderResult.rows[0];
+    // Re-fetch products for consistency, selecting i.name from inventory_items
+    const finalProductsResult = await client.query(
+        `SELECT op.sku, op.quantity, op.profit_margin, i.name, i.image_data 
+         FROM order_products op 
+         LEFT JOIN inventory_items i ON op.sku = i.sku
+         WHERE op.order_id = $1`, [order_id]
+    );
+    updatedOrderData.products = finalProductsResult.rows.map(p => ({
+        ...p,
+        image_data: p.image_data ? p.image_data.toString('base64') : null
+    }));
+    
+    res.json(updatedOrderData);
+
   } catch (error) {
-    console.error('Error in supplier order update route:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    if (client) await client.query('ROLLBACK');
+    console.error('Error updating customer order:', error);
+    res.status(500).json({ error: 'Failed to update customer order.', details: error.message });
+  } finally {
+    if (client) client.release();
   }
 });
 

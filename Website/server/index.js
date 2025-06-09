@@ -941,22 +941,31 @@ app.get('/api/inventory', async (req, res) => {
   try {
     const result = await client.query(`
       SELECT 
-        sku, 
-        name, 
-        description, 
-        quantity, 
-        unit_price, 
-        category, 
-        last_updated,
-        uom,
-        conversion_qty,
-        expiration,
+        i.sku, 
+        i.name, 
+        i.description, 
+        i.quantity, 
+        i.unit_price, 
+        i.category, 
+        i.last_updated,
+        i.uom,
+        i.conversion_qty,
+        i.expiration,
         CASE 
-          WHEN image_data IS NOT NULL THEN encode(image_data, 'base64')
+          WHEN i.image_data IS NOT NULL THEN encode(i.image_data, 'base64')
           ELSE NULL 
-        END as image_data
-      FROM inventory_items 
-      ORDER BY last_updated DESC
+        END as image_data,
+        COALESCE(SUM(CASE WHEN o.status IN ('Pending', 'To be pack', 'To be ship', 'Out for Delivery') THEN op.quantity ELSE 0 END), 0) AS ordered_quantity
+      FROM 
+        inventory_items i
+      LEFT JOIN 
+        order_products op ON i.sku = op.sku
+      LEFT JOIN 
+        orders o ON op.order_id = o.order_id
+      GROUP BY 
+        i.sku, i.name, i.description, i.quantity, i.unit_price, i.category, i.last_updated, i.uom, i.conversion_qty, i.expiration, i.image_data
+      ORDER BY 
+        i.last_updated DESC
     `);
     
     res.json(result.rows);
@@ -1507,6 +1516,88 @@ app.get('/api/orders/history/:order_id/products', async (req, res) => {
   } catch (err) {
     console.error('Error fetching archived order products:', err);
     res.status(500).json({ message: 'Failed to fetch archived order products' });
+  }
+});
+
+
+// GET all inventory items with ordered and delivered quantities
+app.get('/api/inventory', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        i.sku,
+        i.name,
+        i.description,
+        i.quantity,
+        i.unit_price,
+        i.category,
+        i.supplier_id,
+        i.image_data,
+        i.last_updated,
+        i.reorder_level,
+        i.location,
+        i.barcode,
+        i.weight,
+        i.dimensions,
+        i.color,
+        i.material,
+        i.brand,
+        i.expiration_date,
+        i.cost_price,
+        i.markup_percentage,
+        i.tags,
+        i.status AS item_status, -- Renamed to avoid conflict with order status
+        i.minimum_stock_level,
+        i.maximum_stock_level,
+        i.notes,
+        i.custom_fields,
+        i.is_active,
+        i.lead_time_days,
+        i.safety_stock_days,
+        i.purchase_unit,
+        i.sale_unit,
+        i.conversion_factor,
+        i.is_serialized,
+        i.is_batch_tracked,
+        i.is_consignment,
+        i.is_discontinued,
+        i.created_at,
+        i.updated_at,
+        i.archived_at,
+        COALESCE(SUM(CASE 
+                       WHEN o.status NOT IN ('DELIVERED', 'COMPLETED', 'CANCELLED') 
+                       THEN op.quantity 
+                       ELSE 0 
+                     END), 0) AS ordered_quantity,
+        COALESCE(SUM(CASE 
+                       WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+                       THEN op.quantity 
+                       ELSE 0 
+                     END), 0) AS delivered_quantity
+      FROM inventory_items i
+      LEFT JOIN order_products op ON i.sku = op.sku
+      LEFT JOIN orders o ON op.order_id = o.order_id
+      GROUP BY 
+        i.sku, i.name, i.description, i.quantity, i.unit_price, i.category, i.supplier_id, i.image_data, i.last_updated, 
+        i.reorder_level, i.location, i.barcode, i.weight, i.dimensions, i.color, i.material, i.brand, i.expiration_date, 
+        i.cost_price, i.markup_percentage, i.tags, i.status, i.minimum_stock_level, i.maximum_stock_level, i.notes, 
+        i.custom_fields, i.is_active, i.lead_time_days, i.safety_stock_days, i.purchase_unit, i.sale_unit, 
+        i.conversion_factor, i.is_serialized, i.is_batch_tracked, i.is_consignment, i.is_discontinued, 
+        i.created_at, i.updated_at, i.archived_at
+      ORDER BY i.name ASC;
+    `);
+    
+    const inventory = result.rows.map(item => ({
+      ...item,
+      image_data: item.image_data ? item.image_data.toString('base64') : null,
+      ordered_quantity: parseInt(item.ordered_quantity, 10),
+      delivered_quantity: parseInt(item.delivered_quantity, 10)
+    }));
+    
+    res.json(inventory);
+  } catch (error) {
+    console.error('Error fetching inventory:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   }
 });
 
