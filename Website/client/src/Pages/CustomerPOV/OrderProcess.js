@@ -3,6 +3,8 @@ import "./OrderProcess.css";
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import "./CustomerPOV.css";
 import api from '../../api/axios';
+import axios from 'axios';
+
 
 const styles = {
   container: {
@@ -128,18 +130,26 @@ const styles = {
   }
 };
 
+
+
 export default function OrderProcess() {
+  
   const [currentStep, setCurrentStep] = useState(0);
   const [currentConCat, setCurrentConCat] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [modalCategory, setModalCategory] = useState('');
   const [formData, setFormData] = useState({
 
-    weddingDate: "",
-    expectedDeliveryDate: "",
+    orderType: "", // NEW
+    eventDate: "",
+    preferredDeliveryDate: "",
     guestCount: "",
     style: "",
     specialRequests: "",
+    paymentMethod: "",
+    deliveryAddress: "",
+    deliveryMethod: "",
+    contactInfo: "",
 
   });
   const [selectedPackaging, setSelectedPackaging] = useState([]);
@@ -150,6 +160,7 @@ export default function OrderProcess() {
   const [selectedFaceAndBody, setSelectedFaceAndBody] = useState([]);
   const [selectedClothing, setSelectedClothing] = useState([]);
   const [selectedCustomization, setSelectedCustomization] = useState([]);
+  const [selectedLeatherDeskEssentials, setSelectedLeatherDeskEssentials] = useState([]);
   const [customProducts, setCustomProducts] = useState({
     packaging: false,
     beverages: false,
@@ -158,6 +169,7 @@ export default function OrderProcess() {
     homeDecor: false,
     faceAndBody: false,
     clothing: false,
+    leatherDesk: false,
     customization: false
   });
   const [customProductDetails, setCustomProductDetails] = useState({
@@ -168,6 +180,7 @@ export default function OrderProcess() {
     homeDecor: { name: 'Own Product', description: 'Home Decor', image: null },
     faceAndBody: { name: 'Own Product', description: 'Face and Body', image: null },
     clothing: { name: 'Own Product', description: 'Clothing and Accessories', image: null },
+    leatherDesk: { name: 'Own Product', description: 'Leather & Desk', image: null },
     customization: { name: 'Own Product', description: 'Custom Addition', image: null }
   });
   const [selectedStyle, setSelectedStyle] = useState('');
@@ -512,6 +525,34 @@ export default function OrderProcess() {
     },
   ];
 
+  const contentLeatherProductsDeskEssentialOptions = [
+    {
+      name: "Bullet Pen",
+      image: "/Assets/Images/Products/satin-robe.png",
+      description: "customizable",
+    },
+    {
+      name: "Key Holder",
+      image: "/Assets/Images/Products/mens-satin-robe.png",
+      description: "customizble",
+    },
+    {
+      name: "Card Holder with Money Clip",
+      image: "/Assets/Images/Products/satin-headband.png",
+      description: "",
+    },
+    {
+      name: "Luggage Tag",
+      image: "/Assets/Images/Products/crystal-stacker.png",
+      description: "",
+    },
+    {
+      name: "Vanity Pouch",
+      image: "/Assets/Images/Products/custom-clay-earrings.png",
+      description: "",
+    },
+  ];
+
   const customizationOptions = [
     {
       name: "Wax-sealed Letter",
@@ -613,6 +654,16 @@ export default function OrderProcess() {
     });
   };
 
+  const handleLeatherDeskEssentialsSelect = (option) => {
+  setSelectedLeatherDeskEssentials(prev => {
+    if (prev.includes(option.name)) {
+      return prev.filter(name => name !== option.name);
+    } else {
+      return [...prev, option.name];
+    }
+  });
+};
+
   const handleCustomizationSelect = (option) => {
     setSelectedCustomization(prev => {
       if (prev.includes(option.name)) {
@@ -677,7 +728,7 @@ export default function OrderProcess() {
         name: customerData.name || 'Wedding Gift Box Order',
         account_name: customerData.name || 'Wedding Gift Box Order',
         order_date: new Date().toISOString().split('T')[0],
-        expected_delivery: formData.expectedDeliveryDate,
+        expected_delivery: formData.preferredDeliveryDate,
         status: 'pending',
         payment_type: 'pending',
         payment_method: 'pending',
@@ -690,7 +741,7 @@ export default function OrderProcess() {
         email_address: customerData.email,
         wedding_details: {
           wedding_style: formData.style,
-          wedding_date: formData.weddingDate,
+          wedding_date: formData.eventDate,
           guest_count: parseInt(formData.guestCount),
           color_scheme: formData.colorScheme || '',
           special_requests: formData.specialRequests || '',
@@ -828,6 +879,11 @@ export default function OrderProcess() {
     selectedClothing.forEach(name => {
       const item = contentClothingAndAccessoriesOptions.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'clothing' });
+    });
+
+    selectedLeatherDeskEssentials.forEach(name => {
+      const item = contentLeatherProductsDeskEssentialOptions.find(opt => opt.name === name);
+      if (item) items.push({ ...item, category: 'leatherDesk' });
     });
 
     selectedCustomization.forEach(name => {
@@ -1243,10 +1299,37 @@ export default function OrderProcess() {
     );
   };
 
+  const [inventory, setInventory] = useState([]);
+const [loadingInventory, setLoadingInventory] = useState(false);
+
+useEffect(() => {
+  const fetchInventory = async () => {
+    setLoadingInventory(true);
+    try {
+      // Use your own API url here if not using proxy
+      const res = await axios.get('/api/inventory/items');
+      if (res.data.success) {
+        setInventory(res.data.items); // items should be array of { name, description, image }
+      } else {
+        setInventory([]);
+      }
+    } catch (err) {
+      setInventory([]);
+      console.error('Error fetching inventory:', err);
+    }
+    setLoadingInventory(false);
+  };
+
+  fetchInventory();
+}, []);
+
+
   return (
     <div style={styles.container}>
       <TopbarCustomer />
       {/* Header */}
+
+
       <div style={styles.header}>
         <h1 style={styles.title}>Create Your Perfect Gift Box</h1>
         <p style={styles.subtitle}>
@@ -1276,11 +1359,11 @@ export default function OrderProcess() {
               <h3 style={{
                 ...styles.stepTitle,
                 color: currentStep === 0 ? '#fff' : '#2c3e50'
-              }}>Wedding</h3>
+              }}>START HERE</h3>
               <p style={{
                 ...styles.stepDescription,
                 color: currentStep === 0 ? '#fff' : '#6c757d'
-              }}>Select from our curated wedding styles</p>
+              }}>How it works</p>
             </div>
             <div 
               style={{
@@ -1378,104 +1461,69 @@ export default function OrderProcess() {
 
           {/* Step Forms */}
           {currentStep === 0 && (
-            <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
-              <div style={{display: "flex", flexDirection: "row", gap: "50px"}}>
-                <div style={{width: "50%"}}>
+              <div style={{
+                backgroundColor: '#fff',
+                borderRadius: '12px',
+                padding: '30px 40px',
+                maxWidth: '600px',
+                textAlign: 'left',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }}>
+                
+                <h2 style={{
+                  textAlign: 'center',
+                  fontSize: '22px',
+                  fontWeight: '600',
+                  marginBottom: '20px',
+                  color: '#333',
+                  fontFamily: 'serif'
+                }}>
+                  GIFT BOX CREATION STEPS
+                </h2>
 
-                  <div style={styles.formGroup}>
-                    <label style={{...styles.label, color: "#f0f0f0"}}>Wedding Date</label>
-                    <input
-                      type="date"
-                      name="weddingDate"
-                      value={formData.weddingDate}
-                      onChange={handleInputChange}
-                      style={styles.input}
-                      required
-                    />
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={{...styles.label, color: "#f0f0f0"}}>Expected Delivery Date</label>
-                    <input
-                      type="date"
-                      name="expectedDeliveryDate"
-                      value={formData.expectedDeliveryDate}
-                      onChange={handleInputChange}
-                      style={styles.input}
-                      required
-                    />
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={{...styles.label, color: "#f0f0f0"}}>Number of Gift Boxes</label>
-                    <input
-                      type="number"
-                      name="guestCount"
-                      value={formData.guestCount}
-                      onChange={handleInputChange}
-                      style={styles.input}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div style={{width: "50%"}}>
-                  <div style={styles.formGroup}>
-                    <label style={{...styles.label, color: "#f0f0f0"}}>Preferred Style</label>
-                    <select
-                      name="style"
-                      value={formData.style}
-                      onChange={(e) => {
-                        handleInputChange(e);
-                        handleStyleChange(e);
-                      }}
-                      style={styles.select}
-                      required
-                    >
-                      <option value="">Select a style</option>
-                      <option value="modern-romantic">Modern Romantic</option>
-                      <option value="boho-chic">Boho Chic</option>
-                      <option value="classic-elegance">Classic Elegance</option>
-                      <option value="minimalist-modern">Minimalist Modern</option>
-                    </select>
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={{...styles.label, color: "#f0f0f0"}}>Special Requests</label>
-                    <textarea
-                      name="specialRequests"
-                      value={formData.specialRequests}
-                      onChange={handleInputChange}
-                      style={{ ...styles.input, height: "120px" }}
-                      placeholder="Any specific requirements or preferences?"
-                      cols={50}
-                    />
-                  </div>
-
-                  <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
-                    <input
-                      type="checkbox"
-                      checked={Object.values(customProducts).every(Boolean)}
-                      onChange={handleStep0CustomProducts}
-                    />
-                    <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#f0f0f0"}}>I want to use my own products</label>
-                  </div>
-
-
-                  <button type="submit" style={styles.button}>
-                    Submit Order
-                  </button>
-                </div>
-
-                <div style={{width: "50%"}}>
-                  <h3 style={{fontWeight: "bold", color: "#f0f0f0", marginBottom: "20px"}}>Preferred Style Preview</h3>
-                  {renderStyleItems()}
-                </div>
+                <ol style={{
+                  fontSize: '16px',
+                  lineHeight: '1.8',
+                  color: '#444',
+                  fontFamily: 'Georgia, serif'
+                }}>
+                  <li><strong>STEP 1:</strong> Choose your packaging</li>
+                  <li><strong>STEP 2:</strong> Choose contents</li>
+                  <li><strong>STEP 3:</strong> Choose packaging enhancements</li>
+                  <li><strong>STEP 4:</strong> Finalize and submit</li>
+                </ol>
               </div>
-            </form>
           )}
+    
           {currentStep === 1 && (
             <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Order Type</label>
+                <div style={{ display: 'flex', gap: '20px' }}>
+                  <label>
+                    <input
+                      type="radio"
+                      name="orderType"
+                      value="event"
+                      checked={formData.orderType === "event"}
+                      onChange={handleInputChange}
+                      required
+                    />{" "}
+                    Event (min. 10 pcs, full customization)
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="orderType"
+                      value="single"
+                      checked={formData.orderType === "single"}
+                      onChange={handleInputChange}
+                    />{" "}
+                    Single Order (only packaging customizable)
+                  </label>
+                </div>
+              </div>
+
               <div style={{backgroundColor: "#2ECC71", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
                 <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
               </div>
@@ -1485,6 +1533,8 @@ export default function OrderProcess() {
                   type="checkbox"
                   checked={customProducts.packaging}
                   onChange={handleStep1CustomPackaging}
+                    disabled={formData.orderType === 'single'}
+
                 />
                 <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own packaging</label>
               </div>
@@ -1540,6 +1590,7 @@ export default function OrderProcess() {
               <button type="submit" style={styles.button}>
                 Next
               </button>
+              
             </form>
           )}
           {currentStep === 2 && (
@@ -1713,6 +1764,7 @@ export default function OrderProcess() {
                       type="checkbox"
                       checked={customProducts.beverages}
                       onChange={() => handleStep2CustomCategory(1)}
+                      disabled={formData.orderType === 'single'}
                     />
                     <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
                   </div>
@@ -1777,6 +1829,8 @@ export default function OrderProcess() {
                       type="checkbox"
                       checked={customProducts.food}
                       onChange={() => handleStep2CustomCategory(2)}
+                        disabled={formData.orderType === 'single'}
+
                     />
                     <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
                   </div>
@@ -1841,6 +1895,8 @@ export default function OrderProcess() {
                       type="checkbox"
                       checked={customProducts.kitchenware}
                       onChange={() => handleStep2CustomCategory(3)}
+                        disabled={formData.orderType === 'single'}
+
                     />
                     <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
                   </div>
@@ -1905,6 +1961,8 @@ export default function OrderProcess() {
                       type="checkbox"
                       checked={customProducts.homeDecor}
                       onChange={() => handleStep2CustomCategory(4)}
+                        disabled={formData.orderType === 'single'}
+
                     />
                     <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
                   </div>
@@ -1967,6 +2025,8 @@ export default function OrderProcess() {
                       type="checkbox"
                       checked={customProducts.faceAndBody}
                       onChange={() => handleStep2CustomCategory(5)}
+                        disabled={formData.orderType === 'single'}
+
                     />
                     <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
                   </div>
@@ -2029,6 +2089,8 @@ export default function OrderProcess() {
                       type="checkbox"
                       checked={customProducts.clothing}
                       onChange={() => handleStep2CustomCategory(6)}
+                        disabled={formData.orderType === 'single'}
+
                     />
                     <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
                   </div>
@@ -2083,6 +2145,71 @@ export default function OrderProcess() {
                 </>
               )}
 
+              {/* Leather Products and Desk Essentials */}
+              {currentConCat === 7 && (
+                <>
+                  <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
+                    <input
+                      type="checkbox"
+                      checked={customProducts.leatherDesk}
+                      onChange={() => handleStep2CustomCategory('leatherDesk')}
+                      disabled={formData.orderType === 'single'}
+                    />
+                    <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>
+                      I want to use my own products for this category
+                    </label>
+                  </div>
+
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentLeatherProductsDeskEssentialOptions.map((option, index) => (
+                      <div 
+                        key={index}
+                        className="packagingOptions" 
+                        style={{
+                          border: "2px solid #f0f0f0", 
+                          borderRadius: "12px", 
+                          padding: "20px", 
+                          width: "16%",
+                          cursor: "pointer",
+                          transition: "all 0.3s ease",
+                          position: "relative"
+                        }}
+                        onClick={() => handleLeatherDeskEssentialsSelect(option)}
+                      >
+                        {selectedLeatherDeskEssentials.includes(option.name) && (
+                          <div style={{
+                            position: "absolute",
+                            top: "-10px",
+                            right: "-10px",
+                            width: "24px",
+                            height: "24px",
+                            backgroundColor: "#2ECC71",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "16px"
+                          }}>
+                            ✓
+                          </div>
+                        )}
+                        <div className="packagingImage">
+                          <img
+                            src={option.image}
+                            alt={`${option.name} - ${option.description}`}
+                            className={option.name.toLowerCase().replace(" ", "")}
+                          />
+                        </div>
+                        <h4>{option.name}</h4>
+                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
               <button type="submit" style={styles.button}>
                 Next
               </button>
@@ -2099,6 +2226,8 @@ export default function OrderProcess() {
                   type="checkbox"
                   checked={customProducts.customization}
                   onChange={handleStep3CustomCustomization}
+                    disabled={formData.orderType === 'single'}
+
                 />
                 <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products</label>
               </div>
@@ -2157,118 +2286,176 @@ export default function OrderProcess() {
             </form>
           )}
           {currentStep === 4 && (
-            <form style={{...styles.form, width: "100%", display: "flex", flexDirection: "row", gap: "50px"}} onSubmit={handleSubmit}>
-              <div style={{width: "50%"}}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Wedding Date</label>
-                  <input
-                    type="date"
-                    name="weddingDate"
-                    value={formData.weddingDate}
-                    onChange={handleInputChange}
-                    style={styles.input}
-                    required
-                  />
-                </div>
+  <form style={{...styles.form, width: "100%", display: "flex", flexDirection: "row", gap: "50px"}} onSubmit={handleSubmit}>
+    <div style={{width: "50%"}}>
+      <div style={styles.formGroup}>
+        <label style={styles.label}>Event Date</label>
+        <input
+          type="date"
+          name="eventDate"
+          value={formData.eventDate}
+          onChange={handleInputChange}
+          style={styles.input}
+          required
+        />
+      </div>
 
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Expected Delivery Date</label>
-                  <input
-                    type="date"
-                    name="expectedDeliveryDate"
-                    value={formData.expectedDeliveryDate}
-                    onChange={handleInputChange}
-                    style={styles.input}
-                    required
-                  />
-                </div>
+      <div style={styles.formGroup}>
+        <label style={styles.label}>Preferred Delivery Date</label>
+        <input
+          type="date"
+          name="preferredDeliveryDate"
+          value={formData.preferredDeliveryDate}
+          onChange={handleInputChange}
+          style={styles.input}
+          required
+        />
+      </div>
 
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Number of Gift Boxes</label>
-                  <input
-                    type="number"
-                    name="guestCount"
-                    value={formData.guestCount}
-                    onChange={handleInputChange}
-                    style={styles.input}
-                    required
-                  />
-                </div>
+      <div style={styles.formGroup}>
+        <label style={styles.label}>Number of Gift Boxes</label>
+        <input
+          type="number"
+          name="guestCount"
+          value={formData.guestCount}
+          onChange={handleInputChange}
+          style={styles.input}
+          required
+        />
+      </div>
 
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Special Requests</label>
-                  <textarea
-                    name="specialRequests"
-                    value={formData.specialRequests}
-                    onChange={handleInputChange}
-                    style={{ ...styles.input, height: "120px" }}
-                    placeholder="Any specific requirements or preferences?"
-                    cols={50}
-                  ></textarea>
-                </div>
+      <div style={styles.formGroup}>
+        <label style={styles.label}>Special Requests</label>
+        <textarea
+          name="specialRequests"
+          value={formData.specialRequests}
+          onChange={handleInputChange}
+          style={{ ...styles.input, height: "120px" }}
+          placeholder="Any specific requirements or preferences?"
+          cols={50}
+        ></textarea>
+      </div>
 
-                <button type="submit" style={styles.button}>
-                  Submit Order
-                </button>
-              </div>
+      <div style={styles.formGroup}>
+        <label style={styles.label}>Payment Method</label>
+        <select
+          name="paymentMethod"
+          value={formData.paymentMethod}
+          onChange={handleInputChange}
+          style={styles.input}
+          required
+        >
+          <option value="">Select Payment Method</option>
+          <option value="GCash">GCash</option>
+          <option value="Bank Transfer">Bank Transfer</option>
+          <option value="COD">Cash on Delivery</option>
+          <option value="Credit Card">Credit Card</option>
+        </select>
+      </div>
 
-              <div style={{flex: 1, width: "50%"}}>
-                <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", width: "100%",}}>
-                  <h3 style={{fontWeight: "bold", color: "#2c3e50"}}>Selected Items</h3>
-                  <button 
-                    onClick={() => handleEditCategory('all')}
-                    style={{
-                      padding: "4px 8px",
-                      backgroundColor: "#696a8f",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      fontSize: "12px"
-                    }}
-                  >
-                    Edit Selection
-                  </button>
-                </div>
+      <div style={styles.formGroup}>
+        <label style={styles.label}>Delivery Address</label>
+        <textarea
+          name="deliveryAddress"
+          value={formData.deliveryAddress}
+          onChange={handleInputChange}
+          style={{ ...styles.input, height: "100px" }}
+          required
+        />
+      </div>
 
-                <p>Select an item to customize.</p>
-                
-                <div style={{
-                  display: "flex",
-                  gap: "20px",
-                  overflowX: "auto",
-                  padding: "10px 0",
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "#696a8f #f0f0f0"
-                }}>
-                  {getAllSelectedItems().map((item, index) => (
-                    <div 
-                      key={`${item.category}-${index}`}
-                      className="packagingOptions" 
-                      style={{
-                        border: "2px solid #f0f0f0", 
-                        borderRadius: "12px", 
-                        padding: "20px",
-                        maxWidth: "32.4%",
-                        flexShrink: 0,
-                        position: "relative"
-                      }}
-                    >
-                      <div className="packagingImage">
-                        <img
-                          src={item.image}
-                          alt={`${item.name} - ${item.description}`}
-                          className={item.name.toLowerCase().replace(" ", "")}
-                        />
-                      </div>
-                      <h4>{item.name}</h4>
-                      <p style={{ fontStyle: "italic", fontSize: "12px"}}>{item.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </form>
-          )}
+      <div style={styles.formGroup}>
+        <label style={styles.label}>Preferred Delivery Method</label>
+        <select
+          name="deliveryMethod"
+          value={formData.deliveryMethod}
+          onChange={handleInputChange}
+          style={styles.input}
+          required
+        >
+          <option value="">Select Delivery Method</option>
+          <option value="Courier">Courier</option>
+          <option value="Pick-up">Pick-up</option>
+          <option value="Lalamove">Lalamove</option>
+          <option value="GrabExpress">GrabExpress</option>
+        </select>
+      </div>
+
+      <div style={styles.formGroup}>
+        <label style={styles.label}>Contact Information</label>
+        <input
+          type="text"
+          name="contactInfo"
+          value={formData.contactInfo}
+          onChange={handleInputChange}
+          style={styles.input}
+          placeholder="Phone number or email"
+          required
+        />
+      </div>
+
+      <button type="submit" style={styles.button}>
+        Submit Order
+      </button>
+    </div>
+
+    <div style={{flex: 1, width: "50%"}}>
+      <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", width: "100%"}}>
+        <h3 style={{fontWeight: "bold", color: "#2c3e50"}}>Selected Items</h3>
+        <button 
+          onClick={() => handleEditCategory('all')}
+          style={{
+            padding: "4px 8px",
+            backgroundColor: "#696a8f",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontSize: "12px"
+          }}
+        >
+          Edit Selection
+        </button>
+      </div>
+
+      <p>Select an item to customize.</p>
+      
+      <div style={{
+        display: "flex",
+        gap: "20px",
+        overflowX: "auto",
+        padding: "10px 0",
+        scrollbarWidth: "thin",
+        scrollbarColor: "#696a8f #f0f0f0"
+      }}>
+        {getAllSelectedItems().map((item, index) => (
+          <div 
+            key={`${item.category}-${index}`}
+            className="packagingOptions" 
+            style={{
+              border: "2px solid #f0f0f0", 
+              borderRadius: "12px", 
+              padding: "20px",
+              maxWidth: "32.4%",
+              flexShrink: 0,
+              position: "relative"
+            }}
+          >
+            <div className="packagingImage">
+              <img
+                src={item.image}
+                alt={`${item.name} - ${item.description}`}
+                className={item.name.toLowerCase().replace(" ", "")}
+              />
+            </div>
+            <h4>{item.name}</h4>
+            <p style={{ fontStyle: "italic", fontSize: "12px"}}>{item.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </form>
+)}
           
           {renderModal()}
         </div>

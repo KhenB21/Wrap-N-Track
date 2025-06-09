@@ -55,9 +55,14 @@ const handleSubmit = async (e) => {
     const orderQty = Number(form.orderQuantity);
     console.log("Order Quantity:", orderQty);
     if (!orderQty || orderQty < 1) {
-      setError("Order Quantity must be a positive number.");
-      return;
-    }
+        setError("Order Quantity must be a positive number.");
+        return;
+      }
+
+      if (isEventOrder && orderQty < 10) {
+        setError("Event orders must be at least 10 pieces.");
+        return;
+      }
     // List of default product names
     const defaultProductNames = [
       'Signature box',
@@ -152,6 +157,7 @@ const handleSubmit = async (e) => {
     }
   }, []);
 
+  const [isEventOrder, setIsEventOrder] = useState(false);
 
   return (
     <div className="carlo-preview-container">
@@ -199,6 +205,14 @@ const handleSubmit = async (e) => {
                   <label>Shipping Location*
                     <input name="shippingLocation" value={form.shippingLocation} onChange={handleChange} required />
                   </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={isEventOrder}
+                      onChange={(e) => setIsEventOrder(e.target.checked)}
+                    />
+                    This is an Event Order (10+ pcs, full customization)
+                  </label>
                   <label>Package Name*
                     <input name="packageName" value={form.packageName} required readOnly/>
                   </label>
@@ -212,10 +226,10 @@ const handleSubmit = async (e) => {
                 <h3 className="order-modal-details-title">What's Inside</h3>
                 <ul className="order-modal-details-ul">
                   <li><b>Signature box</b> <span className="order-modal-detail-note">(Customizable)</span></li>
-                  <li><b>Envelope</b> <span className="order-modal-detail-note">(Customizable)</span></li>
+                  <li><b>Envelope</b> {isEventOrder && <span className="order-modal-detail-note">(Customizable)</span>}</li>
                   <li><b>Wellsmith sprinkle</b></li>
                   <li><b>Palapa seasoning</b></li>
-                  <li><b>Wine</b> <span className="order-modal-detail-note">(Customizable)</span></li>
+                  <li><b>Wine</b> {isEventOrder && <span className="order-modal-detail-note">(Customizable)</span>}</li>
                 </ul>
               </div>
             </div>

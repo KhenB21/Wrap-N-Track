@@ -102,6 +102,8 @@ export default function DanielPreview() {
     }
   };
 
+    const [isEventOrder, setIsEventOrder] = useState(false);
+
   return (
     <div className="carlo-preview-container">
       <TopbarCustomer />
