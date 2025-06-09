@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,17 +10,41 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Header from "../Components/Header";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Alert } from "react-native";
+
 
 export default function ProductDetailsScreen({ route, navigation }) {
   const { product } = route.params;
   const images = product.images || [product.image_url];
   const [selectedImage, setSelectedImage] = useState(images[0]);
 
+ const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userData = await AsyncStorage.getItem("user");
+        if (userData) {
+          const parsed = JSON.parse(userData);
+          setCurrentUser(parsed);
+          console.log("Loaded user:", parsed); // Debug check
+        } else {
+          Alert.alert("Error", "User not logged in.");
+        }
+      } catch (err) {
+        console.error("Failed to load user", err);
+      }
+    };
+
+    loadUser();
+  }, []);
+
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
       <Header navigation={navigation} />
       <ScrollView style={{ flex: 1, backgroundColor: "#fff" }}>
-        <View style={{ height: 90 }} /> 
+        <View style={{ height: 90 }} />
         {/* Main Image with Back Button overlay */}
         <View>
           <Image
@@ -94,9 +118,23 @@ export default function ProductDetailsScreen({ route, navigation }) {
             <TouchableOpacity style={styles.actionBtn}>
               <Text style={styles.actionBtnText}>ADD TO BAG</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn}>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => {
+                if (!currentUser) {
+                  Alert.alert("Error", "User not logged in.");
+                  return;
+                }
+
+                navigation.navigate("OrderSummary", {
+                  productId: product.id,
+                  userId: currentUser.user_id,
+                });
+              }}
+            >
               <Text style={styles.actionBtnText}>BUY NOW</Text>
             </TouchableOpacity>
+
           </View>
         </View>
         {/* Product Specification */}

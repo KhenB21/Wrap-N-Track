@@ -24,7 +24,7 @@ const transporter = nodemailer.createTransport({
 });
 
 exports.register = async (req, res) => {
-  const { email, password, username, phone, address } = req.body;
+  const { name, email, password, username, phone, address } = req.body;
   try {
     const userCheck = await pool.query("SELECT * FROM users WHERE email=$1", [
       email,
@@ -37,8 +37,8 @@ exports.register = async (req, res) => {
     const otp_expires = new Date(Date.now() + 10 * 60000);
 
     await pool.query(
-      "INSERT INTO users (email, password, username, phone, address, otp_code, otp_expires) VALUES ($1,$2,$3,$4,$5,$6,$7)",
-      [email, hash, username, phone, address, otp, otp_expires, ]
+      "INSERT INTO users (name, email, password, username, phone, address, otp_code, otp_expires) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+      [name, email, hash, username, phone, address, otp, otp_expires, ]
     );
 
     // Send OTP email
@@ -102,7 +102,7 @@ exports.login = async (req, res) => {
     );
     res.json({
       token,
-      user: { id: u.id, email: u.email, username: u.username },
+      user: { user_id: u.user_id, email: u.email, username: u.username },
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

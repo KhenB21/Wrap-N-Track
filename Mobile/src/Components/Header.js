@@ -8,10 +8,10 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-export default function Header({ onMenuPress, onCartPress }) {
+export default function Header({ navigation, onCartPress }) {
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={onMenuPress} style={styles.iconBtn}>
+      <TouchableOpacity onPress={() => navigation.openDrawer()} style={styles.iconBtn}>
         <Ionicons name="menu" size={38} color="#fff" />
       </TouchableOpacity>
       <View style={styles.logoWrap}>
@@ -30,12 +30,12 @@ export default function Header({ onMenuPress, onCartPress }) {
 
 const styles = StyleSheet.create({
   header: {
-    position: "absolute", // <-- makes it overlay the top
+    position: "absolute", 
     left: 0,
     right: 0,
     top: 0,
     zIndex: 100,
-    height: 90, // adjust for status bar
+    height: 90, 
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

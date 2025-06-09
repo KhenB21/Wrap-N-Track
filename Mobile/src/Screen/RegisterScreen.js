@@ -13,6 +13,7 @@ import axios from "axios";
 
 export default function RegisterScreen({ navigation }) {
   const [form, setForm] = useState({
+    name:"",
     email: "",
     password: "",
     confirmPassword: "",
@@ -26,6 +27,7 @@ export default function RegisterScreen({ navigation }) {
 
   const handleRegister = async () => {
     if (
+      !form.name ||
       !form.email ||
       !form.password ||
       !form.confirmPassword ||
@@ -45,6 +47,7 @@ export default function RegisterScreen({ navigation }) {
     setLoading(true);
     try {
       const res = await axios.post("http://10.0.2.2:5000/api/auth/register", {
+        name: form.name,
         email: form.email,
         password: form.password,
         username: form.username,
@@ -69,6 +72,13 @@ export default function RegisterScreen({ navigation }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Sign Up</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Full Name"
+        value={form.name}
+        onChangeText={(v) => handleChange("name", v)}
+      />
       <TextInput
         style={styles.input}
         placeholder="Email"

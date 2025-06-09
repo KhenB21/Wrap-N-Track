@@ -8,6 +8,7 @@ import ForgotPasswordScreen from "../Screen/ForgotPasswordScreen";
 import ResetPasswordScreen from "../Screen/ResetPasswordScreen";
 import MainDrawer from "./MainDrawer";
 import ProductDetailsScreen from "../Screen/ProductDetailsScreen";
+import OrderSummaryScreen from "../Screen/OrderSummaryScreen";
 
 const Stack = createStackNavigator();
 
@@ -25,6 +26,7 @@ export default function AppNavigator() {
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         <Stack.Screen name="Home" component={MainDrawer} /> 
+        <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

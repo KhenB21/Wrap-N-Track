@@ -32,6 +32,7 @@ export default function LoginScreen({ navigation }) {
       });
       // Save JWT token for session
       await AsyncStorage.setItem("token", res.data.token);
+      await AsyncStorage.setItem("user", JSON.stringify(res.data.user));
 
       Alert.alert("Login Success!", `Welcome, ${res.data.user.username}!`);
 

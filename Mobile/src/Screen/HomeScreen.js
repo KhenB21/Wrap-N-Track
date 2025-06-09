@@ -99,140 +99,142 @@ export default function HomeScreen({ navigation }) {
   if (loading) return <ActivityIndicator size="large" style={{ flex: 1 }} />;
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Reusable Header */}
-      <Header />
-      <View style={{ height: 90 }} />
-      {/* Welcome Header */}
-      <Text style={styles.welcome}>WELCOME TO PENSEE</Text>
+    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+      {/* Header should be outside ScrollView */}
+      <Header navigation={navigation} />
+      <ScrollView style={styles.container}>
+        <View style={{ height: 90 }} />
+        {/* Welcome Header */}
+        <Text style={styles.welcome}>WELCOME TO PENSEE</Text>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search"
-          value={search}
-          onChangeText={setSearch}
-          placeholderTextColor="#b3b3b3"
-        />
-        <TouchableOpacity style={styles.searchButton}>
-          <Ionicons name="search" size={22} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Banner Carousel */}
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        style={styles.bannerContainer}
-        onMomentumScrollEnd={(e) => {
-          const idx = Math.round(e.nativeEvent.contentOffset.x / width);
-          setBannerIndex(idx);
-        }}
-      >
-        {bannerImages.map((img, idx) => (
-          <Image key={idx} source={img} style={styles.bannerImg} />
-        ))}
-      </ScrollView>
-      {/* Carousel dots */}
-      <View style={styles.dotsRow}>
-        {bannerImages.map((_, idx) => (
-          <View
-            key={idx}
-            style={[styles.dot, bannerIndex === idx && styles.dotActive]}
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search"
+            value={search}
+            onChangeText={setSearch}
+            placeholderTextColor="#b3b3b3"
           />
-        ))}
-      </View>
-
-      {/* Steps Section */}
-      <View style={styles.stepsSection}>
-        <Text style={styles.stepsTitle}>
-          CREATE YOUR OWN{"\n"}GIFT IN 3 STEPS
-        </Text>
-        <View style={styles.stepsRow}>
-          <View style={styles.step}>
-            <Text style={styles.stepNum}>1</Text>
-            <Text style={styles.stepText}>CHOOSE YOUR{"\n"}PACKAGING</Text>
-          </View>
-          <View style={styles.step}>
-            <Text style={styles.stepNum}>2</Text>
-            <Text style={styles.stepText}>CHOOSE THE{"\n"}CONTENT</Text>
-          </View>
-          <View style={styles.step}>
-            <Text style={styles.stepNum}>3</Text>
-            <Text style={styles.stepText}>MAKE IT{"\n"}PERSONAL</Text>
-          </View>
+          <TouchableOpacity style={styles.searchButton}>
+            <Ionicons name="search" size={22} color="#fff" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.createBtn}>
-          <Text style={styles.createBtnText}>CREATE MINE</Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* Wedding Section */}
-      <View style={styles.sectionRow}>
-        <Text style={styles.sectionTitle}>WEDDING</Text>
-        <TouchableOpacity onPress={() => setShowAllWedding((prev) => !prev)}>
-          <Text style={styles.seeMore}>
-            {showAllWedding ? "SEE LESS ▼" : "SEE MORE ▲"}
+        {/* Banner Carousel */}
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.bannerContainer}
+          onMomentumScrollEnd={(e) => {
+            const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+            setBannerIndex(idx);
+          }}
+        >
+          {bannerImages.map((img, idx) => (
+            <Image key={idx} source={img} style={styles.bannerImg} />
+          ))}
+        </ScrollView>
+        {/* Carousel dots */}
+        <View style={styles.dotsRow}>
+          {bannerImages.map((_, idx) => (
+            <View
+              key={idx}
+              style={[styles.dot, bannerIndex === idx && styles.dotActive]}
+            />
+          ))}
+        </View>
+
+        {/* Steps Section */}
+        <View style={styles.stepsSection}>
+          <Text style={styles.stepsTitle}>
+            CREATE YOUR OWN{"\n"}GIFT IN 3 STEPS
           </Text>
-        </TouchableOpacity>
-      </View>
-      {weddingChunks.length > 0 && (
-        <View style={styles.weddingRow}>
-          {weddingChunks[0].map(renderProduct)}
-        </View>
-      )}
-      {showAllWedding &&
-        weddingChunks.slice(1).map((row, idx) => (
-          <View style={styles.weddingRow} key={idx}>
-            {row.map(renderProduct)}
+          <View style={styles.stepsRow}>
+            <View style={styles.step}>
+              <Text style={styles.stepNum}>1</Text>
+              <Text style={styles.stepText}>CHOOSE YOUR{"\n"}PACKAGING</Text>
+            </View>
+            <View style={styles.step}>
+              <Text style={styles.stepNum}>2</Text>
+              <Text style={styles.stepText}>CHOOSE THE{"\n"}CONTENT</Text>
+            </View>
+            <View style={styles.step}>
+              <Text style={styles.stepNum}>3</Text>
+              <Text style={styles.stepText}>MAKE IT{"\n"}PERSONAL</Text>
+            </View>
           </View>
-        ))}
+          <TouchableOpacity style={styles.createBtn}>
+            <Text style={styles.createBtnText}>CREATE MINE</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Corporate Section */}
-      <View style={styles.sectionRow}>
-        <Text style={styles.sectionTitle}>CORPORATE</Text>
-        <TouchableOpacity onPress={() => setShowAllCorporate((prev) => !prev)}>
-          <Text style={styles.seeMore}>
-            {showAllCorporate ? "SEE LESS ▼" : "SEE MORE ▲"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      {corporateChunks.length > 0 && (
-        <View style={styles.weddingRow}>
-          {corporateChunks[0].map(renderProduct)}
+        {/* Wedding Section */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle}>WEDDING</Text>
+          <TouchableOpacity onPress={() => setShowAllWedding((prev) => !prev)}>
+            <Text style={styles.seeMore}>
+              {showAllWedding ? "SEE LESS ▼" : "SEE MORE ▲"}
+            </Text>
+          </TouchableOpacity>
         </View>
-      )}
-      {showAllCorporate &&
-        corporateChunks.slice(1).map((row, idx) => (
-          <View style={styles.weddingRow} key={idx}>
-            {row.map(renderProduct)}
+        {weddingChunks.length > 0 && (
+          <View style={styles.weddingRow}>
+            {weddingChunks[0].map(renderProduct)}
           </View>
-        ))}
+        )}
+        {showAllWedding &&
+          weddingChunks.slice(1).map((row, idx) => (
+            <View style={styles.weddingRow} key={idx}>
+              {row.map(renderProduct)}
+            </View>
+          ))}
 
-      {/* Bespoke Section */}
-      <View style={styles.sectionRow}>
-        <Text style={styles.sectionTitle}>BESPOKE</Text>
-        <TouchableOpacity onPress={() => setShowAllBespoke((prev) => !prev)}>
-          <Text style={styles.seeMore}>
-            {showAllBespoke ? "SEE LESS ▼" : "SEE MORE ▲"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      {bespokeChunks.length > 0 && (
-        <View style={styles.weddingRow}>
-          {bespokeChunks[0].map(renderProduct)}
+        {/* Corporate Section */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle}>CORPORATE</Text>
+          <TouchableOpacity onPress={() => setShowAllCorporate((prev) => !prev)}>
+            <Text style={styles.seeMore}>
+              {showAllCorporate ? "SEE LESS ▼" : "SEE MORE ▲"}
+            </Text>
+          </TouchableOpacity>
         </View>
-      )}
-      {showAllBespoke &&
-        bespokeChunks.slice(1).map((row, idx) => (
-          <View style={styles.weddingRow} key={idx}>
-            {row.map(renderProduct)}
+        {corporateChunks.length > 0 && (
+          <View style={styles.weddingRow}>
+            {corporateChunks[0].map(renderProduct)}
           </View>
-        ))}
-    </ScrollView>
+        )}
+        {showAllCorporate &&
+          corporateChunks.slice(1).map((row, idx) => (
+            <View style={styles.weddingRow} key={idx}>
+              {row.map(renderProduct)}
+            </View>
+          ))}
+
+        {/* Bespoke Section */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle}>BESPOKE</Text>
+          <TouchableOpacity onPress={() => setShowAllBespoke((prev) => !prev)}>
+            <Text style={styles.seeMore}>
+              {showAllBespoke ? "SEE LESS ▼" : "SEE MORE ▲"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {bespokeChunks.length > 0 && (
+          <View style={styles.weddingRow}>
+            {bespokeChunks[0].map(renderProduct)}
+          </View>
+        )}
+        {showAllBespoke &&
+          bespokeChunks.slice(1).map((row, idx) => (
+            <View style={styles.weddingRow} key={idx}>
+              {row.map(renderProduct)}
+            </View>
+          ))}
+      </ScrollView>
+    </View>
   );
 }
 
