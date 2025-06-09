@@ -396,6 +396,16 @@ export default function OrderDetails() {
       const allOrders = response.data;
       console.log('Orders data from response.data:', allOrders);
 
+      // Log details for the specific order we're tracking
+      const updatedOrderId = '#CO1749485124796'; // The ID from the user's log
+      const specificOrder = allOrders.find(o => o.order_id === updatedOrderId);
+      if (specificOrder) {
+        console.log(`[TrackOrder] Found order ${updatedOrderId}:`, specificOrder);
+        console.log(`[TrackOrder] Status: '${specificOrder.status}', Normalized: '${normalizeStatus(specificOrder.status)}'`);
+      } else {
+        console.log(`[TrackOrder] Order ${updatedOrderId} not found in fetched data.`);
+      }
+
       if (!Array.isArray(allOrders)) {
         console.error('Error: response.data is not an array!', allOrders);
         setPendingOrders([]);
@@ -408,7 +418,7 @@ export default function OrderDetails() {
         console.log('Processing orders into categories...');
         setPendingOrders(allOrders.filter(o => normalizeStatus(o.status) === 'pending'));
         setToBePackOrders(allOrders.filter(o => normalizeStatus(o.status) === 'tobepack'));
-        setReadyToDeliverOrders(allOrders.filter(o => normalizeStatus(o.status) === 'readytodeliver'));
+        setReadyToDeliverOrders(allOrders.filter(o => normalizeStatus(o.status) === 'readytodeliver' || normalizeStatus(o.status) === 'confirmed'));
         setEnRouteOrders(allOrders.filter(o => normalizeStatus(o.status) === 'enroute'));
         setCompletedOrders(allOrders.filter(o => normalizeStatus(o.status) === 'completed'));
         console.log('Orders processed and state updated.');
@@ -1223,48 +1233,85 @@ export default function OrderDetails() {
                   }}
                   onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#27ae60'}
                   onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2ecc71'}
-                  onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
-                  onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
                   onClick={async () => {
-                    if (normalizeStatus(selectedOrder.status) === normalizeStatus('tobepack')) {
-                      if (window.confirm('This order will be set to deliver')) {
-                        setLoading(true);
-                        try {
-                          await api.put(`/api/orders/${selectedOrder.order_id}`, {
-                            ...selectedOrder,
-                            status: 'DELIVERED',
-                          });
-                          alert('Order status updated to DELIVERED!');
-                          // Optimistic update removed, fetchOrders will refresh state
-                          fetchOrders();
-                        } catch (err) {
-                          console.error('Failed to update order status to DELIVERED:', err);
-                          alert(`Failed to update order status: ${err.response?.data?.error || err.message}`);
-                        } finally {
-                          setLoading(false);
+                    if (!selectedOrder) {
+                      console.error("Action Error: selectedOrder is missing.", selectedOrder);
+                      alert("Error: Order details are not available.");
+                      return;
+                    }
+
+                    console.log('[OrderAction] Raw selectedOrder.order_id:', selectedOrder.order_id, 'Type:', typeof selectedOrder.order_id);
+                    const orderIdToUse = selectedOrder.order_id ? String(selectedOrder.order_id).trim() : '';
+
+                    if (!orderIdToUse) {
+                      console.error("Action Error: Processed order_id is empty. Original selectedOrder:", selectedOrder);
+                      alert("Error: Order ID is invalid or missing.");
+                      return;
+                    }
+
+                    const currentStatus = normalizeStatus(selectedOrder.status);
+                    let newStatus = '';
+                    let confirmMessage = '';
+                    let payload = { products: selectedOrder.products }; // Default payload with products
+
+                    if (currentStatus === normalizeStatus('tobepack')) {
+                      newStatus = 'Ready for Deliver';
+                      confirmMessage = 'This order will be marked as Ready for Delivery. Proceed?';
+                      payload.status = newStatus;
+                    } else if (currentStatus === 'pending') {
+                      newStatus = 'To Be Pack';
+                      confirmMessage = 'Are you sure you want to confirm this order? This will finalize the details and prepare it for processing.';
+                      // For pending, send all relevant fields from selectedOrder that can be updated.
+                      // Avoid sending the entire selectedOrder if it contains UI-specific state not meant for the backend.
+                      payload = {
+                        ...payload, // a base payload that might include other common fields if necessary
+                        account_name: selectedOrder.account_name,
+                        name: selectedOrder.name,
+                        order_date: selectedOrder.order_date,
+                        expected_delivery: selectedOrder.expected_delivery,
+                        status: newStatus,
+                        package_name: selectedOrder.package_name,
+                        payment_method: selectedOrder.payment_method,
+                        payment_type: selectedOrder.payment_type,
+                        shipped_to: selectedOrder.shipped_to,
+                        shipping_address: selectedOrder.shipping_address,
+                        remarks: selectedOrder.remarks,
+                        telephone: selectedOrder.telephone,
+                        cellphone: selectedOrder.cellphone,
+                        email_address: selectedOrder.email_address,
+                        order_quantity: selectedOrder.order_quantity,
+                        // total_cost will be recalculated by backend, so no need to send it from here
+                      };
+                    } else {
+                      alert('No action defined for this order status.');
+                      return;
+                    }
+
+                    if (window.confirm(confirmMessage)) {
+                      setLoading(true);
+                      try {
+                        const encodedOrderId = encodeURIComponent(orderIdToUse);
+                        console.log(`Attempting to update order ${orderIdToUse} (encoded: ${encodedOrderId}) to status ${newStatus} with payload:`, payload);
+                        const response = await api.put(
+                          `/api/orders/${encodedOrderId}`,
+                          payload
+                        );
+                        if (response.data) {
+                          alert(`Order ${selectedOrder.order_id} status updated to ${newStatus}.`);
+                          fetchOrders(); // Refresh all orders from the backend
+                          setSelectedOrderId(null); // Close modal
+                        } else {
+                          console.error("Update successful but no data returned", response);
+                          alert("Order status updated, but an issue occurred fetching new data. Please refresh.");
                         }
-                      }
-                    } else if (normalizeStatus(selectedOrder.status) === normalizeStatus('pending')) {
-                      if (window.confirm('Are you sure you want to confirm this order? This will finalize the details and prepare it for processing.')) {
-                        setLoading(true);
-                        try {
-                          await api.put(`/api/orders/${encodeURIComponent(selectedOrder.order_id)}`, {
-                            ...selectedOrder,
-                            status: 'TO BE PACK',
-                          });
-                          alert('The order is moved to the to be pack');
-                          // Optimistic update removed, fetchOrders will refresh state
-                          fetchOrders();
-                        } catch (err) {
-                          console.error('Failed to confirm order:', err);
-                          alert(`Failed to confirm order: ${err.response?.data?.error || err.message}`);
-                        } finally {
-                          setLoading(false);
-                        }
+                      } catch (error) {
+                        console.error(`Failed to update order status to ${newStatus}:`, error.response || error);
+                        alert(`Failed to update order status. ${error.response?.data?.error || error.message}`);
+                      } finally {
+                        setLoading(false);
                       }
                     }
-                  }}
-                >
+                  }}>
                   {normalizeStatus(selectedOrder.status) === normalizeStatus('tobepack') ? 'Confirm Delivery' : 'Confirm Order'}
                 </button>
               )}

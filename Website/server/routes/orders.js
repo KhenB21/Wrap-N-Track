@@ -241,11 +241,33 @@ router.post('/', async (req, res) => {
         }
       }
 
+      // Calculate and update total_cost for the order
+      let calculatedTotalCost = 0;
+      if (products && Array.isArray(products) && products.length > 0) {
+        for (const product of products) {
+          const inventoryItemResult = await client.query(
+            'SELECT unit_price FROM inventory_items WHERE sku = $1',
+            [product.sku]
+          );
+          if (inventoryItemResult.rows.length > 0) {
+            const unitPrice = parseFloat(inventoryItemResult.rows[0].unit_price) || 0;
+            const quantity = parseInt(product.quantity, 10) || 0;
+            calculatedTotalCost += unitPrice * quantity;
+          }
+        }
+      }
+
+      // Update the orders table with the calculated total_cost
+      await client.query(
+        'UPDATE orders SET total_cost = $1 WHERE order_id = $2',
+        [calculatedTotalCost, order_id]
+      );
+
       await client.query('COMMIT');
-      res.status(201).json({
-        ...orderResult.rows[0],
-        products
-      });
+
+      // Construct the response object, ensuring total_cost is up-to-date
+      const finalOrderData = { ...orderResult.rows[0], total_cost: calculatedTotalCost, products };
+      res.status(201).json(finalOrderData);
     } catch (error) {
       await client.query('ROLLBACK');
       console.error('Error creating customer order:', error);
@@ -308,6 +330,24 @@ router.put('/:order_id', async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    // Calculate the new total_cost based on the provided products array
+    let calculatedNewTotalCost = 0;
+    if (products && Array.isArray(products) && products.length > 0) {
+      for (const product of products) {
+        const inventoryItemResult = await client.query(
+          'SELECT unit_price FROM inventory_items WHERE sku = $1',
+          [product.sku]
+        );
+        if (inventoryItemResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `Product with SKU ${product.sku} not found in inventory for cost calculation.` });
+        }
+        const unitPrice = parseFloat(inventoryItemResult.rows[0].unit_price) || 0;
+        const quantity = parseInt(product.quantity, 10) || 0;
+        calculatedNewTotalCost += unitPrice * quantity;
+      }
+    }
+
     // 1. Inventory Check
     for (const product of products) {
       const inventoryResult = await client.query(
@@ -348,7 +388,7 @@ router.put('/:order_id', async (req, res) => {
     addUpdateField('payment_type', payment_type);
     addUpdateField('shipped_to', shipped_to);
     addUpdateField('shipping_address', shipping_address);
-    addUpdateField('total_cost', total_cost);
+    addUpdateField('total_cost', calculatedNewTotalCost); // Use the recalculated total cost
     addUpdateField('remarks', remarks);
     addUpdateField('telephone', telephone);
     addUpdateField('cellphone', cellphone);
@@ -501,6 +541,70 @@ router.get('/gift-details', async (req, res) => {
   } catch (error) {
     console.error('Error fetching gift details:', error);
     res.status(500).json({ error: 'Failed to fetch gift details' });
+  }
+});
+
+// Temporary route to backfill total_cost for existing orders
+router.post('/backfill-total-costs', async (req, res) => {
+  const client = await pool.connect();
+  let updatedCount = 0;
+  try {
+    await client.query('BEGIN');
+
+    // Find orders with total_cost = 0 or NULL
+    const ordersToUpdateResult = await client.query(
+      'SELECT order_id FROM orders WHERE total_cost IS NULL OR total_cost = 0'
+    );
+    const ordersToUpdate = ordersToUpdateResult.rows;
+
+    if (ordersToUpdate.length === 0) {
+      await client.query('COMMIT'); // or ROLLBACK, doesn't matter much here
+      client.release();
+      return res.status(200).json({ message: 'No orders found needing total_cost update.', updatedCount: 0 });
+    }
+
+    for (const order of ordersToUpdate) {
+      const order_id = order.order_id;
+      let calculatedTotalCost = 0;
+
+      // Fetch products for this order along with their unit prices
+      const productsResult = await client.query(`
+        SELECT op.quantity, i.unit_price
+        FROM order_products op
+        JOIN inventory_items i ON op.sku = i.sku
+        WHERE op.order_id = $1
+      `, [order_id]);
+
+      if (productsResult.rows.length > 0) {
+        for (const product of productsResult.rows) {
+          const unitPrice = parseFloat(product.unit_price) || 0;
+          const quantity = parseInt(product.quantity, 10) || 0;
+          calculatedTotalCost += unitPrice * quantity;
+        }
+      }
+
+      // Update the order with the calculated total_cost
+      const updateResult = await client.query(
+        'UPDATE orders SET total_cost = $1 WHERE order_id = $2',
+        [calculatedTotalCost, order_id]
+      );
+      if (updateResult.rowCount > 0) {
+        updatedCount++;
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(200).json({ 
+      message: `Successfully updated total_cost for ${updatedCount} order(s).`, 
+      updatedCount 
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error during total_cost backfill:', error);
+    res.status(500).json({ error: 'Failed to backfill total_cost for orders.', details: error.message });
+  } finally {
+    client.release();
   }
 });
 
