@@ -449,7 +449,7 @@ export default function OrderDetails() {
         console.log('Processing orders into categories...');
         setPendingOrders(allOrders.filter(o => normalizeStatus(o.status) === 'pending'));
         setToBePackOrders(allOrders.filter(o => normalizeStatus(o.status) === 'tobepack'));
-        setReadyToDeliverOrders(allOrders.filter(o => normalizeStatus(o.status) === 'readytodeliver' || normalizeStatus(o.status) === 'confirmed'));
+        setReadyToDeliverOrders(allOrders.filter(o => normalizeStatus(o.status) === 'readyfordeliver' || normalizeStatus(o.status) === 'confirmed'));
         setEnRouteOrders(allOrders.filter(o => normalizeStatus(o.status) === 'enroute'));
         setCompletedOrders(allOrders.filter(o => normalizeStatus(o.status) === 'completed'));
         console.log('Orders processed and state updated.');
@@ -1283,7 +1283,14 @@ export default function OrderDetails() {
                     const currentStatus = normalizeStatus(selectedOrder.status);
                     let newStatus = '';
                     let confirmMessage = '';
-                    let payload = { products: selectedOrder.products }; // Default payload with products
+                    const lightweightProducts = selectedOrder.products.map(p => ({
+                        sku: p.sku,
+                        quantity: p.quantity,
+                        name: p.name,
+                        profit_margin: p.profit_margin
+                        // Add any other essential, non-image fields if necessary
+                      }));
+                      let payload = { products: lightweightProducts }; // Use lightweight products
 
                     if (currentStatus === normalizeStatus('tobepack')) {
                       newStatus = 'Ready for Deliver';
