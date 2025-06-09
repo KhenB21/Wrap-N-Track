@@ -367,6 +367,17 @@ export default function OrderDetails() {
     setSelectedOrder(orderToEdit);
     setShowEditModal(true);
   };
+  // Navigates to the Delivery Tracking page for the currently selected order.
+  // Passes the entire selectedOrder object via React Router's location.state.
+  const handleProceedToDelivery = () => {
+    if (selectedOrder) {
+      // Navigate to the delivery tracking page, passing the current order in the state.
+      // This allows DeliveryTracking.js to display details for this specific order.
+      navigate('/delivery-tracking', { state: { order: selectedOrder } });
+      setSelectedOrderId(null); // Close the modal
+    }
+  };
+
   const handleCancelPendingOrder = async () => {
     if (!selectedOrder || !selectedOrder.order_id) {
       console.error('No order selected or order_id is missing.');
@@ -1245,9 +1256,19 @@ export default function OrderDetails() {
                   style={{ ...styles.button, border: '1.5px solid #dc3545', color: '#dc3545', background: '#fff', marginRight: 16 }}
                   onClick={handleCancelPendingOrder}
                 >
-                  Cancel Order
+                  Mark as Delivered
                 </button>
-                {(normalizeStatus(selectedOrder.status) === normalizeStatus('pending') || normalizeStatus(selectedOrder.status) === normalizeStatus('tobepack')) && (
+                {selectedOrder && ['tobepack', 'readyfordeliver', 'confirmed', 'shipped'].includes(normalizeStatus(selectedOrder.status)) && (
+                  <button 
+                    onClick={handleProceedToDelivery}
+                    className="order-modal-button proceed-btn"
+                    style={{ ...styles.button, background: '#007bff', color: 'white' }} // Assuming styles.button is defined
+                  >
+                    Proceed to Delivery
+                  </button>
+                )}
+              </div>
+              {(normalizeStatus(selectedOrder.status) === normalizeStatus('pending') || normalizeStatus(selectedOrder.status) === normalizeStatus('tobepack')) && (
                 <button
                   style={{
                     padding: '12px 24px',
@@ -1346,7 +1367,6 @@ export default function OrderDetails() {
                   {normalizeStatus(selectedOrder.status) === normalizeStatus('tobepack') ? 'Confirm Delivery' : 'Confirm Order'}
                 </button>
               )}
-            </div>
           </>
           );
 

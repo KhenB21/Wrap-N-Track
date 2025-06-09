@@ -68,6 +68,12 @@ const Sidebar = () => {
               <span className="text">Orders</span>
             </Link>
           </li>
+          <li>
+            <Link to="/delivery-tracking">
+              <span className="icon">🚚</span>
+              <span className="text">Delivery</span>
+            </Link>
+          </li>
           <li className={`dropdown ${reportsOpen ? "open" : ""}`}>
             <div
               className="dropdown-header"
