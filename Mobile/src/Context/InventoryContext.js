@@ -5,10 +5,10 @@ import { Platform } from 'react-native';
 export const InventoryContext = createContext();
 
 const API_URL = Platform.select({
-  ios: "http://localhost:3000",
-  //   android: "http://10.0.2.2:3000", // if using emulator
-  android: "http://192.168.100.34:3000", // if using physical device
-  default: "http://localhost:3000",
+  ios: "http://localhost:3001",
+  //   android: "http://10.0.2.2:3001", // if using emulator
+  android: "http://192.168.100.34:3001", // if using physical device, change into pc's ip address
+  default: "http://localhost:3001",
 });
 
 export const InventoryProvider = ({ children }) => {

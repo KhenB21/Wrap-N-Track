@@ -21,7 +21,7 @@ const Navbar = () => {
     return (
         <Stack.Navigator 
             screenOptions={{headerShown: false}}
-            initialRouteName='Login'
+            initialRouteName='Inventory'
         >
             <Stack.Screen name='Login' component={LoginScreen}/>
             <Stack.Screen name='Drawer' component={DrawerNavigation}/>
