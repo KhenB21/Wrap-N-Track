@@ -523,27 +523,70 @@ router.delete('/:order_id', async (req, res) => {
     }
 
     const currentStatus = orderStatusResult.rows[0].status;
-    // Normalize backend status for comparison, similar to frontend's normalizeStatus if needed, or compare directly
-    // Assuming 'Pending' is the exact string stored for pending status.
-    if (currentStatus !== 'Pending') {
+    const normalizeDBStatus = (status) => {
+      if (typeof status !== 'string') return '';
+      return status.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
+    };
+    const normalizedDBStatus = normalizeDBStatus(currentStatus);
+
+    if (normalizedDBStatus !== 'pending' && normalizedDBStatus !== 'tobepack') {
       await client.query('ROLLBACK');
-      return res.status(403).json({ success: false, message: 'Order cannot be deleted. Only orders with status "Pending" can be deleted.' });
+      return res.status(403).json({ success: false, message: 'Order cannot be cancelled. Only orders with status "Pending" or "To Be Pack" can be cancelled.' });
     }
 
-    // Delete order products first
-    await client.query('DELETE FROM order_products WHERE order_id = $1', [order_id]);
-    // Delete the order itself
-    const deleteResult = await client.query('DELETE FROM orders WHERE order_id = $1 RETURNING *', [order_id]);
-    // No need to check deleteResult.rows.length here again as we already confirmed order existence with status check.
-    // If the delete somehow failed after status check (highly unlikely for a simple delete by PK if no other constraints), it would throw an error caught below.
+    // If status is 'Pending', proceed to cancel and restock
+    console.log(`[CancelOrder-${order_id}] Attempting to cancel and restock.`);
+    // Fetch products for the order
+    const productsResult = await client.query(
+      'SELECT sku, quantity FROM order_products WHERE order_id = $1',
+      [order_id]
+    );
+    const orderProducts = productsResult.rows;
+    console.log(`[CancelOrder-${order_id}] Fetched products for restocking:`, JSON.stringify(orderProducts));
 
+    if (orderProducts.length === 0) {
+      console.log(`[CancelOrder-${order_id}] No products found in order_products to restock.`);
+    }
+
+    // Restock inventory for each product
+    for (const product of orderProducts) {
+      console.log(`[CancelOrder-${order_id}] Processing product SKU: ${product.sku}, Quantity to restock: ${product.quantity}`);
+      if (typeof product.quantity !== 'number' || product.quantity <= 0) {
+        console.error(`[CancelOrder-${order_id}] Invalid quantity for SKU ${product.sku}: ${product.quantity}. Skipping restock for this item.`);
+        continue;
+      }
+      const updateInventoryResult = await client.query(
+        'UPDATE inventory_items SET quantity = quantity + $1 WHERE sku = $2',
+        [product.quantity, product.sku]
+      );
+      console.log(`[CancelOrder-${order_id}] Inventory update result for SKU ${product.sku}: rowCount = ${updateInventoryResult.rowCount}`);
+      if (updateInventoryResult.rowCount === 0) {
+        console.warn(`[CancelOrder-${order_id}] WARN: No inventory item found for SKU ${product.sku} or quantity_in_stock was not updated.`);
+      }
+    }
+
+    // Update the order status to 'Cancelled'
+    console.log(`[CancelOrder-${order_id}] Updating order status to 'Cancelled'.`);
+    await client.query(
+      "UPDATE orders SET status = 'Cancelled' WHERE order_id = $1",
+      [order_id]
+    );
+
+    console.log(`[CancelOrder-${order_id}] Committing transaction.`);
     await client.query('COMMIT');
-    res.json({ success: true, message: 'Order deleted successfully' });
+    console.log(`[CancelOrder-${order_id}] Transaction committed. Responding to client.`);
+    res.json({ success: true, message: 'Order cancelled successfully and products restocked.' });
 
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error deleting order:', error);
-    res.status(500).json({ success: false, message: 'Failed to delete order', details: error.message });
+    console.error(`[CancelOrder-${order_id}] Error during cancellation process:`, error.message, error.stack);
+    console.log(`[CancelOrder-${order_id}] Rolling back transaction due to error.`);
+    try {
+      await client.query('ROLLBACK');
+      console.log(`[CancelOrder-${order_id}] Transaction rolled back.`);
+    } catch (rollbackError) {
+      console.error(`[CancelOrder-${order_id}] Error during ROLLBACK:`, rollbackError.message, rollbackError.stack);
+    }
+    res.status(500).json({ success: false, message: 'Failed to cancel order due to an internal error.', details: error.message });
   } finally {
     client.release();
   }

@@ -367,20 +367,21 @@ export default function OrderDetails() {
     setSelectedOrder(orderToEdit);
     setShowEditModal(true);
   };
-  const handleDeleteOrder = async () => {
+  const handleCancelPendingOrder = async () => {
     if (!selectedOrder || !selectedOrder.order_id) {
       console.error('No order selected or order_id is missing.');
       alert('No order selected or order ID is missing.');
       return;
     }
 
-    if (normalizeStatus(selectedOrder.status) !== 'pending') {
-      alert('Only orders with status "Pending" can be deleted.');
+    const normalizedStatus = normalizeStatus(selectedOrder.status);
+    if (normalizedStatus !== 'pending' && normalizedStatus !== 'tobepack') {
+      alert('Only orders with status "Pending" or "To Be Pack" can be cancelled.');
       return;
     }
 
     const confirmDelete = window.confirm(
-      `Are you sure you want to delete order ${selectedOrder.order_id}? This action cannot be undone.`
+      `Are you sure you want to cancel order ${selectedOrder.order_id}? All products will go back to the inventory.`
     );
 
     if (confirmDelete) {
@@ -388,13 +389,13 @@ export default function OrderDetails() {
         const encodedOrderId = encodeURIComponent(selectedOrder.order_id);
         console.log(`Attempting to delete order: /api/orders/${encodedOrderId}`); 
         await api.delete(`/api/orders/${encodedOrderId}`);
-        alert(`Order ${selectedOrder.order_id} deleted successfully.`);
+        alert(`Order ${selectedOrder.order_id} cancelled successfully. Products have been restocked.`);
         fetchOrders(); // Refresh the orders list
         setSelectedOrderId(null); // Close the modal
         // If a different state controls modal visibility, adjust this line e.g. setShowOrderDetailsModal(false)
       } catch (error) {
-        console.error('Error deleting order:', error.response ? error.response.data : error.message);
-        alert(`Failed to delete order. ${error.response && error.response.data && error.response.data.message ? error.response.data.message : 'Please try again.'}`);
+        console.error('Error cancelling order:', error.response ? error.response.data : error.message);
+        alert(`Failed to cancel order. ${error.response && error.response.data && error.response.data.message ? error.response.data.message : 'Please try again.'}`);
       }
     }
   };
@@ -1242,9 +1243,9 @@ export default function OrderDetails() {
                 <button 
                   className="delete-btn"
                   style={{ ...styles.button, border: '1.5px solid #dc3545', color: '#dc3545', background: '#fff', marginRight: 16 }}
-                  onClick={handleDeleteOrder}
+                  onClick={handleCancelPendingOrder}
                 >
-                  Delete
+                  Cancel Order
                 </button>
                 {(normalizeStatus(selectedOrder.status) === normalizeStatus('pending') || normalizeStatus(selectedOrder.status) === normalizeStatus('tobepack')) && (
                 <button
