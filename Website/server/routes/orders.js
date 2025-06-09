@@ -513,19 +513,37 @@ router.delete('/:order_id', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    // First, check the order's status
+    const orderStatusResult = await client.query('SELECT status FROM orders WHERE order_id = $1', [order_id]);
+
+    if (orderStatusResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const currentStatus = orderStatusResult.rows[0].status;
+    // Normalize backend status for comparison, similar to frontend's normalizeStatus if needed, or compare directly
+    // Assuming 'Pending' is the exact string stored for pending status.
+    if (currentStatus !== 'Pending') {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ success: false, message: 'Order cannot be deleted. Only orders with status "Pending" can be deleted.' });
+    }
+
     // Delete order products first
     await client.query('DELETE FROM order_products WHERE order_id = $1', [order_id]);
     // Delete the order itself
-    const result = await client.query('DELETE FROM orders WHERE order_id = $1 RETURNING *', [order_id]);
+    const deleteResult = await client.query('DELETE FROM orders WHERE order_id = $1 RETURNING *', [order_id]);
+    // No need to check deleteResult.rows.length here again as we already confirmed order existence with status check.
+    // If the delete somehow failed after status check (highly unlikely for a simple delete by PK if no other constraints), it would throw an error caught below.
+
     await client.query('COMMIT');
-    if (!result.rows.length) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
     res.json({ success: true, message: 'Order deleted successfully' });
+
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error deleting order:', error);
-    res.status(500).json({ success: false, message: 'Failed to delete order' });
+    res.status(500).json({ success: false, message: 'Failed to delete order', details: error.message });
   } finally {
     client.release();
   }

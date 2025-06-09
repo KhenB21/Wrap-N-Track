@@ -367,7 +367,37 @@ export default function OrderDetails() {
     setSelectedOrder(orderToEdit);
     setShowEditModal(true);
   };
-  const handleDeleteOrder = (orderId) => { console.log('handleDeleteOrder called', orderId); /* Add API call here and update state */ };
+  const handleDeleteOrder = async () => {
+    if (!selectedOrder || !selectedOrder.order_id) {
+      console.error('No order selected or order_id is missing.');
+      alert('No order selected or order ID is missing.');
+      return;
+    }
+
+    if (normalizeStatus(selectedOrder.status) !== 'pending') {
+      alert('Only orders with status "Pending" can be deleted.');
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete order ${selectedOrder.order_id}? This action cannot be undone.`
+    );
+
+    if (confirmDelete) {
+      try {
+        const encodedOrderId = encodeURIComponent(selectedOrder.order_id);
+        console.log(`Attempting to delete order: /api/orders/${encodedOrderId}`); 
+        await api.delete(`/api/orders/${encodedOrderId}`);
+        alert(`Order ${selectedOrder.order_id} deleted successfully.`);
+        fetchOrders(); // Refresh the orders list
+        setSelectedOrderId(null); // Close the modal
+        // If a different state controls modal visibility, adjust this line e.g. setShowOrderDetailsModal(false)
+      } catch (error) {
+        console.error('Error deleting order:', error.response ? error.response.data : error.message);
+        alert(`Failed to delete order. ${error.response && error.response.data && error.response.data.message ? error.response.data.message : 'Please try again.'}`);
+      }
+    }
+  };
   
   const fetchCustomerDetails = useCallback(async (email) => {
     if (!email) {
