@@ -10,10 +10,11 @@ import {
   ScrollView,
 } from "react-native";
 import axios from "axios";
+import CustomAlert from "../Components/CustomAlert";
 
 export default function RegisterScreen({ navigation }) {
   const [form, setForm] = useState({
-    name:"",
+    name: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -22,6 +23,8 @@ export default function RegisterScreen({ navigation }) {
     address: "",
   });
   const [loading, setLoading] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
 
   const handleChange = (key, value) => setForm({ ...form, [key]: value });
 
@@ -33,15 +36,18 @@ export default function RegisterScreen({ navigation }) {
       !form.confirmPassword ||
       !form.username
     ) {
-      Alert.alert("All fields are required!");
+      setAlertMessage("All fields are required!");
+      setAlertVisible(true);
       return;
     }
     if (form.password.length < 6) {
-      Alert.alert("Password must be at least 6 characters!");
+      setAlertMessage("Password must be at least 6 characters!");
+      setAlertVisible(true);
       return;
     }
     if (form.password !== form.confirmPassword) {
-      Alert.alert("Passwords do not match!");
+      setAlertMessage("Passwords do not match!");
+      setAlertVisible(true);
       return;
     }
     setLoading(true);
@@ -54,99 +60,182 @@ export default function RegisterScreen({ navigation }) {
         phone: form.phone,
         address: form.address,
       });
-      Alert.alert(
-        "Success!",
-        res.data.message ||
-          "Registered. Check your email for verification code."
-      );
-      navigation.navigate('VerifyEmail', { email: form.email });
+
+      navigation.navigate("VerifyEmail", { email: form.email });
     } catch (err) {
-      Alert.alert(
-        "Error",
-        err?.response?.data?.message || "Registration failed"
-      );
+      setAlertMessage(err?.response?.data?.message || "Registration failed");
+      setAlertVisible(true);
     }
     setLoading(false);
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Sign Up</Text>
+    <View style={styles.bg}>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.card}>
+          <Text style={styles.title}>Sign Up</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Full Name"
-        value={form.name}
-        onChangeText={(v) => handleChange("name", v)}
+          <Text style={styles.label}>Full Name:</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Full Name"
+            value={form.name}
+            onChangeText={(v) => handleChange("name", v)}
+          />
+          <Text style={styles.label}>Email:</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            keyboardType="email-address"
+            value={form.email}
+            onChangeText={(v) => handleChange("email", v)}
+          />
+          <Text style={styles.label}>Username:</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Username"
+            value={form.username}
+            onChangeText={(v) => handleChange("username", v)}
+          />
+          <Text style={styles.label}>Phone:</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Phone"
+            value={form.phone}
+            onChangeText={(v) => handleChange("phone", v)}
+            keyboardType="phone-pad"
+          />
+          <Text style={styles.label}>Address:</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Address"
+            value={form.address}
+            onChangeText={(v) => handleChange("address", v)}
+          />
+          <Text style={styles.label}>Password:</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={form.password}
+            onChangeText={(v) => handleChange("password", v)}
+            secureTextEntry
+          />
+          <Text style={styles.label}>Confirm Password:</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Confirm Password"
+            value={form.confirmPassword}
+            onChangeText={(v) => handleChange("confirmPassword", v)}
+            secureTextEntry
+          />
+
+          <TouchableOpacity
+            style={styles.registerBtn}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            <Text style={styles.registerBtnText}>
+              {loading ? "Registering..." : "Register"}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.loginRow}>
+            <Text style={styles.loginText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+              <Text style={styles.loginLink}>Log in</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+      <CustomAlert
+        visible={alertVisible}
+        message={alertMessage}
+        onClose={() => setAlertVisible(false)}
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        keyboardType="email-address"
-        value={form.email}
-        onChangeText={(v) => handleChange("email", v)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Username"
-        value={form.username}
-        onChangeText={(v) => handleChange("username", v)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Phone"
-        value={form.phone}
-        onChangeText={(v) => handleChange("phone", v)}
-        keyboardType="phone-pad"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Address"
-        value={form.address}
-        onChangeText={(v) => handleChange("address", v)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={form.password}
-        onChangeText={(v) => handleChange("password", v)}
-        secureTextEntry
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Confirm Password"
-        value={form.confirmPassword}
-        onChangeText={(v) => handleChange("confirmPassword", v)}
-        secureTextEntry
-      />
-      <Button
-        title={loading ? "Registering..." : "Register"}
-        onPress={handleRegister}
-        disabled={loading}
-      />
-      <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-        <Text style={styles.link}>Already have an account? Log in</Text>
-      </TouchableOpacity>
-    </ScrollView>
+    </View>
   );
 }
 
+// Styles (replace your current styles with these)
 const styles = StyleSheet.create({
-  container: {
+  bg: {
+    flex: 1,
+    backgroundColor: "#f5f5f7",
+  },
+  scroll: {
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
-    backgroundColor: "#fff",
+    paddingVertical: 32,
   },
-  title: { fontSize: 28, fontWeight: "bold", marginBottom: 24 },
+  card: {
+    width: "92%",
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 28,
+    alignItems: "stretch",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  title: {
+    fontSize: 32,
+    fontFamily: "serif",
+    fontWeight: "bold",
+    color: "#726d8a",
+    textAlign: "center",
+    marginBottom: 18,
+    letterSpacing: 1,
+  },
+  label: {
+    fontSize: 15,
+    fontWeight: "bold",
+    marginBottom: 4,
+    marginTop: 8,
+    color: "#222",
+    fontFamily: "serif",
+  },
   input: {
     width: "100%",
-    padding: 10,
+    padding: 12,
     borderWidth: 1,
     borderColor: "#ccc",
-    marginBottom: 12,
-    borderRadius: 8,
+    borderRadius: 10,
+    marginBottom: 8,
+    fontSize: 15,
+    backgroundColor: "#fafaff",
+    fontFamily: "serif",
   },
-  link: { color: "blue", marginTop: 14 },
+  registerBtn: {
+    backgroundColor: "#726d8a",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  registerBtnText: {
+    color: "#fff",
+    fontSize: 17,
+    fontFamily: "serif",
+    fontWeight: "bold",
+    letterSpacing: 1,
+  },
+  loginRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  loginText: {
+    fontSize: 14,
+    color: "#222",
+    fontFamily: "serif",
+  },
+  loginLink: {
+    fontSize: 14,
+    color: "#1976d2",
+    fontFamily: "serif",
+    fontWeight: "bold",
+  },
 });

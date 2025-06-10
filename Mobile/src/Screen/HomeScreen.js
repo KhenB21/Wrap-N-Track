@@ -44,7 +44,6 @@ useEffect(() => {
   axios
     .get("http://10.0.2.2:5000/api/products")
     .then((res) => {
-      console.log("Fetched products:", res.data); // Add this!
       setProducts(res.data);
     })
     .catch((err) => {

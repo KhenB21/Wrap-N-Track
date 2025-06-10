@@ -15,13 +15,36 @@ const generateOTP = () => {
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.MAIL_USER, 
-    pass: process.env.MAIL_PASS, 
-  },
-  tls: {
-    rejectUnauthorized: false,
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
   },
 });
+
+const otpHtml = (otp) => `
+  <div style="background:#f7f7fb;padding:32px 0;">
+    <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:18px;padding:40px 32px 32px 32px;box-shadow:0 2px 8px rgba(0,0,0,0.04);font-family:serif,sans-serif;">
+      <div style="text-align:center;margin-bottom:18px;">
+        <img src="https://i.imgur.com/tni09jC.png" alt="Wrap-N-Track Logo" style="height:48px;margin-bottom:8px;" />
+        <h2 style="margin:0;font-size:28px;color:#222;">Verify your Wrap-N-Track sign-up</h2>
+      </div>
+      <p style="font-size:16px;color:#444;text-align:center;margin-bottom:28px;">
+        We have received a sign-up attempt with the following code. Please enter it in the app to verify your email.
+      </p>
+      <div style="background:#f3f4f6;border-radius:10px;padding:22px 0;margin-bottom:24px;text-align:center;">
+        <span style="font-size:32px;letter-spacing:6px;color:#222;font-weight:bold;text-align:center;display:inline-block;">${otp}</span>
+      </div>
+      <p style="font-size:13px;color:#888;text-align:center;margin-bottom:0;">
+        If you did not attempt to sign up but received this email, please disregard it.<br/>
+        The code will remain active for 10 minutes.
+      </p>
+      <hr style="margin:32px 0 16px 0;border:none;border-top:1px solid #eee;">
+      <div style="text-align:center;font-size:13px;color:#aaa;">
+        Wrap-N-Track, your effortless order tracking solution.<br/>
+        &copy; ${new Date().getFullYear()} Wrap-N-Track. All rights reserved.
+      </div>
+    </div>
+  </div>
+`;
 
 exports.register = async (req, res) => {
   const { name, email, password, username, phone, address } = req.body;
@@ -37,16 +60,15 @@ exports.register = async (req, res) => {
     const otp_expires = new Date(Date.now() + 10 * 60000);
 
     await pool.query(
-      "INSERT INTO users (name, email, password, username, phone, address, otp_code, otp_expires) VALUES ($1,$2,$3,$4,$5,$6,$7)",
-      [name, email, hash, username, phone, address, otp, otp_expires, ]
+      "INSERT INTO users (name, email, password, username, phone, address, otp_code, otp_expires) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+      [name, email, hash, username, phone, address, otp, otp_expires]
     );
 
-    // Send OTP email
     await transporter.sendMail({
       from: process.env.MAIL_USER,
       to: email,
       subject: "Verify your email",
-      text: `Your verification code is: ${otp}`,
+      html: otpHtml(otp),
     });
 
     res.json({

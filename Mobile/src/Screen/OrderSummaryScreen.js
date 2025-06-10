@@ -8,12 +8,13 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-  Platform,
   Modal,
 } from "react-native";
 import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
 import axios from "axios";
 import Header from "../Components/Header";
+import CustomAlert from "../Components/CustomAlert";
+import DoneAlert from "../Components/DoneAlert";
 
 export default function OrderSummaryScreen({ route, navigation }) {
   const { productId, userId } = route.params;
@@ -33,6 +34,10 @@ export default function OrderSummaryScreen({ route, navigation }) {
   const [addingAddress, setAddingAddress] = useState(false);
   const [newAddress, setNewAddress] = useState("");
 
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertMessage, setAlertMessage] = useState(""); // <-- add this
+  const [doneVisible, setDoneVisible] = useState(false);
+
   const shippingFee = 49;
 
   useEffect(() => {
@@ -44,7 +49,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
         ]);
         setProduct(productRes.data);
         setUser(userRes.data);
-        // Initial addresses: user default address + sample address
+
         setAddresses([
           userRes.data.address,
           "123 Espino, Central Village, Taguig City, Philippines",
@@ -70,6 +75,14 @@ export default function OrderSummaryScreen({ route, navigation }) {
   const total = subtotal + shippingFee;
 
   const handleBuyNow = async () => {
+    // Validation: use CustomAlert for errors
+    if (!expectedDelivery || !/^\d{2}\/\d{2}\/\d{2}$/.test(expectedDelivery)) {
+      setAlertMessage(
+        "Please enter a valid expected delivery date (MM/DD/YY)."
+      );
+      setAlertVisible(true);
+      return;
+    }
     try {
       await axios.post("http://10.0.2.2:5000/api/orders", {
         name: product.name,
@@ -78,17 +91,17 @@ export default function OrderSummaryScreen({ route, navigation }) {
         status: "Pending",
         shipping_address: addresses[selectedAddressIdx],
         total_cost: total,
-        cellphone: user.cellphone,
+        cellphone: user.phone,
         email_address: user.email,
       });
-      Alert.alert("Success", "Your order has been placed!");
+      setDoneVisible(true); // Show DoneAlert on success
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Failed to place the order.");
+      setAlertMessage("Error: Failed to place the order.");
+      setAlertVisible(true);
     }
   };
 
-  // Date input MM/DD/YY
   const handleDateInput = (text) => {
     let cleaned = text.replace(/\D/g, "");
     let formatted = cleaned;
@@ -105,9 +118,13 @@ export default function OrderSummaryScreen({ route, navigation }) {
     setExpectedDelivery(formatted);
   };
 
-  // For cart navigation (optional)
   const handleCartPress = () => {
     navigation.navigate("Cart");
+  };
+
+  const handleDone = () => {
+    setDoneVisible(false);
+    navigation.navigate("Home"); // Change "Home" to your home screen name if needed
   };
 
   if (loading || !product || !user) {
@@ -120,7 +137,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
       <Header navigation={navigation} onCartPress={handleCartPress} />
 
-      {/* --- Address Selector Modal --- */}
+      {/* Address Selector Modal */}
       <Modal
         visible={addressModalVisible}
         transparent
@@ -140,7 +157,6 @@ export default function OrderSummaryScreen({ route, navigation }) {
             >
               <Ionicons name="close" size={22} color="#222" />
             </TouchableOpacity>
-            {/* ADDRESS LIST */}
             {addresses.map((addr, idx) => (
               <TouchableOpacity
                 key={idx}
@@ -169,7 +185,6 @@ export default function OrderSummaryScreen({ route, navigation }) {
               </TouchableOpacity>
             ))}
 
-            {/* ADD ADDRESS BUTTON & INPUT */}
             {!addingAddress ? (
               <TouchableOpacity
                 style={styles.modalAddAddressBtn}
@@ -211,7 +226,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
                         return;
                       }
                       setAddresses((prev) => [newAddress.trim(), ...prev]);
-                      setSelectedAddressIdx(0); // New address becomes current
+                      setSelectedAddressIdx(0);
                       setAddingAddress(false);
                       setNewAddress("");
                       setAddressModalVisible(false);
@@ -245,7 +260,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
       <View style={{ flex: 1, padding: 16, paddingTop: 100 }}>
         <Text style={styles.title}>ORDER SUMMARY</Text>
 
-        {/* --- Product Card --- */}
+        {/* Product Card */}
         <View style={styles.card}>
           <Image
             source={{ uri: product.image_url }}
@@ -269,14 +284,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
                     />
                   </TouchableOpacity>
                   <TextInput
-                    style={{
-                      width: 40,
-                      textAlign: "center",
-                      fontSize: 16,
-                      borderBottomWidth: 1,
-                      borderColor: "#a49dbb",
-                      marginHorizontal: 6,
-                    }}
+                    style={styles.qtyValue}
                     value={quantity.toString()}
                     keyboardType="number-pad"
                     onChangeText={(val) => {
@@ -297,7 +305,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* --- Address Card (Clickable, name/number only here) --- */}
+        {/* Address Card (shows name & phone above address) */}
         <TouchableOpacity onPress={() => setAddressModalVisible(true)}>
           <View style={styles.userCard}>
             <View
@@ -307,9 +315,9 @@ export default function OrderSummaryScreen({ route, navigation }) {
                 justifyContent: "space-between",
               }}
             >
-              <Text style={styles.userName}>{user.name}</Text>
+              <Text style={styles.userName}>{user.name || "No Name"}</Text>
               <Text style={styles.userPhone}>
-                {user.cellphone ? `(+63)${user.cellphone}` : ""}
+                {user.phone ? `(+63)${user.phone}` : "No Number"}
               </Text>
             </View>
             <View style={styles.addressRow}>
@@ -327,7 +335,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
           </View>
         </TouchableOpacity>
 
-        {/* --- Expected Date to Deliver --- */}
+        {/* Expected Date to Deliver */}
         <View style={styles.sectionBox}>
           <Text style={styles.sectionLabel}>EXPECTED DATE TO DELIVER</Text>
           <View style={styles.dateRow}>
@@ -344,7 +352,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* --- Add Note --- */}
+        {/* Add Note */}
         <View style={styles.sectionBox}>
           <Text style={styles.sectionLabel}>ADD NOTE</Text>
           <TextInput
@@ -358,7 +366,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
           />
         </View>
 
-        {/* --- Order Summary --- */}
+        {/* Order Summary */}
         <View style={styles.sectionBox}>
           <Text style={styles.sectionLabel}>ORDER SUMMARY</Text>
           <View style={styles.summaryContent}>
@@ -382,7 +390,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* --- Footer --- */}
+      {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerTotalLabel}>TOTAL:</Text>
         <Text style={styles.footerTotalValue}>₱{total}</Text>
@@ -390,14 +398,27 @@ export default function OrderSummaryScreen({ route, navigation }) {
           <Text style={styles.footerBtnText}>BUY NOW</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Custom Alert for order success */}
+      <CustomAlert
+        visible={alertVisible}
+        message={alertMessage}
+        onClose={() => setAlertVisible(false)}
+      />
+      <DoneAlert
+        visible={doneVisible}
+        message={
+          "THANK YOU FOR PURCHASING,\nWE WILL CONTACTING YOU SOON\nFOR MORE DETAILS"
+        }
+        onDone={handleDone}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // ... your existing styles ...
+  // ... keep your previous styles here ...
 
-  // Modal styles
   modalBackground: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.25)",
@@ -457,8 +478,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#888",
   },
-
-  // (keep your other styles unchanged below)
+  // ... the rest of your styles from before ...
   header: {
     backgroundColor: "#a49dbb",
     flexDirection: "row",
@@ -503,12 +523,32 @@ const styles = StyleSheet.create({
   quantityRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginLeft: 10,
-    gap: 8,
   },
-  qtyLabel: { fontSize: 12, marginRight: 6, color: "#888" },
-  qtyControl: { flexDirection: "row", alignItems: "center", gap: 6 },
-  qtyValue: { fontSize: 16, paddingHorizontal: 8 },
+  qtyLabel: {
+    fontSize: 12,
+    marginRight: 6,
+    color: "#888",
+  },
+  qtyControl: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center", // center the controls
+    width: 90, // reduce width to fit inside card
+    backgroundColor: "transparent",
+    borderRadius: 6,
+    borderWidth: 0,
+  },
+  qtyValue: {
+    width: 32, // slightly smaller
+    textAlign: "center",
+    fontSize: 16,
+    borderBottomWidth: 1,
+    borderColor: "#a49dbb",
+    marginHorizontal: 2, // reduce margin
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    backgroundColor: "transparent",
+  },
   userCard: {
     backgroundColor: "#f5f5f5",
     borderRadius: 8,
