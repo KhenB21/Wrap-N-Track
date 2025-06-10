@@ -40,13 +40,19 @@ export default function HomeScreen({ navigation }) {
   const [showAllBespoke, setShowAllBespoke] = useState(false);
   const scrollRef = useRef();
 
-  useEffect(() => {
-    axios
-      .get("http://10.0.2.2:5000/api/products")
-      .then((res) => setProducts(res.data))
-      .catch(() => alert("Failed to load products"))
-      .finally(() => setLoading(false));
-  }, []);
+useEffect(() => {
+  axios
+    .get("http://10.0.2.2:5000/api/products")
+    .then((res) => {
+      console.log("Fetched products:", res.data); // Add this!
+      setProducts(res.data);
+    })
+    .catch((err) => {
+      console.error("Failed to load products", err);
+      alert("Failed to load products");
+    })
+    .finally(() => setLoading(false));
+}, []);
 
   // Carousel auto-scroll
   useEffect(() => {
