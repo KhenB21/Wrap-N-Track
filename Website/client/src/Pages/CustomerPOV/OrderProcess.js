@@ -1680,6 +1680,13 @@ useEffect(() => {
                             src={product.image ? `data:image/jpeg;base64,${product.image}` : '/Assets/Images/placeholder.png'}
                             alt={`${product.name} - ${product.description}`}
                             className={product.name.toLowerCase().replace(" ", "")}
+                            style={{
+                              width: "150px",  // Fixed width
+                              height: "150px", // Same as width to make it square
+                              objectFit: "contain",
+                              display: "block",
+                              margin: "0 auto" // Centers the image
+                            }}
                           />
                         </div>
                         <h4>{product.name}</h4>
