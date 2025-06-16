@@ -23,11 +23,12 @@ const bannerImages = [
   require("../../assets/Banner/Bespoke.png"),
 ];
 
-// Map product images
+// Map product images (add .png so it matches your DB column exactly)
 const imageMap = {
-  Gian_Becka: require("../../assets/Images/Gian_Becka.png"),
-  Eric_Mariel: require("../../assets/Images/Eric_Mariel.png"),
-  Carlo_Isabelle: require("../../assets/Images/Carlo_Isabelle.png"),
+  "Gian_Becka.png": require("../../assets/Images/Gian_Becka.png"),
+  "Eric_Mariel.png": require("../../assets/Images/Eric_Mariel.png"),
+  "Carlo_Isabelle.png": require("../../assets/Images/Carlo_Isabelle.png"),
+  // ...add more as needed!
 };
 
 export default function HomeScreen({ navigation }) {
@@ -40,18 +41,18 @@ export default function HomeScreen({ navigation }) {
   const [showAllBespoke, setShowAllBespoke] = useState(false);
   const scrollRef = useRef();
 
-useEffect(() => {
-  axios
-    .get("http://10.0.2.2:5000/api/products")
-    .then((res) => {
-      setProducts(res.data);
-    })
-    .catch((err) => {
-      console.error("Failed to load products", err);
-      alert("Failed to load products");
-    })
-    .finally(() => setLoading(false));
-}, []);
+  useEffect(() => {
+    axios
+      .get("http://10.0.2.2:5000/api/products")
+      .then((res) => {
+        setProducts(res.data);
+      })
+      .catch((err) => {
+        console.error("Failed to load products", err);
+        alert("Failed to load products");
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   // Carousel auto-scroll
   useEffect(() => {
@@ -93,7 +94,12 @@ useEffect(() => {
       onPress={() => navigation.navigate("ProductDetails", { product: item })}
       activeOpacity={0.8}
     >
-      <Image source={imageMap[item.image_url]} style={styles.productImage} />
+      <Image
+        source={
+          imageMap[item.image_url] // fallback image (add this file!)
+        }
+        style={styles.productImage}
+      />
       <Text style={styles.productTitle}>{item.name.replace(/_/g, " & ")}</Text>
       <Text style={styles.productDesc} numberOfLines={2}>
         {item.description}
@@ -402,8 +408,8 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   productImage: {
-    width: 90,
-    height: 70,
+    width: 100,
+    height: 100,
     borderRadius: 8,
     marginBottom: 6,
     backgroundColor: "#ddd",
