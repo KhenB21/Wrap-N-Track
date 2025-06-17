@@ -23,12 +23,38 @@ const bannerImages = [
   require("../../assets/Banner/Bespoke.png"),
 ];
 
-// Map product images (add .png so it matches your DB column exactly)
 const imageMap = {
+  //Wedding images
   "Gian_Becka.png": require("../../assets/Images/Gian_Becka.png"),
   "Eric_Mariel.png": require("../../assets/Images/Eric_Mariel.png"),
   "Carlo_Isabelle.png": require("../../assets/Images/Carlo_Isabelle.png"),
-  // ...add more as needed!
+  "Jon_Rachel.png": require("../../assets/Images/Jon_Rachel.png"),
+  "Jed_Ellie.png": require("../../assets/Images/Jed_Ellie.png"),
+  "Mike_Faith.png": require("../../assets/Images/Mike_Faith.png"),
+  "Tracky_Pat.png": require("../../assets/Images/Tracky_Pat.png"),
+  "Nash_Precious.png": require("../../assets/Images/Nash_Precious.png"),
+  "Dave_Czarila.png": require("../../assets/Images/Dave_Czarila.png"),
+  "Egbert_Ghezlaine.png": require("../../assets/Images/Egbert_Ghezlaine.png"),
+
+  // Corporate images
+  "Lenovo_AMD.png": require("../../assets/Images/Lenovo_AMD.png"),
+  "The_SHEeo_Society.png": require("../../assets/Images/The_SHEeo_Society.png"),
+  "Omniretail_Group.png": require("../../assets/Images/Omniretail_Group.png"),
+  "Dane.png": require("../../assets/Images/Dane.png"),
+  "Charlie.png": require("../../assets/Images/Charlie.png"),
+  "Madman_Creatives.png": require("../../assets/Images/Madman_Creatives.png"),
+  "Colourette_Cosmetics.png": require("../../assets/Images/Colourette_Cosmetics.png"),
+  "Sunnies.png": require("../../assets/Images/Sunnies.png"),
+
+  // Bespoke images
+  "In_Full_Bloom.png": require("../../assets/Images/In_Full_Bloom.png"),
+  "Spiced_Sips_Savories.png": require("../../assets/Images/Spiced_Sips_Savories.png"),
+  "Taylor_Swift.png": require("../../assets/Images/Taylor_Swift.png"),
+  "Christening.png": require("../../assets/Images/Christening.png"),
+  "Love_Marie.png": require("../../assets/Images/Love_Marie.png"),
+  "Manners_Maketh_Man.png": require("../../assets/Images/Manners_Maketh_Man.png"),
+  "JCCM.png": require("../../assets/Images/JCCM.png"),
+  "Rani.png": require("../../assets/Images/Rani.png"),
 };
 
 export default function HomeScreen({ navigation }) {
@@ -187,7 +213,7 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.stepText}>MAKE IT{"\n"}PERSONAL</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.createBtn}>
+          <TouchableOpacity style={styles.createBtn} onPress={() => navigation.navigate("CreateGift")}>
             <Text style={styles.createBtnText}>CREATE MINE</Text>
           </TouchableOpacity>
         </View>

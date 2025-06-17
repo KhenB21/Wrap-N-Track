@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
   View,
   Text,
@@ -6,24 +6,28 @@ import {
   StyleSheet,
   ScrollView,
   Dimensions,
+  Animated,
 } from "react-native";
 import Header from "../Components/Header";
 
 const { width } = Dimensions.get("window");
-const HEADER_HEIGHT = 70; // Adjust if your Header is taller/shorter
+const HEADER_HEIGHT = 70;
 
 export default function AboutUsScreen({ navigation }) {
+  // Animation for the value texts
+  const values = ["Bespoke", "Empowered", "Patriotic"];
+  const scrollX = useRef(new Animated.Value(0)).current;
+
   return (
     <View style={{ flex: 1, backgroundColor: "#faf8ea" }}>
       <Header title="About Pensée" navigation={navigation} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Spacer for Header */}
         <View style={{ height: HEADER_HEIGHT }} />
 
         {/* Banner Section */}
         <View style={styles.bannerContainer}>
           <Image
-            source={require("../../assets/Banner/AboutUs.png")} // <-- use your banner image here
+            source={require("../../assets/Banner/AboutUs.png")}
             style={styles.banner}
             resizeMode="cover"
           />
@@ -32,14 +36,59 @@ export default function AboutUsScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Three Values */}
-        <View style={styles.valueRow}>
-          <Text style={styles.valueText}>Bespoke</Text>
-          <Text style={styles.valueText}>Empowered</Text>
-          <Text style={styles.valueText}>Patriotic</Text>
+        {/* ANIMATED Three Values */}
+        <View style={{ width: "100%", height: 100, marginBottom: 28, alignItems: "center" }}>
+          <Animated.ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={width * 0.6}
+            decelerationRate="fast"
+            contentContainerStyle={{
+              paddingHorizontal: (width - width * 0.6) / 2,
+              alignItems: "center",
+            }}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+              { useNativeDriver: true }
+            )}
+            scrollEventThrottle={16}
+          >
+            {values.map((value, i) => {
+              const inputRange = [
+                (i - 1) * width * 0.6,
+                i * width * 0.6,
+                (i + 1) * width * 0.6,
+              ];
+              const translateX = scrollX.interpolate({
+                inputRange,
+                outputRange: [-50, 0, 50],
+                extrapolate: "clamp",
+              });
+              const opacity = scrollX.interpolate({
+                inputRange,
+                outputRange: [0.3, 1, 0.3],
+                extrapolate: "clamp",
+              });
+
+              return (
+                <Animated.View
+                  key={value}
+                  style={[
+                    styles.valueItem,
+                    {
+                      transform: [{ translateX }],
+                      opacity,
+                    },
+                  ]}
+                >
+                  <Text style={styles.valueText}>{value}</Text>
+                </Animated.View>
+              );
+            })}
+          </Animated.ScrollView>
         </View>
 
-        {/* Our Story */}
+        {/* --- REST OF YOUR ABOUT US --- */}
         <Text style={styles.sectionTitle}>Our Story</Text>
         <Text style={styles.bodyText}>
           <Text style={{ fontWeight: "400" }}>
@@ -60,8 +109,6 @@ export default function AboutUsScreen({ navigation }) {
         <Text style={styles.italicQuote}>
           "I thought about you while buying this."
         </Text>
-
-        {/* Soul of Pensée */}
         <Text style={[styles.bodyText, { marginTop: 22 }]}>
           The soul of Pensée is thoughtful and purposeful gift-giving.
         </Text>
@@ -70,8 +117,6 @@ export default function AboutUsScreen({ navigation }) {
           established businesses. We advocate for them, bring them together, and
           highlight their potential.
         </Text>
-
-        {/* Mission Statement */}
         <Text style={[styles.bodyText, { marginTop: 22, marginBottom: 34 }]}>
           At Pensée, we ensure that our gift boxes are{" "}
           <Text style={styles.italic}>meticulously curated</Text> and{" "}
@@ -88,11 +133,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingBottom: 40,
     paddingHorizontal: 18,
-    // No need for paddingTop since we use a spacer View
   },
   bannerContainer: {
     width: "100%",
-    height: width * 0.54, // for a 2:1 ratio, adjust as needed
+    height: width * 0.54,
     marginBottom: 14,
     justifyContent: "center",
     alignItems: "center",
@@ -122,18 +166,17 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textAlign: "center",
   },
-  valueRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "100%",
-    marginTop: 8,
-    marginBottom: 28,
+  valueItem: {
+    width: width * 0.6,
+    height: 70,
+    justifyContent: "center",
+    alignItems: "center",
   },
   valueText: {
     color: "#8680a3",
-    fontSize: 18,
+    fontSize: 24,
     fontFamily: "serif",
-    fontWeight: "400",
+    fontWeight: "700",
     letterSpacing: 2,
   },
   sectionTitle: {
