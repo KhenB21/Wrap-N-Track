@@ -9,7 +9,7 @@ import config from "../../config";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 const UOMS_REQUIRING_CONVERSION = ['Dozen', 'Box', 'Bundle', 'Set', 'Kit'];
@@ -156,8 +156,8 @@ export default function Inventory() {
         tableRows.push(productData);
     });
 
-    doc.autoTable(tableColumn, tableRows, { startY: 20 });
     doc.text("Inventory Report", 14, 15);
+    autoTable(doc, { head: [tableColumn], body: tableRows, startY: 20 });
     doc.save("inventory_report.pdf");
     toast.success("Exported to PDF successfully!");
   };
