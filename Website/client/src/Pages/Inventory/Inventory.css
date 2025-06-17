@@ -261,6 +261,58 @@
   box-shadow: 0 0 0 2px rgba(59, 183, 126, 0.1);
 }
 
+.inventory-filters {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.export-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.export-btn {
+  padding: 10px 15px;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.export-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.export-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+}
+
+.pdf-btn {
+  background-color: #D32F2F;
+}
+
+.pdf-btn:hover {
+  background-color: #B71C1C;
+}
+
+.excel-btn {
+  background-color: #388E3C;
+}
+
+.excel-btn:hover {
+  background-color: #1B5E20;
+}
+
 /* Inventory styles */
 
 /* Loading container */

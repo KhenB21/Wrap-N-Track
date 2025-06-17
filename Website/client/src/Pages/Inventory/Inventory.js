@@ -8,6 +8,9 @@ import api, { apiFileUpload } from "../../api/axios";
 import config from "../../config";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const UOMS_REQUIRING_CONVERSION = ['Dozen', 'Box', 'Bundle', 'Set', 'Kit'];
 
@@ -131,6 +134,56 @@ export default function Inventory() {
     }
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const tableColumn = ["SKU", "Name", "Description", "Unit Price", "Category", "Expiration", "Last Updated", "UOM", "In Stocks", "Ordered", "Delivered"];
+    const tableRows = [];
+
+    filteredProducts.forEach(product => {
+        const productData = [
+            product.sku,
+            product.name,
+            product.description,
+            `₱${parseFloat(product.unit_price).toFixed(2)}`,
+            product.category,
+            product.expiration ? new Date(product.expiration).toISOString().slice(0, 10) : '',
+            new Date(product.last_updated).toLocaleString(),
+            UOMS_REQUIRING_CONVERSION.includes(product.uom) && product.conversion_qty ? `${product.uom} (${product.conversion_qty})` : product.uom,
+            product.quantity,
+            product.ordered_quantity || 0,
+            product.delivered_quantity || 0
+        ];
+        tableRows.push(productData);
+    });
+
+    doc.autoTable(tableColumn, tableRows, { startY: 20 });
+    doc.text("Inventory Report", 14, 15);
+    doc.save("inventory_report.pdf");
+    toast.success("Exported to PDF successfully!");
+  };
+
+  const exportToExcel = () => {
+      const worksheetData = filteredProducts.map(product => ({
+          SKU: product.sku,
+          Name: product.name,
+          Description: product.description,
+          'Unit Price': `₱${parseFloat(product.unit_price).toFixed(2)}`,
+          Category: product.category,
+          Expiration: product.expiration ? new Date(product.expiration).toISOString().slice(0, 10) : '',
+          'Last Updated': new Date(product.last_updated).toLocaleString(),
+          UOM: UOMS_REQUIRING_CONVERSION.includes(product.uom) && product.conversion_qty ? `${product.uom} (${product.conversion_qty})` : product.uom,
+          'In Stocks': product.quantity,
+          Ordered: product.ordered_quantity || 0,
+          Delivered: product.delivered_quantity || 0,
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory");
+      XLSX.writeFile(workbook, "inventory_report.xlsx");
+      toast.success("Exported to Excel successfully!");
+  };
+
   return (
     <div className="dashboard-container">
       <Sidebar />
@@ -166,6 +219,10 @@ export default function Inventory() {
               <option value="high-stock">High Stock (&gt;800)</option>
               <option value="replenishment">Need Replenishment (0)</option>
             </select>
+            <div className="export-buttons">
+              <button onClick={exportToPDF} className="export-btn pdf-btn">Export as PDF</button>
+              <button onClick={exportToExcel} className="export-btn excel-btn">Export as Excel</button>
+            </div>
           </div>
           {loading ? (
             <div className="loading-container">Loading...</div>
