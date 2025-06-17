@@ -11,26 +11,28 @@ import {
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomAlert from "../Components/CustomAlert";
+import { Feather } from "@expo/vector-icons";
 
 export default function LoginScreen({ navigation }) {
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ username: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [remember, setRemember] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (key, value) => setForm({ ...form, [key]: value });
 
   const handleLogin = async () => {
-    if (!form.email || !form.password) {
-      setAlertMessage("Please enter both email and password.");
+    if (!form.username || !form.password) {
+      setAlertMessage("Please enter both Username and Password.");
       setAlertVisible(true);
       return;
     }
     setLoading(true);
     try {
       const res = await axios.post("http://10.0.2.2:5000/api/auth/login", {
-        email: form.email,
+        username: form.username,
         password: form.password,
       });
       await AsyncStorage.setItem("token", res.data.token);
@@ -38,7 +40,7 @@ export default function LoginScreen({ navigation }) {
       navigation.reset({ index: 0, routes: [{ name: "Home" }] });
     } catch (err) {
       setAlertMessage(
-        err?.response?.data?.message || "Wrong email or password"
+        err?.response?.data?.message || "Wrong Username or Password"
       );
       setAlertVisible(true);
     }
@@ -50,24 +52,38 @@ export default function LoginScreen({ navigation }) {
       <View style={styles.card}>
         <Text style={styles.title}>LOGIN</Text>
 
-        <Text style={styles.label}>Email:</Text>
+        <Text style={styles.label}>Username:</Text>
         <TextInput
           style={styles.input}
-          placeholder="Email:"
+          placeholder="Username:"
           value={form.username}
-          onChangeText={(v) => handleChange("email", v)}
+          onChangeText={(v) => handleChange("username", v)}
           autoCapitalize="none"
+          maxLength={25}
         />
 
         <Text style={styles.label}>Password:</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Password:"
-          value={form.password}
-          onChangeText={(v) => handleChange("password", v)}
-          secureTextEntry
-          autoCapitalize="none"
-        />
+        <View style={{ position: "relative" }}>
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={form.password}
+            onChangeText={(v) => handleChange("password", v)}
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            maxLength={25}
+          />
+          <TouchableOpacity
+            onPress={() => setShowPassword((prev) => !prev)}
+            style={{ position: "absolute", right: 16, top: 14 }}
+          >
+            <Feather
+              name={showPassword ? "eye-off" : "eye"}
+              size={20}
+              color="#726d8a"
+            />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.row}>
           <Pressable
@@ -157,6 +173,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontSize: 15,
     backgroundColor: "#fafaff",
+    fontFamily: "serif",
+  },
+  showPasswordBtn: {
+    alignSelf: "flex-end",
+    marginBottom: 12,
+  },
+  showPasswordText: {
+    fontSize: 13,
+    color: "#726d8a",
     fontFamily: "serif",
   },
   row: {

@@ -103,28 +103,28 @@ exports.verifyEmail = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const { username, password } = req.body;
   try {
-    const user = await pool.query("SELECT * FROM users WHERE email=$1", [
-      email,
+    const user = await pool.query("SELECT * FROM users WHERE username=$1", [
+      username,
     ]);
     if (!user.rows.length)
-      return res.status(400).json({ message: "Email not found" });
+      return res.status(400).json({ message: "Username not found" });
     const u = user.rows[0];
     if (!u.is_verified)
-      return res.status(400).json({ message: "Email not verified" });
+      return res.status(400).json({ message: "Account not verified" });
 
     const isMatch = await bcrypt.compare(password, u.password);
     if (!isMatch) return res.status(400).json({ message: "Wrong password" });
 
     const token = jwt.sign(
-      { id: u.id, email: u.email },
+      { id: u.id, username: u.username },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
     res.json({
       token,
-      user: { user_id: u.user_id, email: u.email, username: u.username },
+      user: { user_id: u.user_id, username: u.username, email: u.email },
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
