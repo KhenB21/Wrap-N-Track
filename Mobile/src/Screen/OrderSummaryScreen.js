@@ -16,6 +16,14 @@ import Header from "../Components/Header";
 import CustomAlert from "../Components/CustomAlert";
 import DoneAlert from "../Components/DoneAlert";
 
+// 1. Local image map (edit as needed)
+const imageMap = {
+  "Gian_Becka.png": require("../../assets/Images/Gian_Becka.png"),
+  "Eric_Mariel.png": require("../../assets/Images/Eric_Mariel.png"),
+  "Carlo_Isabelle.png": require("../../assets/Images/Carlo_Isabelle.png"),
+  // ...add more mappings as you need!
+};
+
 export default function OrderSummaryScreen({ route, navigation }) {
   const { productId, userId } = route.params;
   const [product, setProduct] = useState(null);
@@ -35,7 +43,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
   const [newAddress, setNewAddress] = useState("");
 
   const [alertVisible, setAlertVisible] = useState(false);
-  const [alertMessage, setAlertMessage] = useState(""); // <-- add this
+  const [alertMessage, setAlertMessage] = useState("");
   const [doneVisible, setDoneVisible] = useState(false);
 
   const shippingFee = 49;
@@ -52,7 +60,6 @@ export default function OrderSummaryScreen({ route, navigation }) {
 
         setAddresses([
           userRes.data.address,
-          "123 Espino, Central Village, Taguig City, Philippines",
         ]);
         setSelectedAddressIdx(0);
         setLoading(false);
@@ -75,7 +82,6 @@ export default function OrderSummaryScreen({ route, navigation }) {
   const total = subtotal + shippingFee;
 
   const handleBuyNow = async () => {
-    // Validation: use CustomAlert for errors
     if (!expectedDelivery || !/^\d{2}\/\d{2}\/\d{2}$/.test(expectedDelivery)) {
       setAlertMessage(
         "Please enter a valid expected delivery date (MM/DD/YY)."
@@ -94,7 +100,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
         cellphone: user.phone,
         email_address: user.email,
       });
-      setDoneVisible(true); // Show DoneAlert on success
+      setDoneVisible(true);
     } catch (err) {
       console.error(err);
       setAlertMessage("Error: Failed to place the order.");
@@ -124,13 +130,21 @@ export default function OrderSummaryScreen({ route, navigation }) {
 
   const handleDone = () => {
     setDoneVisible(false);
-    navigation.navigate("Home"); // Change "Home" to your home screen name if needed
+    navigation.navigate("Home");
   };
 
   if (loading || !product || !user) {
     return (
       <ActivityIndicator size="large" color="#000" style={{ marginTop: 50 }} />
     );
+  }
+
+  // 2. Decide image source
+  let productImageSource;
+  if (imageMap[product.image_url]) {
+    productImageSource = imageMap[product.image_url];
+  } else {
+    productImageSource = { uri: product.image_url };
   }
 
   return (
@@ -263,8 +277,9 @@ export default function OrderSummaryScreen({ route, navigation }) {
         {/* Product Card */}
         <View style={styles.card}>
           <Image
-            source={{ uri: product.image_url }}
+            source={productImageSource}
             style={styles.productImage}
+            resizeMode="contain"
           />
           <View style={styles.details}>
             <Text style={styles.name}>{product.name}</Text>
@@ -305,7 +320,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Address Card (shows name & phone above address) */}
+        {/* Address Card */}
         <TouchableOpacity onPress={() => setAddressModalVisible(true)}>
           <View style={styles.userCard}>
             <View
@@ -399,7 +414,7 @@ export default function OrderSummaryScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Custom Alert for order success */}
+      {/* Custom Alerts */}
       <CustomAlert
         visible={alertVisible}
         message={alertMessage}
@@ -417,8 +432,6 @@ export default function OrderSummaryScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  // ... keep your previous styles here ...
-
   modalBackground: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.25)",

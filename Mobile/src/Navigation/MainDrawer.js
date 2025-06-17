@@ -19,6 +19,9 @@ import ProfileScreen from "../Screen/ProfileScreen";
 import MyOrdersScreen from "../Screen/MyOrdersScreen";
 import AboutUsScreen from "../Screen/AboutUsScreen";
 import ChangePasswordScreen from "../Screen/ChangePasswordScreen";
+import OrderSummaryScreen from "../Screen/OrderSummaryScreen";
+import ProductDetailsScreen from "../Screen/ProductDetailsScreen";
+import axios from "axios";
 
 function CustomDrawerContent(props) {
   const { navigation } = props;
@@ -29,13 +32,27 @@ function CustomDrawerContent(props) {
   const settingsAnim = useState(new Animated.Value(0))[0];
   const displayAnim = useState(new Animated.Value(0))[0];
 
+  // Always reflect latest profile data and avatar
   useEffect(() => {
     const fetchUser = async () => {
-      const userData = await AsyncStorage.getItem("user");
-      if (userData) setUser(JSON.parse(userData));
+      try {
+        const userData = await AsyncStorage.getItem("user");
+        if (!userData) return;
+        const user = JSON.parse(userData);
+        // Fetch latest from backend using user_id
+        const res = await axios.get(
+          `http://10.0.2.2:5000/api/users/${user.user_id}`
+        );
+        setUser(res.data);
+      } catch (err) {
+        console.log("Failed to fetch user for drawer:", err);
+      }
     };
-    fetchUser();
-  }, []);
+
+    // Run every time drawer gains focus
+    const unsubscribe = navigation.addListener("focus", fetchUser);
+    return unsubscribe;
+  }, [navigation]);
 
   // Animate dropdowns
   useEffect(() => {
@@ -58,17 +75,24 @@ function CustomDrawerContent(props) {
     navigation.reset({ index: 0, routes: [{ name: "Login" }] });
   };
 
-  const avatar = require("../../assets/Images/Default Profile.jpg");
+  // Use latest profile photo if available
+  const avatar =
+    user?.avatar && user.avatar.length > 0
+      ? { uri: user.avatar }
+      : require("../../assets/Images/Default Profile.jpg");
 
   // Animate heights for dropdowns
   const settingsHeight = settingsAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 104], // 2 submenu items, each ~52px
+    outputRange: [0, 104],
   });
   const displayHeight = displayAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 52], // 1 submenu item, ~52px
+    outputRange: [0, 52],
   });
+
+  // Get active route name from props
+  const currentRoute = props.state?.routeNames[props.state?.index];
 
   return (
     <View style={{ flex: 1, backgroundColor: "#7978a0" }}>
@@ -90,33 +114,125 @@ function CustomDrawerContent(props) {
             <Text style={styles.profileEmail}>
               {user?.email || "jdc@email.com"}
             </Text>
-            <Text style={styles.profileEdit}>View Profile</Text>
           </View>
         </TouchableOpacity>
 
         {/* Menu Items */}
         <View style={{ marginTop: 20, flex: 1 }}>
+          {/* HOME */}
+          <TouchableOpacity
+            style={[
+              styles.menuItem,
+              currentRoute === "Home" && styles.menuItemActive,
+            ]}
+            onPress={() => navigation.navigate("Home")}
+          >
+            <View
+              style={[
+                styles.menuIconCircle,
+                currentRoute === "Home" && styles.menuIconCircleActive,
+              ]}
+            >
+              <Ionicons
+                name="home"
+                size={22}
+                color={currentRoute === "Home" ? "#fff" : "#7978a0"}
+              />
+            </View>
+            <Text
+              style={[
+                styles.menuText,
+                currentRoute === "Home" && styles.menuTextActive,
+              ]}
+            >
+              Home
+            </Text>
+          </TouchableOpacity>
+
+          {/* Profile */}
+          <TouchableOpacity
+            style={[
+              styles.menuItem,
+              currentRoute === "Profile" && styles.menuItemActive,
+            ]}
+            onPress={() => navigation.navigate("Profile")}
+          >
+            <View
+              style={[
+                styles.menuIconCircle,
+                currentRoute === "Profile" && styles.menuIconCircleActive,
+              ]}
+            >
+              <Ionicons
+                name="person"
+                size={22}
+                color={currentRoute === "Profile" ? "#fff" : "#7978a0"}
+              />
+            </View>
+            <Text
+              style={[
+                styles.menuText,
+                currentRoute === "Profile" && styles.menuTextActive,
+              ]}
+            >
+              Profile
+            </Text>
+          </TouchableOpacity>
+
           {/* My Orders */}
           <TouchableOpacity
-            style={styles.menuItem}
+            style={[
+              styles.menuItem,
+              currentRoute === "MyOrders" && styles.menuItemActive,
+            ]}
             onPress={() => navigation.navigate("MyOrders")}
           >
-            <View style={styles.menuIconCircle}>
-              <MaterialIcons name="receipt-long" size={22} color="#7978a0" />
+            <View
+              style={[
+                styles.menuIconCircle,
+                currentRoute === "MyOrders" && styles.menuIconCircleActive,
+              ]}
+            >
+              <MaterialIcons
+                name="receipt-long"
+                size={22}
+                color={currentRoute === "MyOrders" ? "#fff" : "#7978a0"}
+              />
             </View>
-            <Text style={styles.menuText}>My Orders</Text>
+            <Text
+              style={[
+                styles.menuText,
+                currentRoute === "MyOrders" && styles.menuTextActive,
+              ]}
+            >
+              My Orders
+            </Text>
           </TouchableOpacity>
 
           {/* Settings Dropdown */}
           <TouchableOpacity
-            style={styles.menuItem}
+            style={[
+              styles.menuItem,
+              (currentRoute === "AboutUs" ||
+                currentRoute === "ChangePassword") &&
+                styles.menuItemActive,
+            ]}
             onPress={() => setSettingsOpen((prev) => !prev)}
             activeOpacity={0.7}
           >
             <View style={styles.menuIconCircle}>
               <Ionicons name="settings-sharp" size={22} color="#7978a0" />
             </View>
-            <Text style={styles.menuText}>Settings</Text>
+            <Text
+              style={[
+                styles.menuText,
+                (currentRoute === "AboutUs" ||
+                  currentRoute === "ChangePassword") &&
+                  styles.menuTextActive,
+              ]}
+            >
+              Settings
+            </Text>
             <Feather
               name={settingsOpen ? "chevron-up" : "chevron-down"}
               size={20}
@@ -127,7 +243,11 @@ function CustomDrawerContent(props) {
           {/* Settings Dropdown Content */}
           <Animated.View style={{ overflow: "hidden", height: settingsHeight }}>
             <TouchableOpacity
-              style={[styles.menuItem, styles.subMenuItem]}
+              style={[
+                styles.menuItem,
+                styles.subMenuItem,
+                currentRoute === "AboutUs" && styles.menuItemActive,
+              ]}
               onPress={() => navigation.navigate("AboutUs")}
             >
               <Ionicons
@@ -136,10 +256,21 @@ function CustomDrawerContent(props) {
                 color="#ededed"
                 style={styles.subMenuIcon}
               />
-              <Text style={styles.menuText}>About Us</Text>
+              <Text
+                style={[
+                  styles.menuText,
+                  currentRoute === "AboutUs" && styles.menuTextActive,
+                ]}
+              >
+                About Us
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.menuItem, styles.subMenuItem]}
+              style={[
+                styles.menuItem,
+                styles.subMenuItem,
+                currentRoute === "ChangePassword" && styles.menuItemActive,
+              ]}
               onPress={() => navigation.navigate("ChangePassword")}
             >
               <Feather
@@ -148,7 +279,14 @@ function CustomDrawerContent(props) {
                 color="#ededed"
                 style={styles.subMenuIcon}
               />
-              <Text style={styles.menuText}>Change Password</Text>
+              <Text
+                style={[
+                  styles.menuText,
+                  currentRoute === "ChangePassword" && styles.menuTextActive,
+                ]}
+              >
+                Change Password
+              </Text>
             </TouchableOpacity>
           </Animated.View>
 
@@ -216,7 +354,9 @@ export default function MainDrawer() {
       <Drawer.Screen name="Profile" component={ProfileScreen} />
       <Drawer.Screen name="MyOrders" component={MyOrdersScreen} />
       <Drawer.Screen name="AboutUs" component={AboutUsScreen} />
-      <Drawer.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Drawer.Screen name="Order" component={ChangePasswordScreen} />
+      <Drawer.Screen name="OrderSummary" component={OrderSummaryScreen} />
+      <Drawer.Screen name="ProductDetails" component={ProductDetailsScreen} />
     </Drawer.Navigator>
   );
 }
@@ -256,19 +396,17 @@ const styles = StyleSheet.create({
     fontFamily: "serif",
     marginBottom: 2,
   },
-  profileEdit: {
-    color: "#e0d5fa",
-    fontSize: 12,
-    fontStyle: "italic",
-  },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 14,
-    paddingLeft: 12, // move icon more to left
+    paddingLeft: 12,
     paddingRight: 18,
     borderRadius: 8,
     marginBottom: 2,
+  },
+  menuItemActive: {
+    backgroundColor: "#554f78",
   },
   menuIconCircle: {
     width: 38,
@@ -278,6 +416,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
+  },
+  menuIconCircleActive: {
+    backgroundColor: "#7d789b",
   },
   subMenuItem: {
     paddingLeft: 45,
@@ -295,7 +436,6 @@ const styles = StyleSheet.create({
     marginRight: 14,
     backgroundColor: "rgba(0,0,0,0.07)",
   },
-
   subMenuIcon: {
     marginRight: 10,
   },
@@ -304,6 +444,10 @@ const styles = StyleSheet.create({
     color: "#ededed",
     fontFamily: "serif",
     letterSpacing: 0.5,
+  },
+  menuTextActive: {
+    color: "#fff",
+    fontWeight: "bold",
   },
   logoutBtn: {
     backgroundColor: "#908db6",

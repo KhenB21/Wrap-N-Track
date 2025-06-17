@@ -7,28 +7,44 @@ import {
   TouchableOpacity,
   ScrollView,
   FlatList,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Header from "../Components/Header";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Alert } from "react-native";
 
+// 1. Map local images by file name
+const imageMap = {
+  "Gian_Becka.png": require("../../assets/Images/Gian_Becka.png"),
+  "Eric_Mariel.png": require("../../assets/Images/Eric_Mariel.png"),
+  "Carlo_Isabelle.png": require("../../assets/Images/Carlo_Isabelle.png"),
+  // Add ALL your image filename-to-require pairs here!
+};
 
 export default function ProductDetailsScreen({ route, navigation }) {
   const { product } = route.params;
-  const images = product.images || [product.image_url];
-  const [selectedImage, setSelectedImage] = useState(images[0]);
 
- const [currentUser, setCurrentUser] = useState(null);
+  // 2. Normalize images for gallery (local require or URL)
+  const images =
+    product.images && product.images.length > 0
+      ? product.images.map((img) =>
+          imageMap[img]
+            ? imageMap[img]
+            : img && img.startsWith("http")
+            ? { uri: img }
+            : imageMap[product.image_url] || { uri: product.image_url }
+        )
+      : [imageMap[product.image_url] || { uri: product.image_url }];
+
+  const [selectedImage, setSelectedImage] = useState(images[0]);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     const loadUser = async () => {
       try {
         const userData = await AsyncStorage.getItem("user");
         if (userData) {
-          const parsed = JSON.parse(userData);
-          setCurrentUser(parsed);
-          console.log("Loaded user:", parsed); // Debug check
+          setCurrentUser(JSON.parse(userData));
         } else {
           Alert.alert("Error", "User not logged in.");
         }
@@ -36,7 +52,6 @@ export default function ProductDetailsScreen({ route, navigation }) {
         console.error("Failed to load user", err);
       }
     };
-
     loadUser();
   }, []);
 
@@ -48,17 +63,19 @@ export default function ProductDetailsScreen({ route, navigation }) {
         {/* Main Image with Back Button overlay */}
         <View>
           <Image
-            source={
-              typeof selectedImage === "string"
-                ? { uri: selectedImage }
-                : selectedImage
-            }
+            source={selectedImage}
             style={styles.mainImage}
-            resizeMode="cover"
+            resizeMode="contain"
           />
           <TouchableOpacity
             style={styles.backBtnOverlay}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation.navigate("Home");
+              }
+            }}
           >
             <Ionicons name="chevron-back" size={22} color="#747497" />
             <Text style={styles.backText}>BACK</Text>
@@ -75,7 +92,7 @@ export default function ProductDetailsScreen({ route, navigation }) {
           renderItem={({ item }) => (
             <TouchableOpacity onPress={() => setSelectedImage(item)}>
               <Image
-                source={typeof item === "string" ? { uri: item } : item}
+                source={item}
                 style={[
                   styles.galleryImage,
                   item === selectedImage && styles.galleryImageSelected,
@@ -134,7 +151,6 @@ export default function ProductDetailsScreen({ route, navigation }) {
             >
               <Text style={styles.actionBtnText}>BUY NOW</Text>
             </TouchableOpacity>
-
           </View>
         </View>
         {/* Product Specification */}
@@ -188,13 +204,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 10,
   },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-    marginLeft: 10,
-    marginBottom: 6,
-  },
   backText: {
     color: "#747497",
     fontWeight: "bold",
@@ -203,7 +212,7 @@ const styles = StyleSheet.create({
   },
   mainImage: {
     width: "100%",
-    height: 270, // Increased for premium look
+    height: 270,
     backgroundColor: "#eee",
   },
   galleryList: {

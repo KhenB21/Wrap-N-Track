@@ -82,30 +82,40 @@ export default function HomeScreen({ navigation }) {
     (p) => p.category === "Bespoke Gift box"
   );
 
-  // Chunk arrays for 3-in-a-row display
+  // Chunk arrays for 3-in-a-row display, with row padding fix
   const weddingChunks = chunkArray(weddingProducts, 3);
   const corporateChunks = chunkArray(corporateProducts, 3);
   const bespokeChunks = chunkArray(bespokeProducts, 3);
 
-  const renderProduct = (item, idx) => (
-    <TouchableOpacity
-      key={item.id || idx}
-      style={styles.productCard}
-      onPress={() => navigation.navigate("ProductDetails", { product: item })}
-      activeOpacity={0.8}
-    >
-      <Image
-        source={
-          imageMap[item.image_url] // fallback image (add this file!)
-        }
-        style={styles.productImage}
-      />
-      <Text style={styles.productTitle}>{item.name.replace(/_/g, " & ")}</Text>
-      <Text style={styles.productDesc} numberOfLines={2}>
-        {item.description}
-      </Text>
-    </TouchableOpacity>
-  );
+  // Updated renderProduct
+  const renderProduct = (item, idx) => {
+    if (!item) {
+      // Invisible placeholder for empty slot
+      return (
+        <View
+          key={`placeholder-${idx}`}
+          style={[styles.productCard, { backgroundColor: "transparent", elevation: 0 }]}
+        />
+      );
+    }
+    return (
+      <TouchableOpacity
+        key={item.id || idx}
+        style={styles.productCard}
+        onPress={() => navigation.navigate("ProductDetails", { product: item })}
+        activeOpacity={0.8}
+      >
+        <Image
+          source={imageMap[item.image_url]}
+          style={styles.productImage}
+        />
+        <Text style={styles.productTitle}>{item.name.replace(/_/g, " & ")}</Text>
+        <Text style={styles.productDesc} numberOfLines={2}>
+          {item.description}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) return <ActivityIndicator size="large" style={{ flex: 1 }} />;
 
@@ -249,10 +259,15 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
+// --- UPDATED: Pads the last row with nulls
 function chunkArray(array, size) {
   const result = [];
   for (let i = 0; i < array.length; i += size) {
-    result.push(array.slice(i, i + size));
+    let chunk = array.slice(i, i + size);
+    while (chunk.length < size) {
+      chunk.push(null);
+    }
+    result.push(chunk);
   }
   return result;
 }
