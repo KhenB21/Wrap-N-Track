@@ -135,7 +135,7 @@ export default function Inventory() {
   };
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: 'landscape' });
     const tableColumn = ["SKU", "Name", "Description", "Unit Price", "Category", "Expiration", "Last Updated", "UOM", "In Stocks", "Ordered", "Delivered"];
     const tableRows = [];
 
@@ -144,7 +144,7 @@ export default function Inventory() {
             product.sku,
             product.name,
             product.description,
-            `₱${parseFloat(product.unit_price).toFixed(2)}`,
+            parseFloat(product.unit_price).toFixed(2),
             product.category,
             product.expiration ? new Date(product.expiration).toISOString().slice(0, 10) : '',
             new Date(product.last_updated).toLocaleString(),
