@@ -18,6 +18,8 @@ import CarloPreview from "./Pages/CustomerPOV/CarloPreview";
 import CustomerHome from "./Pages/CustomerPOV/CustomerHome";
 import CustomerCorporate from "./Pages/CustomerCorporate/CustomerCorporate";
 
+import ArchivedOrders from './Pages/ArchivedOrders/ArchivedOrders';
+
 import ForgotPassword from "./Pages/ForgotPassword/ForgotPassword";
 import EmailVerify from "./Pages/EmailVerify/EmailVerify";
 import ResetPassword from "./Pages/ResetPassword/ResetPassword";
@@ -43,7 +45,8 @@ function App() {
         <Route path="/product/2" element={<EricMarielPreview />} />
         <Route path="/product/3" element={<DanielPreview />} />
         <Route path="/customer-home" element={<CustomerHome />} />
-        <Route path="/order-details" element={<OrderDetails />} />
+        
+        <Route path="/archived-orders" element={<ArchivedOrders />} />
         <Route path="/customer-details" element={<CustomerDetails />} />
         <Route path="/supplier-details" element={<SupplierDetails />} />
         <Route path="/supplier-form" element={<SupplierForm />} />

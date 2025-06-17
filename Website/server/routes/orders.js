@@ -669,4 +669,21 @@ router.post('/backfill-total-costs', async (req, res) => {
   }
 });
 
+// GET archived orders
+router.get('/archived', (req, res) => {
+  const query = `
+    SELECT * FROM orders 
+    WHERE status IN ('Completed', 'Cancelled')
+    ORDER BY order_date DESC;
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Error fetching archived orders:', err);
+      return res.status(500).json({ message: 'Failed to fetch archived orders' });
+    }
+    res.json(results);
+  });
+});
+
 module.exports = router;
