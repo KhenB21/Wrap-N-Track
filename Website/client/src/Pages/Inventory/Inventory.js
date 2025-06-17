@@ -220,8 +220,8 @@ export default function Inventory() {
               <option value="replenishment">Need Replenishment (0)</option>
             </select>
             <div className="export-buttons">
-              <button onClick={exportToPDF} className="export-btn pdf-btn">Export as PDF</button>
-              <button onClick={exportToExcel} className="export-btn excel-btn">Export as Excel</button>
+              <button onClick={exportToPDF} className="export-btn pdf-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '8px' }}><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM9.5 11.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V9h2v2.5c0 1.93-1.57 3.5-3.5 3.5S8 13.43 8 11.5V9h1.5v2.5zM13 9V3.5L18.5 9H13z"/></svg>Export as PDF</button>
+              <button onClick={exportToExcel} className="export-btn excel-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '8px' }}><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-2 14h-2v-2h2v2zm0-4h-2v-2h2v2zm-4-2h2v2H8v-2zm0 4h2v2H8v-2zm-1.9-6.95l1.45-1.45 1.05 1.05 2.85-2.85 1.45 1.45-4.3 4.3-2.5-2.5zM13 9V3.5L18.5 9H13z"/></svg>Export as Excel</button>
             </div>
           </div>
           {loading ? (
