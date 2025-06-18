@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Sidebar.css"; // We'll create this next
-import config from '../../config';
+import config from "../../config";
 
 const Sidebar = () => {
   const [reportsOpen, setReportsOpen] = useState(false);
@@ -9,38 +9,44 @@ const Sidebar = () => {
 
   const handleLogout = () => {
     // Clear authentication data
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     // Optionally clear all localStorage:
     // localStorage.clear();
-    navigate('/login');
+    navigate("/login");
   };
 
   const getProfilePictureUrl = () => {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const user = JSON.parse(localStorage.getItem("user"));
     if (!user) return "/placeholder-profile.png";
-    
+
     // If we have base64 data, use that
     if (user.profile_picture_data) {
       return `data:image/jpeg;base64,${user.profile_picture_data}`;
     }
-    
+
     // If we have a path, use that
     if (user.profile_picture_path) {
-      if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
+      if (user.profile_picture_path.startsWith("http"))
+        return user.profile_picture_path;
       return `${config.API_URL}${user.profile_picture_path}`;
     }
-    
+
     return "/placeholder-profile.png";
   };
 
   // Get user role from localStorage
   const getUserRole = () => {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const user = JSON.parse(localStorage.getItem("user"));
     return user ? user.role : null;
   };
 
-  const isAdmin = ['admin', 'director', 'business_developer', 'creatives'].includes(getUserRole());
+  const isAdmin = [
+    "admin",
+    "director",
+    "business_developer",
+    "creatives",
+  ].includes(getUserRole());
 
   return (
     <div className="sidebar">
@@ -79,7 +85,7 @@ const Sidebar = () => {
             </div>
             <ul className="dropdown-menu">
               <li>
-                <Link to="/reports/sales">Sales Reports</Link>
+                <Link to="/reports/sales">Sales Report</Link>
               </li>
               <li>
                 <Link to="/reports/inventory">Inventory Reports</Link>
@@ -122,7 +128,7 @@ const Sidebar = () => {
               </Link>
             </li>
           )}
-           <li>
+          <li>
             <Link to="/customer-home">
               <span className="icon">💍</span>
               <span className="text">Go to website</span>

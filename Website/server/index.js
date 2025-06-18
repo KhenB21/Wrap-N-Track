@@ -1,21 +1,20 @@
-const express = require('express');
-const cors = require('cors');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const multer = require('multer');
-const nodemailer = require('nodemailer');
-const crypto = require('crypto');
-const { pool, wss, notifyChange } = require('./db');
-const customersRouter = require('./routes/customers');
-const suppliersRouter = require('./routes/suppliers');
-const ordersRouter = require('./routes/orders');
-const supplierOrdersRouter = require('./routes/supplier-orders');
-const notificationsRouter = require('./routes/notifications');
+const express = require("express");
+const cors = require("cors");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const multer = require("multer");
+const nodemailer = require("nodemailer");
+const crypto = require("crypto");
+const { pool, wss, notifyChange } = require("./db");
+const customersRouter = require("./routes/customers");
+const suppliersRouter = require("./routes/suppliers");
+const ordersRouter = require("./routes/orders");
+const supplierOrdersRouter = require("./routes/supplier-orders");
+const notificationsRouter = require("./routes/notifications");
 
-const authRouter = require('./routes/auth');
-const customerRoutes = require('./routes/customer');
-require('dotenv').config({ path: __dirname + '/../.env' });
-
+const authRouter = require("./routes/auth");
+const customerRoutes = require("./routes/customer");
+require("dotenv").config({ path: __dirname + "/../.env" });
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -24,24 +23,24 @@ const port = process.env.PORT || 3001;
 async function archiveCompletedOrCancelledOrders() {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    
+    await client.query("BEGIN");
+
     // Get admin user ID
     const adminResult = await client.query(
-      'SELECT user_id FROM users WHERE role = $1 LIMIT 1',
-      ['admin']
+      "SELECT user_id FROM users WHERE role = $1 LIMIT 1",
+      ["admin"]
     );
     const adminUserId = adminResult.rows[0]?.user_id;
 
     if (!adminUserId) {
-      console.error('No admin user found');
+      console.error("No admin user found");
       return;
     }
 
     // Get completed or cancelled orders
     const ordersResult = await client.query(
-      'SELECT * FROM orders WHERE status IN ($1, $2)',
-      ['Completed', 'Cancelled']
+      "SELECT * FROM orders WHERE status IN ($1, $2)",
+      ["Completed", "Cancelled"]
     );
 
     if (ordersResult.rows.length === 0) {
@@ -77,13 +76,13 @@ async function archiveCompletedOrCancelledOrders() {
             order.telephone,
             order.cellphone,
             order.email_address,
-            adminUserId
+            adminUserId,
           ]
         );
 
         // Get and insert order products
         const productsResult = await client.query(
-          'SELECT op.*, i.unit_price FROM order_products op JOIN inventory_items i ON op.sku = i.sku WHERE op.order_id = $1',
+          "SELECT op.*, i.unit_price FROM order_products op JOIN inventory_items i ON op.sku = i.sku WHERE op.order_id = $1",
           [order.order_id]
         );
 
@@ -96,20 +95,26 @@ async function archiveCompletedOrCancelledOrders() {
         }
 
         // Delete from order_products first (due to foreign key constraint)
-        await client.query('DELETE FROM order_products WHERE order_id = $1', [order.order_id]);
+        await client.query("DELETE FROM order_products WHERE order_id = $1", [
+          order.order_id,
+        ]);
 
         // Delete from orders
-        await client.query('DELETE FROM orders WHERE order_id = $1', [order.order_id]);
+        await client.query("DELETE FROM orders WHERE order_id = $1", [
+          order.order_id,
+        ]);
 
         console.log(`Successfully archived order: ${order.order_id}`);
 
         // Notify WebSocket clients
-        wss.clients.forEach(client => {
+        wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({
-              type: 'order-archived',
-              orderId: order.order_id
-            }));
+            client.send(
+              JSON.stringify({
+                type: "order-archived",
+                orderId: order.order_id,
+              })
+            );
           }
         });
       } catch (error) {
@@ -118,10 +123,10 @@ async function archiveCompletedOrCancelledOrders() {
       }
     }
 
-    await client.query('COMMIT');
+    await client.query("COMMIT");
   } catch (error) {
-    console.error('Error in archiveCompletedOrCancelledOrders:', error);
-    await client.query('ROLLBACK');
+    console.error("Error in archiveCompletedOrCancelledOrders:", error);
+    await client.query("ROLLBACK");
   } finally {
     client.release();
   }
@@ -136,52 +141,60 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: function (req, file, cb) {
     if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-      return cb(new Error('Only image files are allowed!'), false);
+      return cb(new Error("Only image files are allowed!"), false);
     }
     cb(null, true);
-  }
+  },
 });
 
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = process.env.CORS_ORIGIN 
-      ? process.env.CORS_ORIGIN.split(',')
+    const allowedOrigins = process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(",")
       : [
-          'https://wrap-n-track-b6z5.vercel.app',
-          'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app',
-          'http://localhost:3000'
+          "https://wrap-n-track-b6z5.vercel.app",
+          "https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app",
+          "http://localhost:3000",
         ];
-    
+
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.log('CORS blocked request from origin:', origin);
-      console.log('Allowed origins:', allowedOrigins);
-      callback(new Error('Not allowed by CORS'));
+      console.log("CORS blocked request from origin:", origin);
+      console.log("Allowed origins:", allowedOrigins);
+      callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400 // 24 hours
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+  ],
+  exposedHeaders: ["Content-Range", "X-Content-Range"],
+  maxAge: 86400, // 24 hours
 };
 
 app.use(cors(corsOptions));
 
 // Add headers middleware
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin);
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  
+  res.header("Access-Control-Allow-Origin", req.headers.origin);
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
+
   // Handle preflight requests
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
   next();
@@ -189,12 +202,12 @@ app.use((req, res, next) => {
 
 // Add a middleware to log all requests
 app.use((req, res, next) => {
-  console.log('Incoming request:', {
+  console.log("Incoming request:", {
     method: req.method,
     path: req.path,
     origin: req.headers.origin,
     headers: req.headers,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
   next();
 });
@@ -202,108 +215,135 @@ app.use((req, res, next) => {
 app.use(express.json());
 
 // Routes
-app.use('/api/customers', customersRouter);
-app.use('/api/suppliers', suppliersRouter);
-app.use('/api/orders', ordersRouter);
-app.use('/api/supplier-orders', supplierOrdersRouter);
-app.use('/api/notifications', notificationsRouter);
-app.use('/api/auth', authRouter);
-app.use('/api/customer', customerRoutes);
+app.use("/api/customers", customersRouter);
+app.use("/api/suppliers", suppliersRouter);
+app.use("/api/orders", ordersRouter);
+app.use("/api/supplier-orders", supplierOrdersRouter);
+app.use("/api/notifications", notificationsRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/customer", customerRoutes);
 
 // Add error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  console.error('Request details:', {
+  console.error("Error:", err);
+  console.error("Request details:", {
     method: req.method,
     path: req.path,
     origin: req.headers.origin,
     headers: req.headers,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
-  console.error('Error details:', {
+  console.error("Error details:", {
     code: err.code,
     message: err.message,
-    stack: err.stack
+    stack: err.stack,
   });
   res.status(500).json({
     success: false,
-    message: err.message || 'Internal server error'
+    message: err.message || "Internal server error",
   });
 });
 
 // Test database connection
 pool.connect((err, client, release) => {
   if (err) {
-    console.error('Error acquiring client', err.stack);
-    console.error('Database connection details:', {
+    console.error("Error acquiring client", err.stack);
+    console.error("Database connection details:", {
       user: process.env.DB_USER,
       host: process.env.DB_HOST,
       database: process.env.DB_NAME,
       port: process.env.DB_PORT || 5432,
       // Don't log the actual password
       hasPassword: !!process.env.DB_PASSWORD,
-      hasDatabaseUrl: !!process.env.DATABASE_URL
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
     });
-    console.error('Full error:', err);
+    console.error("Full error:", err);
     process.exit(1);
   }
-  console.log('Successfully connected to PostgreSQL database');
-  console.log('Database connection details:', {
+  console.log("Successfully connected to PostgreSQL database");
+  console.log("Database connection details:", {
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
     database: process.env.DB_NAME,
     port: process.env.DB_PORT || 5432,
     // Don't log the actual password
     hasPassword: !!process.env.DB_PASSWORD,
-    hasDatabaseUrl: !!process.env.DATABASE_URL
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
   });
 
   // Add profit-related columns to orders table
-  client.query(`
+  client.query(
+    `
     ALTER TABLE orders 
     ADD COLUMN IF NOT EXISTS total_profit_estimation DECIMAL(10,2) DEFAULT 0.00;
-  `, (err) => {
-    if (err) {
-      console.error('Error adding total_profit_estimation column:', err);
-    } else {
-      console.log('Successfully added total_profit_estimation column to orders table');
+  `,
+    (err) => {
+      if (err) {
+        console.error("Error adding total_profit_estimation column:", err);
+      } else {
+        console.log(
+          "Successfully added total_profit_estimation column to orders table"
+        );
+      }
     }
-  });
+  );
 
   // Add profit-related columns to order_products table
-  client.query(`
+  client.query(
+    `
     ALTER TABLE order_products 
     ADD COLUMN IF NOT EXISTS profit_margin DECIMAL(5,2) DEFAULT 0.00,
     ADD COLUMN IF NOT EXISTS profit_estimation DECIMAL(10,2) DEFAULT 0.00;
-  `, (err) => {
-    if (err) {
-      console.error('Error adding profit columns to order_products:', err);
-    } else {
-      console.log('Successfully added profit columns to order_products table');
+  `,
+    (err) => {
+      if (err) {
+        console.error("Error adding profit columns to order_products:", err);
+      } else {
+        console.log(
+          "Successfully added profit columns to order_products table"
+        );
+      }
     }
-  });
+  );
+
+  // Add email verification columns to users table
+  client.query(
+    `
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS otp_code VARCHAR(10),
+      ADD COLUMN IF NOT EXISTS otp_expires TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;
+  `,
+    (err) => {
+      if (err) {
+        console.error("Error adding OTP columns:", err);
+      } else {
+        console.log("Successfully added OTP columns to users table");
+      }
+    }
+  );
 
   release();
 });
 
 // Add error handler for pool
-pool.on('error', (err, client) => {
-  console.error('Unexpected error on idle client', err);
+pool.on("error", (err, client) => {
+  console.error("Unexpected error on idle client", err);
   process.exit(-1);
 });
 
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  
+
   if (!authHeader) {
     return res.status(401).json({
       success: false,
-      message: 'No token provided'
+      message: "No token provided",
     });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -312,13 +352,13 @@ const verifyToken = (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       success: false,
-      message: 'Invalid token'
+      message: "Invalid token",
     });
   }
 };
 
 // Add this test endpoint before the registration endpoint
-app.get('/api/test/roles', async (req, res) => {
+app.get("/api/test/roles", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT conname, pg_get_constraintdef(oid) 
@@ -328,204 +368,211 @@ app.get('/api/test/roles', async (req, res) => {
     `);
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error checking constraint:', error);
+    console.error("Error checking constraint:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // Add this before the registration endpoint
-app.post('/api/fix-role-constraint', async (req, res) => {
+app.post("/api/fix-role-constraint", async (req, res) => {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    
+    await client.query("BEGIN");
+
     // First, update any existing rows with invalid roles to 'director'
     await client.query(`
       UPDATE users 
       SET role = 'director' 
       WHERE role NOT IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer')
     `);
-    
+
     // Then update the constraint
     await client.query(`
       ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
       ALTER TABLE users ADD CONSTRAINT users_role_check 
       CHECK (role IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer'));
     `);
-    
-    await client.query('COMMIT');
-    res.json({ success: true, message: 'Role constraint updated successfully' });
+
+    await client.query("COMMIT");
+    res.json({
+      success: true,
+      message: "Role constraint updated successfully",
+    });
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error updating constraint:', error);
+    await client.query("ROLLBACK");
+    console.error("Error updating constraint:", error);
     res.status(500).json({ error: error.message });
   } finally {
     client.release();
   }
 });
 
-
 // Add this before the registration endpoint
-app.get('/api/test/env', async (req, res) => {
+app.get("/api/test/env", async (req, res) => {
   try {
     // Only return non-sensitive environment information
     const envInfo = {
       NODE_ENV: process.env.NODE_ENV,
       PORT: process.env.PORT,
-      DATABASE_URL: process.env.DATABASE_URL ? 'Set' : 'Not Set',
-      JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Not Set',
-      CORS_ORIGIN: process.env.CORS_ORIGIN ? 'Set' : 'Not Set',
+      DATABASE_URL: process.env.DATABASE_URL ? "Set" : "Not Set",
+      JWT_SECRET: process.env.JWT_SECRET ? "Set" : "Not Set",
+      CORS_ORIGIN: process.env.CORS_ORIGIN ? "Set" : "Not Set",
       // Add server info
       SERVER_TIME: new Date().toISOString(),
       SERVER_TIMEZONE: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      DATABASE_CONNECTED: pool.totalCount > 0
+      DATABASE_CONNECTED: pool.totalCount > 0,
     };
-    
+
     res.json({
       success: true,
-      environment: envInfo
+      environment: envInfo,
     });
   } catch (error) {
-    console.error('Error checking environment:', error);
-    console.error('Error details:', {
+    console.error("Error checking environment:", error);
+    console.error("Error details:", {
       code: error.code,
       message: error.message,
-      stack: error.stack
+      stack: error.stack,
     });
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error checking environment',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    res.status(500).json({
+      success: false,
+      message: "Error checking environment",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
-
   }
 });
 
 // Registration endpoint with file upload (store profile picture in DB)
-app.post('/api/auth/register', upload.single('profilePicture'), async (req, res) => {
-  console.log('Registration request received:', {
-    body: req.body,
-    role: req.body.role,
-    roleType: typeof req.body.role
-  });
-
-  const { name, email, password, role } = req.body;
-  let profilePictureData = null;
-  if (req.file) {
-    profilePictureData = req.file.buffer;
-  }
-
-  // Convert role to lowercase for validation
-  const roleLower = role.toLowerCase();
-  console.log('Role after conversion:', {
-    original: role,
-    converted: roleLower
-  });
-
-  // Validate role
-  const validRoles = [
-    'business_developer',
-    'creatives',
-    'director',
-    'admin',
-    'sales_manager',
-    'assistant_sales',
-    'packer'
-  ];
-
-  console.log('Validating role:', {
-    roleLower,
-    isValid: validRoles.includes(roleLower),
-    validRoles
-  });
-
-  if (!validRoles.includes(roleLower)) {
-    return res.status(400).json({
-      success: false,
-      message: 'Invalid role selected'
+app.post(
+  "/api/auth/register",
+  upload.single("profilePicture"),
+  async (req, res) => {
+    console.log("Registration request received:", {
+      body: req.body,
+      role: req.body.role,
+      roleType: typeof req.body.role,
     });
-  }
 
-  try {
-    // Check if email already exists
-    const emailCheck = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
+    const { name, email, password, role } = req.body;
+    let profilePictureData = null;
+    if (req.file) {
+      profilePictureData = req.file.buffer;
+    }
 
-    if (emailCheck.rows.length > 0) {
+    // Convert role to lowercase for validation
+    const roleLower = role.toLowerCase();
+    console.log("Role after conversion:", {
+      original: role,
+      converted: roleLower,
+    });
+
+    // Validate role
+    const validRoles = [
+      "business_developer",
+      "creatives",
+      "director",
+      "admin",
+      "sales_manager",
+      "assistant_sales",
+      "packer",
+    ];
+
+    console.log("Validating role:", {
+      roleLower,
+      isValid: validRoles.includes(roleLower),
+      validRoles,
+    });
+
+    if (!validRoles.includes(roleLower)) {
       return res.status(400).json({
         success: false,
-        message: 'Email already registered'
+        message: "Invalid role selected",
       });
     }
 
-    // Hash password
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
+    try {
+      // Check if email already exists
+      const emailCheck = await pool.query(
+        "SELECT * FROM users WHERE email = $1",
+        [email]
+      );
 
-    console.log('Attempting to insert user with role:', roleLower);
-
-    // Insert new user with profile picture data (using lowercase role)
-    const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role, profile_picture_data) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email, role',
-      [name, email, passwordHash, roleLower, profilePictureData]
-    );
-
-    const newUser = result.rows[0];
-
-    // Create JWT token
-    const token = jwt.sign(
-      { 
-        user_id: newUser.user_id,
-        name: newUser.name,
-        role: newUser.role 
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    // Return success response
-    res.status(201).json({
-      success: true,
-      token,
-      user: {
-        user_id: newUser.user_id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-        profile_picture_data: profilePictureData ? profilePictureData.toString('base64') : null
+      if (emailCheck.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Email already registered",
+        });
       }
-    });
 
-  } catch (error) {
-    console.error('Registration error:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message,
-      detail: error.detail
-    });
-    // Check for specific database errors
-    if (error.code === '23514') { // Check constraint violation
-      res.status(400).json({
-        success: false,
-        message: 'Invalid role selected'
+      // Hash password
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+
+      console.log("Attempting to insert user with role:", roleLower);
+
+      // Insert new user with profile picture data (using lowercase role)
+      const result = await pool.query(
+        "INSERT INTO users (name, email, password, role, profile_picture_data) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email, role",
+        [name, email, passwordHash, roleLower, profilePictureData]
+      );
+
+      const newUser = result.rows[0];
+
+      // Create JWT token
+      const token = jwt.sign(
+        {
+          user_id: newUser.user_id,
+          name: newUser.name,
+          role: newUser.role,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "24h" }
+      );
+
+      // Return success response
+      res.status(201).json({
+        success: true,
+        token,
+        user: {
+          user_id: newUser.user_id,
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+          profile_picture_data: profilePictureData
+            ? profilePictureData.toString("base64")
+            : null,
+        },
       });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error'
+    } catch (error) {
+      console.error("Registration error:", error);
+      console.error("Error details:", {
+        code: error.code,
+        message: error.message,
+        detail: error.detail,
       });
+      // Check for specific database errors
+      if (error.code === "23514") {
+        // Check constraint violation
+        res.status(400).json({
+          success: false,
+          message: "Invalid role selected",
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: "Internal server error",
+        });
+      }
     }
   }
-});
+);
 
 // Login endpoint
-app.post('/api/auth/login', async (req, res) => {
-  console.log('Login attempt received:', {
+app.post("/api/auth/login", async (req, res) => {
+  console.log("Login attempt received:", {
     body: req.body,
     origin: req.headers.origin,
-    headers: req.headers
+    headers: req.headers,
   });
 
   const { username, password } = req.body;
@@ -533,50 +580,49 @@ app.post('/api/auth/login', async (req, res) => {
   if (!username || !password) {
     return res.status(400).json({
       success: false,
-      message: 'Username and password are required'
+      message: "Username and password are required",
     });
   }
 
   try {
     // Get user from database
-    const result = await pool.query(
-      'SELECT * FROM users WHERE name = $1',
-      [username]
-    );
+    const result = await pool.query("SELECT * FROM users WHERE name = $1", [
+      username,
+    ]);
 
     const user = result.rows[0];
 
     if (!user) {
-      console.log('Login failed: User not found');
+      console.log("Login failed: User not found");
       return res.status(401).json({
         success: false,
-        message: 'Invalid username or password'
+        message: "Invalid username or password",
       });
     }
 
     // Compare password
-    const validPassword = await bcrypt.compare(password, user.password_hash);
+    const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
-      console.log('Login failed: Invalid password');
+      console.log("Login failed: Invalid password");
       return res.status(401).json({
         success: false,
-        message: 'Invalid username or password'
+        message: "Invalid username or password",
       });
     }
 
     // Create JWT token
     const token = jwt.sign(
-      { 
+      {
         user_id: user.user_id,
         name: user.name,
-        role: user.role 
+        role: user.role,
       },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: "24h" }
     );
 
-    console.log('Login successful for user:', username);
+    console.log("Login successful for user:", username);
 
     // Return success response with profile picture data
     res.json({
@@ -587,87 +633,115 @@ app.post('/api/auth/login', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        profile_picture_data: user.profile_picture_data ? user.profile_picture_data.toString('base64') : null
-      }
+        profile_picture_data: user.profile_picture_data
+          ? user.profile_picture_data.toString("base64")
+          : null,
+      },
     });
-
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: "Internal server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
 
 // Email verification endpoint
-app.post('/api/auth/verify', async (req, res) => {
+app.post("/api/auth/verify", async (req, res) => {
   const { email, code } = req.body;
 
   if (!email || !code) {
-    return res.status(400).json({ success: false, message: 'Email and verification code are required.' });
+    return res.status(400).json({
+      success: false,
+      message: "Email and verification code are required.",
+    });
   }
 
   try {
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const userResult = await pool.query(
+      "SELECT * FROM users WHERE email = $1",
+      [email]
+    );
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'User not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
     }
 
     const user = userResult.rows[0];
 
-    if (user.is_email_verified) {
-      return res.status(400).json({ success: false, message: 'Email is already verified.' });
+    if (user.is_verified) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email is already verified." });
     }
 
-    // Check if 'email_verification_code' and 'email_verification_expires_at' columns exist before querying them
-    // This is a placeholder check; ideally, these columns should be guaranteed by migrations.
-    if (user.email_verification_code === undefined || user.email_verification_expires_at === undefined) {
-        console.error('Missing email verification columns in users table for user:', email);
-        return res.status(500).json({ success: false, message: 'Server configuration error for email verification.' });
+    // Check if 'otp_code' and 'otp_expires' columns exist before querying them
+    if (user.otp_code === undefined || user.otp_expires === undefined) {
+      console.error("Missing OTP columns in users table for user:", email);
+      return res.status(500).json({
+        success: false,
+        message: "Server configuration error for email verification.",
+      });
     }
 
-    if (user.email_verification_code !== code) {
-      return res.status(400).json({ success: false, message: 'Invalid verification code.' });
+    if (user.otp_code !== code) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid verification code." });
     }
 
-    if (new Date() > new Date(user.email_verification_expires_at)) {
-      return res.status(400).json({ success: false, message: 'Verification code has expired.' });
+    if (new Date() > new Date(user.otp_expires)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Verification code has expired." });
     }
 
     // Mark email as verified and clear the code
     await pool.query(
-      'UPDATE users SET is_email_verified = TRUE, email_verification_code = NULL, email_verification_expires_at = NULL WHERE user_id = $1',
+      "UPDATE users SET is_verified = TRUE, otp_code = NULL, otp_expires = NULL WHERE user_id = $1",
       [user.user_id]
     );
 
-    res.json({ success: true, message: 'Email successfully verified.' });
-
+    res.json({ success: true, message: "Email successfully verified." });
   } catch (error) {
-    console.error('Email verification error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error during email verification.' });
+    console.error("Email verification error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error during email verification.",
+    });
   }
 });
 
 // Resend verification code endpoint
-app.post('/api/auth/resend-code', async (req, res) => {
+app.post("/api/auth/resend-code", async (req, res) => {
   const { email } = req.body;
 
   if (!email) {
-    return res.status(400).json({ success: false, message: 'Email is required.' });
+    return res
+      .status(400)
+      .json({ success: false, message: "Email is required." });
   }
 
   try {
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const userResult = await pool.query(
+      "SELECT * FROM users WHERE email = $1",
+      [email]
+    );
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'User not found.' });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
     }
 
     const user = userResult.rows[0];
 
-    if (user.is_email_verified) {
-      return res.status(400).json({ success: false, message: 'Email is already verified.' });
+    if (user.is_verified) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email is already verified." });
     }
 
     // Generate new verification code (e.g., 6-digit number)
@@ -675,13 +749,13 @@ app.post('/api/auth/resend-code', async (req, res) => {
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // Code expires in 15 minutes
 
     await pool.query(
-      'UPDATE users SET email_verification_code = $1, email_verification_expires_at = $2 WHERE user_id = $3',
+      "UPDATE users SET otp_code = $1, otp_expires = $2 WHERE user_id = $3",
       [verificationCode, expiresAt, user.user_id]
     );
 
     // Send email using nodemailer
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD,
@@ -691,7 +765,7 @@ app.post('/api/auth/resend-code', async (req, res) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: user.email,
-      subject: 'Your Email Verification Code for Wrap N\' Track',
+      subject: "Your Email Verification Code for Wrap N' Track",
       text: `Hello ${user.name},
 
 Your email verification code is: ${verificationCode}
@@ -702,116 +776,161 @@ If you did not request this, please ignore this email.
 
 Thanks,
 The Wrap N' Track Team`,
-      html: `<p>Hello ${user.name},</p><p>Your email verification code is: <strong>${verificationCode}</strong></p><p>This code will expire in 15 minutes.</p><p>If you did not request this, please ignore this email.</p><p>Thanks,<br/>The Wrap N' Track Team</p>`
+      html: `<p>Hello ${user.name},</p><p>Your email verification code is: <strong>${verificationCode}</strong></p><p>This code will expire in 15 minutes.</p><p>If you did not request this, please ignore this email.</p><p>Thanks,<br/>The Wrap N' Track Team</p>`,
     };
 
     await transporter.sendMail(mailOptions);
 
-    res.json({ success: true, message: 'New verification code sent to your email.' });
-
+    res.json({
+      success: true,
+      message: "New verification code sent to your email.",
+    });
   } catch (error) {
-    console.error('Error resending verification code:', error);
-    if (error.code === 'EENVELOPE' || error.responseCode === 550) {
-        return res.status(500).json({ success: false, message: 'Failed to send verification email. Please check server email configuration or recipient address.' });
+    console.error("Error resending verification code:", error);
+    if (error.code === "EENVELOPE" || error.responseCode === 550) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to send verification email. Please check server email configuration or recipient address.",
+      });
     }
-    res.status(500).json({ success: false, message: 'Internal server error while resending code.' });
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while resending code.",
+    });
   }
 });
 
 // User details endpoint (return profile_picture_data as base64)
-app.get('/api/user/details', verifyToken, async (req, res) => {
+app.get("/api/user/details", verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT user_id, name, email, role, created_at, profile_picture_data FROM users WHERE user_id = $1',
+      "SELECT user_id, name, email, role, created_at, profile_picture_data FROM users WHERE user_id = $1",
       [req.user.user_id]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
     const user = result.rows[0];
-    user.profile_picture_data = user.profile_picture_data ? user.profile_picture_data.toString('base64') : null;
+    user.profile_picture_data = user.profile_picture_data
+      ? user.profile_picture_data.toString("base64")
+      : null;
     res.json(user);
   } catch (error) {
-    console.error('Error fetching user details:', error);
+    console.error("Error fetching user details:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error",
     });
   }
 });
 
 // Upload or change profile picture endpoint (store in DB)
-app.post('/api/user/profile-picture', verifyToken, upload.single('profilePicture'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ success: false, message: 'No file uploaded' });
+app.post(
+  "/api/user/profile-picture",
+  verifyToken,
+  upload.single("profilePicture"),
+  async (req, res) => {
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No file uploaded" });
+    }
+    const profilePictureData = req.file.buffer;
+    try {
+      await pool.query(
+        "UPDATE users SET profile_picture_data = $1 WHERE user_id = $2",
+        [profilePictureData, req.user.user_id]
+      );
+      res.json({
+        success: true,
+        profile_picture_data: profilePictureData.toString("base64"),
+      });
+    } catch (error) {
+      console.error("Profile picture upload error:", error);
+      res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
+    }
   }
-  const profilePictureData = req.file.buffer;
-  try {
-    await pool.query(
-      'UPDATE users SET profile_picture_data = $1 WHERE user_id = $2',
-      [profilePictureData, req.user.user_id]
-    );
-    res.json({ success: true, profile_picture_data: profilePictureData.toString('base64') });
-  } catch (error) {
-    console.error('Profile picture upload error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
+);
 
 // Add a new inventory item (with image upload to DB)
-app.post('/api/inventory', upload.single('image'), async (req, res) => {
+app.post("/api/inventory", upload.single("image"), async (req, res) => {
   const client = await pool.connect();
   try {
-    console.log('Received inventory POST request');
-    console.log('Request body:', req.body);
-    console.log('Request file:', req.file ? {
-      fieldname: req.file.fieldname,
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size
-    } : 'No file uploaded');
+    console.log("Received inventory POST request");
+    console.log("Request body:", req.body);
+    console.log(
+      "Request file:",
+      req.file
+        ? {
+            fieldname: req.file.fieldname,
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+          }
+        : "No file uploaded"
+    );
 
-    await client.query('BEGIN');
-    
-    const { sku, name, description, quantity, unit_price, category, uom, conversion_qty, expiration } = req.body;
+    await client.query("BEGIN");
+
+    const {
+      sku,
+      name,
+      description,
+      quantity,
+      unit_price,
+      category,
+      uom,
+      conversion_qty,
+      expiration,
+    } = req.body;
     let imageData = null;
-    
+
     // Validate required fields
     if (!sku || !name || !quantity || !unit_price) {
-      console.log('Missing required fields:', { sku, name, quantity, unit_price });
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Missing required fields: SKU, name, quantity, and unit price are required' 
+      console.log("Missing required fields:", {
+        sku,
+        name,
+        quantity,
+        unit_price,
+      });
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: SKU, name, quantity, and unit price are required",
       });
     }
 
     if (isNaN(quantity) || isNaN(unit_price)) {
-      console.log('Invalid numeric fields:', { quantity, unit_price });
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Quantity and unit price must be numbers' 
+      console.log("Invalid numeric fields:", { quantity, unit_price });
+      return res.status(400).json({
+        success: false,
+        message: "Quantity and unit price must be numbers",
       });
     }
-    
+
     // Process image if present
     if (req.file) {
       imageData = req.file.buffer;
-      console.log('Image data read from memory, size:', imageData.length);
-      
+      console.log("Image data read from memory, size:", imageData.length);
+
       // Validate image size (should already be validated by multer, but double-check)
-      if (imageData.length > 5 * 1024 * 1024) { // 5MB limit
-        throw new Error('Image size exceeds 5MB limit');
+      if (imageData.length > 5 * 1024 * 1024) {
+        // 5MB limit
+        throw new Error("Image size exceeds 5MB limit");
       }
     }
-    
+
     // Check if SKU already exists for potential update
     const { isUpdate } = req.body; // Hint from frontend, but DB check is source of truth
     const existingProductQuery = await client.query(
-      'SELECT * FROM inventory_items WHERE sku = $1',
+      "SELECT * FROM inventory_items WHERE sku = $1",
       [sku]
     );
 
@@ -821,7 +940,7 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
 
     if (existingProductQuery.rows.length > 0) {
       // Product exists, so UPDATE
-      console.log('Product SKU exists, attempting update:', sku);
+      console.log("Product SKU exists, attempting update:", sku);
       // const existingProductData = existingProductQuery.rows[0]; // Not strictly needed with new logic
       let updateFieldsArray = []; // To store "column = $N" parts
       const queryParams = [];
@@ -854,81 +973,107 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       }
       if (conversion_qty !== undefined) {
         updateFieldsArray.push(`conversion_qty = $${paramIndex++}`);
-        queryParams.push(conversion_qty === '' ? null : Number(conversion_qty));
+        queryParams.push(conversion_qty === "" ? null : Number(conversion_qty));
       }
       if (expiration !== undefined) {
         updateFieldsArray.push(`expiration = $${paramIndex++}`);
-        queryParams.push(expiration === '' ? null : expiration);
+        queryParams.push(expiration === "" ? null : expiration);
       }
 
       if (req.file) {
         updateFieldsArray.push(`image_data = $${paramIndex++}`);
         queryParams.push(imageData); // imageData is req.file.buffer
-      } else if (req.body.removeImage === 'true') { 
+      } else if (req.body.removeImage === "true") {
         // Frontend can send removeImage: 'true' to clear the image
         updateFieldsArray.push(`image_data = $${paramIndex++}`);
         queryParams.push(null);
       }
       // If no new image and no explicit removal, image_data column is not touched by these conditions.
-      
-      if (updateFieldsArray.length === 0 && !req.file && req.body.removeImage !== 'true') {
+
+      if (
+        updateFieldsArray.length === 0 &&
+        !req.file &&
+        req.body.removeImage !== "true"
+      ) {
         // No actual data fields were sent for update, and no image changes requested.
         // We will still update last_updated as a 'touch' operation.
-        console.log('Update request for SKU:', sku, 'contained no new data fields; only updating last_updated.');
+        console.log(
+          "Update request for SKU:",
+          sku,
+          "contained no new data fields; only updating last_updated."
+        );
       }
-      
+
       // Always include last_updated in the update
       updateFieldsArray.push(`last_updated = NOW()`);
-      
-      let updateQuery = `UPDATE inventory_items SET ${updateFieldsArray.join(', ')} WHERE sku = $${paramIndex++} RETURNING *`;
+
+      let updateQuery = `UPDATE inventory_items SET ${updateFieldsArray.join(
+        ", "
+      )} WHERE sku = $${paramIndex++} RETURNING *`;
       queryParams.push(sku); // Add sku for the WHERE clause
-      
-      console.log('Update Query:', updateQuery);
-      console.log('Update Params:', queryParams);
+
+      console.log("Update Query:", updateQuery);
+      console.log("Update Params:", queryParams);
 
       const result = await client.query(updateQuery, queryParams);
       product = result.rows[0];
-      message = 'Product updated successfully';
+      message = "Product updated successfully";
       statusCode = 200;
-      console.log('Product updated successfully:', product.sku);
-
+      console.log("Product updated successfully:", product.sku);
     } else {
       // Product does not exist, so INSERT
-      console.log('Inserting new product with data:', {
-        sku, name, description, quantity, unit_price, category, uom,
-        hasImage: !!imageData
+      console.log("Inserting new product with data:", {
+        sku,
+        name,
+        description,
+        quantity,
+        unit_price,
+        category,
+        uom,
+        hasImage: !!imageData,
       });
       const result = await client.query(
         `INSERT INTO inventory_items 
          (sku, name, description, quantity, unit_price, category, uom, conversion_qty, expiration, image_data, last_updated) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW()) 
          RETURNING *`,
-        [sku, name, description, Number(quantity), Number(unit_price), category, uom, conversion_qty === '' ? null : Number(conversion_qty), expiration === '' ? null : expiration, imageData]
+        [
+          sku,
+          name,
+          description,
+          Number(quantity),
+          Number(unit_price),
+          category,
+          uom,
+          conversion_qty === "" ? null : Number(conversion_qty),
+          expiration === "" ? null : expiration,
+          imageData,
+        ]
       );
       product = result.rows[0];
-      message = 'Product added successfully';
+      message = "Product added successfully";
       statusCode = 201;
-      console.log('Product inserted successfully:', product.sku);
+      console.log("Product inserted successfully:", product.sku);
     }
-    
-    await client.query('COMMIT');
-    
+
+    await client.query("COMMIT");
+
     if (product.image_data) {
-      product.image_data = product.image_data.toString('base64');
+      product.image_data = product.image_data.toString("base64");
     }
-    
+
     res.status(statusCode).json({
       success: true,
       message,
-      product
+      product,
     });
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error adding inventory item:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to add product. ' + error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    await client.query("ROLLBACK");
+    console.error("Error adding inventory item:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to add product. " + error.message,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   } finally {
     client.release();
@@ -936,7 +1081,7 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
 });
 
 // Get all inventory items
-app.get('/api/inventory', async (req, res) => {
+app.get("/api/inventory", async (req, res) => {
   const client = await pool.connect();
   try {
     const result = await client.query(`
@@ -967,14 +1112,15 @@ app.get('/api/inventory', async (req, res) => {
       ORDER BY 
         i.last_updated DESC
     `);
-    
+
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching inventory:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch inventory',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    console.error("Error fetching inventory:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch inventory",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   } finally {
     client.release();
@@ -982,239 +1128,258 @@ app.get('/api/inventory', async (req, res) => {
 });
 
 // Delete an inventory item
-app.delete('/api/inventory/:sku', async (req, res) => {
+app.delete("/api/inventory/:sku", async (req, res) => {
   const { sku } = req.params;
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    await client.query('DELETE FROM order_products WHERE sku = $1', [sku]);
+    await client.query("BEGIN");
+    await client.query("DELETE FROM order_products WHERE sku = $1", [sku]);
     // Do NOT delete from order_history_products to preserve archived order data
-    await client.query('DELETE FROM inventory_items WHERE sku = $1', [sku]);
-    await client.query('COMMIT');
+    await client.query("DELETE FROM inventory_items WHERE sku = $1", [sku]);
+    await client.query("COMMIT");
     res.json({ success: true });
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error deleting inventory item:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    await client.query("ROLLBACK");
+    console.error("Error deleting inventory item:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   } finally {
     client.release();
   }
 });
 
 // Get a single inventory item by SKU (return image_data as base64)
-app.get('/api/inventory/:sku', async (req, res) => {
+app.get("/api/inventory/:sku", async (req, res) => {
   const { sku } = req.params;
   try {
-    const result = await pool.query('SELECT * FROM inventory_items WHERE sku = $1', [sku]);
+    const result = await pool.query(
+      "SELECT * FROM inventory_items WHERE sku = $1",
+      [sku]
+    );
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Product not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
     }
     const row = result.rows[0];
-    row.image_data = row.image_data ? row.image_data.toString('base64') : null;
+    row.image_data = row.image_data ? row.image_data.toString("base64") : null;
     res.json(row);
   } catch (error) {
-    console.error('Error fetching inventory item:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("Error fetching inventory item:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
 
 // Get all users (admin only)
-app.get('/api/users', verifyToken, async (req, res) => {
+app.get("/api/users", verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      console.log('Access denied: User role is not admin', req.user);
-      return res.status(403).json({ success: false, message: 'Forbidden: Admin access required' });
+    if (req.user.role !== "admin") {
+      console.log("Access denied: User role is not admin", req.user);
+      return res
+        .status(403)
+        .json({ success: false, message: "Forbidden: Admin access required" });
     }
 
-    console.log('Fetching users for admin:', req.user.user_id);
+    console.log("Fetching users for admin:", req.user.user_id);
     const result = await pool.query(
-      'SELECT user_id, name, email, role, created_at, profile_picture_data, is_active, deleted_at FROM users WHERE is_active = true ORDER BY created_at DESC'
+      "SELECT user_id, name, email, role, created_at, profile_picture_data, is_active, deleted_at FROM users WHERE is_active = true ORDER BY created_at DESC"
     );
 
     console.log(`Found ${result.rows.length} active users`);
-    const users = result.rows.map(user => ({
+    const users = result.rows.map((user) => ({
       ...user,
       profile_picture_data: user.profile_picture_data
-        ? user.profile_picture_data.toString('base64')
+        ? user.profile_picture_data.toString("base64")
         : null,
     }));
 
     res.json(users);
   } catch (error) {
-    console.error('Error fetching users:', error);
-    res.status(500).json({ success: false, message: 'Internal server error while fetching users' });
+    console.error("Error fetching users:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while fetching users",
+    });
   }
 });
 
 // Update user (admin only)
-app.put('/api/users/:user_id', verifyToken, async (req, res) => {
+app.put("/api/users/:user_id", verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Forbidden' });
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Forbidden" });
     }
     const { user_id } = req.params;
     const { name, email, role } = req.body;
 
     // Check if email already exists for another user
     const emailCheck = await pool.query(
-      'SELECT user_id FROM users WHERE email = $1 AND user_id != $2',
+      "SELECT user_id FROM users WHERE email = $1 AND user_id != $2",
       [email, user_id]
     );
     if (emailCheck.rows.length > 0) {
-      return res.status(400).json({ success: false, message: 'Email already registered' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email already registered" });
     }
 
     // Check if name already exists for another user
     const nameCheck = await pool.query(
-      'SELECT user_id FROM users WHERE name = $1 AND user_id != $2',
+      "SELECT user_id FROM users WHERE name = $1 AND user_id != $2",
       [name, user_id]
     );
     if (nameCheck.rows.length > 0) {
-      return res.status(400).json({ success: false, message: 'Name already taken' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Name already taken" });
     }
 
     await pool.query(
-      'UPDATE users SET name=$1, email=$2, role=$3 WHERE user_id=$4',
+      "UPDATE users SET name=$1, email=$2, role=$3 WHERE user_id=$4",
       [name, email, role, user_id]
     );
-    res.json({ success: true, message: 'User updated successfully' });
+    res.json({ success: true, message: "User updated successfully" });
   } catch (error) {
-    console.error('Error updating user:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("Error updating user:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
 
 // Delete user (admin only)
-app.delete('/api/users/:user_id', verifyToken, async (req, res) => {
+app.delete("/api/users/:user_id", verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Forbidden' });
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Forbidden" });
     }
     const { user_id } = req.params;
-    console.log('Attempting to delete user:', user_id);
-    
+    console.log("Attempting to delete user:", user_id);
+
     // Actually delete the user
     const result = await pool.query(
-      'DELETE FROM users WHERE user_id = $1 RETURNING *',
+      "DELETE FROM users WHERE user_id = $1 RETURNING *",
       [user_id]
     );
-    
+
     if (result.rowCount === 0) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
-    res.json({ success: true, message: 'User deleted successfully' });
+    res.json({ success: true, message: "User deleted successfully" });
   } catch (error) {
-    console.error('Error deleting user:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("Error deleting user:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
 
 // Basic test route
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'Server is running!' });
+app.get("/api/test", (req, res) => {
+  res.json({ message: "Server is running!" });
 });
 
 // Create HTTP server
 const server = app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
-  console.log('Environment:', process.env.NODE_ENV);
-  console.log('CORS allowed origins:', corsOptions.origin);
+  console.log("Environment:", process.env.NODE_ENV);
+  console.log("CORS allowed origins:", corsOptions.origin);
 });
 
 // Error handling for the server
-server.on('error', (error) => {
-  console.error('Server error:', error);
-  if (error.code === 'EADDRINUSE') {
+server.on("error", (error) => {
+  console.error("Server error:", error);
+  if (error.code === "EADDRINUSE") {
     console.error(`Port ${port} is already in use`);
     process.exit(1);
   }
 });
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
   // Don't exit the process in production
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== "production") {
     process.exit(1);
   }
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
   // Don't exit the process in production
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== "production") {
     process.exit(1);
   }
 });
 
 // Upgrade HTTP server to WebSocket server
-server.on('upgrade', (request, socket, head) => {
+server.on("upgrade", (request, socket, head) => {
   wss.handleUpgrade(request, socket, head, (ws) => {
-    wss.emit('connection', ws, request);
+    wss.emit("connection", ws, request);
   });
 });
 
 // WebSocket connection handling
-wss.on('connection', (ws) => {
-  console.log('New WebSocket connection established');
+wss.on("connection", (ws) => {
+  console.log("New WebSocket connection established");
 
-  ws.on('message', (message) => {
+  ws.on("message", (message) => {
     try {
       const data = JSON.parse(message);
-      console.log('Received message:', data);
-      
+      console.log("Received message:", data);
+
       // Handle different message types
       switch (data.type) {
-        case 'barcode':
+        case "barcode":
           // Broadcast barcode to all connected clients
           broadcastBarcode(data.barcode);
           break;
         default:
-          console.log('Unknown message type:', data.type);
+          console.log("Unknown message type:", data.type);
       }
     } catch (error) {
-      console.error('Error processing message:', error);
+      console.error("Error processing message:", error);
     }
   });
 
-  ws.on('close', () => {
-    console.log('Client disconnected');
+  ws.on("close", () => {
+    console.log("Client disconnected");
   });
 });
 
 // Broadcast barcode to all connected clients
 const broadcastBarcode = (barcode) => {
-  wss.clients.forEach(client => {
+  wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({
-        type: 'barcode_scanned',
-        barcode: barcode
-      }));
+      client.send(
+        JSON.stringify({
+          type: "barcode_scanned",
+          barcode: barcode,
+        })
+      );
     }
   });
 };
 
 // API endpoint to receive scanned barcode
-app.post('/api/inventory/scanned-barcode', (req, res) => {
+app.post("/api/inventory/scanned-barcode", (req, res) => {
   const { barcode } = req.body;
-  
+
   if (!barcode) {
-    return res.status(400).json({ error: 'Barcode is required' });
+    return res.status(400).json({ error: "Barcode is required" });
   }
 
   // Broadcast the barcode to all connected clients
   broadcastBarcode(barcode);
-  
+
   res.json({ success: true });
 });
 
 // Get customer's ongoing orders
-app.get('/api/orders/customer/:customer_name', async (req, res) => {
+app.get("/api/orders/customer/:customer_name", async (req, res) => {
   const { customer_name } = req.params;
-  
+
   try {
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       SELECT 
         o.*, 
         COALESCE(
@@ -1235,26 +1400,29 @@ app.get('/api/orders/customer/:customer_name', async (req, res) => {
       WHERE o.name = $1
       GROUP BY o.order_id
       ORDER BY o.order_date DESC
-    `, [customer_name]);
+    `,
+      [customer_name]
+    );
 
-    const orders = result.rows.map(order => ({
+    const orders = result.rows.map((order) => ({
       ...order,
-      products: order.products || []
+      products: order.products || [],
     }));
 
     res.json(orders);
   } catch (error) {
-    console.error('Error fetching customer orders:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching customer orders:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // Get customer's order history
-app.get('/api/order-history/customer/:customer_name', async (req, res) => {
+app.get("/api/order-history/customer/:customer_name", async (req, res) => {
   const { customer_name } = req.params;
-  
+
   try {
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       SELECT 
         oh.*, 
         COALESCE(
@@ -1274,22 +1442,24 @@ app.get('/api/order-history/customer/:customer_name', async (req, res) => {
       WHERE oh.customer_name = $1
       GROUP BY oh.order_id
       ORDER BY oh.order_date DESC
-    `, [customer_name]);
+    `,
+      [customer_name]
+    );
 
-    const orders = result.rows.map(order => ({
+    const orders = result.rows.map((order) => ({
       ...order,
-      products: order.products || []
+      products: order.products || [],
     }));
 
     res.json(orders);
   } catch (error) {
-    console.error('Error fetching customer order history:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching customer order history:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // Get all orders
-app.get('/api/orders', async (req, res) => {
+app.get("/api/orders", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -1313,20 +1483,20 @@ app.get('/api/orders', async (req, res) => {
       ORDER BY o.order_date DESC
     `);
 
-    const orders = result.rows.map(order => ({
+    const orders = result.rows.map((order) => ({
       ...order,
-      products: order.products || []
+      products: order.products || [],
     }));
 
     res.json(orders);
   } catch (error) {
-    console.error('Error fetching orders:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching orders:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // Get all archived orders
-app.get('/api/orders/history', async (req, res) => {
+app.get("/api/orders/history", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -1351,33 +1521,40 @@ app.get('/api/orders/history', async (req, res) => {
       GROUP BY oh.order_id, u.name, u.profile_picture_data
       ORDER BY oh.archived_at DESC
     `);
-    
-    const orders = result.rows.map(order => ({
+
+    const orders = result.rows.map((order) => ({
       ...order,
-      archived_by_profile_picture: order.archived_by_profile_picture ? order.archived_by_profile_picture.toString('base64') : null,
-      products: order.products || []
+      archived_by_profile_picture: order.archived_by_profile_picture
+        ? order.archived_by_profile_picture.toString("base64")
+        : null,
+      products: order.products || [],
     }));
-    
+
     res.json(orders);
   } catch (err) {
-    console.error('Error fetching order history:', err);
-    res.status(500).json({ message: 'Failed to fetch order history' });
+    console.error("Error fetching order history:", err);
+    res.status(500).json({ message: "Failed to fetch order history" });
   }
 });
 
 // --- PASSWORD RESET ENDPOINTS ---
 
 // Forgot Password: Generate and store reset code and send via email
-app.post('/api/auth/forgot-password', async (req, res) => {
+app.post("/api/auth/forgot-password", async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ message: "Email is required" });
 
   try {
     // Fetch all user columns to match registration resend flow
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const userResult = await pool.query(
+      "SELECT * FROM users WHERE email = $1",
+      [email]
+    );
     if (userResult.rows.length === 0) {
       // Always respond the same to avoid leaking which emails are registered
-      return res.json({ message: "If this email exists, instructions have been sent." });
+      return res.json({
+        message: "If this email exists, instructions have been sent.",
+      });
     }
 
     const user = userResult.rows[0];
@@ -1386,11 +1563,14 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     const expires = new Date(Date.now() + 15 * 60 * 1000);
 
     // Store code and expiry
-    await pool.query('UPDATE users SET reset_code = $1, reset_code_expires = $2 WHERE user_id = $3', [resetCode, expires, user.user_id]);
+    await pool.query(
+      "UPDATE users SET reset_code = $1, reset_code_expires = $2 WHERE user_id = $3",
+      [resetCode, expires, user.user_id]
+    );
 
     // Nodemailer transporter (same as registration resend-code)
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD,
@@ -1403,34 +1583,42 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       to: user.email,
       subject: "Your Password Reset Code for Wrap N' Track",
       text: `Hello ${user.name},\n\nYour password reset code is: ${resetCode}\n\nThis code will expire in 15 minutes.\n\nIf you did not request this, please ignore this email.\n\nThanks,\nThe Wrap N' Track Team`,
-      html: `<p>Hello ${user.name},</p><p>Your password reset code is: <strong>${resetCode}</strong></p><p>This code will expire in 15 minutes.</p><p>If you did not request this, please ignore this email.</p><p>Thanks,<br/>The Wrap N' Track Team</p>`
+      html: `<p>Hello ${user.name},</p><p>Your password reset code is: <strong>${resetCode}</strong></p><p>This code will expire in 15 minutes.</p><p>If you did not request this, please ignore this email.</p><p>Thanks,<br/>The Wrap N' Track Team</p>`,
     };
 
     try {
       await transporter.sendMail(mailOptions);
     } catch (emailError) {
-      console.error('Error sending forgot password email:', emailError);
-      if (emailError.code === 'EENVELOPE' || emailError.responseCode === 550) {
-        return res.status(500).json({ message: 'Failed to send reset email. Please check server email configuration or recipient address.' });
+      console.error("Error sending forgot password email:", emailError);
+      if (emailError.code === "EENVELOPE" || emailError.responseCode === 550) {
+        return res.status(500).json({
+          message:
+            "Failed to send reset email. Please check server email configuration or recipient address.",
+        });
       }
-      return res.status(500).json({ message: 'Internal server error while sending reset code.' });
+      return res
+        .status(500)
+        .json({ message: "Internal server error while sending reset code." });
     }
 
-    return res.json({ message: "If this email exists, instructions have been sent." });
+    return res.json({
+      message: "If this email exists, instructions have been sent.",
+    });
   } catch (err) {
-    console.error('Forgot password error:', err);
+    console.error("Forgot password error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
 
 // Verify Reset Code
-app.post('/api/auth/verify-reset-code', async (req, res) => {
+app.post("/api/auth/verify-reset-code", async (req, res) => {
   const { email, code } = req.body;
-  if (!email || !code) return res.status(400).json({ message: "Email and code are required" });
+  if (!email || !code)
+    return res.status(400).json({ message: "Email and code are required" });
 
   try {
     const userResult = await pool.query(
-      'SELECT reset_code, reset_code_expires FROM users WHERE email = $1',
+      "SELECT reset_code, reset_code_expires FROM users WHERE email = $1",
       [email]
     );
     if (userResult.rows.length === 0) {
@@ -1447,21 +1635,23 @@ app.post('/api/auth/verify-reset-code', async (req, res) => {
     }
     return res.json({ message: "Code verified" });
   } catch (err) {
-    console.error('Verify reset code error:', err);
+    console.error("Verify reset code error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
 
 // Reset Password: Update password after verifying code
-app.post('/api/auth/reset-password', async (req, res) => {
+app.post("/api/auth/reset-password", async (req, res) => {
   const { email, code, newPassword } = req.body;
   if (!email || !code || !newPassword) {
-    return res.status(400).json({ message: "Email, code, and new password are required" });
+    return res
+      .status(400)
+      .json({ message: "Email, code, and new password are required" });
   }
   try {
     // Check code validity
     const userResult = await pool.query(
-      'SELECT user_id, reset_code, reset_code_expires FROM users WHERE email = $1',
+      "SELECT user_id, reset_code, reset_code_expires FROM users WHERE email = $1",
       [email]
     );
     if (userResult.rows.length === 0) {
@@ -1481,20 +1671,21 @@ app.post('/api/auth/reset-password', async (req, res) => {
     const passwordHash = await bcrypt.hash(newPassword, saltRounds);
     // Update password and clear reset code
     await pool.query(
-      'UPDATE users SET password_hash = $1, reset_code = NULL, reset_code_expires = NULL WHERE user_id = $2',
+      "UPDATE users SET password = $1, reset_code = NULL, reset_code_expires = NULL WHERE user_id = $2",
       [passwordHash, user_id]
     );
     res.json({ message: "Password reset successful" });
   } catch (err) {
-    console.error('Reset password error:', err);
+    console.error("Reset password error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
 // Get products for an archived order
-app.get('/api/orders/history/:order_id/products', async (req, res) => {
+app.get("/api/orders/history/:order_id/products", async (req, res) => {
   try {
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       SELECT 
         ohp.sku,
         ohp.quantity,
@@ -1505,23 +1696,26 @@ app.get('/api/orders/history/:order_id/products', async (req, res) => {
       FROM order_history_products ohp
       LEFT JOIN inventory_items i ON ohp.sku = i.sku
       WHERE ohp.order_id = $1
-    `, [req.params.order_id]);
-    
-    const products = result.rows.map(row => ({
+    `,
+      [req.params.order_id]
+    );
+
+    const products = result.rows.map((row) => ({
       ...row,
-      image_data: row.image_data ? row.image_data.toString('base64') : null
+      image_data: row.image_data ? row.image_data.toString("base64") : null,
     }));
-    
+
     res.json(products);
   } catch (err) {
-    console.error('Error fetching archived order products:', err);
-    res.status(500).json({ message: 'Failed to fetch archived order products' });
+    console.error("Error fetching archived order products:", err);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch archived order products" });
   }
 });
 
-
 // GET all inventory items with ordered and delivered quantities
-app.get('/api/inventory', async (req, res) => {
+app.get("/api/inventory", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -1586,26 +1780,32 @@ app.get('/api/inventory', async (req, res) => {
         i.created_at, i.updated_at, i.archived_at
       ORDER BY i.name ASC;
     `);
-    
-    const inventory = result.rows.map(item => ({
+
+    const inventory = result.rows.map((item) => ({
       ...item,
-      image_data: item.image_data ? item.image_data.toString('base64') : null,
+      image_data: item.image_data ? item.image_data.toString("base64") : null,
       ordered_quantity: parseInt(item.ordered_quantity, 10),
-      delivered_quantity: parseInt(item.delivered_quantity, 10)
+      delivered_quantity: parseInt(item.delivered_quantity, 10),
     }));
-    
+
     res.json(inventory);
   } catch (error) {
-    console.error('Error fetching inventory:', error);
-    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    console.error("Error fetching inventory:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 });
 
 // Search inventory item by name (case-insensitive, partial match)
-app.get('/api/inventory/search', async (req, res) => {
+app.get("/api/inventory/search", async (req, res) => {
   const { name } = req.query;
   if (!name) {
-    return res.status(400).json({ success: false, message: 'Missing name query parameter' });
+    return res
+      .status(400)
+      .json({ success: false, message: "Missing name query parameter" });
   }
 
   try {
@@ -1614,70 +1814,74 @@ app.get('/api/inventory/search', async (req, res) => {
       [`%${name}%`]
     );
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'No matching product found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "No matching product found" });
     }
     const row = result.rows[0];
-    row.image_data = row.image_data ? row.image_data.toString('base64') : null;
+    row.image_data = row.image_data ? row.image_data.toString("base64") : null;
     res.json(row);
   } catch (error) {
-    console.error('Error searching inventory by name:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("Error searching inventory by name:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
 
 // Adjust inventory quantity
-app.put('/api/inventory/:sku/adjust', async (req, res) => {
+app.put("/api/inventory/:sku/adjust", async (req, res) => {
   const { sku } = req.params;
   const { quantity, operation } = req.body;
   const client = await pool.connect();
 
   try {
     // Validate input
-    if (!quantity || !operation || !['add', 'subtract'].includes(operation)) {
+    if (!quantity || !operation || !["add", "subtract"].includes(operation)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid request. Quantity and operation (add/subtract) are required.'
+        message:
+          "Invalid request. Quantity and operation (add/subtract) are required.",
       });
     }
 
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
     // Get current inventory
     const result = await client.query(
-      'SELECT quantity, name FROM inventory_items WHERE sku = $1 FOR UPDATE',
+      "SELECT quantity, name FROM inventory_items WHERE sku = $1 FOR UPDATE",
       [sku]
     );
 
     if (result.rows.length === 0) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       return res.status(404).json({
         success: false,
-        message: 'Product not found'
+        message: "Product not found",
       });
     }
 
     const currentQuantity = result.rows[0].quantity;
     const productName = result.rows[0].name;
-    const newQuantity = operation === 'add' 
-      ? currentQuantity + Number(quantity)
-      : currentQuantity - Number(quantity);
+    const newQuantity =
+      operation === "add"
+        ? currentQuantity + Number(quantity)
+        : currentQuantity - Number(quantity);
 
     // Check if we have enough stock for subtraction
-    if (operation === 'subtract' && newQuantity < 0) {
-      await client.query('ROLLBACK');
+    if (operation === "subtract" && newQuantity < 0) {
+      await client.query("ROLLBACK");
       return res.status(400).json({
         success: false,
-        message: `Not enough stock for ${productName}. Current quantity: ${currentQuantity}, Requested: ${quantity}`
+        message: `Not enough stock for ${productName}. Current quantity: ${currentQuantity}, Requested: ${quantity}`,
       });
     }
 
     // Update inventory
     await client.query(
-      'UPDATE inventory_items SET quantity = $1, last_updated = NOW() WHERE sku = $2',
+      "UPDATE inventory_items SET quantity = $1, last_updated = NOW() WHERE sku = $2",
       [newQuantity, sku]
     );
 
-    await client.query('COMMIT');
+    await client.query("COMMIT");
 
     res.json({
       success: true,
@@ -1685,17 +1889,16 @@ app.put('/api/inventory/:sku/adjust', async (req, res) => {
       product: {
         sku,
         name: productName,
-        quantity: newQuantity
-      }
+        quantity: newQuantity,
+      },
     });
-
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error adjusting inventory:', error);
+    await client.query("ROLLBACK");
+    console.error("Error adjusting inventory:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      details: error.message
+      message: "Internal server error",
+      details: error.message,
     });
   } finally {
     client.release();

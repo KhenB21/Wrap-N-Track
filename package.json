@@ -15,9 +15,17 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
+    "chart.js": "^4.5.0",
     "dotenv": "^16.5.0",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
     "nodemailer": "^7.0.3",
     "pg": "^8.16.0",
-    "wrap-n-track": "file:"
+    "react": "^18.3.1",
+    "react-chartjs-2": "^5.3.0",
+    "react-dom": "^18.3.1",
+    "react-select": "^5.10.1",
+    "wrap-n-track": "file:",
+    "xlsx": "^0.18.5"
   }
 }
