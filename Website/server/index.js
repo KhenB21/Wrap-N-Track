@@ -1040,4 +1040,35 @@ app.get('/api/inventory/search', async (req, res) => {
     console.error('Error searching inventory by name:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
-}); 
+});
+
+// Get all inventory items
+app.get('/api/inventory', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM inventory_items ORDER BY last_updated DESC');
+    const products = result.rows.map(product => ({
+      ...product,
+      image_data: product.image_data ? product.image_data.toString('base64') : null
+    }));
+    res.json(products);
+  } catch (error) {
+    console.error('Error fetching inventory:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Delete an inventory item
+app.delete('/api/inventory/:sku', async (req, res) => {
+  const { sku } = req.params;
+  try {
+    const deleteOp = await pool.query('DELETE FROM inventory_items WHERE sku = $1', [sku]);
+    if (deleteOp.rowCount > 0) {
+      res.json({ success: true, message: 'Item deleted successfully' });
+    } else {
+      res.status(404).json({ success: false, message: 'Item not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting inventory item:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});

@@ -8,7 +8,9 @@ import { useTheme } from '../DrawerNavigation/ThemeContect';
 const InventoryItemDetails = ({ route }) => {
   const { item } = route.params; 
   console.log('Item Details:', item); 
-  const [focused, setFocused] = useState(item.photos[0]); 
+  const [focused, setFocused] = useState(
+    item.image_data ? `data:image/jpeg;base64,${item.image_data}` : null
+  ); 
   const navigation = useNavigation();
 
   const { themeStyles } = useTheme();
@@ -56,24 +58,23 @@ const InventoryItemDetails = ({ route }) => {
           <View style={{ width: '100%', padding: 15 }}>
             {/* Thumbnails */}
             <View style={{ flexDirection: 'row', height: 60, width: '100%', alignItems: 'center' }}>
-              {item.photos.map((photo, index) => (
-                <TouchableOpacity key={index} onPress={() => setFocused(photo)}>
+              {item.image_data && (
+                <TouchableOpacity onPress={() => setFocused(`data:image/jpeg;base64,${item.image_data}`)}>
                   <Image
-                    source={{ uri: photo }}
+                    source={{ uri: `data:image/jpeg;base64,${item.image_data}` }}
                     style={{
                       height: 60,
                       width: 60,
-                      marginLeft: index === 0 ? 0 : 10,
                       borderRadius: 5,
                     }}
                   />
                 </TouchableOpacity>
-              ))}
+              )}
             </View>
 
             {/* Item Name */}
             <Text style={{ color: 'black', fontSize: 22, fontWeight: 'bold', paddingVertical: 20, color: themeStyles.textColor }}>
-              {item.itemName || 'N/A'}
+              {item.name || 'N/A'}
             </Text>
 
             {/* General Information */}
@@ -82,16 +83,12 @@ const InventoryItemDetails = ({ route }) => {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <View>
                   <Text style={{ color: themeStyles.textColor, fontSize: 14, marginTop: 20 }}>Category</Text>
-                  <Text style={{ color: themeStyles.textColor, fontSize: 14, marginTop: 20 }}>Variant</Text>
                   <Text style={{ color: themeStyles.textColor, fontSize: 14, marginTop: 20 }}>Stock Keeping Unit</Text>
                   <Text style={{ color: themeStyles.textColor, fontSize: 14, marginTop: 20 }}>Description</Text>
                 </View>
                 <View>
                   <Text style={{ color: themeStyles.textColor, fontSize: 14, textAlign: 'right', marginTop: 20 }}>
                     {item.category || 'N/A'}
-                  </Text>
-                  <Text style={{ color: themeStyles.textColor, fontSize: 14, textAlign: 'right', marginTop: 20 }}>
-                    {item.variant || 'N/A'}
                   </Text>
                   <Text style={{ color: themeStyles.textColor, fontSize: 14, textAlign: 'right', marginTop: 20 }}>
                     {item.sku || 'N/A'}
@@ -118,18 +115,14 @@ const InventoryItemDetails = ({ route }) => {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <View>
                   <Text style={{ color: themeStyles.textColor, fontSize: 14, marginTop: 20 }}>Quantity</Text>
-                  <Text style={{ color: themeStyles.textColor, fontSize: 14, marginTop: 20 }}>Weight / Volume</Text>
-                  <Text style={{ color: themeStyles.textColor, fontSize: 14, marginTop: 20 }}>Date Added</Text>
+                  <Text style={{ color: themeStyles.textColor, fontSize: 14, marginTop: 20 }}>Last Updated</Text>
                 </View>
                 <View>
                   <Text style={{ color: themeStyles.textColor, fontSize: 14, textAlign: 'right', marginTop: 20 }}>
                     {item.quantity || 'N/A'}
                   </Text>
                   <Text style={{ color: themeStyles.textColor, fontSize: 14, textAlign: 'right', marginTop: 20 }}>
-                    {item.unit || 'N/A'}
-                  </Text>
-                  <Text style={{ color: themeStyles.textColor, fontSize: 14, textAlign: 'right', marginTop: 20 }}>
-                    {item.dateAdded || 'N/A'}
+                    {item.last_updated ? new Date(item.last_updated).toLocaleDateString() : 'N/A'}
                   </Text>
                 </View>
               </View>

@@ -6,7 +6,8 @@ import {
   ScrollView,
   SafeAreaView,
   Image,
-  Alert,
+  ToastAndroid,
+  ActivityIndicator,
   Modal,
 } from "react-native";
 import React, { useState, useContext } from "react";
@@ -34,11 +35,12 @@ const InventoryForm = () => {
   const [selectedId, setSelectedId] = useState(null);
   const [hasPermission, setHasPermission] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const { themeStyles } = useTheme();
 
   const navigation = useNavigation();
-  const { addItem } = useContext(InventoryContext);
+  const { saveItem } = useContext(InventoryContext);
 
   const radioButtons = [
     { id: "1", label: "Active", value: "option1" },
@@ -104,68 +106,54 @@ const InventoryForm = () => {
     }
   };
 
-  const handleAddItem = () => {
+  const handleSave = async () => {
     if (!itemName.trim()) {
-      Alert.alert("Missing Field", "Please enter the item name.");
-      return;
-    }
-    if (!variant.trim()) {
-      Alert.alert("Missing Field", "Please enter the variant.");
-      return;
-    }
-    if (!description.trim()) {
-      Alert.alert("Missing Field", "Please enter the description.");
+      Alert.alert('Missing Field', 'Please enter the item name.');
       return;
     }
     if (!category.trim()) {
-      Alert.alert("Missing Field", "Please select a category.");
+      Alert.alert('Missing Field', 'Please select a category.');
       return;
     }
     if (!sku.trim()) {
-      Alert.alert("Missing Field", "Please enter the SKU.");
-      return;
-    }
-    if (!selectedId) {
-      Alert.alert("Missing Field", "Please select the status.");
-      return;
-    }
-    if (photos.length === 0) {
-      Alert.alert("Missing Field", "Please add at least one photo.");
+      Alert.alert('Missing Field', 'Please enter the SKU.');
       return;
     }
     if (!quantity.trim()) {
-      Alert.alert("Missing Field", "Please enter the quantity.");
-      return;
-    }
-    if (!unit.trim()) {
-      Alert.alert("Missing Field", "Please enter the weight/volume.");
-      return;
-    }
-    if (!selectedValue.trim()) {
-      Alert.alert("Missing Field", "Please select the unit.");
+      Alert.alert('Missing Field', 'Please enter the quantity.');
       return;
     }
     if (!price.trim()) {
-      Alert.alert("Missing Field", "Please enter the item price.");
+      Alert.alert('Missing Field', 'Please enter the item price.');
+      return;
+    }
+    if (!selectedId) {
+      Alert.alert('Missing Field', 'Please select the status.');
       return;
     }
 
-    const newItem = {
-      itemName,
-      variant,
+    const itemData = {
+      name: itemName,
       category,
       sku,
+      description,
       quantity,
       price,
-      photos,
-      description,
-      unit,
-      dateAdded: new Date().toLocaleDateString(),
-      status: selectedId === "1" ? "Active" : "Inactive",
+      status: selectedId === '1' ? 'Active' : 'Inactive',
+      image: photos.length > 0 ? { uri: photos[0] } : null,
+      variant,
+      unit: unit && selectedValue ? `${unit} ${selectedValue}` : unit,
     };
 
-    addItem(newItem);
-    navigation.goBack({ newItem });
+    setLoading(true);
+    try {
+      await saveItem(itemData);
+      ToastAndroid.show('Item saved successfully!', ToastAndroid.SHORT);
+      navigation.goBack();
+    } catch (error) {
+      ToastAndroid.show('Failed to save item. Please try again.', ToastAndroid.LONG);
+    }
+    setLoading(false);
   };
 
   return (
@@ -589,16 +577,21 @@ const InventoryForm = () => {
           <TouchableOpacity
             style={{
               width: "100%",
-              height: 50,
-              backgroundColor: themeStyles.buttonColor,
+              height: 60,
+              backgroundColor: loading ? "#B0B0B0" : themeStyles.buttonColor,
               marginTop: 40,
               borderRadius: 5,
               justifyContent: "center",
               alignItems: "center",
             }}
-            onPress={handleAddItem}
+            onPress={handleSave}
+            disabled={loading}
           >
-            <Text style={{ fontSize: 16, color: "#FDFDFD" }}>Add Item</Text>
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={{ fontSize: 16, color: "#FDFDFD" }}>Save</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
