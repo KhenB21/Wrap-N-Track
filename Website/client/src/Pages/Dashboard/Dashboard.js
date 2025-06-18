@@ -198,7 +198,7 @@ function Dashboard() {
           <div className="dashboard-recent-activity">
             <h4>Recent Activity</h4>
             <div className="recent-activity-list">
-              {orderHistory.slice(0, 5).map((order) => (
+              {(Array.isArray(orderHistory) ? orderHistory.slice(0, 5) : []).map((order) => (
                 <div key={order.order_id} className="recent-activity-item">
                   <img
                     className="activity-avatar"

@@ -160,8 +160,8 @@ const InventoryScreen = ({ route }) => {
           backgroundColor: themeStyles.backgroundColor,
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
-          marginTop: -20,
-          paddingTop: 10,
+          marginTop: 0,
+          paddingTop: 20,
         }}
       >
         {isSelectionMode && (
@@ -251,7 +251,7 @@ const InventoryScreen = ({ route }) => {
         <View
           style={{
             position: "absolute",
-            bottom: 20,
+            bottom: 90,
             right: 20,
             flexDirection: "row",
             alignItems: "flex-end",
