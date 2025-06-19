@@ -11,9 +11,10 @@ const suppliersRouter = require("./routes/suppliers");
 const ordersRouter = require("./routes/orders");
 const supplierOrdersRouter = require("./routes/supplier-orders");
 const notificationsRouter = require("./routes/notifications");
+const inventoryRouter = require("./routes/inventory");
 
 const authRouter = require("./routes/auth");
-const customerRoutes = require("./routes/customer");
+const customerRouter = require("./routes/customer");
 require("dotenv").config({ path: __dirname + "/../.env" });
 
 const app = express();
@@ -215,13 +216,14 @@ app.use((req, res, next) => {
 app.use(express.json());
 
 // Routes
-app.use("/api/customers", customersRouter);
-app.use("/api/suppliers", suppliersRouter);
-app.use("/api/orders", ordersRouter);
-app.use("/api/supplier-orders", supplierOrdersRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/auth", authRouter);
-app.use("/api/customer", customerRoutes);
+app.use("/api/customer", customerRouter);
+app.use("/api/inventory", inventoryRouter);
+app.use("/api/orders", ordersRouter);
+app.use("/api/suppliers", suppliersRouter);
+app.use("/api/customers", customersRouter);
+app.use("/api/supplier-orders", supplierOrdersRouter);
 
 // Add error handling middleware
 app.use((err, req, res, next) => {
