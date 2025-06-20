@@ -12,6 +12,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 ChartJS.register(
   CategoryScale,
@@ -33,6 +35,7 @@ export default function SalesReport() {
     const month = String(today.getMonth() + 1).padStart(2, "0");
     return `${year}-${month}`;
   });
+  const chartRef = React.useRef();
 
   useEffect(() => {
     fetch("http://localhost:3001/api/orders/sales-report", {
@@ -138,6 +141,22 @@ export default function SalesReport() {
     },
   };
 
+  const handleExportPDF = async () => {
+    const input = chartRef.current;
+    if (!input) return;
+    const canvas = await html2canvas(input, { backgroundColor: "#fff" });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "pt",
+      format: "a4",
+    });
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+    pdf.save("sales_report.pdf");
+  };
+
   const renderContent = () => {
     if (loading)
       return <div className="loading-message">Loading sales report...</div>;
@@ -146,6 +165,17 @@ export default function SalesReport() {
     return (
       <div className="report-container">
         <h2 className="report-title">Sales Report</h2>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: 12,
+          }}
+        >
+          <button onClick={handleExportPDF} className="export-btn pdf-btn">
+            Export as PDF
+          </button>
+        </div>
         <div className="month-picker-container">
           <label className="month-picker-label" htmlFor="month-picker">
             Select Month:
@@ -158,7 +188,7 @@ export default function SalesReport() {
             onChange={(e) => setSelectedMonth(e.target.value)}
           />
         </div>
-        <div className="chart-container">
+        <div className="chart-container" ref={chartRef}>
           <Bar
             data={data}
             options={{
