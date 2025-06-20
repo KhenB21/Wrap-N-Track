@@ -11,35 +11,40 @@ import 'react-toastify/dist/ReactToastify.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import usePermissions from '../../hooks/usePermissions';
 
 const UOMS_REQUIRING_CONVERSION = ['Dozen', 'Box', 'Bundle', 'Set', 'Kit'];
 
 export default function Inventory() {
+  const { checkPermission } = usePermissions();
+
+  useEffect(() => {
+    checkPermission('inventory');
+  }, []);
+
   const location = useLocation();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null); // Keep for potential autofill
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [modalMode, setModalMode] = useState('add'); // 'add', 'edit', 'addStock'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
-  // Log showModal changes
   useEffect(() => {
     console.log('showModal changed:', showModal);
   }, [showModal]);
 
   useEffect(() => {
-    // Check if we have a filter from dashboard navigation
     if (location.state?.filter) {
       setFilter(location.state.filter);
     }
   }, [location]);
 
   useEffect(() => {
-    // Filter products by search term (excluding SKU)
     let filtered = products;
     if (searchTerm.trim() !== "") {
       const term = searchTerm.toLowerCase();
@@ -52,7 +57,6 @@ export default function Inventory() {
         (item.last_updated && new Date(item.last_updated).toLocaleString().toLowerCase().includes(term))
       );
     }
-    // Apply stock filter after search
     switch (filter) {
       case 'low-stock':
         filtered = filtered.filter(item => Number(item.quantity || 0) <= 300);
@@ -75,7 +79,6 @@ export default function Inventory() {
     setFilteredProducts(filtered);
   }, [searchTerm, filter, products]);
 
-  // Fetch products from backend
   const fetchProducts = async () => {
     setLoading(true);
     try {
@@ -95,11 +98,30 @@ export default function Inventory() {
   }, []);
 
   const handleAddProduct = async (formData) => {
+    // Handle add stock mode
+    if (formData.isAddStock) {
+      try {
+        const response = await api.post('/api/inventory/add-stock', {
+          sku: formData.sku,
+          quantityToAdd: formData.quantity,
+        });
+        if (response.data.success) {
+          setShowModal(false);
+          await fetchProducts();
+          toast.success('Stock added successfully!');
+        }
+      } catch (err) {
+        console.error('Error adding stock:', err);
+        const errorMessage = err.response?.data?.message || 'Failed to add stock';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
+      return;
+    }
+
     try {
-      // Determine if this is a file upload (FormData) or JSON data
       const isFileUpload = formData instanceof FormData;
       
-      // Use apiFileUpload for file uploads, regular api for JSON
       const response = isFileUpload 
         ? await apiFileUpload.post('/api/inventory', formData)
         : await api.post('/api/inventory', formData);
@@ -121,7 +143,6 @@ export default function Inventory() {
     navigate(`/product-details/${sku}`);
   };
 
-  // Archive (delete) product
   const handleArchive = async (sku) => {
     if (window.confirm('Are you sure you want to archive (delete) this item?')) {
       try {
@@ -198,7 +219,11 @@ export default function Inventory() {
             <h2>Inventory</h2>
             <button 
               className="add-product-btn" 
-              onClick={() => setShowModal(true)}
+              onClick={() => {
+                setModalMode('add');
+                setSelectedProduct(null);
+                setShowModal(true);
+              }}
               title="Add New Product"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '8px' }}>
@@ -312,10 +337,20 @@ export default function Inventory() {
                       <td style={{ textAlign: 'center' }}>{product.ordered_quantity || 0}</td>
                       <td style={{ textAlign: 'center' }}>{product.delivered_quantity || 0}</td>
                       <td style={{ textAlign: 'center' }}>
-                        <button className="action-btn add" title="Add" onClick={e => { e.stopPropagation(); setSelectedProduct(null); setShowModal(true); }}>
+                        <button className="action-btn add" title="Add Stock" onClick={e => { 
+                          e.stopPropagation(); 
+                          setModalMode('addStock');
+                          setSelectedProduct(product); 
+                          setShowModal(true); 
+                        }}>
                           Add
                         </button>
-                        <button className="action-btn edit" title="Edit" onClick={e => { e.stopPropagation(); setSelectedProduct(product); setShowModal(true); }}>
+                        <button className="action-btn edit" title="Edit" onClick={e => { 
+                          e.stopPropagation();
+                          setModalMode('edit');
+                          setSelectedProduct(product); 
+                          setShowModal(true); 
+                        }}>
                           Edit
                         </button>
                         <button className="action-btn archive" title="Archive" onClick={e => { e.stopPropagation(); handleArchive(product.sku); }}>
@@ -329,7 +364,16 @@ export default function Inventory() {
             </div>
           </div>
           )}
-          {showModal && <AddProductModal onClose={() => setShowModal(false)} onAdd={handleAddProduct} products={products} initialData={selectedProduct || {}} isEdit={!!selectedProduct} />}
+          {showModal && (
+            <AddProductModal 
+              onClose={() => setShowModal(false)} 
+              onAdd={handleAddProduct} 
+              products={products} 
+              initialData={selectedProduct || {}} 
+              isEdit={modalMode === 'edit'}
+              isAddStockMode={modalMode === 'addStock'}
+            />
+          )}
         </div>
       </div>
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />

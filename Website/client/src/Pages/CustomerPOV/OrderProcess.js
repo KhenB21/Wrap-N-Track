@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from 'react-router-dom';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import "./OrderProcess.css";
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import "./CustomerPOV.css";
@@ -129,6 +132,7 @@ const styles = {
 };
 
 export default function OrderProcess() {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [currentConCat, setCurrentConCat] = useState(1);
   const [showModal, setShowModal] = useState(false);
@@ -633,26 +637,26 @@ export default function OrderProcess() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const token = localStorage.getItem('customerToken');
+    const customerData = JSON.parse(localStorage.getItem('customer'));
+
+    if (!token || !customerData) {
+      alert('you need to login first');
+      navigate('/customer-login');
+      return;
+    }
+
     setLoading(true);
     try {
-      const customerData = JSON.parse(localStorage.getItem('customer'));
-      const token = localStorage.getItem('customerToken');
-      
-      if (!customerData || !customerData.email) {
-        throw new Error('Customer email not found. Please log in again.');
-      }
-      if (!token) {
-        throw new Error('Authentication token not found. Please log in again.');
-      }
-
       const guestQuantity = parseInt(formData.guestCount, 10) || 1;
       let productsForOrder = [];
 
       const productNameToSku = {
-        "Blanc Box": "BC2350939297462", "Signature Box": "BC8201847934939", "Premium Box": "BC3344504438612",
-        "Local Coffee": "BC269406629240", "Loose-leaf Tea": "BC2360282995737", "Beer": "BC6208896644655",
-        "Mini Wine": "BC757578736643", "Mini Whiskey": "BC3887477589362", "Full-sized Wine": "BC1321769559491",
-        "Full-sized Spirits/Liquor": "BC7274786312457", "Tablea de Cacao": "BC3186447262236",
+        "Blanc Box": "BC2350932997462", "Signature Box": "BC8201847934939", "Premium Box": "BC3344504438612",
+        "Local Coffee": "BC2694066629240", "Loose-leaf Tea": "BC132199117773", "Beer": "BC6208869646455",
+        "Mini Wine": "BC6757578736643", "Mini Whiskey": "BC3887477589362", "Full-sized Wine": "BC1321769559491",
+        "Full-sized Spirits/Liquor": "BC7247486312457", "Tablea de Cacao": "BC3186447262236",
         "Sweet Pastries & Cookies": "BC6504520384101", "French Macarons": "BC2963086375030",
         "Artisanal Chocolate bar": "BC352716219829", "Custom Sugar Cookies": "BC8241518941445",
         "Organic Raw Honey": "BC8767512856380", "Infused Salt": "BC2160387016651", "Super Seeds & Nuts": "BC5968201169394",
@@ -666,7 +670,7 @@ export default function OrderProcess() {
         "Satin Robe": "BC7663681213353", "Men's Satin Robe": "BC671943150722", "Satin Headband": "BC9879107744493",
         "Crystal Stacker": "BC7429663734593", "Custom Clay Earrings": "BC8964056704789",
         "Wax-sealed Letter": "BC7894930788030", "Decal Sticker": "BC2804181838933", "Logo Engraving": "BC7681940021375",
-        "Ribbon Color": "BC5479159416742", "Envelope": "BC7771541356794",
+        "Ribbon Color": "BC5471591644762", "Envelope": "BC7771541356794",
         "Wellsmith sprinkle": "BC913143711469", "palapa seasoning": "BC883738015619",
       };
 
@@ -757,12 +761,19 @@ export default function OrderProcess() {
       });
       
       if (response.data) {
-        alert('Order submitted successfully!');
-        window.location.href = '/orders'; 
+        toast.success('Order is completed');
       }
     } catch (error) {
       console.error('Error submitting order:', error);
-      alert('Failed to submit order: ' + (error.response?.data?.message || error.message));
+      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+        localStorage.removeItem('customerToken');
+        localStorage.removeItem('customer');
+        alert('you need to login first');
+        navigate('/customer-login');
+      } else {
+        const errorMessage = error.response?.data?.message || error.message;
+        alert('Failed to submit order: ' + errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -1277,6 +1288,7 @@ export default function OrderProcess() {
 
   return (
     <div style={styles.container}>
+      <ToastContainer />
       <TopbarCustomer />
       {/* Header */}
       <div style={styles.header}>

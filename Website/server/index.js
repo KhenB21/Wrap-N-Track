@@ -1701,3 +1701,65 @@ app.put('/api/inventory/:sku/adjust', async (req, res) => {
     client.release();
   }
 });
+
+// Add stock to an existing inventory item
+app.post('/api/inventory/add-stock', async (req, res) => {
+    const { sku, quantityToAdd } = req.body;
+    const client = await pool.connect();
+
+    try {
+        if (!sku || quantityToAdd === undefined || isNaN(Number(quantityToAdd))) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid request. SKU and a numeric quantityToAdd are required.'
+            });
+        }
+
+        const quantity = Number(quantityToAdd);
+        if (quantity <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Quantity to add must be a positive number.'
+            });
+        }
+
+        await client.query('BEGIN');
+
+        const result = await client.query(
+            'UPDATE inventory_items SET quantity = quantity + $1, last_updated = NOW() WHERE sku = $2 RETURNING *',
+            [quantity, sku]
+        );
+
+        if (result.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found'
+            });
+        }
+
+        await client.query('COMMIT');
+
+        const updatedProduct = result.rows[0];
+        if (updatedProduct.image_data) {
+            updatedProduct.image_data = updatedProduct.image_data.toString('base64');
+        }
+
+        res.json({
+            success: true,
+            message: 'Stock added successfully.',
+            product: updatedProduct
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error adding stock:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            details: error.message
+        });
+    } finally {
+        client.release();
+    }
+});

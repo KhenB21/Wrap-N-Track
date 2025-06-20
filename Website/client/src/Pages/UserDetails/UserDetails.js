@@ -99,7 +99,7 @@ export default function UserDetails() {
     }
   };
 
-  const isAdminRole = ['admin', 'director', 'business_developer', 'creatives'].includes(userData.role);
+  const isAdminRole = ['admin'].includes(userData.role);
 
   if (loading) {
     return (

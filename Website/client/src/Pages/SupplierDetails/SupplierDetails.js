@@ -4,6 +4,7 @@ import TopBar from "../../Components/TopBar";
 import api from '../../api/axios';
 import config from '../../config';
 import "./SupplierDetails.css";
+import usePermissions from '../../hooks/usePermissions';
 
 const API_BASE_URL = config.API_URL;
 
@@ -25,6 +26,12 @@ function getProfilePictureUrl() {
 }
 
 export default function SupplierDetails() {
+  const { checkPermission } = usePermissions();
+
+  useEffect(() => {
+    checkPermission('suppliers');
+  }, []);
+
   const [activeTab, setActiveTab] = useState(0);
   const [suppliers, setSuppliers] = useState([]);
   const [filteredSuppliers, setFilteredSuppliers] = useState([]);

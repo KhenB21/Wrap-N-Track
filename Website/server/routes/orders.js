@@ -234,6 +234,15 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Each product must have a valid SKU and quantity' });
           }
 
+          // Verify that the SKU exists in inventory_items before inserting
+          const skuCheck = await client.query('SELECT sku FROM inventory_items WHERE sku = $1', [product.sku]);
+          if (skuCheck.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ 
+              error: `Product with SKU '${product.sku}' not found in inventory. Please ensure the product exists before creating an order.` 
+            });
+          }
+
           await client.query(`
             INSERT INTO order_products (order_id, sku, quantity, profit_margin)
             VALUES ($1, $2, $3, $4)

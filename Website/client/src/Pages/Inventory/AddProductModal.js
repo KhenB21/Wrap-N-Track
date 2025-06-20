@@ -148,9 +148,9 @@ const generateUniqueSku = () => {
   return `BC${digits}`;
 };
 
-export default function AddProductModal({ onClose, onAdd, initialData = {}, isEdit = false, products = [] }) {
+export default function AddProductModal({ onClose, onAdd, initialData = {}, isEdit = false, products = [], isAddStockMode = false }) {
   const [form, setForm] = useState({
-    sku: isEdit ? (initialData.sku || '') : generateUniqueSku(),
+    sku: isEdit || isAddStockMode ? (initialData.sku || '') : generateUniqueSku(),
     name: initialData.name || '',
     description: initialData.description || '',
     quantity: initialData.quantity || 0,
@@ -161,6 +161,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     expirable: initialData.expirable || false,
     expiration: initialData.expiration || '',
   });
+  const [quantityToAdd, setQuantityToAdd] = useState(0);
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(initialData.image_data ? `data:image/jpeg;base64,${initialData.image_data}` : null);
   const [errors, setErrors] = useState({});
@@ -174,7 +175,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
   const [filteredCategories, setFilteredCategories] = useState([]);
 
   useEffect(() => {
-    if (isEdit && initialData && Object.keys(initialData).length > 0) { 
+    if ((isEdit || isAddStockMode) && initialData && Object.keys(initialData).length > 0) { 
       setForm({
         sku: initialData.sku || generateUniqueSku(),
         name: initialData.name || '',
@@ -191,7 +192,9 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       if (initialData.image_data) {
         setPreview(`data:image/jpeg;base64,${initialData.image_data}`);
       }
-      setSelectedExistingProduct(initialData); 
+      if (isEdit) {
+        setSelectedExistingProduct(initialData); 
+      }
     }
 
     const ws = new WebSocket(config.WS_URL);
@@ -206,10 +209,10 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     return () => {
       ws.close();
     };
-  }, [isEdit, initialData]); // Removed selectedExistingProduct from dep array to avoid loop on initialData set
+  }, [isEdit, isAddStockMode, initialData]);
 
   useEffect(() => {
-    if (isEdit && initialData && Object.keys(initialData).length > 0) {
+    if ((isEdit || isAddStockMode) && initialData && Object.keys(initialData).length > 0) {
       setForm({
         sku: initialData.sku || '',
         name: initialData.name || '',
@@ -227,11 +230,20 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         setPreview(`data:image/jpeg;base64,${initialData.image_data}`);
       }
     }
-  }, [isEdit, initialData]);
+  }, [isEdit, isAddStockMode, initialData]);
 
   const validateForm = () => {
     const newErrors = {};
     
+    if (isAddStockMode) {
+        const qty = Number(quantityToAdd);
+        if (isNaN(qty) || !Number.isInteger(qty) || qty <= 0) {
+            newErrors.quantity = 'Please enter a valid positive integer to add.';
+        }
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    }
+
     // Check for duplicate name
     const duplicateName = products.find(
       product => product.name.toLowerCase() === form.name.toLowerCase() && 
@@ -290,7 +302,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     setForm(prev => ({ ...prev, [name]: value }));
     setErrors(prev => ({ ...prev, [name]: '' }));
 
-    if (name === 'name') {
+    if (name === 'name' && !isEdit && !isAddStockMode) {
       if (value.trim() === '') {
         setProductNameSuggestions([]);
         setShowProductNameSuggestions(false);
@@ -380,6 +392,15 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     e.preventDefault();
     if (!validateForm()) return;
 
+    if (isAddStockMode) {
+        onAdd({
+            sku: form.sku,
+            quantity: quantityToAdd,
+            isAddStock: true,
+        });
+        return;
+    }
+
     // Validation for unique SKU/Name if it's a new product (not selectedExistingProduct)
     // or if SKU/Name is changed for an existing product.
     if (!selectedExistingProduct) { // Truly new product
@@ -453,17 +474,21 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     <div className="modal-overlay">
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <button className="close-btn" onClick={onClose}>&times;</button>
-        <h3 style={{ textAlign: 'center', fontWeight: 700, marginBottom: '1.5rem' }}>{selectedExistingProduct || (isEdit && initialData.sku) ? 'EDIT PRODUCT DETAILS' : 'ADD PRODUCT'}</h3>
+        <h3 style={{ textAlign: 'center', fontWeight: 700, marginBottom: '1.5rem' }}>
+          {isAddStockMode ? 'ADD STOCK' : (selectedExistingProduct || (isEdit && initialData.sku) ? 'EDIT PRODUCT DETAILS' : 'ADD PRODUCT')}
+        </h3>
         <form onSubmit={handleSubmit} className="add-product-form" encType="multipart/form-data" style={{ gap: '0.5rem' }}>
           <div className="file-input-wrapper">
             {preview && <img src={preview} alt="Preview" />}
-            <input type="file" accept="image/*" onChange={handleImageChange} />
+            <input type="file" accept="image/*" onChange={handleImageChange} disabled={isAddStockMode || isEdit} />
           </div>
           <label style={{ width: '100%' }}>SKU
             <input name="sku" value={form.sku} onChange={handleChange} required disabled={true} style={{ width: '100%' }} />
           </label>
-          <label style={{ width: '100%' }}>NAME
+          <div className="product-name-input-container">
+            <label htmlFor="name" style={{ width: '100%' }}>NAME</label>
             <input 
+              id="name"
               name="name" 
               value={form.name} 
               onChange={handleChange} 
@@ -471,9 +496,30 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
               className={errors.name ? 'error' : ''}
               autoComplete="off"
               style={{ width: '100%' }}
+              disabled={isAddStockMode || isEdit}
             />
+            {showProductNameSuggestions && productNameSuggestions.length > 0 && !isAddStockMode && !isEdit && (
+              <div className="product-name-suggestions">
+                {productNameSuggestions.map((product, index) => (
+                  <div
+                    key={index}
+                    className="suggestion-item"
+                    onClick={() => handleProductNameSelect(product)}
+                  >
+                    {product.image_data && (
+                      <img 
+                        src={`data:image/jpeg;base64,${product.image_data}`} 
+                        alt={product.name} 
+                        className="suggestion-item-image"
+                      />
+                    )}
+                    <span className="suggestion-item-text">{product.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {errors.name && <span className="error-message">{errors.name}</span>}
-          </label>
+          </div>
           <label style={{ width: '100%' }}>CATEGORY
             <div className="category-input-container" style={{ width: '100%' }}>
               <input 
@@ -483,8 +529,9 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 className={errors.category ? 'error' : ''}
                 placeholder="Select or type a category"
                 style={{ textAlign: 'left', width: '100%' }}
+                disabled={isAddStockMode || isEdit}
               />
-              {showSuggestions && filteredCategories.length > 0 && (
+              {showSuggestions && filteredCategories.length > 0 && !isAddStockMode && !isEdit && (
                 <div className="category-suggestions">
                   {filteredCategories.map((category, index) => (
                     <div
@@ -508,6 +555,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 checked={form.expirable}
                 onChange={e => setForm(prev => ({ ...prev, expirable: e.target.checked, expiration: e.target.checked ? prev.expiration : '' }))}
                 className="expirable-checkbox"
+                disabled={isAddStockMode || isEdit}
               />
               <span>Expirable?</span>
             </label>
@@ -518,6 +566,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 value={form.expiration}
                 onChange={e => setForm(prev => ({ ...prev, expiration: e.target.value }))}
                 className="expirable-date"
+                disabled={isAddStockMode || isEdit}
               />
             ) : (
               <span className="dont-expire-badge">DONT EXPIRE</span>
@@ -530,22 +579,50 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
               onChange={handleChange}
               className={errors.description ? 'error' : ''}
               style={{ width: '100%' }}
+              disabled={isAddStockMode || isEdit}
             />
             {errors.description && <span className="error-message">{errors.description}</span>}
           </label>
           <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
-            <label style={{ flex: '0 1 48%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>QUANTITY (Base Unit)
-              <input 
-                name="quantity" 
-                type="number" 
-                value={form.quantity} 
-                onChange={handleChange} 
-                required
-                className={errors.quantity ? 'error' : ''}
-                style={{ height: 40, width: '100%' }}
-              />
-              {errors.quantity && <span className="error-message">{errors.quantity}</span>}
-            </label>
+            {isAddStockMode ? (
+              <>
+                <label style={{ flex: '0 1 48%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>CURRENT STOCK
+                  <input 
+                    type="number" 
+                    value={form.quantity} 
+                    disabled={true}
+                    style={{ height: 40, width: '100%', background: '#f4f4f4' }}
+                  />
+                </label>
+                <label style={{ flex: '0 1 48%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>QUANTITY TO ADD
+                  <input 
+                    name="quantityToAdd" 
+                    type="number" 
+                    value={quantityToAdd} 
+                    onChange={e => setQuantityToAdd(e.target.value)} 
+                    required
+                    className={errors.quantity ? 'error' : ''}
+                    style={{ height: 40, width: '100%' }}
+                    min="1"
+                  />
+                  {errors.quantity && <span className="error-message">{errors.quantity}</span>}
+                </label>
+              </>
+            ) : (
+              <label style={{ flex: '0 1 48%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>QUANTITY (Base Unit)
+                <input 
+                  name="quantity" 
+                  type="number" 
+                  value={form.quantity} 
+                  onChange={handleChange} 
+                  required
+                  className={errors.quantity ? 'error' : ''}
+                  style={{ height: 40, width: '100%' }}
+                  disabled={isEdit}
+                />
+                {errors.quantity && <span className="error-message">{errors.quantity}</span>}
+              </label>
+            )}
             <label style={{ flex: '0 1 48%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>UOM
               <div style={{ minHeight: 40, width: '100%' }}>
                 <Select
@@ -563,6 +640,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                   classNamePrefix={errors.uom ? 'error react-select' : 'react-select'}
                   placeholder="Select or search UoM"
                   isClearable
+                  isDisabled={isAddStockMode || isEdit}
                   styles={{
                     control: (base, state) => ({
                       ...base,
@@ -626,6 +704,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                   pattern="^[0-9]+$"
                   inputMode="numeric"
                   style={{ marginBottom: 4, width: '100%' }}
+                  disabled={isAddStockMode || isEdit}
                 />
                 <span className="help-text">1 {form.uom} = {form.conversion_qty || '?'} Pieces</span>
                 {errors.conversion_qty && <span className="error-message">{errors.conversion_qty}</span>}
@@ -642,6 +721,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
               required
               className={errors.unit_price ? 'error' : ''}
               style={{ width: '100%' }}
+              disabled={isAddStockMode || isEdit}
             />
             {errors.unit_price && <span className="error-message">{errors.unit_price}</span>}
           </label>
