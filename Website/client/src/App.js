@@ -18,7 +18,7 @@ import CarloPreview from "./Pages/CustomerPOV/CarloPreview";
 import CustomerHome from "./Pages/CustomerPOV/CustomerHome";
 import CustomerCorporate from "./Pages/CustomerCorporate/CustomerCorporate";
 
-import ArchivedOrders from './Pages/ArchivedOrders/ArchivedOrders';
+import ArchivedOrders from "./Pages/ArchivedOrders/ArchivedOrders";
 
 import ForgotPassword from "./Pages/ForgotPassword/ForgotPassword";
 import EmailVerify from "./Pages/EmailVerify/EmailVerify";
@@ -32,6 +32,8 @@ import CustomerRegister from "./Pages/CustomerPOV/CustomerRegister";
 import CustomerLogIn from "./Pages/CustomerPOV/CustomerLogIn";
 import CustomerUserDetails from "./Pages/CustomerPOV/CustomerUserDetails";
 import CustomerVerify from "./Pages/CustomerPOV/CustomerVerify";
+import SalesReport from "./Pages/Reports/SalesReport";
+import InventoryReport from "./Pages/Reports/InventoryReport";
 
 function App() {
   return (
@@ -45,7 +47,7 @@ function App() {
         <Route path="/product/2" element={<EricMarielPreview />} />
         <Route path="/product/3" element={<DanielPreview />} />
         <Route path="/customer-home" element={<CustomerHome />} />
-        
+
         <Route path="/archived-orders" element={<ArchivedOrders />} />
         <Route path="/customer-details" element={<CustomerDetails />} />
         <Route path="/supplier-details" element={<SupplierDetails />} />
@@ -64,15 +66,19 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify" element={<EmailVerify />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/reports/sales" element={<SalesReport />} />
+        <Route path="/reports/inventory" element={<InventoryReport />} />
         {/* Add more routes as needed */}
 
         <Route path="/bespoke" element={<CustomerBespoke />} />
         <Route path="/about" element={<CustomerAboutUs />} />
         <Route path="/customer-register" element={<CustomerRegister />} />
         <Route path="/customer-login" element={<CustomerLogIn />} />
-        <Route path="/customer-user-details" element={<CustomerUserDetails />} />
+        <Route
+          path="/customer-user-details"
+          element={<CustomerUserDetails />}
+        />
         <Route path="/customer/verify" element={<CustomerVerify />} />
-
       </Routes>
     </Router>
   );
