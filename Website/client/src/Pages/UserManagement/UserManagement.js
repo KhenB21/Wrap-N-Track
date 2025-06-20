@@ -5,8 +5,10 @@ import api from '../../api/axios';
 import config from '../../config';
 import './UserManagement.css';
 import { useNavigate } from 'react-router-dom';
+import usePermissions from '../../hooks/usePermissions';
 
 const UserManagement = () => {
+  const { checkPermission } = usePermissions();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -21,7 +23,7 @@ const UserManagement = () => {
 
   const fetchInventory = async () => {
     try {
-      const response = await api.get('http://localhost:3001/api/inventory');
+      const response = await api.get(`${config.API_URL}/api/inventory`);
       if (response.data) {
         setInventory(response.data);
       }
@@ -35,28 +37,16 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const user = JSON.parse(localStorage.getItem('user'));
       const token = localStorage.getItem('token');
-      
-      if (!user || user.role !== 'admin') {
-        setError('Access denied. Admins only.');
-        setLoading(false);
-        return;
-      }
-
-      console.log('Fetching users with token:', token);
-      const response = await api.get('http://localhost:3001/api/users', {
+      const response = await api.get(`${config.API_URL}/api/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
         },
       });
 
       if (!response.data) {
         throw new Error('Failed to fetch users');
       }
-
-      console.log('Fetched users:', response.data);
       
       if (!Array.isArray(response.data)) {
         throw new Error('Invalid data format received from server');
@@ -66,20 +56,28 @@ const UserManagement = () => {
       setError(null);
     } catch (err) {
       console.error('Error fetching users:', err);
-      setError(err.message);
+      setError(err.response?.data?.message || err.message || 'An error occurred while fetching users.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    checkPermission('accountManagement');
     fetchUsers();
     fetchInventory();
   }, []);
 
   const handleCardClick = (user) => {
     setSelectedUser(user);
-    setEditData({ ...user });
+    setEditData({ 
+      ...user,
+      name: user.name || '',
+      email: user.email || '',
+      role: user.role || '',
+      mobile: user.mobile || '',
+      is_active: user.is_active === undefined ? true : user.is_active, // Default to active
+    });
     setModalOpen(true);
     setActionError(null);
   };
@@ -93,23 +91,23 @@ const UserManagement = () => {
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
-    setEditData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleConfirmationClose = () => {
-    setConfirmation({ open: false, message: '' });
+    // For the status dropdown, the value is a string 'true' or 'false', convert to boolean
+    if (name === 'is_active') {
+      setEditData((prev) => ({ ...prev, [name]: value === 'true' }));
+    } else {
+      setEditData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSave = async () => {
     setActionError(null);
     try {
-      const { profile_picture_data, mobile, department, status, ...userDataToSend } = editData;
+      const { profile_picture_data, ...userDataToSend } = editData;
       const token = localStorage.getItem('token');
 
-      const response = await api.put(`http://localhost:3001/api/users/${selectedUser.user_id}`, userDataToSend, {
+      const response = await api.put(`${config.API_URL}/api/users/${selectedUser.user_id}`, userDataToSend, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
         }
       });
 
@@ -118,7 +116,7 @@ const UserManagement = () => {
       setConfirmation({ open: true, message: response.data.message || 'User updated successfully!' });
     } catch (err) {
       console.error('Error updating user:', err);
-      setActionError(err.response?.data?.message || err.message || 'Failed to update user. Please try again.');
+      setActionError(err.response?.data?.message || err.message || 'Failed to update user.');
     }
   };
 
@@ -127,7 +125,7 @@ const UserManagement = () => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
       const token = localStorage.getItem('token');
-      await api.delete(`http://localhost:3001/api/users/${selectedUser.user_id}`, {
+      await api.delete(`${config.API_URL}/api/users/${selectedUser.user_id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -138,8 +136,12 @@ const UserManagement = () => {
       setConfirmation({ open: true, message: 'User deleted successfully!' });
     } catch (err) {
       console.error('Error deleting user:', err);
-      setActionError(err.response?.data?.message || err.message || 'Failed to delete user. Please try again.');
+      setActionError(err.response?.data?.message || err.message || 'Failed to delete user.');
     }
+  };
+
+  const handleConfirmationClose = () => {
+    setConfirmation({ open: false, message: '' });
   };
 
   if (loading) {
@@ -149,7 +151,11 @@ const UserManagement = () => {
         <div className="dashboard-main">
           <TopBar />
           <div className="user-management-container">
-            <div className="loading">Loading users...</div>
+            <h1>Account Management</h1>
+            <div className="loading-container">
+              <div className="loading-spinner"></div>
+              <p>Loading users...</p>
+            </div>
           </div>
         </div>
       </div>
@@ -163,15 +169,13 @@ const UserManagement = () => {
         <div className="dashboard-main">
           <TopBar />
           <div className="user-management-container">
+            <h1>Account Management</h1>
             <div className="error">{error}</div>
           </div>
         </div>
       </div>
     );
   }
-
-  // const admins = users.filter(u => u.role === 'admin'); // No longer needed for table display
-  // const employees = users.filter(u => u.role !== 'admin'); // No longer needed for table display
 
   return (
     <div className="dashboard-container">
@@ -215,7 +219,7 @@ const UserManagement = () => {
                       <td>{user.name}</td>
                       <td>{user.user_id}</td>
                       <td>{user.email}</td>
-                      <td style={{ textTransform: 'capitalize' }}>{user.role}</td>
+                      <td style={{ textTransform: 'capitalize' }}>{user.role.replace(/_/g, ' ')}</td>
                       <td>{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
                       <td>
                         <button 
@@ -252,13 +256,21 @@ const UserManagement = () => {
                   <label>Name: <input name="name" value={editData.name} onChange={handleEditChange} /></label>
                   <label>Email: <input name="email" value={editData.email} onChange={handleEditChange} /></label>
                   <label>Role: <select name="role" value={editData.role} onChange={handleEditChange}>
-                    <option value="admin">Admin</option>
-                    <option value="employee">Employee</option>
+                    <option value="super_admin">Super Admin</option>
+                    <option value="operations_manager">Operations Manager</option>
+                    <option value="sales_manager">Sales Manager</option>
+                    <option value="social_media_manager">Social Media Manager</option>
                   </select></label>
                   <label>Created At: <span>{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : 'N/A'}</span></label>
-                  {selectedUser.mobile && <label>Mobile: <input name="mobile" value={editData.mobile || ''} onChange={handleEditChange} /></label>}
-                  {selectedUser.department && <label>Department: <input name="department" value={editData.department || ''} onChange={handleEditChange} /></label>}
-                  {selectedUser.status && <label>Status: <input name="status" value={editData.status || ''} onChange={handleEditChange} /></label>}
+                  {editData.mobile !== undefined && <label>Contact Number: <input name="mobile" value={editData.mobile || ''} onChange={handleEditChange} /></label>}
+                  {editData.is_active !== undefined && (
+                    <label>Status:
+                      <select name="is_active" value={editData.is_active} onChange={handleEditChange}>
+                        <option value={true}>Active</option>
+                        <option value={false}>Inactive</option>
+                      </select>
+                    </label>
+                  )}
                 </div>
                 {actionError && <div className="error" style={{marginTop:8}}>{actionError}</div>}
               </div>
@@ -291,4 +303,4 @@ const UserManagement = () => {
   );
 };
 
-export default UserManagement; 
+export default UserManagement;

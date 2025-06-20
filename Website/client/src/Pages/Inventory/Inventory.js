@@ -6,40 +6,53 @@ import TopBar from "../../Components/TopBar";
 import { useNavigate, useLocation } from "react-router-dom";
 import api, { apiFileUpload } from "../../api/axios";
 import config from "../../config";
+
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import usePermissions from '../../hooks/usePermissions';
+
+
 const UOMS_REQUIRING_CONVERSION = ["Dozen", "Box", "Bundle", "Set", "Kit"];
 
 export default function Inventory() {
+  const { checkPermission } = usePermissions();
+
+  useEffect(() => {
+    checkPermission('inventory');
+  }, []);
+
   const location = useLocation();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null); // Keep for potential autofill
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [modalMode, setModalMode] = useState('add'); // 'add', 'edit', 'addStock'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
-  // Log showModal changes
   useEffect(() => {
     console.log("showModal changed:", showModal);
   }, [showModal]);
 
   useEffect(() => {
-    // Check if we have a filter from dashboard navigation
     if (location.state?.filter) {
       setFilter(location.state.filter);
     }
   }, [location]);
 
   useEffect(() => {
-    // Filter products by search term (excluding SKU)
     let filtered = products;
     if (searchTerm.trim() !== "") {
       const term = searchTerm.toLowerCase();
@@ -59,7 +72,6 @@ export default function Inventory() {
               .includes(term))
       );
     }
-    // Apply stock filter after search
     switch (filter) {
       case "low-stock":
         filtered = filtered.filter((item) => Number(item.quantity || 0) <= 300);
@@ -82,7 +94,6 @@ export default function Inventory() {
     setFilteredProducts(filtered);
   }, [searchTerm, filter, products]);
 
-  // Fetch products from backend
   const fetchProducts = async () => {
     setLoading(true);
     try {
@@ -102,14 +113,42 @@ export default function Inventory() {
   }, []);
 
   const handleAddProduct = async (formData) => {
+    // Handle add stock mode
+    if (formData.isAddStock) {
+      try {
+        const response = await api.post('/api/inventory/add-stock', {
+          sku: formData.sku,
+          quantityToAdd: formData.quantity,
+        });
+        if (response.data.success) {
+          setShowModal(false);
+          await fetchProducts();
+          toast.success('Stock added successfully!');
+        }
+      } catch (err) {
+        console.error('Error adding stock:', err);
+        const errorMessage = err.response?.data?.message || 'Failed to add stock';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
+      return;
+    }
+
     try {
-      // Determine if this is a file upload (FormData) or JSON data
       const isFileUpload = formData instanceof FormData;
+
 
       // Use apiFileUpload for file uploads, regular api for JSON
       const response = isFileUpload
         ? await apiFileUpload.post("/api/inventory_items", formData)
         : await api.post("/api/inventory_items", formData);
+
+
+      
+      const response = isFileUpload 
+        ? await apiFileUpload.post('/api/inventory', formData)
+        : await api.post('/api/inventory', formData);
+        
 
       if (response.data.success) {
         setShowModal(false);
@@ -129,7 +168,6 @@ export default function Inventory() {
     navigate(`/product-details/${sku}`);
   };
 
-  // Archive (delete) product
   const handleArchive = async (sku) => {
     if (
       window.confirm("Are you sure you want to archive (delete) this item?")
@@ -231,9 +269,19 @@ export default function Inventory() {
         <div className="inventory-container">
           <div className="inventory-header">
             <h2>Inventory</h2>
+
             <button
               className="add-product-btn"
               onClick={() => setShowModal(true)}
+
+            <button 
+              className="add-product-btn" 
+              onClick={() => {
+                setModalMode('add');
+                setSelectedProduct(null);
+                setShowModal(true);
+              }}
+
               title="Add New Product"
             >
               <svg
@@ -293,6 +341,7 @@ export default function Inventory() {
             <div className="inventory-table-container">
               <div className="inventory-table-wrapper">
                 <table className="inventory-table">
+
                   <thead>
                     <tr>
                       <th style={{ width: "80px" }}>Image</th>
@@ -308,6 +357,110 @@ export default function Inventory() {
                       <th style={{ width: "100px" }}>Ordered</th>
                       <th style={{ width: "100px" }}>Delivered</th>
                       <th style={{ width: "160px" }}>Action</th>
+
+                <thead>
+                  <tr>
+                    <th style={{ width: '80px' }}>Image</th>
+                    <th style={{ width: '120px' }}>SKU</th>
+                    <th style={{ width: '150px' }}>Name</th>
+                    <th style={{ width: '200px' }}>Description</th>
+                    <th style={{ width: '120px' }}>Unit Price</th>
+                    <th style={{ width: '150px' }}>Category</th>
+                    <th style={{ width: '120px' }}>Expiration</th>
+                    <th style={{ width: '150px' }}>Last Updated</th>
+                    <th style={{ width: '100px' }}>UOM</th>
+                    <th style={{ width: '100px' }}>In Stocks</th>
+                    <th style={{ width: '100px' }}>Ordered</th>
+                    <th style={{ width: '100px' }}>Delivered</th>
+                    <th style={{ width: '160px' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProducts.map(product => (
+                    <tr 
+                      key={product.sku} 
+                      style={{ cursor: 'pointer' }} 
+                      onClick={e => handleRowClick(product.sku)}
+                      className={
+                        Number(product.quantity || 0) <= 300 ? 'low-stock-row' :
+                        Number(product.quantity || 0) > 800 ? 'high-stock-row' :
+                        'medium-stock-row'
+                      }
+                    >
+                      <td>
+                        {product.image_data ? (
+                          <img 
+                            src={`data:image/jpeg;base64,${product.image_data}`} 
+                            alt={product.name} 
+                            className="product-img-thumb"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://via.placeholder.com/50';
+                            }}
+                          />
+                        ) : (
+                          <div className="img-placeholder" />
+                        )}
+                      </td>
+                      <td className="ellipsis" title={product.sku} style={{ textAlign: 'center' }}>
+                        {product.sku}
+                      </td>
+                      <td className="ellipsis" title={product.name} style={{ textAlign: 'center' }}>
+                        {product.name}
+                      </td>
+                      <td className="ellipsis" title={product.description} style={{ textAlign: 'center' }}>
+                        {product.description}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>₱{parseFloat(product.unit_price).toFixed(2)}</td>
+                      <td className="ellipsis" title={product.category} style={{ textAlign: 'center' }}>
+                        {product.category}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {product.expiration ? new Date(product.expiration).toISOString().slice(0, 10) : ''}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>{new Date(product.last_updated).toLocaleString()}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        {UOMS_REQUIRING_CONVERSION.includes(product.uom) && product.conversion_qty
+                          ? `${product.uom} (${product.conversion_qty})`
+                          : product.uom}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          marginRight: '5px',
+                          backgroundColor: Number(product.quantity || 0) <= 300 ? 'red' :
+                                           Number(product.quantity || 0) > 800 ? 'green' :
+                                           'orange'
+                        }}></span>
+                        {product.quantity}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>{product.ordered_quantity || 0}</td>
+                      <td style={{ textAlign: 'center' }}>{product.delivered_quantity || 0}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button className="action-btn add" title="Add Stock" onClick={e => { 
+                          e.stopPropagation(); 
+                          setModalMode('addStock');
+                          setSelectedProduct(product); 
+                          setShowModal(true); 
+                        }}>
+                          Add
+                        </button>
+                        <button className="action-btn edit" title="Edit" onClick={e => { 
+                          e.stopPropagation();
+                          setModalMode('edit');
+                          setSelectedProduct(product); 
+                          setShowModal(true); 
+                        }}>
+                          Edit
+                        </button>
+                        <button className="action-btn archive" title="Archive" onClick={e => { e.stopPropagation(); handleArchive(product.sku); }}>
+                          Archive
+                        </button>
+                      </td>
+
                     </tr>
                   </thead>
                   <tbody>
@@ -452,12 +605,22 @@ export default function Inventory() {
             </div>
           )}
           {showModal && (
+
             <AddProductModal
               onClose={() => setShowModal(false)}
               onAdd={handleAddProduct}
               products={products}
               initialData={selectedProduct || {}}
               isEdit={!!selectedProduct}
+
+            <AddProductModal 
+              onClose={() => setShowModal(false)} 
+              onAdd={handleAddProduct} 
+              products={products} 
+              initialData={selectedProduct || {}} 
+              isEdit={modalMode === 'edit'}
+              isAddStockMode={modalMode === 'addStock'}
+
             />
           )}
         </div>

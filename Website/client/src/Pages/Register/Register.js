@@ -22,7 +22,7 @@ function Register() {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "business_developer", // Default to a valid backend role
+    role: "operations_manager", // Default to a valid backend role
   });
   const [profilePicture, setProfilePicture] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -284,19 +284,9 @@ function Register() {
               onChange={handleChange}
               required
             >
-              <optgroup label="Heads">
-                <option value="business_developer">Business Developer</option>
-                <option value="creatives">Creatives</option>
-                <option value="director">Director</option>
-                <option value="admin">Admin</option>
-              </optgroup>
-              <optgroup label="Sales">
-                <option value="sales_manager">Sales Manager</option>
-                <option value="assistant_sales">Assistant Sales</option>
-              </optgroup>
-              <optgroup label="Operations">
-                
-              </optgroup>
+              <option value="customer">Customer</option>
+              <option value="sales_representative">Sales Representative</option>
+              <option value="marketing_specialist">Marketing Specialist</option>
             </select>
           </div>
 
