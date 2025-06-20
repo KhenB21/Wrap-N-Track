@@ -88,9 +88,6 @@ const Sidebar = () => {
                 <Link to="/reports/sales">Sales Report</Link>
               </li>
               <li>
-                <Link to="/reports/inventory">Inventory Reports</Link>
-              </li>
-              <li>
                 <Link to="/reports/financial">Financial Reports</Link>
               </li>
             </ul>

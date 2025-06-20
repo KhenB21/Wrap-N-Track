@@ -1022,6 +1022,23 @@ app.post("/api/inventory_items", upload.single("image"), async (req, res) => {
       message = "Product updated successfully";
       statusCode = 200;
       console.log("Product updated successfully:", product.sku);
+      // Get previous quantity
+      const prevQuantity = existingProductQuery.rows[0].quantity;
+      // Log inventory movement if quantity changed
+      if (quantity !== undefined && Number(quantity) !== Number(prevQuantity)) {
+        const diff = Number(quantity) - Number(prevQuantity);
+        if (diff > 0) {
+          await client.query(
+            "INSERT INTO inventory_movements (sku, change_type, quantity, description) VALUES ($1, 'in', $2, $3)",
+            [sku, diff, "Quantity increased (restock or edit)"]
+          );
+        } else if (diff < 0) {
+          await client.query(
+            "INSERT INTO inventory_movements (sku, change_type, quantity, description) VALUES ($1, 'out', $2, $3)",
+            [sku, Math.abs(diff), "Quantity decreased (manual edit)"]
+          );
+        }
+      }
     } else {
       // Product does not exist, so INSERT
       console.log("Inserting new product with data:", {
@@ -1055,6 +1072,11 @@ app.post("/api/inventory_items", upload.single("image"), async (req, res) => {
       product = result.rows[0];
       message = "Product added successfully";
       statusCode = 201;
+      // Log inventory movement for new product
+      await client.query(
+        "INSERT INTO inventory_movements (sku, change_type, quantity, description) VALUES ($1, 'in', $2, $3)",
+        [sku, Number(quantity), "New product added"]
+      );
       console.log("Product inserted successfully:", product.sku);
     }
 
@@ -1883,6 +1905,19 @@ app.put("/api/inventory_items/:sku/adjust", async (req, res) => {
       [newQuantity, sku]
     );
 
+    // Log inventory movement
+    if (operation === "add") {
+      await client.query(
+        "INSERT INTO inventory_movements (sku, change_type, quantity, description) VALUES ($1, 'in', $2, $3)",
+        [sku, Number(quantity), "Quantity increased via adjust endpoint"]
+      );
+    } else if (operation === "subtract") {
+      await client.query(
+        "INSERT INTO inventory_movements (sku, change_type, quantity, description) VALUES ($1, 'out', $2, $3)",
+        [sku, Number(quantity), "Quantity decreased via adjust endpoint"]
+      );
+    }
+
     await client.query("COMMIT");
 
     res.json({
@@ -1902,6 +1937,40 @@ app.put("/api/inventory_items/:sku/adjust", async (req, res) => {
       message: "Internal server error",
       details: error.message,
     });
+  } finally {
+    client.release();
+  }
+});
+
+// Inventory movement report endpoint
+app.get("/api/inventory/movement-report", async (req, res) => {
+  const { month } = req.query; // format: YYYY-MM
+  const client = await pool.connect();
+  try {
+    let whereClause = "";
+    let params = [];
+    if (month) {
+      whereClause = `WHERE TO_CHAR(movement_date, 'YYYY-MM') = $1`;
+      params = [month];
+    }
+    const result = await client.query(
+      `SELECT 
+        TO_CHAR(movement_date, 'Month YYYY') as month,
+        SUM(CASE WHEN change_type = 'in' THEN quantity ELSE 0 END) as additions,
+        SUM(CASE WHEN change_type = 'out' THEN quantity ELSE 0 END) as reductions
+      FROM inventory_movements
+      ${whereClause}
+      GROUP BY TO_CHAR(movement_date, 'Month YYYY'), DATE_TRUNC('month', movement_date)
+      ORDER BY DATE_TRUNC('month', movement_date) DESC
+      LIMIT 12;`,
+      params
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error generating inventory movement report:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to generate inventory movement report" });
   } finally {
     client.release();
   }

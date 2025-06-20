@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Bar } from "react-chartjs-2";
 import Sidebar from "../../Components/Sidebar/Sidebar";
+import api from "../../api/axios";
 import "./SalesReport.css";
 import {
   Chart as ChartJS,
@@ -21,16 +22,6 @@ ChartJS.register(
   Legend
 );
 
-// Mock data for demonstration (now with both in and out)
-const MOCK_DATA = [
-  { month: "January 2025", additions: 40, reductions: 30 },
-  { month: "February 2025", additions: 35, reductions: 22 },
-  { month: "March 2025", additions: 25, reductions: 18 },
-  { month: "April 2025", additions: 30, reductions: 25 },
-  { month: "May 2025", additions: 20, reductions: 15 },
-  { month: "June 2025", additions: 15, reductions: 10 },
-];
-
 export default function InventoryReport() {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const today = new Date();
@@ -38,43 +29,51 @@ export default function InventoryReport() {
     const month = String(today.getMonth() + 1).padStart(2, "0");
     return `${year}-${month}`;
   });
+  const [movementData, setMovementData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Filter data by selected month (YYYY-MM)
-  const filteredData = React.useMemo(() => {
-    if (!selectedMonth) return MOCK_DATA;
-    const [year, month] = selectedMonth.split("-");
-    return MOCK_DATA.filter((item) => {
-      if (!item.month) return false;
-      // Parse month string like "June 2025"
-      const [itemMonth, itemYear] = item.month.trim().split(" ");
-      const itemMonthNum =
-        new Date(`${itemMonth} 1, ${itemYear}`).getMonth() + 1;
-      return (
-        String(itemYear) === year &&
-        String(itemMonthNum).padStart(2, "0") === month
-      );
-    });
+  useEffect(() => {
+    const fetchMovement = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get("/api/inventory/movement-report", {
+          params: { month: selectedMonth },
+        });
+        setMovementData(res.data);
+      } catch (err) {
+        setMovementData([]);
+      }
+      setLoading(false);
+    };
+    fetchMovement();
   }, [selectedMonth]);
 
   const data = {
-    labels: filteredData.map((item) => item.month.trim()),
+    labels: movementData.map((item) => item.month.trim()),
     datasets: [
       {
         label: "Products In (Restocked)",
-        data: filteredData.map((item) => Number(item.additions)),
+        data: movementData.map((item) => Number(item.additions)),
         backgroundColor: "rgba(75, 192, 192, 0.7)",
         borderColor: "rgb(75, 192, 192)",
         borderWidth: 1,
       },
       {
         label: "Products Out (Sales/Orders)",
-        data: filteredData.map((item) => Number(item.reductions)),
+        data: movementData.map((item) => Number(item.reductions)),
         backgroundColor: "rgba(255, 99, 132, 0.7)",
         borderColor: "rgb(255, 99, 132)",
         borderWidth: 1,
       },
     ],
   };
+
+  const maxValue = Math.max(
+    ...movementData.map((item) => Number(item.additions) || 0),
+    ...movementData.map((item) => Number(item.reductions) || 0),
+    0
+  );
+  const yAxisMax = maxValue * 2 || 10;
 
   const options = {
     responsive: true,
@@ -90,6 +89,7 @@ export default function InventoryReport() {
     scales: {
       y: {
         beginAtZero: true,
+        max: yAxisMax,
         title: {
           display: true,
           text: "Number of Items",
@@ -115,14 +115,18 @@ export default function InventoryReport() {
           />
         </div>
         <div className="chart-container">
-          <Bar
-            data={data}
-            options={{
-              ...options,
-              maintainAspectRatio: false,
-              responsive: true,
-            }}
-          />
+          {loading ? (
+            <div className="loading-message">Loading movement data...</div>
+          ) : (
+            <Bar
+              data={data}
+              options={{
+                ...options,
+                maintainAspectRatio: false,
+                responsive: true,
+              }}
+            />
+          )}
         </div>
       </div>
     );

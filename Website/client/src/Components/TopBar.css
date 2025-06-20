@@ -9,7 +9,8 @@
   align-items: center;
   padding: 16px 32px;
   background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   margin-bottom: 0;
 }
 
@@ -42,7 +43,7 @@
   background: #fff;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   min-width: 160px;
   z-index: 10;
   display: flex;
@@ -122,7 +123,7 @@
 /* Dark mode styles */
 body.dark {
   background-color: #1a1a1a;
-  color: #ffffff;
+  color: #f7f1f1;
 }
 
 body.dark .topbar {
@@ -213,4 +214,17 @@ body.dark .high-stock-row {
 
 body.dark .high-stock-row:hover {
   background-color: rgba(0, 128, 0, 0.2);
-} 
+}
+
+body.dark .dashboard-topbar {
+  background: #232323;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+body.dark .dashboard-search {
+  background: #232323;
+  color: #fff;
+  border: 1px solid #333;
+}
+body.dark .dashboard-search::placeholder {
+  color: #aaa;
+}

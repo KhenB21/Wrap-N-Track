@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
-import api from '../../api/axios';
+import api from "../../api/axios";
 import "./Dashboard.css";
 
 function Dashboard() {
@@ -14,52 +14,41 @@ function Dashboard() {
 
   // Add navigation handlers
   const handleTotalProductsClick = () => {
-    navigate('/inventory');
+    navigate("/inventory");
   };
 
   const handleTotalUnitsClick = () => {
-    navigate('/inventory');
+    navigate("/inventory");
   };
 
   const handleLowStockClick = () => {
-    navigate('/inventory', { state: { filter: 'low-stock' } });
+    navigate("/inventory", { state: { filter: "low-stock" } });
   };
 
   const handleReplenishmentClick = () => {
-    navigate('/inventory', { state: { filter: 'replenishment' } });
+    navigate("/inventory", { state: { filter: "replenishment" } });
   };
 
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem("token");
-    const userData = localStorage.getItem("user");
-
-    if (!token || !userData) {
-      navigate("/login");
-      return;
-    }
-
-    // Fetch data
+    // Fetch inventory data from backend
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch inventory
-        const inventoryRes = await api.get('http://localhost:3001/api/inventory');
+        const inventoryRes = await api.get("/api/inventory_items");
         setInventory(inventoryRes.data);
-
         // Fetch user details
-        const userRes = await api.get('http://localhost:3001/api/user/details');
+        const userRes = await api.get("http://localhost:3001/api/user/details");
         setUser(userRes.data);
-
         // Fetch order history
-        const historyRes = await api.get('http://localhost:3001/api/orders/history');
+        const historyRes = await api.get(
+          "http://localhost:3001/api/orders/history"
+        );
         setOrderHistory(historyRes.data);
       } catch (error) {
-        console.error('Failed to fetch data:', error);
+        console.error("Failed to fetch data:", error);
       }
       setLoading(false);
     };
-
     fetchData();
   }, [navigate]);
 
@@ -68,12 +57,7 @@ function Dashboard() {
     return `data:image/jpeg;base64,${user.profile_picture_data}`;
   };
 
-  // Optionally, check authentication before rendering
-  if (!localStorage.getItem("token") || !localStorage.getItem("user")) {
-    return <div>Loading...</div>;
-  }
-
-  // Calculate totals
+  // Calculate totals from inventory
   const totalProducts = inventory.length;
   const totalProductUnits = inventory.reduce(
     (sum, item) => sum + Number(item.quantity || 0),
@@ -82,41 +66,65 @@ function Dashboard() {
   const lowStockProducts = inventory.filter(
     (item) => Number(item.quantity || 0) <= 300
   ).length;
+  const replenishmentPending = inventory.filter(
+    (item) => Number(item.quantity || 0) <= 0
+  ).length;
+
+  // Optionally, check authentication before rendering
+  if (!localStorage.getItem("token") || !localStorage.getItem("user")) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar 
-          lowStockProducts={inventory.filter(item => Number(item.quantity || 0) <= 300)}
+        <TopBar
+          lowStockProducts={inventory.filter(
+            (item) => Number(item.quantity || 0) <= 300
+          )}
         />
         {/* Inventory Overview */}
-        <div className="dashboard-content">
-          <h3>Inventory Overview</h3>
-          <div className="dashboard-cards-row">
-            <div className="dashboard-card card-red" onClick={handleTotalProductsClick} style={{ cursor: 'pointer' }}>
-              <div className="card-title">Total Products</div>
-              <div className="card-value">
-                {loading ? "..." : totalProducts}
-              </div>
+        <h3 style={{ marginLeft: "8px", marginBottom: "8px" }}>
+          Inventory Overview
+        </h3>
+        <div className="dashboard-cards-row" style={{ marginBottom: "24px" }}>
+          <div
+            className="dashboard-card card-red"
+            onClick={handleTotalProductsClick}
+            style={{ cursor: "pointer", minWidth: "220px", flex: 1 }}
+          >
+            <div className="card-title">Total Products</div>
+            <div className="card-value">{loading ? "..." : totalProducts}</div>
+          </div>
+          <div
+            className="dashboard-card card-orange"
+            onClick={handleTotalUnitsClick}
+            style={{ cursor: "pointer", minWidth: "220px", flex: 1 }}
+          >
+            <div className="card-title">Total Product Units</div>
+            <div className="card-value">
+              {loading ? "..." : totalProductUnits}
             </div>
-            <div className="dashboard-card card-orange" onClick={handleTotalUnitsClick} style={{ cursor: 'pointer' }}>
-              <div className="card-title">Total Product Units</div>
-              <div className="card-value">
-                {loading ? "..." : totalProductUnits.toLocaleString()}
-              </div>
+          </div>
+          <div
+            className="dashboard-card card-green"
+            onClick={handleLowStockClick}
+            style={{ cursor: "pointer", minWidth: "220px", flex: 1 }}
+          >
+            <div className="card-title">Low in Stock</div>
+            <div className="card-value card-low">
+              {loading ? "..." : lowStockProducts}
             </div>
-            <div className="dashboard-card card-green" onClick={handleLowStockClick} style={{ cursor: 'pointer' }}>
-              <div className="card-title">Low in Stock</div>
-              <div className="card-value card-low">
-                {loading ? "..." : lowStockProducts}
-              </div>
-            </div>
-            <div className="dashboard-card card-blue" onClick={handleReplenishmentClick} style={{ cursor: 'pointer' }}>
-              <div className="card-title">Replenishment Pending</div>
-              <div className="card-value">
-                {loading ? "..." : inventory.filter(item => Number(item.quantity || 0) <= 0).length}
-              </div>
+          </div>
+          <div
+            className="dashboard-card card-blue"
+            onClick={handleReplenishmentClick}
+            style={{ cursor: "pointer", minWidth: "220px", flex: 1 }}
+          >
+            <div className="card-title">Replenishment Pending</div>
+            <div className="card-value">
+              {loading ? "..." : replenishmentPending}
             </div>
           </div>
         </div>
@@ -205,7 +213,11 @@ function Dashboard() {
                 <div key={order.order_id} className="recent-activity-item">
                   <img
                     className="activity-avatar"
-                    src={order.archived_by_profile_picture ? `data:image/jpeg;base64,${order.archived_by_profile_picture}` : "/placeholder-profile.png"}
+                    src={
+                      order.archived_by_profile_picture
+                        ? `data:image/jpeg;base64,${order.archived_by_profile_picture}`
+                        : "/placeholder-profile.png"
+                    }
                     alt={order.archived_by_name || "User"}
                   />
                   <div>
@@ -214,7 +226,10 @@ function Dashboard() {
                       <span className="activity-link">#{order.order_id}</span>
                     </div>
                     <div className="activity-time">
-                      {new Date(order.archived_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(order.archived_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </div>
                   </div>
                 </div>
