@@ -219,7 +219,7 @@ app.use(express.json());
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/customer", customerRouter);
-app.use("/api/inventory", inventoryRouter);
+app.use("/api/inventory_items", inventoryRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/suppliers", suppliersRouter);
 app.use("/api/customers", customersRouter);
@@ -862,7 +862,7 @@ app.post(
 );
 
 // Add a new inventory item (with image upload to DB)
-app.post("/api/inventory", upload.single("image"), async (req, res) => {
+app.post("/api/inventory_items", upload.single("image"), async (req, res) => {
   const client = await pool.connect();
   try {
     console.log("Received inventory POST request");
@@ -1083,7 +1083,7 @@ app.post("/api/inventory", upload.single("image"), async (req, res) => {
 });
 
 // Get all inventory items
-app.get("/api/inventory", async (req, res) => {
+app.get("/api/inventory_items", async (req, res) => {
   const client = await pool.connect();
   try {
     const result = await client.query(`
@@ -1130,7 +1130,7 @@ app.get("/api/inventory", async (req, res) => {
 });
 
 // Delete an inventory item
-app.delete("/api/inventory/:sku", async (req, res) => {
+app.delete("/api/inventory_items/:sku", async (req, res) => {
   const { sku } = req.params;
   const client = await pool.connect();
   try {
@@ -1150,7 +1150,7 @@ app.delete("/api/inventory/:sku", async (req, res) => {
 });
 
 // Get a single inventory item by SKU (return image_data as base64)
-app.get("/api/inventory/:sku", async (req, res) => {
+app.get("/api/inventory_items/:sku", async (req, res) => {
   const { sku } = req.params;
   try {
     const result = await pool.query(
@@ -1362,7 +1362,7 @@ const broadcastBarcode = (barcode) => {
 };
 
 // API endpoint to receive scanned barcode
-app.post("/api/inventory/scanned-barcode", (req, res) => {
+app.post("/api/inventory_items/scanned-barcode", (req, res) => {
   const { barcode } = req.body;
 
   if (!barcode) {
@@ -1717,7 +1717,7 @@ app.get("/api/orders/history/:order_id/products", async (req, res) => {
 });
 
 // GET all inventory items with ordered and delivered quantities
-app.get("/api/inventory", async (req, res) => {
+app.get("/api/inventory_items", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -1802,7 +1802,7 @@ app.get("/api/inventory", async (req, res) => {
 });
 
 // Search inventory item by name (case-insensitive, partial match)
-app.get("/api/inventory/search", async (req, res) => {
+app.get("/api/inventory_items/search", async (req, res) => {
   const { name } = req.query;
   if (!name) {
     return res
@@ -1830,7 +1830,7 @@ app.get("/api/inventory/search", async (req, res) => {
 });
 
 // Adjust inventory quantity
-app.put("/api/inventory/:sku/adjust", async (req, res) => {
+app.put("/api/inventory_items/:sku/adjust", async (req, res) => {
   const { sku } = req.params;
   const { quantity, operation } = req.body;
   const client = await pool.connect();

@@ -505,6 +505,47 @@ router.put("/:order_id", async (req, res) => {
       );
     }
 
+    // If the order status is updated to "To be pack", record the sale(s)
+    if (
+      typeof status === "string" &&
+      status.replace(/\s+/g, "").toLowerCase() === "tobepack"
+    ) {
+      console.log("SALES DEBUG: About to insert sales", {
+        status,
+        user: req.user,
+        products,
+      });
+      const sold_by = req.user.id; // Assuming JWT payload has 'id' for the user
+
+      for (const product of products) {
+        // We need the unit_price again to calculate the total_amount for the sale record
+        const inventoryItemResult = await client.query(
+          "SELECT unit_price FROM inventory_items WHERE sku = $1",
+          [product.sku]
+        );
+
+        if (inventoryItemResult.rows.length === 0) {
+          // This should ideally not happen as it's checked above, but as a safeguard:
+          await client.query("ROLLBACK");
+          return res.status(400).json({
+            error: `Product with SKU ${product.sku} not found when trying to record sale.`,
+          });
+        }
+
+        const unitPrice =
+          parseFloat(inventoryItemResult.rows[0].unit_price) || 0;
+        const quantitySold = parseInt(product.quantity, 10) || 0;
+        const totalAmount = unitPrice * quantitySold;
+
+        await client.query(
+          `INSERT INTO sales (sku, quantity_sold, unit_price, sold_by, sale_date)
+           VALUES ($1, $2, $3, $4, NOW())`,
+          [product.sku, quantitySold, unitPrice, sold_by]
+        );
+        console.log("SALES DEBUG: Inserted sale for", product.sku);
+      }
+    }
+
     await client.query("COMMIT");
 
     const updatedOrderData = orderResult.rows[0];
@@ -813,35 +854,21 @@ router.get("/archived", (req, res) => {
   });
 });
 
-// GET /api/sales-report - monthly sales and revenue from orders
+// GET /api/sales-report - monthly sales and revenue from the sales table
 router.get("/sales-report", async (req, res) => {
   try {
     const client = await pool.connect();
-
-    // First, let's check what orders and statuses we have
-    const checkOrders = await client.query(`
-      SELECT status, COUNT(*) as count 
-      FROM orders 
-      GROUP BY status
-    `);
-    console.log("Current order statuses:", checkOrders.rows);
-
     const result = await client.query(`
       SELECT 
-        TO_CHAR(order_date, 'Month') AS month,
+        TO_CHAR(sale_date, 'Month') AS month,
         COUNT(*) AS number_of_sales,
-        COALESCE(SUM(total_cost), 0) AS total_revenue,
-        DATE_TRUNC('month', order_date) AS month_date,
-        STRING_AGG(status, ', ') as statuses
-      FROM orders
-      WHERE status IN ('Completed', 'To be delivered', 'Delivered', 'Accepted', 'Pending', 'Processing')
+        COALESCE(SUM(total_amount), 0) AS total_revenue,
+        DATE_TRUNC('month', sale_date) AS month_date
+      FROM sales
       GROUP BY month, month_date
       ORDER BY month_date DESC
       LIMIT 12
     `);
-
-    console.log("Sales report data:", result.rows);
-
     client.release();
     res.json(result.rows);
   } catch (error) {

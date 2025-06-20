@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Line } from "react-chartjs-2";
+import { Bar } from "react-chartjs-2";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import "./SalesReport.css";
 import {
@@ -78,21 +78,29 @@ export default function SalesReport() {
       {
         label: "Number of Sales",
         data: filteredData.map((item) => Number(item.number_of_sales)),
-        fill: false,
-        borderColor: "rgb(75, 192, 192)",
-        tension: 0.1,
+        backgroundColor: "rgba(75, 192, 192, 0.7)", // Teal
         yAxisID: "y-sales",
       },
       {
         label: "Total Revenue",
         data: filteredData.map((item) => Number(item.total_revenue)),
-        fill: false,
-        borderColor: "rgb(255, 99, 132)",
-        tension: 0.1,
+        backgroundColor: "rgba(255, 99, 132, 0.7)", // Pink
         yAxisID: "y-revenue",
       },
     ],
   };
+
+  // Calculate the max values for dynamic axis scaling
+  const maxSales = Math.max(
+    ...filteredData.map((item) => Number(item.number_of_sales) || 0),
+    0
+  );
+  const salesAxisMax = Math.ceil(maxSales / 20) * 20 || 20;
+  const maxRevenue = Math.max(
+    ...filteredData.map((item) => Number(item.total_revenue) || 0),
+    0
+  );
+  const revenueAxisMax = Math.ceil(maxRevenue / 20000) * 20000 || 20000;
 
   const options = {
     responsive: true,
@@ -113,6 +121,10 @@ export default function SalesReport() {
           display: true,
           text: "Number of Sales",
         },
+        max: salesAxisMax,
+        ticks: {
+          stepSize: 20,
+        },
       },
       "y-revenue": {
         type: "linear",
@@ -121,6 +133,7 @@ export default function SalesReport() {
           display: true,
           text: "Total Revenue (₱)",
         },
+        max: revenueAxisMax,
       },
     },
   };
@@ -146,7 +159,7 @@ export default function SalesReport() {
           />
         </div>
         <div className="chart-container">
-          <Line
+          <Bar
             data={data}
             options={{
               ...options,
