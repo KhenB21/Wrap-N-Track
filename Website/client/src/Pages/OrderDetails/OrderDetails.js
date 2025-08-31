@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import React, { useEffect, useState, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
@@ -7,6 +8,7 @@ import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../api/axios';
+import PortalModal from '../../Components/Modal/PortalModal';
 
 // Add these styles at the top of the file
 const styles = {
@@ -248,7 +250,7 @@ const calculateOrderTotal = (order) => {
       // otherwise, use product.quantity if each product in a box can have different quantities (less likely for gift boxes)
       // For now, assuming each product's listed quantity IS the quantity per box, and order_quantity is the number of boxes.
       // If the goal is total value of ONE box, then product.quantity (as items per box) * unit_price, summed up.
-      // If the goal is total value of ALL boxes, then (sum of (product.quantity_in_box * unit_price)) * order.order_quantity.
+      // If the goal is total value of ALL boxes, then (sum of (product.quantity_in_box * unit_price)) * order.order_quantity
       // The current request implies total for the order based on products listed.
       // Let's assume product.quantity IS the total quantity for that product line in the order.
       const quantity = parseInt(product.quantity, 10) || 0; 
@@ -728,12 +730,15 @@ export default function OrderDetails() {
 
         {/* Modal for Add Order */}
         {showModal && (
-          <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#0008',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <div className="modal" style={{background:'#fff',padding:32,borderRadius:12,minWidth:1100,maxWidth:'95vw',width:'95vw',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
-              <h2 style={{marginBottom:20}}>Add Order</h2>
-              <form onSubmit={handleFormSubmit} style={{display:'flex',flexDirection:'row',gap:40,alignItems:'flex-start'}}>
+          <PortalModal onClose={() => setShowModal(false)}>
+            <div role="dialog" aria-modal="true" style={{background:'#fff',padding:20,borderRadius:12,width:'100%',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 6px 40px rgba(0,0,0,0.18)'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+                <h2 style={{margin:0,fontSize:22,fontWeight:700}}>Add Order</h2>
+                <button type="button" onClick={() => setShowModal(false)} aria-label="Close" style={{background:'transparent',border:'none',fontSize:28,lineHeight:1,color:'#666',cursor:'pointer',padding:6,borderRadius:6}}>&times;</button>
+              </div>
+              <form onSubmit={handleFormSubmit} style={{display:'flex',flexDirection:'row',gap:24,alignItems:'flex-start',flexWrap:'wrap'}}>
                 {/* Left: Order Details */}
-                <div style={{flex:1,minWidth:0}}>
+                <div style={{flex:'1 1 420px',minWidth:0}}>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
                     <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>
                       Order ID
@@ -811,7 +816,7 @@ export default function OrderDetails() {
                   </div>
                 </div>
                 {/* Right: Products Section */}
-                <div style={{flex:1.2,minWidth:0}}>
+                <div style={{flex:'1 1 420px',minWidth:0}}>
                   <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
                   <div style={{maxHeight:400,overflowY:'auto',marginBottom:18,border:'1px solid #eee',borderRadius:8,padding:16}}>
                     {renderProductTable()}
@@ -831,7 +836,7 @@ export default function OrderDetails() {
                 </div>
               </form>
             </div>
-          </div>
+          </PortalModal>
         )}
 
         {/* Modal for Add Product to Order */}
@@ -1202,6 +1207,19 @@ export default function OrderDetails() {
         {/* Order Details Modal for selectedOrder */}
         {selectedOrder && (() => {
           const isToBePacked = normalizeStatus(selectedOrder.status) === normalizeStatus('tobepack');
+          // Resolve shipping address from several possible sources
+          const statusNormalized = normalizeStatus(selectedOrder.status || '');
+          const isConfirmed = statusNormalized.includes('confirm') || statusNormalized === 'confirmed';
+
+          const resolvedAddress = (
+            (selectedOrder.shipping_address && String(selectedOrder.shipping_address).trim() !== '') ? String(selectedOrder.shipping_address).trim() :
+            (customerDetails && customerDetails.address && String(customerDetails.address).trim() !== '') ? String(customerDetails.address).trim() :
+            ((selectedOrder.customer_address_line1 && String(selectedOrder.customer_address_line1).trim() !== '') ?
+              [selectedOrder.customer_address_line1, selectedOrder.customer_address_line2, selectedOrder.customer_city, selectedOrder.customer_state, selectedOrder.customer_zip, selectedOrder.customer_country]
+                .filter(Boolean).join(', ') :
+              (selectedOrder.address ? String(selectedOrder.address).trim() : null)
+            ) || 'Unknown Address'
+          );
 
           const OrderDetailsSectionJSX = (
             <>
@@ -1221,10 +1239,13 @@ export default function OrderDetails() {
               </div>
               <div style={{marginBottom:18, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Date of Event:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.expected_delivery ? (new Date(selectedOrder.expected_delivery).toLocaleDateString('en-US')) : '-'}</span></div>
               <div style={{marginBottom:18, fontSize:18}}>
-                <span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Shipping Location:</span> 
-                <span style={{fontWeight:400, marginLeft:6}}>{customerDetails && customerDetails.address ? customerDetails.address : 'Unknown Address'}</span>
+                <span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Shipping Location:</span>
+                <span style={{fontWeight:400, marginLeft:6, color: resolvedAddress === 'Unknown Address' ? '#666' : '#222' }}>{resolvedAddress}</span>
               </div>
-              <div style={{marginBottom:18, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Status:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.status ? selectedOrder.status.toUpperCase() : '-'}</span></div>
+              <div style={{marginBottom:18, fontSize:18}}>
+                <span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Status:</span>
+                <span style={{fontWeight:700, marginLeft:6, color: isConfirmed ? '#27ae60' : '#444', textTransform:'uppercase'}}>{selectedOrder.status ? selectedOrder.status : '-'}</span>
+              </div>
               <div style={{marginBottom:18, fontSize:18}}>
                 <span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Order ID:</span> 
                 <span>{selectedOrder && selectedOrder.order_id ? selectedOrder.order_id : '-'}</span>

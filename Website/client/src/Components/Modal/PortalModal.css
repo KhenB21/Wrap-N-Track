@@ -1,0 +1,24 @@
+.portal-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.portal-modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 1100px;
+  width: min(95vw, 1100px);
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+}
+
+@media (max-width: 800px) {
+  .portal-modal-content { width: 95vw; margin: 12px; }
+}

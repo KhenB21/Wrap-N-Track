@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import React, { useState, useEffect } from 'react';
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import './CustomerPOV.css';

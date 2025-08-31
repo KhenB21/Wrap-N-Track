@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import React, { useState } from "react";
 
 import { useNavigate } from "react-router-dom"; // ✅ needed for navigate

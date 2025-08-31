@@ -43,17 +43,44 @@ function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch inventory
-        const inventoryRes = await api.get('http://localhost:3001/api/inventory');
-        setInventory(inventoryRes.data);
+        // Fetch inventory (use api baseURL)
+        const inventoryRes = await api.get('/api/inventory');
+        setInventory(inventoryRes.data || []);
 
         // Fetch user details
-        const userRes = await api.get('http://localhost:3001/api/user/details');
-        setUser(userRes.data);
+        try {
+          const userRes = await api.get('/api/user/details');
+          setUser(userRes.data || null);
+        } catch (uErr) {
+          console.warn('Failed to fetch user details:', uErr);
+          setUser(null);
+        }
 
-        // Fetch order history
-        const historyRes = await api.get('http://localhost:3001/api/orders/history');
-        setOrderHistory(historyRes.data);
+        // Fetch both orders endpoints if available and merge them
+        let orders = [];
+        try {
+          const ordersRes = await api.get('/api/orders');
+          if (Array.isArray(ordersRes.data)) orders = ordersRes.data;
+        } catch (oErr) {
+          console.warn('Failed to fetch /api/orders:', oErr);
+        }
+
+        try {
+          const historyRes = await api.get('/api/orders/history');
+          if (Array.isArray(historyRes.data)) {
+            // merge by order_id to avoid duplicates
+            const map = new Map();
+            (orders || []).forEach(o => map.set(o.order_id || o.id || JSON.stringify(o), o));
+            (historyRes.data || []).forEach(o => map.set(o.order_id || o.id || JSON.stringify(o), o));
+            orders = Array.from(map.values());
+          }
+        } catch (hErr) {
+          // If history endpoint isn't available, keep orders as-is
+          console.warn('Failed to fetch /api/orders/history (optional):', hErr);
+        }
+
+        setOrderHistory(Array.isArray(orders) ? orders : []);
+        console.debug('Dashboard fetched counts - orders:', (orders || []).length);
       } catch (error) {
         console.error('Failed to fetch data:', error);
       }
@@ -82,6 +109,24 @@ function Dashboard() {
   const lowStockProducts = inventory.filter(
     (item) => Number(item.quantity || 0) <= 300
   ).length;
+
+  // Helper to classify order status into dashboard buckets
+  const classifyStatus = (status) => {
+    if (!status) return null;
+    const s = status.toString().toLowerCase();
+    // Check delivery/enroute first
+    if (/deliver|out for|outfor|en\s?-?route|enroute/.test(s)) return 'outForDelivery';
+    // Then shipping
+    if (/ship|shipped|to be ship|to-be-ship|tobe ship|to be shipped/.test(s)) return 'toBeShipped';
+    // Then packing / pending
+    if (/pack|pending|to be pack|to-be-pack|tobe pack/.test(s)) return 'toBePack';
+    return null;
+  };
+
+  // Compute counts from orderHistory
+  const toBePackCount = orderHistory.reduce((acc, o) => classifyStatus(o.status) === 'toBePack' ? acc + 1 : acc, 0);
+  const toBeShippedCount = orderHistory.reduce((acc, o) => classifyStatus(o.status) === 'toBeShipped' ? acc + 1 : acc, 0);
+  const outForDeliveryCount = orderHistory.reduce((acc, o) => classifyStatus(o.status) === 'outForDelivery' ? acc + 1 : acc, 0);
 
   return (
     <div className="dashboard-container">
@@ -153,17 +198,17 @@ function Dashboard() {
             <div className="activity-list">
               <div className="activity-card activity-red">
                 <div>To be Packed</div>
-                <div className="activity-value">0</div>
+                <div className="activity-value">{loading ? '...' : toBePackCount}</div>
                 <span className="activity-icon">📦</span>
               </div>
               <div className="activity-card activity-orange">
                 <div>To be Shipped</div>
-                <div className="activity-value">0</div>
+                <div className="activity-value">{loading ? '...' : toBeShippedCount}</div>
                 <span className="activity-icon">🛒</span>
               </div>
               <div className="activity-card activity-green">
                 <div>Out for Delivery</div>
-                <div className="activity-value">0</div>
+                <div className="activity-value">{loading ? '...' : outForDeliveryCount}</div>
                 <span className="activity-icon">🚚</span>
               </div>
             </div>

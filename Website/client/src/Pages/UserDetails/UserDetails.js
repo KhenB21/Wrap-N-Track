@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../api/axios';
 import Sidebar from '../../Components/Sidebar/Sidebar';

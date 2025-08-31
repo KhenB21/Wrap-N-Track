@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../api/axios';
 import { useNavigate } from "react-router-dom";
 import "./EmailVerify.css";
 import config from "../../config";
+import api from '../../api/axios';
 
 function EmailVerify() {
   const [code, setCode] = useState("");
