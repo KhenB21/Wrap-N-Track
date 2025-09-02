@@ -19,7 +19,9 @@ const createAxiosInstance = (contentType = 'application/json') => {
       console.log('Request headers:', config.headers);
       console.log('Request origin:', window.location.origin);
       
-      const token = localStorage.getItem('token');
+      // Prefer admin/employee token stored under 'token'. If not present, use customer token.
+      let token = localStorage.getItem('token');
+      if (!token) token = localStorage.getItem('customerToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }

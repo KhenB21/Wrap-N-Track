@@ -19,6 +19,10 @@ const verifyToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // ensure this token was issued for a customer
+    if (!decoded.role || decoded.role !== 'customer') {
+      return res.status(403).json({ success: false, message: 'Forbidden: invalid token role for customer endpoint' });
+    }
     req.user = decoded;
     next();
   } catch (error) {

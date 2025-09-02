@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -176,6 +176,14 @@ export default function OrderProcess() {
   });
   const [selectedStyle, setSelectedStyle] = useState('');
   const [loading, setLoading] = useState(false);
+  // OTP modal state
+  const [otpModalVisible, setOtpModalVisible] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [resendAvailableAt, setResendAvailableAt] = useState(null);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [pendingOrderPayload, setPendingOrderPayload] = useState(null);
+  const resendTimerRef = useRef(null);
 
   const modernRomantic = [
     {
@@ -754,14 +762,22 @@ export default function OrderProcess() {
         products: productsForOrder,
       };
 
-      const response = await api.post('/api/orders', orderPayload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      
-      if (response.data) {
-        toast.success('Order is completed');
+      // Save payload and show OTP modal immediately. Then attempt to send OTP.
+      setPendingOrderPayload(orderPayload);
+      setOtpError('');
+      setOtpModalVisible(true);
+
+      if (!customerData.email) {
+        setOtpError('No email available for this account. Please update your profile.');
+      } else {
+        try {
+          await sendOtp(customerData.email, token);
+          toast.info('An OTP has been sent to your email. Please enter it to confirm your order.');
+        } catch (otpErr) {
+          console.error('Failed to send OTP:', otpErr);
+          // show error inside modal but keep modal open so user may resend
+          setOtpError('Failed to send OTP. Please try Resend or check your email.');
+        }
       }
     } catch (error) {
       console.error('Error submitting order:', error);
@@ -1180,6 +1196,99 @@ export default function OrderProcess() {
       </div>
     );
   };
+
+  // OTP helpers
+  const sendOtp = async (email, token) => {
+    // backend should provide an endpoint to send OTP to customer's email
+    // Example: POST /api/customers/send-otp with { email }
+    try {
+      const resp = await api.post('/api/customers/send-otp', { email }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Start resend cooldown
+      const availableAt = Date.now() + 30000; // 30s
+      setResendAvailableAt(availableAt);
+      setResendCountdown(30);
+      if (resendTimerRef.current) clearInterval(resendTimerRef.current);
+      resendTimerRef.current = setInterval(() => {
+        const secsLeft = Math.ceil((availableAt - Date.now()) / 1000);
+        setResendCountdown(secsLeft > 0 ? secsLeft : 0);
+        if (secsLeft <= 0 && resendTimerRef.current) {
+          clearInterval(resendTimerRef.current);
+          resendTimerRef.current = null;
+        }
+      }, 500);
+      return resp.data;
+    } catch (err) {
+      console.error('sendOtp error', err);
+      throw err;
+    }
+  };
+
+  const verifyOtp = async (email, code, token) => {
+    try {
+      const resp = await api.post('/api/customers/verify-otp', { email, code }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return resp.data;
+    } catch (err) {
+      console.error('verifyOtp error', err);
+      throw err;
+    }
+  };
+
+  const handleResendOtp = async () => {
+    const token = localStorage.getItem('customerToken');
+    const customerData = JSON.parse(localStorage.getItem('customer')) || {};
+    if (!token || !customerData.email) return;
+    // Only allow if cooldown passed
+    if (resendAvailableAt && Date.now() < resendAvailableAt) return;
+    try {
+  await sendOtp(customerData.email, token);
+      toast.info('OTP resent to your email.');
+    } catch (err) {
+      alert('Failed to resend OTP. Please try again later.');
+    }
+  };
+
+  const handleVerifyAndPlaceOrder = async () => {
+    setOtpError('');
+    const token = localStorage.getItem('customerToken');
+    const customerData = JSON.parse(localStorage.getItem('customer')) || {};
+    if (!pendingOrderPayload) {
+      setOtpError('No pending order found.');
+      return;
+    }
+    try {
+      await verifyOtp(customerData.email, otpCode, token);
+      // OTP ok — place the original order via customer endpoint and ensure customer token used
+      const response = await api.post('/api/customer/orders', pendingOrderPayload, {
+        useCustomerToken: true,
+        headers: { 'X-Use-Customer-Token': 'true' }
+      });
+      if (response.data) {
+        toast.success('Order is completed');
+        setOtpModalVisible(false);
+        setOtpCode('');
+        setPendingOrderPayload(null);
+        // do not redirect to employee/customer orders view; keep user on site and show confirmation
+      }
+    } catch (err) {
+      console.error('OTP verification or order placement failed', err);
+      setOtpError(err.response?.data?.message || 'Invalid OTP or server error.');
+    }
+  };
+
+  // cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (resendTimerRef.current) {
+        clearInterval(resendTimerRef.current);
+        resendTimerRef.current = null;
+      }
+    };
+  }, []);
+
 
   const handleStep0CustomProducts = () => {
     setCustomProducts(prev => ({
@@ -2315,6 +2424,35 @@ export default function OrderProcess() {
           )}
           
           {renderModal()}
+          {/* OTP Modal */}
+          {otpModalVisible && (
+            <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:3000}}>
+              <div style={{background:'#fff',width:'420px',borderRadius:12,padding:24,boxShadow:'0 8px 40px rgba(0,0,0,0.2)'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                  <h3 style={{margin:0}}>Enter OTP</h3>
+                  <button onClick={() => { setOtpModalVisible(false); setOtpCode(''); setPendingOrderPayload(null); }} style={{background:'transparent',border:'none',fontSize:20,cursor:'pointer'}}>×</button>
+                </div>
+                <p style={{color:'#666',marginBottom:12}}>We've sent a one-time password to your email. Enter it below to confirm your order.</p>
+                <input
+                  type="text"
+                  value={otpCode}
+                  onChange={e => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                  maxLength={6}
+                  placeholder="Enter 6-digit code"
+                  style={{width:'100%',padding:12,border:'1px solid #ddd',borderRadius:6,marginBottom:8,fontSize:16,letterSpacing:4,textAlign:'center'}}
+                />
+                {otpError && <div style={{color:'red',marginBottom:8}}>{otpError}</div>}
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8}}>
+                  <button onClick={handleVerifyAndPlaceOrder} style={{padding:'10px 18px',background:'#27ae60',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:700}}>Verify & Place Order</button>
+                  <div style={{textAlign:'right'}}>
+                    <button onClick={handleResendOtp} disabled={resendCountdown > 0} style={{padding:'8px 12px',background:resendCountdown>0? '#ddd' : '#4a90e2',color:resendCountdown>0? '#888' : '#fff',border:'none',borderRadius:6,cursor:resendCountdown>0? 'not-allowed' : 'pointer'}}>
+                      {resendCountdown>0 ? `Resend (${resendCountdown}s)` : 'Resend OTP'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

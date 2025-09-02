@@ -7,6 +7,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const { pool, wss, notifyChange } = require('./db');
 const customersRouter = require('./routes/customers');
+const otpRouter = require('./routes/otp');
 const suppliersRouter = require('./routes/suppliers');
 const ordersRouter = require('./routes/orders');
 const supplierOrdersRouter = require('./routes/supplier-orders');
@@ -203,6 +204,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/customers', customersRouter);
+app.use('/api/customers', otpRouter);
 app.use('/api/suppliers', suppliersRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/supplier-orders', supplierOrdersRouter);

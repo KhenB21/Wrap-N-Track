@@ -338,7 +338,8 @@ router.post('/customer/login', async (req, res) => {
         customer_id: customer.customer_id,
         username: customer.username,
         name: customer.name,
-        email: customer.email_address
+  email: customer.email_address,
+  role: 'customer' // mark this token as a customer token
       },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
