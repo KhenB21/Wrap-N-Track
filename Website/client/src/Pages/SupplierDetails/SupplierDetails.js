@@ -2,14 +2,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
-// Unified axios instance
 import api from '../../api';
-import config from '../../config';
 import "./SupplierDetails.css";
 import usePermissions from '../../hooks/usePermissions';
-
-// Use environment base URL directly instead of separate constant
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || config.API_URL;
 
 const tabs = ["Overview", "Order History", "Ongoing orders"];
 
@@ -340,7 +335,7 @@ export default function SupplierDetails() {
 
       let response;
       if (isAddingOrder) {
-        response = await api.post(`${API_BASE_URL}/api/supplier-orders`, orderData, {
+  response = await api.post(`/api/supplier-orders`, orderData, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -353,7 +348,7 @@ export default function SupplierDetails() {
           ongoing: [...prev.ongoing, response.data]
         }));
       } else {
-        response = await api.put(`${API_BASE_URL}/api/supplier-orders/${orderForm.supplier_order_id}`, orderData, {
+  response = await api.put(`/api/supplier-orders/${orderForm.supplier_order_id}`, orderData, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -405,8 +400,8 @@ export default function SupplierDetails() {
       console.log('Fetching items for order:', order.supplier_order_id);
       // Fetch order items based on whether it's a completed or ongoing order
       const endpoint = activeTab === 1 
-        ? `${API_BASE_URL}/api/supplier-orders/history/${order.supplier_order_id}/items`
-        : `${API_BASE_URL}/api/supplier-orders/${order.supplier_order_id}/items`;
+        ? `/api/supplier-orders/history/${order.supplier_order_id}/items`
+        : `/api/supplier-orders/${order.supplier_order_id}/items`;
       
       const itemsResponse = await api.get(endpoint);
       console.log('Order items response:', itemsResponse.data);
@@ -438,7 +433,7 @@ export default function SupplierDetails() {
 
     try {
       const token = localStorage.getItem('token');
-      await api.delete(`${config.API_URL}/api/supplier-orders/${orderId}`, {
+  await api.delete(`/api/supplier-orders/${orderId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -506,7 +501,7 @@ export default function SupplierDetails() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await api.post(`${API_BASE_URL}/api/suppliers`, editForm, {
+  const response = await api.post(`/api/suppliers`, editForm, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -554,7 +549,7 @@ export default function SupplierDetails() {
     if (window.confirm('Are you sure you want to delete this supplier?')) {
       try {
         const token = localStorage.getItem('token');
-        await api.delete(`${config.API_URL}/api/suppliers/${supplierId}`, {
+  await api.delete(`/api/suppliers/${supplierId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

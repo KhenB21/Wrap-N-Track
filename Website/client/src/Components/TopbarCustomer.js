@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './TopbarCustomer.css';
 import api from '../api';
-import config from '../config';
 
 const navLinks = [
   { label: 'HOME', path: '/customer-home' },
@@ -79,7 +78,7 @@ export default function TopbarCustomer() {
       if (customer.profile_picture_path.startsWith('http')) {
         return customer.profile_picture_path;
       }
-      return `${config.API_URL}${customer.profile_picture_path}`;
+  return `${customer.profile_picture_path}`;
     }
     
     return "/placeholder-profile.png";

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './AddProductModal.css';
 import api from '../../api';
-import config from '../../config';
 import Select from 'react-select';
 
 const CATEGORIES = [
@@ -197,7 +196,8 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       }
     }
 
-    const ws = new WebSocket(config.WS_URL);
+  const wsBase = process.env.REACT_APP_WS_URL || window.location.origin.replace(/^http/, 'ws');
+  const ws = new WebSocket(wsBase);
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'barcode_scanned') {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../api";
 import config from "../../config";
 import "./CustomerRegister.css";
 import TopbarCustomer from "../../Components/TopbarCustomer";
@@ -54,7 +54,7 @@ function CustomerRegister() {
     if (!email) return;
     try {
       setCheckingEmail(true);
-      const res = await axios.get(`${config.API_URL}/api/auth/check-email`, {
+  const res = await api.get(`/api/auth/check-email`, {
         params: { email }
       });
 
@@ -75,7 +75,7 @@ function CustomerRegister() {
     if (!name.trim()) return;
     try {
       setCheckingName(true);
-      const res = await axios.get(`${config.API_URL}/api/auth/check-name`, {
+  const res = await api.get(`/api/auth/check-name`, {
         params: { name: name.trim() }
       });
 
@@ -96,7 +96,7 @@ function CustomerRegister() {
     if (!username.trim()) return;
     try {
       setCheckingUsername(true);
-      const res = await axios.get(`${config.API_URL}/api/auth/check-username`, {
+  const res = await api.get(`/api/auth/check-username`, {
         params: { username: username.trim() }
       });
 
@@ -218,7 +218,7 @@ function CustomerRegister() {
     }
 
     try {
-      console.log('Attempting registration with API URL:', config.API_URL);
+      console.log('Attempting customer registration (unified api instance)');
       const formDataToSend = new FormData();
       formDataToSend.append("name", formData.name);
       formDataToSend.append("email", formData.email);
@@ -230,8 +230,8 @@ function CustomerRegister() {
         formDataToSend.append("profilePicture", profilePicture);
       }
 
-      const response = await axios.post(
-        `${config.API_URL}/api/auth/customer/register`,
+      const response = await api.post(
+        `/api/auth/customer/register`,
         formDataToSend,
         {
           headers: {

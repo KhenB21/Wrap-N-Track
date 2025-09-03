@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from '../../api';
-import config from '../../config';
 // (keep axios import only if needed for FormData compatibility, otherwise use api) "axios";
 import "./Register.css";
 
@@ -165,7 +164,7 @@ function Register() {
 
   try {
     try {
-      console.log('Attempting registration with API URL:', config.API_URL);
+  console.log('Attempting registration (unified api instance)');
       const formDataToSend = new FormData();
       formDataToSend.append("name", formData.name);
       formDataToSend.append("email", formData.email);
@@ -176,7 +175,7 @@ function Register() {
       }
 
       const response = await api.post(
-        `${config.API_URL}/api/auth/register`,
+        `/api/auth/register`,
         formDataToSend,
         {
           headers: {

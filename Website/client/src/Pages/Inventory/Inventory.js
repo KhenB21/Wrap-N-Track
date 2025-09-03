@@ -5,7 +5,6 @@ import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from "../../api";
-import config from "../../config";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import jsPDF from 'jspdf';
@@ -122,9 +121,9 @@ export default function Inventory() {
     try {
       const isFileUpload = formData instanceof FormData;
       
-      const response = isFileUpload 
-        ? await apiFileUpload.post('/api/inventory', formData)
-        : await api.post('/api/inventory', formData);
+      const response = await api.post('/api/inventory', formData, {
+        headers: isFileUpload ? { 'Content-Type': 'multipart/form-data' } : undefined
+      });
         
       if (response.data.success) {
         setShowModal(false);

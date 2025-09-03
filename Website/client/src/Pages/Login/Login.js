@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 // Unified axios instance
 import api from '../../api';
-import config from '../../config';
 import "./Login.css";
 
 function LoginPage() {

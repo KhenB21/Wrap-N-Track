@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 import api from "../../api";
-import config from "../../config";
 import "./OrderHistory.css";
 import { useNavigate } from "react-router-dom";
 
@@ -14,7 +13,7 @@ function getProfilePictureUrl() {
   }
   if (user.profile_picture_path) {
     if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
-    return `${config.API_URL}${user.profile_picture_path}`;
+  return `${user.profile_picture_path}`;
   }
   return "/placeholder-profile.png";
 }
@@ -45,20 +44,10 @@ export default function OrderHistory() {
 
 
       // Fetch only archived orders
-  const response = await fetch(`${config.API_URL}/api/orders/history`, {
-
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      const response = await api.get(`/api/orders/history`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch orders');
-      }
-
-      let data = await response.json();
+      let data = response.data;
       // Only show Deleted, Cancelled, Completed, or Invoiced
       data = data.filter(order => ['Deleted', 'Cancelled', 'Completed', 'Invoiced'].includes(order.status));
       setOrders(data);
@@ -72,7 +61,9 @@ export default function OrderHistory() {
   };
 
   useEffect(() => {
-  const newWs = new WebSocket(`${config.WS_URL}/ws`);
+  // WebSocket base: fallback to current origin if env not set
+  const wsBase = process.env.REACT_APP_WS_URL || window.location.origin.replace(/^http/, 'ws');
+  const newWs = new WebSocket(`${wsBase}/ws`);
     setWs(newWs);
 
     newWs.onopen = () => {

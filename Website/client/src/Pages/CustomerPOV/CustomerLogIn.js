@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from '../../api';
-import config from '../../config';
 import "./CustomerLogIn.css";
 import TopbarCustomer from "../../Components/TopbarCustomer";
 
@@ -72,8 +71,8 @@ function CustomerLogIn() {
     }
   }, [navigate]);
 
-  // Log the API URL being used
-  console.log('Login component using API URL:', config.API_URL);
+  // Log the resolved base API URL (for debugging only)
+  console.log('Login component using API instance base URL');
 
   const handleChange = (e) => {
     const { name, value } = e.target;

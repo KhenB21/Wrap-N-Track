@@ -3,8 +3,6 @@ import React, { useState, useEffect } from 'react';
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import './CustomerPOV.css';
 import api from '../../api';
-import config from '../../config';
-import axios from "axios";
 
 function generateOrderId() {
   const now = Date.now();
@@ -36,8 +34,7 @@ export default function DanielPreview() {
   const [error, setError] = useState("");
 
   React.useEffect(() => {
-    axios
-      .get(`${config.API_URL}/api/inventory`)
+    api.get(`/api/inventory`)
       .then((res) => setInventory(res.data))
       .catch(() => setInventory([]));
   }, []);

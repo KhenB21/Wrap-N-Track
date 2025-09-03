@@ -3,7 +3,6 @@ import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 // Central axios instance
 import api from '../../api';
-import config from '../../config';
 import './UserManagement.css';
 import { useNavigate } from 'react-router-dom';
 import usePermissions from '../../hooks/usePermissions';
@@ -126,7 +125,7 @@ const UserManagement = () => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
       const token = localStorage.getItem('token');
-      await api.delete(`${config.API_URL}/api/users/${selectedUser.user_id}`, {
+  await api.delete(`/api/users/${selectedUser.user_id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
