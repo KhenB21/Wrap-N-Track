@@ -146,52 +146,51 @@ const upload = multer({
   }
 });
 
-// CORS configuration
+// --- CORS configuration (hardened) ---
+// Build the allowed origins list once. If CORS_ORIGIN env var exists, it overrides defaults.
+const allowedOrigins = (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)) || [
+  // DigitalOcean static frontend (keep)
+  'https://staticwrapntrack-tz5cu.ondigitalocean.app',
+  // (Optional) Add additional verified UI domains below as needed
+  'https://wrapntrack-ztp8a.ondigitalocean.app', // API domain can call itself (useful for same-origin fetch)
+  // Legacy Vercel fallbacks (can remove later if no longer used)
+  'https://wrap-n-track-b6z5.vercel.app',
+  'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app'
+];
+
+console.log('[CORS] Allowed origins source:', process.env.CORS_ORIGIN ? 'ENV (CORS_ORIGIN)' : 'Default list');
+console.log('[CORS] Allowed origins:', allowedOrigins);
+
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow overriding the allowed origins via the CORS_ORIGIN environment variable (comma-separated)
-    const allowedOrigins = process.env.CORS_ORIGIN 
-      ? process.env.CORS_ORIGIN.split(',')
-      : [
-          // DigitalOcean / App Platform static and API hosts (from provided credentials)
-          'https://wrap-n-track.ondigitalocean.app',
-          'https://staticwrapntrack-tz5cu.ondigitalocean.app',
-          // Keep existing Vercel origins as fallbacks
-          'https://wrap-n-track-b6z5.vercel.app',
-          'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app'
-        ];
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow server-to-server / curl / mobile requests without origin
     if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked request from origin:', origin);
-      console.log('Allowed origins:', allowedOrigins);
-      callback(new Error('Not allowed by CORS'));
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+    console.log('[CORS] Blocked origin:', origin);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400 // 24 hours
+  maxAge: 86400
 };
 
 app.use(cors(corsOptions));
 
-// Add headers middleware
+// Add headers middleware (only echo allowed origins)
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  const requestOrigin = req.headers.origin;
+  if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+    if (requestOrigin) res.header('Access-Control-Allow-Origin', requestOrigin);
+    res.header('Vary', 'Origin');
+  }
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
 
@@ -1123,6 +1122,16 @@ app.delete('/api/users/:user_id', verifyToken, async (req, res) => {
 // Basic test route
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is running!' });
+});
+
+// Lightweight root/health endpoint (no auth, minimal payload for uptime checks)
+app.get('/', (req, res) => {
+  res.json({
+    service: 'wrap-n-track-api',
+    status: 'ok',
+    time: new Date().toISOString(),
+    uptime_seconds: process.uptime()
+  });
 });
 
 // Create HTTP server
