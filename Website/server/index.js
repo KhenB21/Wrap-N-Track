@@ -149,12 +149,16 @@ const upload = multer({
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
+    // Allow overriding the allowed origins via the CORS_ORIGIN environment variable (comma-separated)
     const allowedOrigins = process.env.CORS_ORIGIN 
       ? process.env.CORS_ORIGIN.split(',')
       : [
+          // DigitalOcean / App Platform static and API hosts (from provided credentials)
+          'https://wrap-n-track.ondigitalocean.app',
+          'https://staticwrapntrack-tz5cu.ondigitalocean.app',
+          // Keep existing Vercel origins as fallbacks
           'https://wrap-n-track-b6z5.vercel.app',
-          'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app',
-          'http://localhost:3000'
+          'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app'
         ];
     
     // Allow requests with no origin (like mobile apps or curl requests)
