@@ -1,17 +1,21 @@
-// Prefer explicit environment variables set at build time.
-// If not set, auto-detect sensible defaults based on the browser location.
-const envApi = process.env.REACT_APP_API_URL;
-const envWs = process.env.REACT_APP_WS_URL;
+// Central API / WebSocket configuration.
+// Task: Use REACT_APP_API_URL or fall back to the DigitalOcean backend.
+// Removed legacy auto same-origin fallback logic to enforce explicit backend usage.
+const FALLBACK_API = 'https://wrapntracwebservice-2g22j.ondigitalocean.app';
+const API_URL = process.env.REACT_APP_API_URL || FALLBACK_API;
 
-const hostname = window.location.hostname;
-const protocol = window.location.protocol;
-
-const defaultProdApi = `${protocol}//${hostname}`; // assume API is served from same origin if not specified
-const defaultProdWs = (protocol === 'https:' ? 'wss://' : 'ws://') + hostname;
-
-// Production-first: use explicitly set env variables, otherwise assume same-origin
-const API_URL = envApi || defaultProdApi;
-const WS_URL = envWs || defaultProdWs;
+// WebSocket: allow override, else derive from API host.
+let WS_URL = process.env.REACT_APP_WS_URL;
+if (!WS_URL) {
+  try {
+    const apiHost = new URL(API_URL);
+    const wsScheme = apiHost.protocol === 'https:' ? 'wss:' : 'ws:';
+    WS_URL = `${wsScheme}//${apiHost.host}`;
+  } catch (e) {
+    // Fallback to replacing scheme naïvely if URL ctor fails
+    WS_URL = API_URL.replace(/^https:/,'wss:').replace(/^http:/,'ws:');
+  }
+}
 
 const config = {
   API_URL,

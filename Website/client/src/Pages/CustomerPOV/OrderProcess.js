@@ -1245,6 +1245,7 @@ export default function OrderProcess() {
     if (resendAvailableAt && Date.now() < resendAvailableAt) return;
     try {
   await sendOtp(customerData.email, token);
+      await sendOtp(customerData.email, token);
       toast.info('OTP resent to your email.');
     } catch (err) {
       alert('Failed to resend OTP. Please try again later.');
@@ -1261,17 +1262,17 @@ export default function OrderProcess() {
     }
     try {
       await verifyOtp(customerData.email, otpCode, token);
-      // OTP ok — place the original order via customer endpoint and ensure customer token used
-      const response = await api.post('/api/customer/orders', pendingOrderPayload, {
-        useCustomerToken: true,
-        headers: { 'X-Use-Customer-Token': 'true' }
+      // OTP ok — place the original order
+      const response = await api.post('/api/orders', pendingOrderPayload, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data) {
         toast.success('Order is completed');
         setOtpModalVisible(false);
         setOtpCode('');
         setPendingOrderPayload(null);
-        // do not redirect to employee/customer orders view; keep user on site and show confirmation
+        // optionally redirect to orders or order summary
+        navigate('/customer/orders');
       }
     } catch (err) {
       console.error('OTP verification or order placement failed', err);

@@ -169,11 +169,13 @@ const upload = multer({
 // --- CORS configuration (hardened) ---
 // Build the allowed origins list once. If CORS_ORIGIN env var exists, it overrides defaults.
 const allowedOrigins = (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)) || [
-  // DigitalOcean static frontend (keep)
+  // Production deployed frontend (replace if you change deployment URL)
   'https://staticwrapntrack-tz5cu.ondigitalocean.app',
-  // (Optional) Add additional verified UI domains below as needed
-  'https://wrapntrack-ztp8a.ondigitalocean.app', // API domain can call itself (useful for same-origin fetch)
-  // Legacy Vercel fallbacks (can remove later if no longer used)
+  // API origin (self) if browser ever calls directly from same host
+  'https://wrapntrack-ztp8a.ondigitalocean.app',
+  // Development local React
+  'http://localhost:3000',
+  // Legacy fallbacks (remove when no longer needed)
   'https://wrap-n-track-b6z5.vercel.app',
   'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app'
 ];
