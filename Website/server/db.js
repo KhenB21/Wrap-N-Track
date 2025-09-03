@@ -10,7 +10,7 @@ const dbConfig = {
   user: process.env.DB_USER || 'doadmin',
   host: process.env.DB_HOST || 'wrapntrackdb-do-user-22907915-0.k.db.ondigitalocean.com',
   database: process.env.DB_NAME || 'defaultdb',
-  password: process.env.DB_PASSWORD || 'AVNS_p0RjIwkCFTeEaSrJhGS',
+  password: process.env.DB_PASSWORD || 'AVNS_j8FcQJEuDrwQ7GpJjDk',
   port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 25060,
   // DigitalOcean managed Postgres requires SSL. Use a permissive setting to
   // avoid certificate verification issues without a CA bundle. For stricter
