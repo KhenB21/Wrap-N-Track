@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import api from '../../api/axios';
+// Unified axios instance
+import api from '../../api';
 import config from '../../config';
 import "./Login.css";
 
@@ -68,7 +69,7 @@ function LoginPage() {
   }, [lockoutTime]);
 
   // Log the API URL being used
-  console.log('Login component using API URL:', config.API_URL);
+  console.log('Login component ready');
 
 
   const handleChange = (e) => {
@@ -92,7 +93,6 @@ function LoginPage() {
     setError("");
 
     try {
-      console.log('Attempting login with API URL:', config.API_URL);
   const response = await api.post('/api/auth/login', {
         username: formData.username,
         password: formData.password
@@ -120,7 +120,7 @@ function LoginPage() {
 
         setShowSuccess(true);
         setTimeout(() => {
-          navigate("/"); // match simpler component's behavior
+          navigate("/employee-dashboard"); // match simpler component's behavior
         }, 1500);
       }
     } catch (err) {

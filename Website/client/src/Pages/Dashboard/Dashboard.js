@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
-import api from '../../api/axios';
+import api from '../../api';
 import "./Dashboard.css";
 
 function Dashboard() {

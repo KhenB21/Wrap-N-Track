@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from '../../api/axios';
+import api from '../../api';
 import config from '../../config';
 // (keep axios import only if needed for FormData compatibility, otherwise use api) "axios";
 import "./Register.css";

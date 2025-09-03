@@ -1,4 +1,4 @@
-import api from '../api/axios';
+import api from '../api';
 import config from '../config';
 
 const handleAddProduct = async (productData) => {

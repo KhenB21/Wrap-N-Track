@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
-import api from "../../api/axios";
+import api from "../../api";
 import config from "../../config";
 import "./OrderHistory.css";
 import { useNavigate } from "react-router-dom";

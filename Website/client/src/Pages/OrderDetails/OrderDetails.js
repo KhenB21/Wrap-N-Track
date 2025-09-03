@@ -7,7 +7,7 @@ import axios from "axios";
 import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
 import { useNavigate, useLocation } from 'react-router-dom';
-import api from '../../api/axios';
+import api from '../../api';
 import PortalModal from '../../Components/Modal/PortalModal';
 
 // Add these styles at the top of the file

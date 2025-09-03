@@ -5,7 +5,7 @@ import TopBar from '../../Components/TopBar';
 
 import './ProductDetails.css';
 import '../Inventory/Inventory.css';
-import api from '../../api/axios';
+import api from '../../api';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 

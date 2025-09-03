@@ -2,12 +2,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
-import api from '../../api/axios';
+// Unified axios instance
+import api from '../../api';
 import config from '../../config';
 import "./SupplierDetails.css";
 import usePermissions from '../../hooks/usePermissions';
 
-const API_BASE_URL = config.API_URL;
+// Use environment base URL directly instead of separate constant
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || config.API_URL;
 
 const tabs = ["Overview", "Order History", "Ongoing orders"];
 

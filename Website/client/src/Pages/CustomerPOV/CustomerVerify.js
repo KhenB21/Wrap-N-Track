@@ -4,7 +4,7 @@ import axios from 'axios';
 import config from '../../config';
 import './CustomerVerify.css';
 import TopbarCustomer from '../../Components/TopbarCustomer';
-import api from '../../api/axios';
+import api from '../../api';
 
 function CustomerVerify() {
   const [verificationCode, setVerificationCode] = useState('');

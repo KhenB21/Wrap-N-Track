@@ -5,7 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import "./OrderProcess.css";
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import "./CustomerPOV.css";
-import api from '../../api/axios';
+import api from '../../api';
 
 const styles = {
   container: {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 
-import api from "../../api/axios";
+import api from "../../api";
 import "./CustomerDetails.css";
 
 

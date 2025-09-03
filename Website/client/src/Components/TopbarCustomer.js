@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './TopbarCustomer.css';
-import api from '../api/axios';
+import api from '../api';
 import config from '../config';
 
 const navLinks = [

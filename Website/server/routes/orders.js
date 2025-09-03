@@ -1,5 +1,6 @@
 const express = require('express');
-const { pool } = require('../db');
+// Use centralized pooled connection
+const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -63,6 +64,27 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('Error fetching orders:', error);
     res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// Get products for a specific order (used by frontend order detail views)
+router.get('/:order_id/products', async (req, res) => {
+  const { order_id } = req.params;
+  try {
+    const result = await pool.query(`
+      SELECT op.sku, op.quantity, op.profit_margin, i.name, i.image_data, i.unit_price
+      FROM order_products op
+      JOIN inventory_items i ON op.sku = i.sku
+      WHERE op.order_id = $1
+    `, [order_id]);
+    const products = result.rows.map(p => ({
+      ...p,
+      image_data: p.image_data ? p.image_data.toString('base64') : null
+    }));
+    res.json({ success: true, order_id, products });
+  } catch (error) {
+    console.error('Error fetching order products:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch order products' });
   }
 });
 
@@ -679,20 +701,18 @@ router.post('/backfill-total-costs', async (req, res) => {
 });
 
 // GET archived orders
-router.get('/archived', (req, res) => {
-  const query = `
-    SELECT * FROM orders 
-    WHERE status IN ('Completed', 'Cancelled')
-    ORDER BY order_date DESC;
-  `;
-
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching archived orders:', err);
-      return res.status(500).json({ message: 'Failed to fetch archived orders' });
-    }
-    res.json(results);
-  });
+router.get('/archived', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM orders 
+      WHERE status IN ('Completed', 'Cancelled')
+      ORDER BY order_date DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching archived orders:', error);
+    res.status(500).json({ message: 'Failed to fetch archived orders' });
+  }
 });
 
 module.exports = router;

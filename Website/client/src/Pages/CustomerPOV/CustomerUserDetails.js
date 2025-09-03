@@ -4,7 +4,7 @@ import axios from 'axios';
 import config from '../../config';
 import './CustomerUserDetails.css';
 import TopbarCustomer from '../../Components/TopbarCustomer';
-import api from '../../api/axios';
+import api from '../../api';
 
 export default function CustomerUserDetails() {
   const [userData, setUserData] = useState({

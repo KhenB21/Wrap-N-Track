@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 
 import { useNavigate } from "react-router-dom"; // ✅ needed for navigate
-import api from "../../api/axios";
+import api from "../../api";
 import "./ForgotPassword.css";
 
 function ForgotPassword() {

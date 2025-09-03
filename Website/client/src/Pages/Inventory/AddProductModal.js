@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './AddProductModal.css';
-import api from '../../api/axios';
+import api from '../../api';
 import config from '../../config';
 import Select from 'react-select';
 

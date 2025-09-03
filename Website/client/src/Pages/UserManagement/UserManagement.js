@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
-import api from '../../api/axios';
+// Central axios instance
+import api from '../../api';
 import config from '../../config';
 import './UserManagement.css';
 import { useNavigate } from 'react-router-dom';
@@ -23,7 +24,7 @@ const UserManagement = () => {
 
   const fetchInventory = async () => {
     try {
-      const response = await api.get(`${config.API_URL}/api/inventory`);
+  const response = await api.get('/api/inventory');
       if (response.data) {
         setInventory(response.data);
       }
@@ -38,7 +39,7 @@ const UserManagement = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await api.get(`${config.API_URL}/api/users`, {
+  const response = await api.get('/api/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -105,7 +106,7 @@ const UserManagement = () => {
       const { profile_picture_data, ...userDataToSend } = editData;
       const token = localStorage.getItem('token');
 
-      const response = await api.put(`${config.API_URL}/api/users/${selectedUser.user_id}`, userDataToSend, {
+  const response = await api.put(`/api/users/${selectedUser.user_id}`, userDataToSend, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }

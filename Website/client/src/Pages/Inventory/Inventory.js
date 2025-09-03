@@ -4,7 +4,7 @@ import AddProductModal from './AddProductModal';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import { useNavigate, useLocation } from 'react-router-dom';
-import api, { apiFileUpload } from "../../api/axios";
+import api from "../../api";
 import config from "../../config";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';

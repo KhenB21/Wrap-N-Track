@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Notifications from "./Notifications/Notifications";
 import "./TopBar.css";
-import api from '../api/axios'; // Import the api instance
+import api from '../api'; // Unified axios instance
 
 export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowStockProducts, searchValue = "", onSearchChange = () => {} }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);

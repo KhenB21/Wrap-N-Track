@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../api/axios';
+import api from '../../api';
 import TopBar from '../../Components/TopBar';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import './ArchivedOrders.css';

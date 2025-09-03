@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../db');
+// Centralized pool import
+const pool = require('../config/db');
 
 // Get all supplier orders
 router.get('/', async (req, res) => {
