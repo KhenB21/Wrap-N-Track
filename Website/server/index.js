@@ -5,7 +5,17 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-const { pool, wss, notifyChange } = require('./db');
+// Pool now sourced from config/db.js (task requirement). Retaining wss/notifyChange from legacy db.js if still needed.
+let wss, notifyChange;
+const pool = require('./config/db');
+try {
+  // Attempt to also load websocket exports if old db.js still present
+  const legacy = require('./db');
+  if (legacy && legacy.wss) wss = legacy.wss;
+  if (legacy && legacy.notifyChange) notifyChange = legacy.notifyChange;
+} catch (e) {
+  console.log('Legacy db.js (wss/notifyChange) not loaded (optional):', e.message);
+}
 const customersRouter = require('./routes/customers');
 const otpRouter = require('./routes/otp');
 const suppliersRouter = require('./routes/suppliers');
@@ -23,6 +33,16 @@ require('dotenv').config({ path: __dirname + '/../.env' });
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+// Immediate DB connectivity test (task requirement)
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('❌ Database connection error (initial pool.connect):', err.stack || err.message);
+  } else {
+    console.log('✅ Database pool connected (initial test)');
+    release();
+  }
+});
 
 // Function to archive completed or cancelled orders
 async function archiveCompletedOrCancelledOrders() {
