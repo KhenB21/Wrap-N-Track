@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../db');
+// Use centralized pool (migrated from legacy ../db)
+const pool = require('../config/db');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
 const jwt = require('jsonwebtoken');
@@ -42,37 +43,70 @@ router.use(verifyToken);
 
 // Get customer profile
 router.get('/profile', async (req, res) => {
-  try {
-    const customerId = req.user.customer_id;
-    console.log('Fetching profile for customer_id:', customerId);
-    
-    const result = await pool.query(
-      'SELECT customer_id, name, username, email_address, phone_number, address, profile_picture_data, is_verified FROM customer_details WHERE customer_id = $1',
-      [customerId]
-    );
+  // 1. Ensure auth middleware attached a user object (defense-in-depth)
+  if (!req.user || !req.user.customer_id) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized: missing or invalid token'
+    });
+  }
 
+  const customerId = req.user.customer_id;
+  console.log('[Customer/Profile] Fetching profile for customer_id:', customerId);
+
+  try {
+    // 2. Parameterized query (SQL injection safe) + base64 encode in SQL for clarity
+    const sql = `
+      SELECT 
+        customer_id,
+        username,
+        name,
+        email_address,
+        phone_number,
+        address,
+        is_verified,
+        CASE WHEN profile_picture_data IS NOT NULL 
+             THEN encode(profile_picture_data, 'base64')
+             ELSE NULL END AS profile_picture_base64
+      FROM customer_details
+      WHERE customer_id = $1
+      LIMIT 1;`;
+
+    const result = await pool.query(sql, [customerId]);
+
+    // 3. Handle not found
     if (result.rows.length === 0) {
-      console.log('No customer found with ID:', customerId);
+      console.log('[Customer/Profile] No record for customer_id:', customerId);
       return res.status(404).json({
         success: false,
         message: 'Customer not found'
       });
     }
 
-    const customer = result.rows[0];
-    console.log('Found customer:', customer);
-    
-    res.json({
+    // 4. Build response object (limit exposure of raw column names)
+    const row = result.rows[0];
+    return res.status(200).json({
       success: true,
-      ...customer,
-      address: customer.address,
-      profile_picture_data: customer.profile_picture_data ? customer.profile_picture_data.toString('base64') : null
+      customer: {
+        customer_id: row.customer_id,
+        username: row.username,
+        name: row.name,
+        email: row.email_address,
+        phone_number: row.phone_number,
+        address: row.address,
+        is_verified: row.is_verified,
+        profile_picture_base64: row.profile_picture_base64
+      }
     });
   } catch (error) {
-    console.error('Error fetching customer profile:', error);
-    res.status(500).json({
+    // 5. Comprehensive logging (message + stack) for diagnostics
+    console.error('[Customer/Profile] Error fetching profile:', {
+      message: error.message,
+      stack: error.stack
+    });
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch customer profile'
+      message: 'Internal server error'
     });
   }
 });
