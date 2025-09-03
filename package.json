@@ -6,10 +6,11 @@
     "node": "18.x"
   },
   "scripts": {
-    "start": "cd Website/server && npm start",
-    "server": "cd Website/server && npm run dev",
-    "client": "cd Website/client && npm start",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+  "start": "cd Website/server && npm start",
+  "server": "cd Website/server && npm run dev",
+  "client": "cd Website/client && npm start",
+  "build": "cd Website/client && npm ci && npm run build",
+  "dev": "concurrently \"npm run server\" \"npm run client\""
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
