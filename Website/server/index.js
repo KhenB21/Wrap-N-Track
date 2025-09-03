@@ -32,7 +32,9 @@ require('dotenv').config({ path: __dirname + '/../.env' });
 
 
 const app = express();
+// Dynamic port selection: use platform-provided PORT (e.g. DigitalOcean) or fallback to 3001 locally
 const port = process.env.PORT || 3001;
+const portSource = process.env.PORT ? 'env:PORT' : 'default:3001';
 
 // Immediate DB connectivity test (task requirement)
 pool.connect((err, client, release) => {
@@ -1158,9 +1160,8 @@ app.get('/', (req, res) => {
 
 // Create HTTP server
 const server = app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-  console.log('Environment:', process.env.NODE_ENV);
-  console.log('CORS allowed origins:', corsOptions.origin);
+  console.log(`[Startup] API listening on port ${port} (${portSource}) | NODE_ENV=${process.env.NODE_ENV || 'development'} | PID=${process.pid}`);
+  console.log('[Startup] If deployed (e.g. DigitalOcean App Platform), PORT is injected via environment.');
 });
 
 // Error handling for the server
