@@ -15,6 +15,9 @@ const notificationsRouter = require('./routes/notifications');
 
 const authRouter = require('./routes/auth');
 const customerRoutes = require('./routes/customer');
+const employeeRouter = require('./routes/employee');
+const verifyJwt = require('./middleware/verifyJwt')();
+const requireRole = require('./middleware/requireRole');
 require('dotenv').config({ path: __dirname + '/../.env' });
 
 
@@ -211,6 +214,8 @@ app.use('/api/supplier-orders', supplierOrdersRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/customer', customerRoutes);
+// Employee-only routes (protected)
+app.use('/api/employee', verifyJwt, requireRole(['admin','business_developer','creatives','director','sales_manager','assistant_sales','packer']), employeeRouter);
 
 // Add error handling middleware
 app.use((err, req, res, next) => {

@@ -32,19 +32,20 @@ import CustomerRegister from "./Pages/CustomerPOV/CustomerRegister";
 import CustomerLogIn from "./Pages/CustomerPOV/CustomerLogIn";
 import CustomerUserDetails from "./Pages/CustomerPOV/CustomerUserDetails";
 import CustomerVerify from "./Pages/CustomerPOV/CustomerVerify";
+import Forbidden403 from "./Pages/Forbidden403";
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard-employee" element={<Dashboard />} />
+        <Route path="/login-employee-pensee" element={<Login />} />
         <Route path="/product-details" element={<ProductDetails />} />
         <Route path="/product-details/:sku" element={<ProductDetails />} />
         <Route path="/product/1" element={<CarloPreview />} />
         <Route path="/product/2" element={<EricMarielPreview />} />
         <Route path="/product/3" element={<DanielPreview />} />
-        <Route path="/customer-home" element={<CustomerHome />} />
+        <Route path="" element={<CustomerHome />} />
         
         <Route path="/archived-orders" element={<ArchivedOrders />} />
         <Route path="/customer-details" element={<CustomerDetails />} />
@@ -72,6 +73,7 @@ function App() {
         <Route path="/customer-login" element={<CustomerLogIn />} />
         <Route path="/customer-user-details" element={<CustomerUserDetails />} />
         <Route path="/customer/verify" element={<CustomerVerify />} />
+  <Route path="/403" element={<Forbidden403 />} />
 
       </Routes>
     </Router>
