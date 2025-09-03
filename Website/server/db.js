@@ -3,13 +3,19 @@ const WebSocket = require('ws');
 require('dotenv').config({ path: __dirname + '/.env' });
 
 // Database configuration
+// Prefer environment variables but fall back to the provided DigitalOcean values so
+// deployments that don't set env vars still work. For security, prefer setting
+// the DB_* env vars in production rather than committing credentials.
 const dbConfig = {
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'wrapntrack_db',
-  password: process.env.DB_PASSWORD || 'postgres',
-  port: process.env.DB_PORT || 5432,
-  ssl: false,
+  user: process.env.DB_USER || 'doadmin',
+  host: process.env.DB_HOST || 'wrapntrackdb-do-user-22907915-0.k.db.ondigitalocean.com',
+  database: process.env.DB_NAME || 'defaultdb',
+  password: process.env.DB_PASSWORD || 'AVNS_p0RjIwkCFTeEaSrJhGS',
+  port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 25060,
+  // DigitalOcean managed Postgres requires SSL. Use a permissive setting to
+  // avoid certificate verification issues without a CA bundle. For stricter
+  // verification, provide a CA and set rejectUnauthorized: true.
+  ssl: { rejectUnauthorized: false },
   // Add connection timeout and retry settings
   connectionTimeoutMillis: 10000, // 10 seconds
   idleTimeoutMillis: 30000, // 30 seconds
