@@ -252,7 +252,12 @@ pool.connect((err, client, release) => {
       hasDatabaseUrl: !!process.env.DATABASE_URL
     });
     console.error('Full error:', err);
-    process.exit(1);
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    } else {
+      console.error('Continuing in production mode despite initial database connection issues');
+      return;
+    }
   }
   console.log('Successfully connected to PostgreSQL database');
   console.log('Database connection details:', {
@@ -1770,3 +1775,20 @@ app.post('/api/inventory/add-stock', async (req, res) => {
         client.release();
     }
 });
+
+// Serve static files from build directory in production
+if (process.env.NODE_ENV === 'production') {
+  const path = require('path');
+  
+  // Serve static files from the build directory
+  app.use(express.static(path.join(__dirname, '../../build')));
+  
+  // Handle React routing - return index.html for all non-API routes
+  app.get('*', (req, res) => {
+    // Skip API routes
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(__dirname, '../../build', 'index.html'));
+  });
+}

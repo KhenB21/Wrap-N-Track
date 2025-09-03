@@ -74,7 +74,11 @@ const testConnection = async (retries = 3, delay = 5000) => {
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
         console.error('All connection attempts failed');
-        process.exit(1);
+        if (process.env.NODE_ENV !== 'production') {
+          process.exit(1);
+        } else {
+          console.error('Continuing in production mode despite database connection issues');
+        }
       }
     }
   }

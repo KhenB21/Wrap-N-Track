@@ -1,0 +1,41 @@
+name: wrap-n-track
+region: nyc1
+
+services:
+- name: wrap-n-track-app
+  source_dir: /
+  github:
+    repo: KhenB21/Wrap-N-Track
+    branch: main
+  build_command: npm run build
+  run_command: npm start
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  envs:
+  - key: NODE_ENV
+    value: production
+  - key: DB_USER
+    value: doadmin
+  - key: DB_HOST
+    value: wrapntrackdb-do-user-22907915-0.k.db.ondigitalocean.com
+  - key: DB_NAME
+    value: defaultdb
+  - key: DB_PASSWORD
+    value: AVNS_j8FcQJEuDrwQ7GpJjDk
+  - key: DB_PORT
+    value: "25060"
+  - key: EMAIL_USER
+    value: marckhennethbolima@gmail.com
+  - key: EMAIL_PASSWORD
+    value: "pibm swva qtrz vmod"
+  - key: JWT_SECRET
+    value: "917d905af041889478c9a3b0d0c7a4f7af9848504d45a36ca73d6caad0f173e3"
+  - key: CORS_ORIGIN
+    value: "https://wrap-n-track.ondigitalocean.app"
+  - key: REACT_APP_API_URL
+    value: "https://wrap-n-track.ondigitalocean.app"
+  - key: REACT_APP_WS_URL
+    value: "wss://wrap-n-track.ondigitalocean.app"
+  routes:
+  - path: /
