@@ -44,7 +44,7 @@ export default function ProductDetails() {
         if (!token) {
           throw new Error('No authentication token found');
         }
-        const response = await api.get(`http://localhost:3001/api/inventory/${sku}`, {
+  const response = await api.get(`/api/inventory/${sku}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

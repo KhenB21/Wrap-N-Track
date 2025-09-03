@@ -93,7 +93,7 @@ function LoginPage() {
 
     try {
       console.log('Attempting login with API URL:', config.API_URL);
-      const response = await api.post('http://localhost:3001/api/auth/login', {
+  const response = await api.post('/api/auth/login', {
         username: formData.username,
         password: formData.password
       });

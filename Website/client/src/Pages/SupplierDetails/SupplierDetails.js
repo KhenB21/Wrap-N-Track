@@ -136,7 +136,7 @@ export default function SupplierDetails() {
       }
       
       console.log('Fetching customers with token:', token);
-      const response = await api.get('http://localhost:3001/api/suppliers', {
+  const response = await api.get('/api/suppliers', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -164,11 +164,11 @@ export default function SupplierDetails() {
     console.log('Fetching orders for supplier:', selectedSupplier.name);
     try {
       // Fetch ongoing orders from supplier_orders table
-      const ongoingResponse = await api.get(`http://localhost:3001/api/supplier-orders/supplier/${selectedSupplier.supplier_id}`);
+  const ongoingResponse = await api.get(`/api/supplier-orders/supplier/${selectedSupplier.supplier_id}`);
       console.log('Ongoing orders response:', ongoingResponse.data);
 
       // Fetch completed orders from supplier_order_history table
-      const completedResponse = await api.get(`http://localhost:3001/api/supplier-orders/history/supplier/${selectedSupplier.supplier_id}`);
+  const completedResponse = await api.get(`/api/supplier-orders/history/supplier/${selectedSupplier.supplier_id}`);
       console.log('Completed orders response:', completedResponse.data);
 
       // Set the orders in state

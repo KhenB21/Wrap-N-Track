@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './TopbarCustomer.css';
 import api from '../api/axios';
+import config from '../config';
 
 const navLinks = [
   { label: 'HOME', path: '/customer-home' },
@@ -74,11 +75,11 @@ export default function TopbarCustomer() {
     }
     
     // If we have a profile picture path, use that
-    if (customer.profile_picture_path) {
+      if (customer.profile_picture_path) {
       if (customer.profile_picture_path.startsWith('http')) {
         return customer.profile_picture_path;
       }
-      return `${process.env.REACT_APP_API_URL || 'http://localhost:3001'}${customer.profile_picture_path}`;
+      return `${config.API_URL}${customer.profile_picture_path}`;
     }
     
     return "/placeholder-profile.png";

@@ -56,7 +56,7 @@ function Register() {
       setCheckingEmail(true);
       setEmailError("");
 
-      const res = await api.get('http://localhost:3001/api/auth/check-email', {
+  const res = await api.get('/api/auth/check-email', {
         params: { email },
       });
 
@@ -77,7 +77,7 @@ function Register() {
       setCheckingName(true);
       setNameError("");
 
-      const res = await api.get('http://localhost:3001/api/auth/check-name', {
+  const res = await api.get('/api/auth/check-name', {
         params: { name: name.trim() },
       });
 

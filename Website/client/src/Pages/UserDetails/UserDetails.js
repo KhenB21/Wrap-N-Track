@@ -32,7 +32,7 @@ export default function UserDetails() {
         }
         const parsedUser = JSON.parse(storedUser);
         setUserData(parsedUser);
-        const response = await api.get('http://localhost:3001/api/user/details', {
+      const response = await api.get('/api/user/details', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

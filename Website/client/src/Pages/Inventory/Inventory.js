@@ -146,7 +146,7 @@ export default function Inventory() {
   const handleArchive = async (sku) => {
     if (window.confirm('Are you sure you want to archive (delete) this item?')) {
       try {
-        await api.delete(`http://localhost:3001/api/inventory/${sku}`);
+  await api.delete(`/api/inventory/${sku}`);
         await fetchProducts();
         toast.success('Product archived (deleted) successfully!');
       } catch (err) {

@@ -365,11 +365,11 @@ export default function CustomerDetails() {
     console.log('Fetching orders for customer:', selectedCustomer.name);
     try {
       // Fetch ongoing orders for the customer
-      const ongoingResponse = await api.get(`http://localhost:3001/api/orders/customer/${encodeURIComponent(selectedCustomer.name)}`);
+  const ongoingResponse = await api.get(`/api/orders/customer/${encodeURIComponent(selectedCustomer.name)}`);
       console.log('Ongoing orders response:', ongoingResponse.data);
 
       // Fetch completed orders from order history
-      const historyResponse = await api.get('http://localhost:3001/api/orders/history');
+  const historyResponse = await api.get('/api/orders/history');
       const completedOrders = historyResponse.data.filter(order => 
         order.name.toLowerCase() === selectedCustomer.name.toLowerCase()
       );

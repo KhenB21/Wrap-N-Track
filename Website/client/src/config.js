@@ -1,39 +1,36 @@
-// Log environment variables for debugging
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
-console.log('REACT_APP_WS_URL:', process.env.REACT_APP_WS_URL);
+// Prefer explicit environment variables set at build time.
+// If not set, auto-detect sensible defaults based on the browser location.
+const envApi = process.env.REACT_APP_API_URL;
+const envWs = process.env.REACT_APP_WS_URL;
 
-// Start API URL Configuration Block
-// To switch between local and deployed APIs, change the value of the 'useLocalAPI' variable below.
-// Set to true for local development API (http://localhost:3001).
-// Set to false for deployed API (https://wrap-n-track.onrender.com).
+const hostname = window.location.hostname;
+const protocol = window.location.protocol;
 
-const useLocalAPI = true; // Set to true for local development
+const defaultProdApi = `${protocol}//${hostname}`; // assume API is served from same origin if not specified
+const defaultProdWs = (protocol === 'https:' ? 'wss://' : 'ws://') + hostname;
+
+// Production-first: use explicitly set env variables, otherwise assume same-origin
+const API_URL = envApi || defaultProdApi;
+const WS_URL = envWs || defaultProdWs;
 
 const config = {
-  API_URL: useLocalAPI ? 'http://localhost:3001' : 'https://wrap-n-track.onrender.com',
-  WS_URL: useLocalAPI ? 'ws://localhost:3001' : 'wss://wrap-n-track.onrender.com',
-  isDevelopment: process.env.NODE_ENV === 'development', // Keep isDevelopment based on NODE_ENV for other purposes
-  // Add environment verification
+  API_URL,
+  WS_URL,
+  isDevelopment: process.env.NODE_ENV === 'development',
   verifyEnvironment: async () => {
     try {
-      const response = await fetch(`${config.API_URL}/api/test/env`);
-      const data = await response.json();
+      const resp = await fetch(`${API_URL}/api/test/env`);
+      const data = await resp.json();
       console.log('Backend environment:', data);
       return data;
-    } catch (error) {
-      console.error('Error verifying environment:', error);
+    } catch (err) {
+      console.error('Error verifying environment:', err);
       return null;
     }
   }
 };
 
-// Log final config for debugging
-console.log('Final config:', {
-  API_URL: config.API_URL,
-  WS_URL: config.WS_URL,
-  isDevelopment: config.isDevelopment,
-  hostname: window.location.hostname
-});
+// Debug info (kept minimal)
+console.log('Config loaded:', { API_URL: config.API_URL, WS_URL: config.WS_URL, isDevelopment: config.isDevelopment });
 
-export default config; 
+export default config;

@@ -45,7 +45,7 @@ export default function OrderHistory() {
 
 
       // Fetch only archived orders
-      const response = await fetch('http://localhost:3001/api/orders/history', {
+  const response = await fetch(`${config.API_URL}/api/orders/history`, {
 
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -72,7 +72,7 @@ export default function OrderHistory() {
   };
 
   useEffect(() => {
-    const newWs = new WebSocket('ws://localhost:3001/ws');
+  const newWs = new WebSocket(`${config.WS_URL}/ws`);
     setWs(newWs);
 
     newWs.onopen = () => {
