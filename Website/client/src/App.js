@@ -38,14 +38,14 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/dashboard-employee" element={<Dashboard />} />
+        <Route path="/employee-dashboard" element={<Dashboard />} />
         <Route path="/login-employee-pensee" element={<Login />} />
         <Route path="/product-details" element={<ProductDetails />} />
         <Route path="/product-details/:sku" element={<ProductDetails />} />
         <Route path="/product/1" element={<CarloPreview />} />
         <Route path="/product/2" element={<EricMarielPreview />} />
         <Route path="/product/3" element={<DanielPreview />} />
-        <Route path="/" element={<CustomerHome />} />
+        <Route path="/customer-home" element={<CustomerHome />} />
         
         <Route path="/archived-orders" element={<ArchivedOrders />} />
         <Route path="/customer-details" element={<CustomerDetails />} />

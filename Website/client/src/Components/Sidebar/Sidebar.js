@@ -13,7 +13,7 @@ const Sidebar = () => {
     localStorage.removeItem('user');
     // Optionally clear all localStorage:
     // localStorage.clear();
-    navigate('/login');
+    navigate('/login-employee-pensee');
   };
 
   const getProfilePictureUrl = () => {
@@ -76,7 +76,7 @@ const Sidebar = () => {
         <ul>
           {permissions.dashboard && (
             <li>
-              <Link to="/">
+              <Link to="/employee-dashboard">
                 <span className="icon">📊</span>
                 <span className="text">Dashboard</span>
               </Link>

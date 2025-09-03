@@ -5,7 +5,8 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const multer = require('multer');
-const { pool } = require('../db');
+// Use centralized pool from config/db to avoid undefined imports
+const pool = require('../config/db');
 require('dotenv').config();
 
 // Configure multer for memory storage
