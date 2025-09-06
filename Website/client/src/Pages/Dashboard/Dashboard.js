@@ -45,7 +45,15 @@ function Dashboard() {
       try {
         // Fetch inventory (use api baseURL)
         const inventoryRes = await api.get('/api/inventory');
-        setInventory(inventoryRes.data || []);
+        console.log('Dashboard inventory API response:', inventoryRes.data);
+        
+        // Handle the response structure from our backend
+        if (inventoryRes.data && inventoryRes.data.success && Array.isArray(inventoryRes.data.inventory)) {
+          setInventory(inventoryRes.data.inventory);
+        } else {
+          console.error('Unexpected inventory response structure:', inventoryRes.data);
+          setInventory([]);
+        }
 
         // Fetch user details
         try {
@@ -100,13 +108,14 @@ function Dashboard() {
     return <div>Loading...</div>;
   }
 
-  // Calculate totals
-  const totalProducts = inventory.length;
-  const totalProductUnits = inventory.reduce(
+  // Calculate totals with safety checks
+  const safeInventory = Array.isArray(inventory) ? inventory : [];
+  const totalProducts = safeInventory.length;
+  const totalProductUnits = safeInventory.reduce(
     (sum, item) => sum + Number(item.quantity || 0),
     0
   );
-  const lowStockProducts = inventory.filter(
+  const lowStockProducts = safeInventory.filter(
     (item) => Number(item.quantity || 0) <= 300
   ).length;
 

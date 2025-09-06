@@ -20,10 +20,6 @@ const verifyToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // ensure this token was issued for a customer
-    if (!decoded.role || decoded.role !== 'customer') {
-      return res.status(403).json({ success: false, message: 'Forbidden: invalid token role for customer endpoint' });
-    }
     req.user = decoded;
     next();
   } catch (error) {
@@ -52,7 +48,7 @@ router.get('/', async (req, res) => {
 
 // Add a new customer
 router.post('/', async (req, res) => {
-  const { name, phone_number, email_address } = req.body;
+  const { name, phone_number, email_address, address, status } = req.body;
   
   if (!name || !email_address) {
     return res.status(400).json({ error: 'Name and email are required' });
@@ -60,8 +56,9 @@ router.post('/', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'INSERT INTO customer_details (name, phone_number, email_address) VALUES ($1, $2, $3) RETURNING *',
-      [name, phone_number, email_address]
+      `INSERT INTO customer_details (name, phone_number, email_address, address, status, date_joined) 
+       VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING *`,
+      [name, phone_number, email_address, address || null, status || 'active']
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -77,7 +74,7 @@ router.post('/', async (req, res) => {
 // Edit a customer
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, phone_number, email_address } = req.body;
+  const { name, phone_number, email_address, address, status } = req.body;
 
   if (!name || !email_address) {
     return res.status(400).json({ error: 'Name and email are required' });
@@ -85,8 +82,10 @@ router.put('/:id', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'UPDATE customer_details SET name = $1, phone_number = $2, email_address = $3 WHERE customer_id = $4 RETURNING *',
-      [name, phone_number, email_address, id]
+      `UPDATE customer_details 
+       SET name = $1, phone_number = $2, email_address = $3, address = $4, status = $5
+       WHERE customer_id = $6 RETURNING *`,
+      [name, phone_number, email_address, address || null, status || 'active', id]
     );
 
     if (result.rows.length === 0) {

@@ -437,32 +437,23 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       dataToSend.append('sku', form.sku);
       dataToSend.append('name', form.name);
       dataToSend.append('description', form.description);
-      dataToSend.append('quantity', String(form.quantity));
-      dataToSend.append('uom', form.uom);
-      dataToSend.append('unit_price', String(form.unit_price));
+      dataToSend.append('quantity', String(Number(form.quantity))); // Ensure numeric conversion
+      dataToSend.append('unit_price', String(Number(form.unit_price))); // Ensure numeric conversion
       dataToSend.append('category', categoryInput || form.category);
       dataToSend.append('image', image);
-      dataToSend.append('conversion_qty', form.conversion_qty || '');
-      dataToSend.append('expirable', String(form.expirable));
-      dataToSend.append('expiration', form.expiration || '');
-      // If updating, add a flag or rely on backend to know it's an update based on SKU
-      if (selectedExistingProduct) dataToSend.append('isUpdate', 'true'); 
+      // If updating, add a flag
+      if (isEdit) dataToSend.append('isUpdate', 'true'); 
     } else { // No new image, send JSON
       dataToSend = {
-        ...form,
+        sku: form.sku,
+        name: form.name,
+        description: form.description,
         category: categoryInput || form.category,
-        uom: form.uom,
-        conversion_qty: form.conversion_qty || '',
-        expirable: form.expirable,
-        expiration: form.expiration || '',
+        quantity: Number(form.quantity), // Ensure numeric
+        unit_price: Number(form.unit_price), // Ensure numeric
       };
-      // If updating, remove image_data if not changed, backend handles this
-      if (selectedExistingProduct) dataToSend.isUpdate = true;
-    }
-
-    // In the handleSubmit function, before sending dataToSend, ensure expiration is '' if expirable is false
-    if (!form.expirable) {
-      dataToSend.expiration = '';
+      // If updating, add the isUpdate flag
+      if (isEdit) dataToSend.isUpdate = true;
     }
 
     // The onAdd prop (handleAddProduct in Inventory.js) will receive this data.
@@ -474,19 +465,23 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     <div className="modal-overlay">
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <button className="close-btn" onClick={onClose}>&times;</button>
-        <h3 style={{ textAlign: 'center', fontWeight: 700, marginBottom: '1.5rem' }}>
+        <h3 style={{ textAlign: 'center', fontWeight: 700, marginBottom: '1.5rem', fontSize: '1.5rem', color: '#1f2937' }}>
           {isAddStockMode ? 'ADD STOCK' : (selectedExistingProduct || (isEdit && initialData.sku) ? 'EDIT PRODUCT DETAILS' : 'ADD PRODUCT')}
         </h3>
-        <form onSubmit={handleSubmit} className="add-product-form" encType="multipart/form-data" style={{ gap: '0.5rem' }}>
-          <div className="file-input-wrapper">
-            {preview && <img src={preview} alt="Preview" />}
+        <form onSubmit={handleSubmit} className="add-product-form" encType="multipart/form-data">
+          <div className="section-title">Basic Information</div>
+          
+          <div className="file-input-wrapper full-width" style={{ justifyContent: 'center', margin: '0 0 1rem 0' }}>
+            {preview && <img src={preview} alt="Preview" style={{ width: '120px', height: '120px' }} />}
             <input type="file" accept="image/*" onChange={handleImageChange} disabled={isAddStockMode || isEdit} />
           </div>
-          <label style={{ width: '100%' }}>SKU
-            <input name="sku" value={form.sku} onChange={handleChange} required disabled={true} style={{ width: '100%' }} />
+
+          <label>SKU
+            <input name="sku" value={form.sku} onChange={handleChange} required disabled={true} />
           </label>
+
           <div className="product-name-input-container">
-            <label htmlFor="name" style={{ width: '100%' }}>NAME</label>
+            <label htmlFor="name">Product Name</label>
             <input 
               id="name"
               name="name" 
@@ -495,8 +490,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
               required 
               className={errors.name ? 'error' : ''}
               autoComplete="off"
-              style={{ width: '100%' }}
-              disabled={isAddStockMode || isEdit}
+              disabled={isAddStockMode}
             />
             {showProductNameSuggestions && productNameSuggestions.length > 0 && !isAddStockMode && !isEdit && (
               <div className="product-name-suggestions">
@@ -520,16 +514,16 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
             )}
             {errors.name && <span className="error-message">{errors.name}</span>}
           </div>
-          <label style={{ width: '100%' }}>CATEGORY
-            <div className="category-input-container" style={{ width: '100%' }}>
+
+          <label>Category
+            <div className="category-input-container">
               <input 
                 name="category" 
                 value={categoryInput}
                 onChange={handleCategoryChange}
                 className={errors.category ? 'error' : ''}
                 placeholder="Select or type a category"
-                style={{ textAlign: 'left', width: '100%' }}
-                disabled={isAddStockMode || isEdit}
+                disabled={isAddStockMode}
               />
               {showSuggestions && filteredCategories.length > 0 && !isAddStockMode && !isEdit && (
                 <div className="category-suggestions">
@@ -547,8 +541,146 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
             </div>
             {errors.category && <span className="error-message">{errors.category}</span>}
           </label>
-          <div className="expirable-group" style={{ margin: '0.3rem 0 0.7rem 0', width: '100%' }}>
-            <label className="expirable-checkbox-label">
+
+          <label className="full-width">Description
+            <input 
+              name="description" 
+              value={form.description} 
+              onChange={handleChange}
+              className={errors.description ? 'error' : ''}
+              disabled={isAddStockMode}
+            />
+            {errors.description && <span className="error-message">{errors.description}</span>}
+          </label>
+
+          <div className="section-title">Inventory & Pricing</div>
+
+          {isAddStockMode ? (
+            <>
+              <label>Current Stock
+                <input 
+                  type="number" 
+                  value={form.quantity} 
+                  disabled={true}
+                  style={{ background: '#f9fafb' }}
+                />
+              </label>
+              <label>Quantity to Add
+                <input 
+                  name="quantityToAdd" 
+                  type="number" 
+                  value={quantityToAdd} 
+                  onChange={e => setQuantityToAdd(e.target.value)} 
+                  required
+                  className={errors.quantity ? 'error' : ''}
+                  min="1"
+                />
+                {errors.quantity && <span className="error-message">{errors.quantity}</span>}
+              </label>
+            </>
+          ) : (
+            <label>Quantity (Base Unit)
+              <input 
+                name="quantity" 
+                type="number" 
+                value={form.quantity} 
+                onChange={handleChange} 
+                required
+                className={errors.quantity ? 'error' : ''}
+                disabled={isEdit}
+              />
+              {errors.quantity && <span className="error-message">{errors.quantity}</span>}
+            </label>
+          )}
+
+          <label>Unit of Measure
+            <div style={{ minHeight: 40 }}>
+              <Select
+                name="uom"
+                value={UOM_OPTIONS.find(option => option.value === form.uom) || null}
+                onChange={option => {
+                  const newUom = option ? option.value : '';
+                  setForm(prev => ({
+                    ...prev,
+                    uom: newUom,
+                    conversion_qty: UOMS_REQUIRING_CONVERSION.includes(newUom) ? prev.conversion_qty : ''
+                  }));
+                }}
+                options={UOM_OPTIONS}
+                classNamePrefix={errors.uom ? 'error react-select' : 'react-select'}
+                placeholder="Select UoM"
+                isClearable
+                isDisabled={isAddStockMode || isEdit}
+                styles={{
+                  control: (base, state) => ({
+                    ...base,
+                    borderColor: errors.uom ? '#ef4444' : state.isFocused ? '#4361ee' : '#d1d5db',
+                    boxShadow: state.isFocused ? '0 0 0 3px rgba(67, 97, 238, 0.1)' : 'none',
+                    minHeight: 40,
+                    fontSize: '1rem',
+                    background: '#fff',
+                    borderWidth: '1.5px',
+                  }),
+                  menu: base => ({
+                    ...base,
+                    zIndex: 9999,
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 8,
+                  }),
+                  option: (base, state) => ({
+                    ...base,
+                    backgroundColor: state.isSelected
+                      ? '#4361ee'
+                      : state.isFocused
+                      ? '#f0f4ff'
+                      : '#fff',
+                    color: state.isSelected ? '#fff' : '#374151',
+                    fontSize: '1rem',
+                    padding: '10px 16px',
+                  }),
+                }}
+              />
+            </div>
+            {errors.uom && <span className="error-message">{errors.uom}</span>}
+          </label>
+
+          {UOMS_REQUIRING_CONVERSION.includes(form.uom) && (
+            <label className="full-width">Units per UOM
+              <input
+                name="conversion_qty"
+                type="number"
+                min="1"
+                step="1"
+                value={form.conversion_qty}
+                onChange={handleChange}
+                required
+                placeholder={`How many units in one ${form.uom || 'container'}?`}
+                disabled={isAddStockMode || isEdit}
+              />
+              <span className="help-text">1 {form.uom} = {form.conversion_qty || '?'} Pieces</span>
+              {errors.conversion_qty && <span className="error-message">{errors.conversion_qty}</span>}
+            </label>
+          )}
+
+          <label>Unit Price (Per UOM)
+            <input 
+              name="unit_price" 
+              type="number" 
+              step="0.01" 
+              value={form.unit_price} 
+              onChange={handleChange} 
+              required
+              className={errors.unit_price ? 'error' : ''}
+              disabled={isAddStockMode}
+            />
+            {errors.unit_price && <span className="error-message">{errors.unit_price}</span>}
+          </label>
+
+          <div className="section-title">Product Details</div>
+
+          <div className="expirable-group full-width" style={{ margin: '0', flexDirection: 'row', justifyContent: 'flex-start' }}>
+            <label className="expirable-checkbox-label" style={{ marginRight: '1rem' }}>
               <input
                 type="checkbox"
                 id="expirable"
@@ -557,7 +689,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 className="expirable-checkbox"
                 disabled={isAddStockMode || isEdit}
               />
-              <span>Expirable?</span>
+              <span>Expirable Product?</span>
             </label>
             {form.expirable ? (
               <input
@@ -567,167 +699,18 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 onChange={e => setForm(prev => ({ ...prev, expiration: e.target.value }))}
                 className="expirable-date"
                 disabled={isAddStockMode || isEdit}
+                style={{ width: 'auto' }}
               />
             ) : (
-              <span className="dont-expire-badge">DONT EXPIRE</span>
+              <span className="dont-expire-badge" style={{ width: 'auto', padding: '0.5rem 1rem' }}>DOES NOT EXPIRE</span>
             )}
           </div>
-          <label style={{ width: '100%' }}>DESCRIPTION
-            <input 
-              name="description" 
-              value={form.description} 
-              onChange={handleChange}
-              className={errors.description ? 'error' : ''}
-              style={{ width: '100%' }}
-              disabled={isAddStockMode || isEdit}
-            />
-            {errors.description && <span className="error-message">{errors.description}</span>}
-          </label>
-          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
-            {isAddStockMode ? (
-              <>
-                <label style={{ flex: '0 1 48%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>CURRENT STOCK
-                  <input 
-                    type="number" 
-                    value={form.quantity} 
-                    disabled={true}
-                    style={{ height: 40, width: '100%', background: '#f4f4f4' }}
-                  />
-                </label>
-                <label style={{ flex: '0 1 48%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>QUANTITY TO ADD
-                  <input 
-                    name="quantityToAdd" 
-                    type="number" 
-                    value={quantityToAdd} 
-                    onChange={e => setQuantityToAdd(e.target.value)} 
-                    required
-                    className={errors.quantity ? 'error' : ''}
-                    style={{ height: 40, width: '100%' }}
-                    min="1"
-                  />
-                  {errors.quantity && <span className="error-message">{errors.quantity}</span>}
-                </label>
-              </>
-            ) : (
-              <label style={{ flex: '0 1 48%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>QUANTITY (Base Unit)
-                <input 
-                  name="quantity" 
-                  type="number" 
-                  value={form.quantity} 
-                  onChange={handleChange} 
-                  required
-                  className={errors.quantity ? 'error' : ''}
-                  style={{ height: 40, width: '100%' }}
-                  disabled={isEdit}
-                />
-                {errors.quantity && <span className="error-message">{errors.quantity}</span>}
-              </label>
-            )}
-            <label style={{ flex: '0 1 48%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>UOM
-              <div style={{ minHeight: 40, width: '100%' }}>
-                <Select
-                  name="uom"
-                  value={UOM_OPTIONS.find(option => option.value === form.uom) || null}
-                  onChange={option => {
-                    const newUom = option ? option.value : '';
-                    setForm(prev => ({
-                      ...prev,
-                      uom: newUom,
-                      conversion_qty: UOMS_REQUIRING_CONVERSION.includes(newUom) ? prev.conversion_qty : ''
-                    }));
-                  }}
-                  options={UOM_OPTIONS}
-                  classNamePrefix={errors.uom ? 'error react-select' : 'react-select'}
-                  placeholder="Select or search UoM"
-                  isClearable
-                  isDisabled={isAddStockMode || isEdit}
-                  styles={{
-                    control: (base, state) => ({
-                      ...base,
-                      borderColor: errors.uom ? '#d93025' : state.isFocused ? '#4361ee' : '#ddd',
-                      boxShadow: state.isFocused ? '0 0 0 2px #4361ee33' : 'none',
-                      minHeight: 40,
-                      fontSize: 15,
-                      background: '#fff',
-                      zIndex: 2,
-                      width: '100%',
-                    }),
-                    menu: base => ({
-                      ...base,
-                      zIndex: 9999,
-                      boxShadow: '0 8px 24px rgba(67, 97, 238, 0.12), 0 1.5px 4px rgba(0,0,0,0.08)',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: 8,
-                      marginTop: 2,
-                      background: '#fff',
-                    }),
-                    option: (base, state) => ({
-                      ...base,
-                      backgroundColor: state.isSelected
-                        ? '#4361ee'
-                        : state.isFocused
-                        ? '#f0f4ff'
-                        : '#fff',
-                      color: state.isSelected ? '#fff' : '#222',
-                      fontSize: 15,
-                      padding: '10px 16px',
-                      cursor: 'pointer',
-                    }),
-                    singleValue: base => ({
-                      ...base,
-                      color: '#222',
-                      fontWeight: 500,
-                    }),
-                    placeholder: base => ({
-                      ...base,
-                      color: '#b0b0b0',
-                      fontWeight: 400,
-                    }),
-                  }}
-                />
-              </div>
-              {errors.uom && <span className="error-message">{errors.uom}</span>}
-            </label>
-          </div>
-          {UOMS_REQUIRING_CONVERSION.includes(form.uom) && (
-            <div style={{ marginBottom: '0.5rem', width: '100%' }}>
-              <label style={{ width: '100%' }}>UNITS PER UOM
-                <input
-                  name="conversion_qty"
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={form.conversion_qty}
-                  onChange={handleChange}
-                  required
-                  placeholder={`How many units in one ${form.uom || 'container'}?`}
-                  pattern="^[0-9]+$"
-                  inputMode="numeric"
-                  style={{ marginBottom: 4, width: '100%' }}
-                  disabled={isAddStockMode || isEdit}
-                />
-                <span className="help-text">1 {form.uom} = {form.conversion_qty || '?'} Pieces</span>
-                {errors.conversion_qty && <span className="error-message">{errors.conversion_qty}</span>}
-              </label>
-            </div>
-          )}
-          <label style={{ width: '100%' }}>UNIT PRICE (Per UOM)
-            <input 
-              name="unit_price" 
-              type="number" 
-              step="0.01" 
-              value={form.unit_price} 
-              onChange={handleChange} 
-              required
-              className={errors.unit_price ? 'error' : ''}
-              style={{ width: '100%' }}
-              disabled={isAddStockMode || isEdit}
-            />
-            {errors.unit_price && <span className="error-message">{errors.unit_price}</span>}
-          </label>
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-            <button type="submit" className="submit-btn" style={{ flex: 1, background: '#2ecc71', color: '#fff', fontWeight: 600 }}>SAVE</button>
-            <button type="button" className="submit-btn" style={{ flex: 1, background: '#f4f4f4', color: '#222', fontWeight: 600, border: '1px solid #ccc' }} onClick={onClose}>CANCEL</button>
+
+          <div className="button-group">
+            <button type="button" className="submit-btn" onClick={onClose}>Cancel</button>
+            <button type="submit" className="submit-btn" style={{ background: '#4361ee' }}>
+              {isAddStockMode ? 'Add Stock' : 'Save Product'}
+            </button>
           </div>
         </form>
       </div>

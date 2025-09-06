@@ -44,6 +44,12 @@ export default function Inventory() {
   }, [location]);
 
   useEffect(() => {
+    // Ensure products is an array before filtering
+    if (!Array.isArray(products)) {
+      setFilteredProducts([]);
+      return;
+    }
+    
     let filtered = products;
     if (searchTerm.trim() !== "") {
       const term = searchTerm.toLowerCase();
@@ -82,7 +88,9 @@ export default function Inventory() {
     setLoading(true);
     try {
       const res = await api.get('/api/inventory');
-      setProducts(res.data);
+      console.log('API response:', res.data);
+      // Backend returns { success: true, inventory: [...] }
+      setProducts(res.data.inventory || []);
     } catch (err) {
       console.error('Error fetching inventory:', err);
       setError('Failed to load inventory');
@@ -102,7 +110,7 @@ export default function Inventory() {
       try {
         const response = await api.post('/api/inventory/add-stock', {
           sku: formData.sku,
-          quantityToAdd: formData.quantity,
+          quantity: formData.quantity, // Backend expects 'quantity', not 'quantityToAdd'
         });
         if (response.data.success) {
           setShowModal(false);
@@ -128,11 +136,12 @@ export default function Inventory() {
       if (response.data.success) {
         setShowModal(false);
         await fetchProducts();
-        toast.success('Product added successfully!');
+        const successMessage = formData.isUpdate ? 'Product updated successfully!' : 'Product added successfully!';
+        toast.success(successMessage);
       }
     } catch (err) {
-      console.error('Error adding product:', err);
-      const errorMessage = err.response?.data?.message || 'Failed to add product';
+      console.error('Error processing product:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to process product';
       setError(errorMessage);
       toast.error(errorMessage);
     }
@@ -209,7 +218,7 @@ export default function Inventory() {
       <Sidebar />
       <div className="dashboard-main">
         <TopBar
-          lowStockProducts={products.filter(item => Number(item.quantity || 0) < 300)}
+          lowStockProducts={Array.isArray(products) ? products.filter(item => Number(item.quantity || 0) < 300) : []}
           searchValue={searchTerm}
           onSearchChange={e => setSearchTerm(e.target.value)}
         />

@@ -144,42 +144,81 @@ router.post('/add-stock', async (req, res) => {
   }
 });
 
-// POST /api/inventory - Create new inventory item
+// POST /api/inventory - Create new inventory item OR update existing item
 router.post('/', async (req, res) => {
-  const { sku, name, description, category, quantity, unit_price, image_data } = req.body;
+  const { sku, name, description, category, quantity, unit_price, image_data, isUpdate } = req.body;
+  
+  console.log('Inventory POST request:', { sku, isUpdate, name });
   
   try {
     // Check if item already exists
     const existingItem = await pool.query('SELECT sku FROM inventory_items WHERE sku = $1', [sku]);
-    if (existingItem.rows.length > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Item with this SKU already exists' 
+    const itemExists = existingItem.rows.length > 0;
+    
+    if (isUpdate || (itemExists && isUpdate !== false)) {
+      // This is an update operation
+      if (!itemExists) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Item not found for update' 
+        });
+      }
+      
+      // Handle image data if provided
+      let imageBuffer = null;
+      if (image_data) {
+        imageBuffer = Buffer.from(image_data.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
+      }
+      
+      const result = await pool.query(`
+        UPDATE inventory_items 
+        SET name = COALESCE($1, name),
+            description = COALESCE($2, description),
+            category = COALESCE($3, category),
+            unit_price = COALESCE($4, unit_price),
+            image_data = COALESCE($5, image_data),
+            last_updated = NOW()
+        WHERE sku = $6
+        RETURNING sku, name, description, category, quantity, unit_price
+      `, [name, description, category, unit_price, imageBuffer, sku]);
+      
+      return res.json({
+        success: true,
+        message: 'Item updated successfully',
+        product: result.rows[0]
+      });
+    } else {
+      // This is a create operation
+      if (itemExists) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Item with this SKU already exists' 
+        });
+      }
+      
+      // Convert base64 to bytea if image_data is provided
+      let imageBuffer = null;
+      if (image_data) {
+        imageBuffer = Buffer.from(image_data.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
+      }
+      
+      const result = await pool.query(`
+        INSERT INTO inventory_items (sku, name, description, category, quantity, unit_price, image_data, last_updated)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        RETURNING sku, name, description, category, quantity, unit_price
+      `, [sku, name, description, category, quantity || 0, unit_price, imageBuffer]);
+      
+      return res.status(201).json({
+        success: true,
+        message: 'Item created successfully',
+        product: result.rows[0]
       });
     }
-    
-    // Convert base64 to bytea if image_data is provided
-    let imageBuffer = null;
-    if (image_data) {
-      imageBuffer = Buffer.from(image_data.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
-    }
-    
-    const result = await pool.query(`
-      INSERT INTO inventory_items (sku, name, description, category, quantity, unit_price, image_data, last_updated)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      RETURNING sku, name, description, category, quantity, unit_price
-    `, [sku, name, description, category, quantity || 0, unit_price, imageBuffer]);
-    
-    return res.status(201).json({
-      success: true,
-      message: 'Item created successfully',
-      product: result.rows[0]
-    });
   } catch (error) {
-    console.error('Error creating inventory item:', { sku, error: error.message, stack: error.stack });
+    console.error('Error in inventory POST:', { sku, error: error.message, stack: error.stack });
     return res.status(500).json({ 
       success: false, 
-      message: 'Failed to create item' 
+      message: 'Failed to process item' 
     });
   }
 });
