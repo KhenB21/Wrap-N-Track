@@ -98,24 +98,69 @@ function CustomerLogIn() {
     }
 
     try {
-      const response = await api.post('/api/auth/customer/login', {
-        username: formData.username,
-        password: formData.password
-      });
+      // First, try customer login
+      try {
+        const customerResponse = await api.post('/api/auth/customer/login', {
+          username: formData.username,
+          password: formData.password
+        });
 
-      if (response.data.success) {
-        localStorage.setItem('customerToken', response.data.token);
-        localStorage.setItem('customer', JSON.stringify(response.data.customer));
-        // Remove old keys if present
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        navigate('/customer-home');
-      } else {
-        setError(response.data.message || 'Login failed. Please check your credentials.');
+        if (customerResponse.data.success) {
+          localStorage.setItem('customerToken', customerResponse.data.token);
+          localStorage.setItem('customer', JSON.stringify(customerResponse.data.customer));
+          // Remove old keys if present
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          
+          // Reset failed attempts on successful login
+          setFailedAttempts(0);
+          localStorage.setItem("customerFailedAttempts", "0");
+          localStorage.removeItem("customerLockoutTime");
+          
+          navigate('/about');
+          return;
+        }
+      } catch (customerError) {
+        // If customer login fails, try employee login
+        console.log('Customer login failed, trying employee login...');
+        
+        try {
+          const employeeResponse = await api.post('/api/auth/login', {
+            username: formData.username,
+            password: formData.password
+          });
+
+          if (employeeResponse.data.success) {
+            // Store employee credentials
+            localStorage.setItem('token', employeeResponse.data.token);
+            localStorage.setItem('user', JSON.stringify(employeeResponse.data.user));
+            // Remove customer keys if present
+            localStorage.removeItem('customerToken');
+            localStorage.removeItem('customer');
+            
+            // Reset failed attempts on successful login
+            setFailedAttempts(0);
+            localStorage.setItem("customerFailedAttempts", "0");
+            localStorage.removeItem("customerLockoutTime");
+            
+            navigate('/employee-dashboard');
+            return;
+          }
+        } catch (employeeError) {
+          // Both logins failed
+          console.error('Both customer and employee login failed');
+          throw new Error('Invalid username or password');
+        }
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError(error.response?.data?.message || 'An error occurred during login.');
+      
+      // Increment failed attempts
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+      localStorage.setItem("customerFailedAttempts", newAttempts.toString());
+      
+      setError(error.message || error.response?.data?.message || 'An error occurred during login.');
     } finally {
       setLoading(false);
     }
@@ -184,7 +229,7 @@ function CustomerLogIn() {
           <div className="success-content">
             <div className="success-icon">✓</div>
             <h2>Login Successful!</h2>
-            <p>Redirecting to profile...</p>
+            <p>Redirecting...</p>
           </div>
         </div>
       )}
@@ -209,7 +254,10 @@ function CustomerLogIn() {
           </div>
 
           <div className="right-section">
-            <h3>Customer Login</h3>
+            <h3>Login</h3>
+            <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
+              Sign in as a customer or employee
+            </p>
             {error && <div className="error-message">{error}</div>}
             {renderAlert()}
             <form onSubmit={handleSubmit}>

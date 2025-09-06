@@ -33,15 +33,15 @@ export default function TopbarCustomer() {
           }
         });
 
-        if (response.data) {
+        if (response.data && response.data.success) {
           const customerData = {
-            customer_id: response.data.customer_id,
-            name: response.data.name,
-            email: response.data.email_address,
-            username: response.data.username,
-            phone_number: response.data.phone_number,
-            profile_picture_data: response.data.profile_picture_data,
-            profile_picture_path: response.data.profile_picture_path
+            customer_id: response.data.customer.customer_id,
+            name: response.data.customer.name,
+            email: response.data.customer.email,
+            username: response.data.customer.username,
+            phone_number: response.data.customer.phone_number,
+            profile_picture_data: response.data.customer.profile_picture_base64,
+            profile_picture_path: response.data.customer.profile_picture_path
           };
           setCustomer(customerData);
           // Update localStorage with the complete customer data

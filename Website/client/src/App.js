@@ -38,6 +38,7 @@ function App() {
   return (
     <Router>
       <Routes>
+        <Route path="/" element={<CustomerHome />} />
         <Route path="/employee-dashboard" element={<Dashboard />} />
         <Route path="/login-employee-pensee" element={<Login />} />
         <Route path="/product-details" element={<ProductDetails />} />
