@@ -89,6 +89,7 @@ function Dashboard() {
 
         setOrderHistory(Array.isArray(orders) ? orders : []);
         console.debug('Dashboard fetched counts - orders:', (orders || []).length);
+        console.debug('Sample order data:', orders?.[0]); // Debug log to see actual order structure
       } catch (error) {
         console.error('Failed to fetch data:', error);
       }
@@ -255,24 +256,38 @@ function Dashboard() {
           <div className="dashboard-recent-activity">
             <h4>Recent Activity</h4>
             <div className="recent-activity-list">
-              {orderHistory.slice(0, 5).map((order) => (
-                <div key={order.order_id} className="recent-activity-item">
+              {orderHistory.slice(0, 5).map((order, index) => (
+                <div key={order.order_id || index} className="recent-activity-item">
                   <img
                     className="activity-avatar"
-                    src={order.archived_by_profile_picture ? `data:image/jpeg;base64,${order.archived_by_profile_picture}` : "/placeholder-profile.png"}
+                    src={order.archived_by_profile_picture 
+                      ? `data:image/jpeg;base64,${order.archived_by_profile_picture}` 
+                      : "/placeholder-profile.svg"
+                    }
                     alt={order.archived_by_name || "User"}
+                    onError={(e) => {
+                      e.target.src = "/placeholder-profile.svg";
+                    }}
                   />
                   <div>
                     <div>
-                      <b>{order.archived_by_name}</b> placed an order:{" "}
+                      <b>{order.archived_by_name || "Unknown User"}</b> placed an order:{" "}
                       <span className="activity-link">#{order.order_id}</span>
                     </div>
                     <div className="activity-time">
-                      {new Date(order.archived_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {order.archived_at 
+                        ? new Date(order.archived_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : "Unknown time"
+                      }
                     </div>
                   </div>
                 </div>
               ))}
+              {orderHistory.length === 0 && !loading && (
+                <div className="recent-activity-item">
+                  <div>No recent activity found</div>
+                </div>
+              )}
             </div>
           </div>
         </div>

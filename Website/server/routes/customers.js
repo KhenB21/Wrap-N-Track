@@ -56,9 +56,9 @@ router.post('/', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO customer_details (name, phone_number, email_address, address, status, date_joined) 
-       VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING *`,
-      [name, phone_number, email_address, address || null, status || 'active']
+      `INSERT INTO customer_details (name, phone_number, email_address, address) 
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [name, phone_number, email_address, address || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -83,9 +83,9 @@ router.put('/:id', async (req, res) => {
   try {
     const result = await pool.query(
       `UPDATE customer_details 
-       SET name = $1, phone_number = $2, email_address = $3, address = $4, status = $5
-       WHERE customer_id = $6 RETURNING *`,
-      [name, phone_number, email_address, address || null, status || 'active', id]
+       SET name = $1, phone_number = $2, email_address = $3, address = $4
+       WHERE customer_id = $5 RETURNING *`,
+      [name, phone_number, email_address, address || null, id]
     );
 
     if (result.rows.length === 0) {
@@ -128,7 +128,7 @@ router.get('/email/:email', async (req, res) => {
     console.log('Fetching customer details for email:', email);
     
     const result = await pool.query(
-      'SELECT customer_id, name, email_address, phone_number, address FROM customer_details WHERE email_address = $1',
+      'SELECT customer_id, name, email_address, phone_number, address, company, notes, status FROM customer_details WHERE email_address = $1',
       [email]
     );
 
