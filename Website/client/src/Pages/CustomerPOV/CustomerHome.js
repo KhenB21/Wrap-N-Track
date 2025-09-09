@@ -1,10 +1,12 @@
 import React from 'react';
 import TopbarCustomer from '../../Components/TopbarCustomer';
+import EmployeeStatusBanner from '../../Components/EmployeeStatusBanner';
 import './CustomerPOV.css';
 
 export default function CustomerHome() {
   return (
     <div className="customerhome-container pensee-home">
+      <EmployeeStatusBanner />
       <TopbarCustomer />
       {/* Hero Section with Overlay */}
       <section className="pensee-hero-image-section">

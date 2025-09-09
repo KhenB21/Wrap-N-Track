@@ -75,7 +75,7 @@ function ResetPassword() {
       setMessage("Password reset successful! Redirecting...");
       localStorage.removeItem("reset_email");
       localStorage.removeItem("reset_code");
-      setTimeout(() => navigate("/login"), 2000);
+  setTimeout(() => navigate("/login-employee-pensee"), 2000);
     } catch (err) {
       setError(err.response?.data?.message || "Something went wrong.");
     } finally {

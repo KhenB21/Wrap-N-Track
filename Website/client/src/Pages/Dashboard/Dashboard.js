@@ -35,7 +35,7 @@ function Dashboard() {
     const userData = localStorage.getItem("user");
 
     if (!token || !userData) {
-      navigate("/login");
+      navigate("/login-employee-pensee");
       return;
     }
 
