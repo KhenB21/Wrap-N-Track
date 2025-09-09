@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import api from '../../api';
 import "./CustomerLogIn.css";
 import TopbarCustomer from "../../Components/TopbarCustomer";
-import { useAuth } from "../../Context/AuthContext";
 
 function CustomerLogIn() {
   const [formData, setFormData] = useState({
@@ -12,85 +11,68 @@ function CustomerLogIn() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
-  const { login, user, isAuthenticated } = useAuth();
+
+  const [failedAttempts, setFailedAttempts] = useState(
+    Number(localStorage.getItem("customerFailedAttempts")) || 0
+  );
+  const [lockoutTime, setLockoutTime] = useState(
+    Number(localStorage.getItem("customerLockoutTime")) || null
+  );
+  const [isLockedOut, setIsLockedOut] = useState(false);
+  const [lockoutCountdown, setLockoutCountdown] = useState(0);
+
+  const [resending, setResending] = useState(false);
+
   const navigate = useNavigate();
 
-  // Only redirect customers if already authenticated
-  // Employees who come to customer login page want to stay on customer site
+  const MAX_ATTEMPTS = 5;
+
   useEffect(() => {
-    if (isAuthenticated && user && user.source === 'customer') {
-      navigate('/about');
+    if (failedAttempts >= MAX_ATTEMPTS) {
+      const lockTime = Date.now() + 60000; // 1 minute
+      setLockoutTime(lockTime);
+      setIsLockedOut(true);
+      localStorage.setItem("customerLockoutTime", lockTime);
+      localStorage.setItem("customerFailedAttempts", failedAttempts);
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [failedAttempts]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  useEffect(() => {
+    if (lockoutTime) {
+      const interval = setInterval(() => {
+        const timeLeft = Math.max(
+          0,
+          Math.ceil((lockoutTime - Date.now()) / 1000)
+        );
+        setLockoutCountdown(timeLeft);
 
-    try {
-      // First, try customer login
-      let response;
-      let loginSuccess = false;
-      let userType = '';
-
-      console.log('🔐 Attempting customer login...');
-      try {
-        response = await api.post('/api/auth/customer/login', {
-          username: formData.username,
-          password: formData.password
-        });
-
-        if (response.data.success) {
-          login(response.data.customer, response.data.token, 'customer');
-          userType = 'customer';
-          loginSuccess = true;
-          console.log('✅ Customer login successful');
+        if (timeLeft <= 0) {
+          setIsLockedOut(false);
+          setFailedAttempts(0);
+          setLockoutTime(null);
+          localStorage.removeItem("customerLockoutTime");
+          localStorage.setItem("customerFailedAttempts", "0");
+          clearInterval(interval);
         }
-      } catch (customerError) {
-        console.log('❌ Customer login failed, trying employee login...');
-        
-        // If customer login fails, try employee login
-        try {
-          response = await api.post('/api/auth/login', {
-            username: formData.username,
-            password: formData.password
-          });
+      }, 1000);
 
-          if (response.data.success) {
-            login(response.data.user, response.data.token, 'employee');
-            userType = 'employee';
-            loginSuccess = true;
-            console.log('✅ Employee login successful');
-          }
-        } catch (employeeError) {
-          console.log('❌ Both login attempts failed');
-          // Both failed, show error
-          throw new Error('Invalid username or password');
-        }
-      }
-
-      if (loginSuccess) {
-        if (userType === 'employee') {
-          setSuccessMessage('Welcome! You are logged in as an employee. Redirecting to customer website...');
-          setTimeout(() => {
-            navigate('/about');
-          }, 2000);
-        } else {
-          setSuccessMessage('Welcome! Redirecting...');
-          setTimeout(() => {
-            navigate('/about');
-          }, 1500);
-        }
-      }
-    } catch (err) {
-      setError(err.message || 'An error occurred during login.');
-    } finally {
-      setLoading(false);
+      return () => clearInterval(interval);
     }
-  };
+  }, [lockoutTime]);
+
+  useEffect(() => {
+    // If already logged in, redirect to customer details
+    const token = localStorage.getItem('customerToken');
+    const customer = localStorage.getItem('customer');
+    if (token && customer) {
+      navigate('/customer-user-details');
+    }
+  }, [navigate]);
+
+  // Log the resolved base API URL (for debugging only)
+  console.log('Login component using API instance base URL');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -99,7 +81,140 @@ function CustomerLogIn() {
       [name]: value,
     }));
     setError("");
-    setSuccessMessage("");
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    // If already logged in, redirect to customer details
+    const token = localStorage.getItem('customerToken');
+    const customer = localStorage.getItem('customer');
+    if (token && customer) {
+      navigate('/customer-user-details');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // First, try customer login
+      try {
+        const customerResponse = await api.post('/api/auth/customer/login', {
+          username: formData.username,
+          password: formData.password
+        });
+
+        if (customerResponse.data.success) {
+          localStorage.setItem('customerToken', customerResponse.data.token);
+          localStorage.setItem('customer', JSON.stringify(customerResponse.data.customer));
+          // Remove old keys if present
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          
+          // Reset failed attempts on successful login
+          setFailedAttempts(0);
+          localStorage.setItem("customerFailedAttempts", "0");
+          localStorage.removeItem("customerLockoutTime");
+          
+          navigate('/about');
+          return;
+        }
+      } catch (customerError) {
+        // If customer login fails, try employee login
+        console.log('Customer login failed, trying employee login...');
+        
+        try {
+          const employeeResponse = await api.post('/api/auth/login', {
+            username: formData.username,
+            password: formData.password
+          });
+
+          if (employeeResponse.data.success) {
+            // Store employee credentials
+            localStorage.setItem('token', employeeResponse.data.token);
+            localStorage.setItem('user', JSON.stringify(employeeResponse.data.user));
+            // Remove customer keys if present
+            localStorage.removeItem('customerToken');
+            localStorage.removeItem('customer');
+            
+            // Reset failed attempts on successful login
+            setFailedAttempts(0);
+            localStorage.setItem("customerFailedAttempts", "0");
+            localStorage.removeItem("customerLockoutTime");
+            
+            navigate('/employee-dashboard');
+            return;
+          }
+        } catch (employeeError) {
+          // Both logins failed
+          console.error('Both customer and employee login failed');
+          throw new Error('Invalid username or password');
+        }
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      
+      // Increment failed attempts
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+      localStorage.setItem("customerFailedAttempts", newAttempts.toString());
+      
+      setError(error.message || error.response?.data?.message || 'An error occurred during login.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    try {
+      setResending(true);
+      // First get the user's email using their username
+      const username = localStorage.getItem("pendingVerificationUsername");
+      const userResponse = await api.get(`/api/auth/customer/get-email/${username}`);
+      
+      if (!userResponse.data.email) {
+        throw new Error("Could not find user's email");
+      }
+
+      // Now send the verification code
+      const response = await api.post('/api/auth/customer/resend-code', {
+        email: userResponse.data.email
+      });
+
+      if (response.data.success) {
+        setError("New verification code sent successfully. Please check your email.");
+        // Store email for verification page
+        localStorage.setItem("verificationEmail", userResponse.data.email);
+        // Clear the temporary username
+        localStorage.removeItem("pendingVerificationUsername");
+        // Redirect to verification page
+        navigate("/customer/verify");
+      }
+    } catch (error) {
+      setError("Failed to resend verification code. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const renderAlert = () => {
+    if (isLockedOut) {
+      return (
+        <div className="alert-message lockout">
+          Too many failed attempts. Please wait {lockoutCountdown} second
+          {lockoutCountdown !== 1 ? "s" : ""} before trying again.
+        </div>
+      );
+    } else if (failedAttempts > 0) {
+      const remaining = MAX_ATTEMPTS - failedAttempts;
+      return (
+        <div className="alert-message warning">
+          {remaining} login attempt{remaining !== 1 ? "s" : ""} remaining.
+        </div>
+      );
+    }
+    return null;
   };
 
   const togglePasswordVisibility = () => {
@@ -109,34 +224,42 @@ function CustomerLogIn() {
   return (
     <div className="customer-login-container">
       <TopbarCustomer />
+      {showSuccess && (
+        <div className="success-overlay">
+          <div className="success-content">
+            <div className="success-icon">✓</div>
+            <h2>Login Successful!</h2>
+            <p>Redirecting...</p>
+          </div>
+        </div>
+      )}
+
       <div className="background-image" />
+
       <div className="customer-login-content-wrapper">
         <div className="content-wrapper">
           <div className="left-section">
+            {/* <div className="topbar-customer-logo-block">
+              <img
+                src="/Assets/Images/PenseeLogos/pensee-logo-with-name-vertical.png"
+                alt="Pensee Logo Vertical"
+                className="topbar-customer-logo"
+              />
+            </div> */}
             <img
               src="/Assets/Images/PenseeLogos/pensee-name-only.png"
               alt="Logo"
               className="brand-logo"
             />
           </div>
+
           <div className="right-section">
             <h3>Login</h3>
             <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
-              Sign in with your customer or employee account
+              Sign in as a customer or employee
             </p>
             {error && <div className="error-message">{error}</div>}
-            {successMessage && (
-              <div style={{
-                backgroundColor: '#d4edda',
-                color: '#155724',
-                padding: '10px',
-                borderRadius: '4px',
-                marginBottom: '15px',
-                border: '1px solid #c3e6cb'
-              }}>
-                {successMessage}
-              </div>
-            )}
+            {renderAlert()}
             <form onSubmit={handleSubmit}>
               <div className="input-container">
                 <label htmlFor="username">Username:</label>
@@ -148,7 +271,7 @@ function CustomerLogIn() {
                   onChange={handleChange}
                   placeholder="Enter your username"
                   required
-                  disabled={loading}
+                  disabled={loading || isLockedOut}
                 />
               </div>
               <div className="input-container password-container">
@@ -162,13 +285,13 @@ function CustomerLogIn() {
                     onChange={handleChange}
                     placeholder="Enter your password"
                     required
-                    disabled={loading}
+                    disabled={loading || isLockedOut}
                   />
                   <button
                     type="button"
                     className="password-toggle"
                     onClick={togglePasswordVisibility}
-                    disabled={loading}
+                    disabled={loading || isLockedOut}
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? (
@@ -202,7 +325,7 @@ function CustomerLogIn() {
               <button
                 type="submit"
                 className="login-button"
-                disabled={loading}
+                disabled={loading || isLockedOut}
               >
                 {loading ? "Logging in..." : "Login"}
               </button>

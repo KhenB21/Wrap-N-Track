@@ -33,11 +33,9 @@ import CustomerLogIn from "./Pages/CustomerPOV/CustomerLogIn";
 import CustomerUserDetails from "./Pages/CustomerPOV/CustomerUserDetails";
 import CustomerVerify from "./Pages/CustomerPOV/CustomerVerify";
 import Forbidden403 from "./Pages/Forbidden403";
-import { AuthProvider } from "./Context/AuthContext";
 
 function App() {
   return (
-    <AuthProvider>
     <Router>
       <Routes>
         <Route path="/" element={<CustomerHome />} />
@@ -80,7 +78,6 @@ function App() {
 
       </Routes>
     </Router>
-    </AuthProvider>
   );
 }
 

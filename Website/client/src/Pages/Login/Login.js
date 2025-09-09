@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../Context/AuthContext";
+// Unified axios instance
 import api from '../../api';
 import "./Login.css";
 
@@ -13,54 +13,167 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { login, user, isAuthenticated } = useAuth();
+
+  const [failedAttempts, setFailedAttempts] = useState(
+    Number(localStorage.getItem("failedAttempts")) || 0
+  );
+  const [lockoutTime, setLockoutTime] = useState(
+    Number(localStorage.getItem("lockoutTime")) || null
+  );
+  const [isLockedOut, setIsLockedOut] = useState(false);
+  const [lockoutCountdown, setLockoutCountdown] = useState(0);
+  const [userRole, setUserRole] = useState(
+    localStorage.getItem("userRole") || ""
+  );
+
   const navigate = useNavigate();
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      if (user.source === 'employee') {
-        // Employee is already logged in, redirect to dashboard
-        navigate('/employee-dashboard');
-      } else if (user.source === 'customer') {
-        // Customer is logged in, redirect to customer area
-        navigate('/about');
-      }
-    }
-  }, [isAuthenticated, user, navigate]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await api.post('/api/auth/login', {
-        username: formData.username,
-        password: formData.password
-      });
-
-      if (response.data.success) {
-        login(response.data.user, response.data.token, 'employee');
-        setShowSuccess(true);
-        setTimeout(() => {
-          navigate("/employee-dashboard");
-        }, 1500);
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || "Login failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+  const getMaxAttempts = () => {
+    return userRole === "customer" ? 5 : 3;
   };
-  
-    const handleChange = (e) => {
+
+  useEffect(() => {
+    if (failedAttempts >= getMaxAttempts()) {
+      const lockTime = Date.now() + 1//60000; // 1 minute
+      setLockoutTime(lockTime);
+      setIsLockedOut(true);
+      localStorage.setItem("lockoutTime", lockTime);
+      localStorage.setItem("failedAttempts", failedAttempts);
+    }
+  }, [failedAttempts]);
+
+  useEffect(() => {
+    if (lockoutTime) {
+      const interval = setInterval(() => {
+        const timeLeft = Math.max(
+          0,
+          Math.ceil((lockoutTime - Date.now()) / 1000)
+        );
+        setLockoutCountdown(timeLeft);
+
+        if (timeLeft <= 0) {
+          setIsLockedOut(false);
+          setFailedAttempts(0);
+          setLockoutTime(null);
+          localStorage.removeItem("lockoutTime");
+          localStorage.setItem("failedAttempts", "0");
+          localStorage.removeItem("userRole");
+          clearInterval(interval);
+        }
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [lockoutTime]);
+
+  // Log the API URL being used
+  console.log('Login component ready');
+
+
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
     setError("");
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (isLockedOut) {
+      setError("Too many failed attempts. Please wait 1 minute.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+  const response = await api.post('/api/auth/login', {
+        username: formData.username,
+        password: formData.password
+      });
+
+
+      console.log('Login response:', response.data);
+
+      if (response.data.success) {
+
+        // Clear lockout data
+        setFailedAttempts(0);
+        localStorage.setItem("failedAttempts", "0");
+        localStorage.removeItem("lockoutTime");
+        localStorage.removeItem("userRole");
+
+        // Store session data
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+
+        // Show success and redirect
+
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+
+        setShowSuccess(true);
+        setTimeout(() => {
+          navigate("/employee-dashboard"); // match simpler component's behavior
+        }, 1500);
+      }
+    } catch (err) {
+
+      const role = err.response?.data?.role;
+      if (role) {
+        setUserRole(role);
+        localStorage.setItem("userRole", role);
+      }
+
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+      localStorage.setItem("failedAttempts", newAttempts.toString());
+
+      setError(
+        err.response?.data?.message || "Login failed. Please try again."
+      );
+
+      console.error('Login error:', err);
+      if (err.response) {
+        console.error('Error response:', err.response.data);
+        setError(err.response.data.message || "Login failed. Please try again.");
+      } else if (err.request) {
+        console.error('No response received:', err.request);
+        setError("No response from server. Please check your connection.");
+      } else {
+        console.error('Error setting up request:', err.message);
+        setError("An error occurred. Please try again.");
+      }
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderAlert = () => {
+    const maxAttempts = getMaxAttempts();
+
+    if (isLockedOut) {
+      return (
+        <div className="alert-message lockout">
+          Too many failed attempts. Please wait {lockoutCountdown} second
+          {lockoutCountdown !== 1 ? "s" : ""} before trying again.
+        </div>
+      );
+    } else if (failedAttempts > 0) {
+      const remaining = maxAttempts - failedAttempts;
+      return (
+        <div className="alert-message warning">
+          {remaining} login attempt{remaining !== 1 ? "s" : ""} remaining.
+        </div>
+      );
+    }
+    return null;
   };
 
   const togglePasswordVisibility = () => {
@@ -94,6 +207,7 @@ function LoginPage() {
         <div className="right-section">
           <h3>Login</h3>
           {error && <div className="error-message">{error}</div>}
+          {renderAlert()}
           <form onSubmit={handleSubmit}>
             <div className="input-container">
               <label htmlFor="username">Username:</label>
@@ -105,7 +219,7 @@ function LoginPage() {
                 onChange={handleChange}
                 placeholder="Enter your username"
                 required
-                disabled={loading}
+                disabled={loading || isLockedOut}
               />
             </div>
             <div className="input-container password-container">
@@ -119,13 +233,13 @@ function LoginPage() {
                   onChange={handleChange}
                   placeholder="Enter your password"
                   required
-                  disabled={loading}
+                  disabled={loading || isLockedOut}
                 />
                 <button
                   type="button"
                   className="password-toggle"
                   onClick={togglePasswordVisibility}
-                  disabled={loading}
+                  disabled={loading || isLockedOut}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -159,7 +273,7 @@ function LoginPage() {
             <button
               type="submit"
               className="login-button"
-              disabled={loading}
+              disabled={loading || isLockedOut}
             >
               {loading ? "Logging in..." : "Login"}
             </button>

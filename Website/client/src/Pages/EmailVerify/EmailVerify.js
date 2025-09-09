@@ -20,7 +20,7 @@ function EmailVerify() {
       setEmail(storedUser.email);
     } else {
       // If no user info, redirect to login/register
-  navigate("/login-employee-pensee");
+      navigate("/login");
     }
   }, [navigate]);
 
@@ -37,7 +37,7 @@ function EmailVerify() {
 
 
       setMessage(res.data.message || "Email successfully verified.");
-  setTimeout(() => navigate("/login-employee-pensee"), 2000);
+      setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
       setError(err.response?.data?.message || "Verification failed.");
     } finally {

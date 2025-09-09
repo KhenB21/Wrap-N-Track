@@ -1,18 +1,45 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Sidebar.css"; // We'll create this next
-import { useAuth } from "../../Context/AuthContext";
 
 const Sidebar = () => {
   const [reportsOpen, setReportsOpen] = useState(false);
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    logout();
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Optionally clear all localStorage:
+    // localStorage.clear();
     navigate('/login-employee-pensee');
   };
 
+  const getProfilePictureUrl = () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) return "/placeholder-profile.png";
+    
+    // If we have base64 data, use that
+    if (user.profile_picture_data) {
+      return `data:image/jpeg;base64,${user.profile_picture_data}`;
+    }
+    
+    // If we have a path, use that
+    if (user.profile_picture_path) {
+      if (user.profile_picture_path.startsWith("http")) return user.profile_picture_path;
+  return `${user.profile_picture_path}`;
+    }
+    
+    return "/placeholder-profile.png";
+  };
+
+  // Get user role from localStorage
+  const getUserRole = () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    return user ? user.role : null;
+  };
+
+  const user = JSON.parse(localStorage.getItem('user'));
   const role = user ? user.role : null;
 
   // Define permissions for each role

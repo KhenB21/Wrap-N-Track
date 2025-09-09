@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import Notifications from "./Notifications/Notifications";
 import "./TopBar.css";
 import api from '../api'; // Unified axios instance
-import { useAuth } from "../Context/AuthContext";
 
 export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowStockProducts, searchValue = "", onSearchChange = () => {} }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -13,7 +12,6 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
   const dropdownRef = useRef();
   const navigate = useNavigate();
   const [lowStockNotifications, setLowStockNotifications] = useState([]);
-  const { user, logout } = useAuth();
 
   // If lowStockProducts is provided as a prop, use it for notifications
   useEffect(() => {
@@ -41,8 +39,9 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
   };
 
   const handleLogout = () => {
-    logout();
-    navigate('/login-employee-pensee');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
     setDropdownOpen(false);
   };
 
@@ -96,6 +95,7 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
   }, [lowStockProducts]);
 
   const getProfilePictureUrl = () => {
+    const user = JSON.parse(localStorage.getItem('user'));
     if (!user) return "/placeholder-profile.png";
     
     // If we have base64 data, use that
