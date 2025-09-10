@@ -235,7 +235,9 @@ app.use(express.json());
 
 // Routes
 app.use('/api/customers', customersRouter);
-app.use('/api/customers', otpRouter);
+// OTP routes: new canonical path /api/otp plus legacy /api/customers for backward compatibility
+app.use('/api/otp', otpRouter);            // new preferred mount
+app.use('/api/customers', otpRouter);      // legacy alias (remove after frontend fully migrated)
 app.use('/api/suppliers', suppliersRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/supplier-orders', supplierOrdersRouter);

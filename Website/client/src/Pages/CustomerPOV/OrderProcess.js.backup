@@ -156,7 +156,6 @@ export default function OrderProcess() {
   const [selectedFaceAndBody, setSelectedFaceAndBody] = useState([]);
   const [selectedClothing, setSelectedClothing] = useState([]);
   const [selectedCustomization, setSelectedCustomization] = useState([]);
-  const [selectedOthers, setSelectedOthers] = useState([]);
   const [customProducts, setCustomProducts] = useState({
     packaging: false,
     beverages: false,
@@ -165,8 +164,7 @@ export default function OrderProcess() {
     homeDecor: false,
     faceAndBody: false,
     clothing: false,
-    customization: false,
-    others: false
+    customization: false
   });
   const [customProductDetails, setCustomProductDetails] = useState({
     packaging: { name: 'Own Product', description: 'Packaging', image: null },
@@ -176,8 +174,7 @@ export default function OrderProcess() {
     homeDecor: { name: 'Own Product', description: 'Home Decor', image: null },
     faceAndBody: { name: 'Own Product', description: 'Face and Body', image: null },
     clothing: { name: 'Own Product', description: 'Clothing and Accessories', image: null },
-    customization: { name: 'Own Product', description: 'Custom Addition', image: null },
-    others: { name: 'Own Product', description: 'Others', image: null }
+    customization: { name: 'Own Product', description: 'Custom Addition', image: null }
   });
   const [selectedStyle, setSelectedStyle] = useState('');
   const [loading, setLoading] = useState(false);
@@ -201,23 +198,18 @@ export default function OrderProcess() {
     homeDecor: [],
     faceAndBody: [],
     clothing: [],
-    customization: [],
-    others: []
+    customization: []
   });
   const [showProductSelection, setShowProductSelection] = useState(false);
-  const [selectedInventoryProducts, setSelectedInventoryProducts] = useState(() => {
-    const saved = localStorage.getItem('selectedInventoryProducts');
-    return saved ? JSON.parse(saved) : {
-      packaging: [],
-      beverages: [],
-      food: [],
-      kitchenware: [],
-      homeDecor: [],
-      faceAndBody: [],
-      clothing: [],
-      customization: [],
-      others: []
-    };
+  const [selectedInventoryProducts, setSelectedInventoryProducts] = useState({
+    packaging: [],
+    beverages: [],
+    food: [],
+    kitchenware: [],
+    homeDecor: [],
+    faceAndBody: [],
+    clothing: [],
+    customization: []
   });
 
   // Fetch inventory products
@@ -226,13 +218,9 @@ export default function OrderProcess() {
       try {
         console.log('Fetching inventory products...');
         const response = await api.get('/api/inventory');
-        console.log('Full API response:', response.data);
-        
-        // The API returns { success: true, inventory: [products...] }
-        const products = response.data.inventory || response.data;
-        console.log('Extracted products:', products);
+        const products = response.data;
+        console.log('Inventory API response:', products);
         console.log('Number of products fetched:', products?.length || 0);
-        
         setInventoryProducts(products);
         console.log('Inventory products set in state');
       } catch (error) {
@@ -242,11 +230,6 @@ export default function OrderProcess() {
 
     fetchInventoryProducts();
   }, []);
-
-  // Save selectedInventoryProducts to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('selectedInventoryProducts', JSON.stringify(selectedInventoryProducts));
-  }, [selectedInventoryProducts]);
 
   // Map inventory categories to UI categories
   const mapInventoryCategory = (category) => {
@@ -343,21 +326,21 @@ export default function OrderProcess() {
       'art supplies': 'packaging',
       'school supplies': 'packaging',
       
-      // Electronics and other categories - map to others
-      'electronics': 'others',
-      'toys & games': 'others',
-      'sports & outdoors': 'others',
-      'automotive': 'others',
-      'pet supplies': 'others',
-      'pet food': 'others',
-      'pet accessories': 'others',
-      'gaming consoles': 'others',
-      'books': 'others',
-      'music': 'others',
-      'movies & tv': 'others',
-      'others': 'others'
+      // Other categories - map to customization
+      'electronics': 'customization',
+      'toys & games': 'customization',
+      'sports & outdoors': 'customization',
+      'automotive': 'customization',
+      'pet supplies': 'customization',
+      'pet food': 'customization',
+      'pet accessories': 'customization',
+      'gaming consoles': 'customization',
+      'books': 'customization',
+      'music': 'customization',
+      'movies & tv': 'customization',
+      'others': 'customization'
     };
-    const mapped = categoryMap[category?.toLowerCase()] || 'others';
+    const mapped = categoryMap[category?.toLowerCase()] || 'customization';
     console.log(`Category mapping: "${category}" -> "${mapped}"`);
     return mapped;
   };
@@ -365,8 +348,8 @@ export default function OrderProcess() {
   // Get current available products for each category
   const getAvailableProductsForCategory = (category) => {
     const selected = selectedInventoryProducts[category] || [];
-    return selected.map(productSku => {
-      const product = inventoryProducts.find(p => p.sku === productSku);
+    return selected.map(productId => {
+      const product = inventoryProducts.find(p => p.id === productId);
       if (product) {
         return {
           id: product.id,
@@ -381,33 +364,15 @@ export default function OrderProcess() {
     }).filter(Boolean);
   };
 
-  // Function to clear selected inventory products
-  const clearSelectedInventoryProducts = () => {
-    const emptyState = {
-      packaging: [],
-      beverages: [],
-      food: [],
-      kitchenware: [],
-      homeDecor: [],
-      faceAndBody: [],
-      clothing: [],
-      customization: [],
-      others: []
-    };
-    setSelectedInventoryProducts(emptyState);
-    localStorage.setItem('selectedInventoryProducts', JSON.stringify(emptyState));
-  };
-
   // Dynamic product arrays based on employee-selected inventory
-  const packagingOptions = getAvailableProductsForCategory('packaging') || [];
-  const contentBeverageOptions = getAvailableProductsForCategory('beverages') || [];
-  const contentFoodOptions = getAvailableProductsForCategory('food') || [];
-  const contentKitchenwareOptions = getAvailableProductsForCategory('kitchenware') || [];
-  const contentHomeDecorOptions = getAvailableProductsForCategory('homeDecor') || [];
-  const contentFaceAndBodyOptions = getAvailableProductsForCategory('faceAndBody') || [];
-  const contentClothingAndAccessoriesOptions = getAvailableProductsForCategory('clothing') || [];
-  const customizationOptions = getAvailableProductsForCategory('customization') || [];
-  const othersOptions = getAvailableProductsForCategory('others') || [];
+  const packagingOptions = getAvailableProductsForCategory('packaging');
+  const contentBeverageOptions = getAvailableProductsForCategory('beverages');
+  const contentFoodOptions = getAvailableProductsForCategory('food');
+  const contentKitchenwareOptions = getAvailableProductsForCategory('kitchenware');
+  const contentHomeDecorOptions = getAvailableProductsForCategory('homeDecor');
+  const contentFaceAndBodyOptions = getAvailableProductsForCategory('faceAndBody');
+  const contentClothingAndAccessoriesOptions = getAvailableProductsForCategory('clothing');
+  const customizationOptions = getAvailableProductsForCategory('customization');
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -497,16 +462,6 @@ export default function OrderProcess() {
     });
   };
 
-  const handleOthersSelect = (option) => {
-    setSelectedOthers(prev => {
-      if (prev.includes(option.name)) {
-        return prev.filter(name => name !== option.name);
-      } else {
-        return [...prev, option.name];
-      }
-    });
-  };
-
   const handleStepClick = (stepNumber) => {
     setCurrentStep(stepNumber);
   };
@@ -536,7 +491,7 @@ export default function OrderProcess() {
         "Blanc Box": "BC2350932997462", "Signature Box": "BC8201847934939", "Premium Box": "BC3344504438612",
         "Local Coffee": "BC2694066629240", "Loose-leaf Tea": "BC132199117773", "Beer": "BC6208869646455",
         "Mini Wine": "BC6757578736643", "Mini Whiskey": "BC3887477589362", "Full-sized Wine": "BC1321769559491",
-        "Full-sized Spirits/Liquor": "BC7247486312457", "Tablea de Cacao": "BC3186447262236", "Tablea": "BC3186447262236",
+        "Full-sized Spirits/Liquor": "BC7247486312457", "Tablea de Cacao": "BC3186447262236",
         "Sweet Pastries & Cookies": "BC6504520384101", "French Macarons": "BC2963086375030",
         "Artisanal Chocolate bar": "BC352716219829", "Custom Sugar Cookies": "BC8241518941445",
         "Organic Raw Honey": "BC8767512856380", "Infused Salt": "BC2160387016651", "Super Seeds & Nuts": "BC5968201169394",
@@ -579,14 +534,7 @@ export default function OrderProcess() {
         const selectedStyleProducts = getStyleProducts(formData.style);
         if (selectedStyleProducts && selectedStyleProducts.length > 0) {
           productsForOrder = selectedStyleProducts.map(styleItem => {
-            // For inventory products, use the SKU directly from the database
-            let sku = styleItem.sku;
-            
-            // Only fall back to hardcoded mapping if no SKU is available
-            if (!sku) {
-              sku = productNameToSku[styleItem.name] || `INV_${styleItem.id}`;
-            }
-            
+            const sku = productNameToSku[styleItem.name] || styleItem.sku || `INV_${styleItem.id}`;
             if (!sku) {
               console.warn(`SKU not found for item '${styleItem.name}' in style '${formData.style}'. Item will be skipped.`);
               return null;
@@ -600,14 +548,7 @@ export default function OrderProcess() {
         } else {
           console.warn(`Style '${formData.style}' selected but no items found or style data is invalid. Falling back to handpicked items if any.`);
           productsForOrder = getAllSelectedItems().map(item => {
-            // For inventory products, use the SKU directly from the database
-            let sku = item.sku;
-            
-            // Only fall back to hardcoded mapping if no SKU is available
-            if (!sku) {
-              sku = productNameToSku[item.name];
-            }
-            
+            const sku = productNameToSku[item.name];
             if (!sku) {
               alert(`Product '${item.name}' (handpicked fallback) does not have a matching SKU and will not be included.`);
               return null;
@@ -617,14 +558,7 @@ export default function OrderProcess() {
         }
       } else { 
         productsForOrder = getAllSelectedItems().map(item => {
-          // For inventory products, use the SKU directly from the database
-          let sku = item.sku;
-          
-          // Only fall back to hardcoded mapping if no SKU is available
-          if (!sku) {
-            sku = productNameToSku[item.name];
-          }
-          
+          const sku = productNameToSku[item.name];
           if (!sku) {
             alert(`Product '${item.name}' does not have a matching SKU and will not be included in the order.`);
             return null;
@@ -637,33 +571,11 @@ export default function OrderProcess() {
         }).filter(Boolean);
       }
 
-      // Add inventory products from selectedInventoryProducts
-      Object.entries(selectedInventoryProducts).forEach(([category, skuArray]) => {
-        if (Array.isArray(skuArray) && skuArray.length > 0) {
-          skuArray.forEach(sku => {
-            const inventoryItem = inventoryProducts.find(product => product.sku === sku);
-            if (inventoryItem) {
-              productsForOrder.push({
-                name: inventoryItem.name,
-                quantity: guestQuantity,
-                sku: inventoryItem.sku
-              });
-            }
-          });
-        }
-      });
-
       if (!productsForOrder || productsForOrder.length === 0) {
         alert('No products selected or available for the order. Please select items or a valid style.');
         setLoading(false);
         return;
       }
-
-      // Debug logging to help troubleshoot SKU issues
-      console.log('Products for order:', productsForOrder);
-      productsForOrder.forEach(product => {
-        console.log(`Product: ${product.name}, SKU: ${product.sku}`);
-      });
 
       let shippingAddress = '';
       if (customerData.street && customerData.street !== '') shippingAddress += customerData.street;
@@ -784,48 +696,43 @@ export default function OrderProcess() {
 
     // Add regular selected items
     selectedPackaging.forEach(name => {
-      const item = (packagingOptions || []).find(opt => opt.name === name);
+      const item = packagingOptions.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'packaging' });
     });
 
     selectedBeverages.forEach(name => {
-      const item = (contentBeverageOptions || []).find(opt => opt.name === name);
+      const item = contentBeverageOptions.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'beverages' });
     });
 
     selectedFood.forEach(name => {
-      const item = (contentFoodOptions || []).find(opt => opt.name === name);
+      const item = contentFoodOptions.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'food' });
     });
 
     selectedKitchenware.forEach(name => {
-      const item = (contentKitchenwareOptions || []).find(opt => opt.name === name);
+      const item = contentKitchenwareOptions.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'kitchenware' });
     });
 
     selectedHomeDecor.forEach(name => {
-      const item = (contentHomeDecorOptions || []).find(opt => opt.name === name);
+      const item = contentHomeDecorOptions.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'homedecor' });
     });
 
     selectedFaceAndBody.forEach(name => {
-      const item = (contentFaceAndBodyOptions || []).find(opt => opt.name === name);
+      const item = contentFaceAndBodyOptions.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'faceandbody' });
     });
 
     selectedClothing.forEach(name => {
-      const item = (contentClothingAndAccessoriesOptions || []).find(opt => opt.name === name);
+      const item = contentClothingAndAccessoriesOptions.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'clothing' });
     });
 
     selectedCustomization.forEach(name => {
-      const item = (customizationOptions || []).find(opt => opt.name === name);
+      const item = customizationOptions.find(opt => opt.name === name);
       if (item) items.push({ ...item, category: 'customization' });
-    });
-
-    selectedOthers.forEach(name => {
-      const item = (othersOptions || []).find(opt => opt.name === name);
-      if (item) items.push({ ...item, category: 'others' });
     });
 
     return items;
@@ -836,15 +743,14 @@ export default function OrderProcess() {
 
     const renderCategoryContent = () => {
       const allItems = [
-        ...(packagingOptions || []).map(item => ({ ...item, category: 'packaging' })),
-        ...(contentBeverageOptions || []).map(item => ({ ...item, category: 'beverages' })),
-        ...(contentFoodOptions || []).map(item => ({ ...item, category: 'food' })),
-        ...(contentKitchenwareOptions || []).map(item => ({ ...item, category: 'kitchenware' })),
-        ...(contentHomeDecorOptions || []).map(item => ({ ...item, category: 'homedecor' })),
-        ...(contentFaceAndBodyOptions || []).map(item => ({ ...item, category: 'faceandbody' })),
-        ...(contentClothingAndAccessoriesOptions || []).map(item => ({ ...item, category: 'clothing' })),
-        ...(customizationOptions || []).map(item => ({ ...item, category: 'customization' })),
-        ...(othersOptions || []).map(item => ({ ...item, category: 'others' }))
+        ...packagingOptions.map(item => ({ ...item, category: 'packaging' })),
+        ...contentBeverageOptions.map(item => ({ ...item, category: 'beverages' })),
+        ...contentFoodOptions.map(item => ({ ...item, category: 'food' })),
+        ...contentKitchenwareOptions.map(item => ({ ...item, category: 'kitchenware' })),
+        ...contentHomeDecorOptions.map(item => ({ ...item, category: 'homedecor' })),
+        ...contentFaceAndBodyOptions.map(item => ({ ...item, category: 'faceandbody' })),
+        ...contentClothingAndAccessoriesOptions.map(item => ({ ...item, category: 'clothing' })),
+        ...customizationOptions.map(item => ({ ...item, category: 'customization' }))
       ];
 
       const selectedItems = getAllSelectedItems();
@@ -1135,9 +1041,11 @@ export default function OrderProcess() {
   // OTP helpers
   const sendOtp = async (email, token) => {
     // backend should provide an endpoint to send OTP to customer's email
-    // Example: POST /api/otp/send-otp with { email }
+    // Example: POST /api/customers/send-otp with { email }
     try {
-      const resp = await api.post('/api/otp/send-otp', { email });
+      const resp = await api.post('/api/customers/send-otp', { email }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       // Start resend cooldown
       const availableAt = Date.now() + 30000; // 30s
       setResendAvailableAt(availableAt);
@@ -1160,7 +1068,9 @@ export default function OrderProcess() {
 
   const verifyOtp = async (email, code, token) => {
     try {
-      const resp = await api.post('/api/otp/verify-otp', { email, code });
+      const resp = await api.post('/api/customers/verify-otp', { email, code }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       return resp.data;
     } catch (err) {
       console.error('verifyOtp error', err);
@@ -1244,23 +1154,10 @@ export default function OrderProcess() {
   };
 
   const handleStep2CustomCategory = (category) => {
-    const categoryMap = {
-      1: 'beverages',
-      2: 'food', 
-      3: 'kitchenware',
-      4: 'homeDecor',
-      5: 'faceAndBody',
-      6: 'clothing',
-      8: 'others'
-    };
-    
-    const categoryName = categoryMap[category];
-    if (categoryName) {
-      setCustomProducts(prev => ({
-        ...prev,
-        [categoryName]: !prev[categoryName]
-      }));
-    }
+    setCustomProducts(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
   };
 
   const handleStep3CustomCustomization = () => {
@@ -1605,27 +1502,19 @@ export default function OrderProcess() {
                 <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own packaging</label>
               </div>
 
-              <div style={{
-                display: "grid", 
-                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                gap: "15px", 
-                marginTop: "20px"
-              }}>
-                {(packagingOptions || []).map((option, index) => (
+              <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                {packagingOptions.map((option, index) => (
                   <div 
                     key={index}
                     className="packagingOptions" 
                     style={{
                       border: "2px solid #f0f0f0", 
                       borderRadius: "12px", 
-                      padding: "15px", 
+                      padding: "20px", 
+                      width: "16%",
                       cursor: "pointer",
                       transition: "all 0.3s ease",
-                      position: "relative",
-                      minHeight: "200px",
-                      display: "flex",
-                      flexDirection: "column",
-                      backgroundColor: "white"
+                      position: "relative"
                     }}
                     onClick={() => handlePackagingSelect(option)}
                   >
@@ -1648,23 +1537,11 @@ export default function OrderProcess() {
                         ✓
                       </div>
                     )}
-                    <div className="packagingImage" style={{
-                      height: "120px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      overflow: "hidden",
-                      marginBottom: "10px"
-                    }}>
+                    <div className="packagingImage">
                       <img
                         src={option.image}
                         alt={`${option.name} - ${option.description}`}
                         className={option.name.toLowerCase().replace(" ", "")}
-                        style={{
-                          maxHeight: "100%",
-                          maxWidth: "100%",
-                          objectFit: "contain"
-                        }}
                       />
                     </div>
                     <h4>{option.name}</h4>
@@ -1869,27 +1746,6 @@ export default function OrderProcess() {
                     fontSize: "12px",
                   }}>Leather Products and Desk Essentials</p>
                 </div>
-                <div 
-                  style={{
-                    ...styles.step,
-                    backgroundColor: currentConCat === 8 ? '#696a8f' : '#f0f0f0',
-                    color: currentConCat === 8 ? '#fff' : '#2c3e50',
-                    border: "1px solid #f0f0f0",
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onClick={() => handleContentCategoryClick(8)}
-                >
-                  <div style={{
-                    background: currentConCat === 8 ? '#fff' : '#696a8f',
-                    color: currentConCat === 8 ? '#696a8f' : '#fff'
-                  }}></div>
-                  <p style={{
-                    ...styles.stepTitle,
-                    color: currentConCat === 8 ? '#fff' : '#2c3e50',
-                    fontSize: "14px",
-                  }}>Others</p>
-                </div>
                 
               </div>
 
@@ -1912,27 +1768,19 @@ export default function OrderProcess() {
                   <p>MOQ for custom-labelled beer, mini wine, and mini whiskey is 6 pcs.</p>
                   <p>MOQ for custom coffee and tea packaging is 12 pcs.</p>
 
-                  <div style={{
-                    display: "grid", 
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                    gap: "15px", 
-                    marginTop: "20px"
-                  }}>
-                    {(contentBeverageOptions || []).map((option, index) => (
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentBeverageOptions.map((option, index) => (
                       <div 
                         key={index}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
                           borderRadius: "12px", 
-                          padding: "15px", 
+                          padding: "20px", 
+                          width: "16%",
                           cursor: "pointer",
                           transition: "all 0.3s ease",
-                          position: "relative",
-                          minHeight: "200px",
-                          display: "flex",
-                          flexDirection: "column",
-                          backgroundColor: "white"
+                          position: "relative"
                         }}
                         onClick={() => handleBeverageSelect(option)}
                       >
@@ -1955,23 +1803,11 @@ export default function OrderProcess() {
                             ✓
                           </div>
                         )}
-                        <div className="packagingImage" style={{
-                          height: "120px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          overflow: "hidden",
-                          marginBottom: "10px"
-                        }}>
+                        <div className="packagingImage">
                           <img
                             src={option.image}
                             alt={`${option.name} - ${option.description}`}
                             className={option.name.toLowerCase().replace(" ", "")}
-                            style={{
-                              maxHeight: "100%",
-                              maxWidth: "100%",
-                              objectFit: "contain"
-                            }}
                           />
                         </div>
                         <h4>{option.name}</h4>
@@ -1995,27 +1831,19 @@ export default function OrderProcess() {
 
                   <p>Infused Salts are sold as a set for retail orders.</p>
 
-                  <div style={{
-                    display: "grid", 
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                    gap: "15px", 
-                    marginTop: "20px"
-                  }}>
-                    {(contentFoodOptions || []).map((option, index) => (
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentFoodOptions.map((option, index) => (
                       <div 
                         key={index}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
                           borderRadius: "12px", 
-                          padding: "15px", 
+                          padding: "20px", 
+                          width: "16%",
                           cursor: "pointer",
                           transition: "all 0.3s ease",
-                          position: "relative",
-                          minHeight: "200px",
-                          display: "flex",
-                          flexDirection: "column",
-                          backgroundColor: "white"
+                          position: "relative"
                         }}
                         onClick={() => handleFoodSelect(option)}
                       >
@@ -2038,23 +1866,11 @@ export default function OrderProcess() {
                             ✓
                           </div>
                         )}
-                        <div className="packagingImage" style={{
-                          height: "120px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          overflow: "hidden",
-                          marginBottom: "10px"
-                        }}>
+                        <div className="packagingImage">
                           <img
                             src={option.image}
                             alt={`${option.name} - ${option.description}`}
                             className={option.name.toLowerCase().replace(" ", "")}
-                            style={{
-                              maxHeight: "100%",
-                              maxWidth: "100%",
-                              objectFit: "contain"
-                            }}
                           />
                         </div>
                         <h4>{option.name}</h4>
@@ -2079,27 +1895,19 @@ export default function OrderProcess() {
 
                   <p>MOQ for personalized wooden kitchenware is 10 pcs.</p>
 
-                  <div style={{
-                    display: "grid", 
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                    gap: "15px", 
-                    marginTop: "20px"
-                  }}>
-                    {(contentKitchenwareOptions || []).map((option, index) => (
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentKitchenwareOptions.map((option, index) => (
                       <div 
                         key={index}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
                           borderRadius: "12px", 
-                          padding: "15px", 
+                          padding: "20px", 
+                          width: "16%",
                           cursor: "pointer",
                           transition: "all 0.3s ease",
-                          position: "relative",
-                          minHeight: "200px",
-                          display: "flex",
-                          flexDirection: "column",
-                          backgroundColor: "white"
+                          position: "relative"
                         }}
                         onClick={() => handleKitchenwareSelect(option)}
                       >
@@ -2122,23 +1930,11 @@ export default function OrderProcess() {
                             ✓
                           </div>
                         )}
-                        <div className="packagingImage" style={{
-                          height: "120px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          overflow: "hidden",
-                          marginBottom: "10px"
-                        }}>
+                        <div className="packagingImage">
                           <img
                             src={option.image}
                             alt={`${option.name} - ${option.description}`}
                             className={option.name.toLowerCase().replace(" ", "")}
-                            style={{
-                              maxHeight: "100%",
-                              maxWidth: "100%",
-                              objectFit: "contain"
-                            }}
                           />
                         </div>
                         <h4>{option.name}</h4>
@@ -2161,27 +1957,19 @@ export default function OrderProcess() {
                     <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
                   </div>
 
-                  <div style={{
-                    display: "grid", 
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                    gap: "15px", 
-                    marginTop: "20px"
-                  }}>
-                    {(contentHomeDecorOptions || []).map((option, index) => (
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentHomeDecorOptions.map((option, index) => (
                       <div 
                         key={index}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
                           borderRadius: "12px", 
-                          padding: "15px", 
+                          padding: "20px", 
+                          width: "16%",
                           cursor: "pointer",
                           transition: "all 0.3s ease",
-                          position: "relative",
-                          minHeight: "200px",
-                          display: "flex",
-                          flexDirection: "column",
-                          backgroundColor: "white"
+                          position: "relative"
                         }}
                         onClick={() => handleHomeDecorSelect(option)}
                       >
@@ -2231,27 +2019,19 @@ export default function OrderProcess() {
                     <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
                   </div>
 
-                  <div style={{
-                    display: "grid", 
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                    gap: "15px", 
-                    marginTop: "20px"
-                  }}>
-                    {(contentFaceAndBodyOptions || []).map((option, index) => (
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentFaceAndBodyOptions.map((option, index) => (
                       <div 
                         key={index}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
                           borderRadius: "12px", 
-                          padding: "15px", 
+                          padding: "20px", 
+                          width: "16%",
                           cursor: "pointer",
                           transition: "all 0.3s ease",
-                          position: "relative",
-                          minHeight: "200px",
-                          display: "flex",
-                          flexDirection: "column",
-                          backgroundColor: "white"
+                          position: "relative"
                         }}
                         onClick={() => handleFaceAndBodySelect(option)}
                       >
@@ -2301,101 +2081,23 @@ export default function OrderProcess() {
                     <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
                   </div>
 
-                  <div style={{
-                    display: "grid", 
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                    gap: "15px", 
-                    marginTop: "20px"
-                  }}>
-                    {(contentClothingAndAccessoriesOptions || []).map((option, index) => (
+                  <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                    {contentClothingAndAccessoriesOptions.map((option, index) => (
                       <div 
                         key={index}
                         className="packagingOptions" 
                         style={{
                           border: "2px solid #f0f0f0", 
                           borderRadius: "12px", 
-                          padding: "15px", 
+                          padding: "20px", 
+                          width: "16%",
                           cursor: "pointer",
                           transition: "all 0.3s ease",
-                          position: "relative",
-                          minHeight: "200px",
-                          display: "flex",
-                          flexDirection: "column",
-                          backgroundColor: "white"
+                          position: "relative"
                         }}
                         onClick={() => handleClothingSelect(option)}
                       >
                         {selectedClothing.includes(option.name) && (
-                          <div style={{
-                            position: "absolute",
-                            top: "-10px",
-                            right: "-10px",
-                            width: "24px",
-                            height: "24px",
-                            backgroundColor: "#2ECC71",
-                            borderRadius: "50%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "white",
-                            fontWeight: "bold",
-                            fontSize: "16px"
-                          }}>
-                            ✓
-                          </div>
-                        )}
-                        <div className="packagingImage">
-                          <img
-                            src={option.image}
-                            alt={`${option.name} - ${option.description}`}
-                            className={option.name.toLowerCase().replace(" ", "")}
-                          />
-                        </div>
-                        <h4>{option.name}</h4>
-                        <p style={{ fontStyle: "italic", fontSize: "12px"}}>{option.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Others Category */}
-              {currentConCat === 8 && (
-                <>
-                  <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
-                    <input
-                      type="checkbox"
-                      checked={customProducts.others}
-                      onChange={() => handleStep2CustomCategory(8)}
-                    />
-                    <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products for this category</label>
-                  </div>
-
-                  <div style={{
-                    display: "grid", 
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                    gap: "15px", 
-                    marginTop: "20px"
-                  }}>
-                    {(othersOptions || []).map((option, index) => (
-                      <div 
-                        key={index}
-                        className="packagingOptions" 
-                        style={{
-                          border: "2px solid #f0f0f0", 
-                          borderRadius: "12px", 
-                          padding: "15px", 
-                          cursor: "pointer",
-                          transition: "all 0.3s ease",
-                          position: "relative",
-                          minHeight: "200px",
-                          display: "flex",
-                          flexDirection: "column",
-                          backgroundColor: "white"
-                        }}
-                        onClick={() => handleOthersSelect(option)}
-                      >
-                        {selectedOthers.includes(option.name) && (
                           <div style={{
                             position: "absolute",
                             top: "-10px",
@@ -2449,27 +2151,19 @@ export default function OrderProcess() {
                 <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#2c3e50"}}>I want to use my own products</label>
               </div>
 
-              <div style={{
-                display: "grid", 
-                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                gap: "15px", 
-                marginTop: "20px"
-              }}>
-                {(customizationOptions || []).map((option, index) => (
+              <div style={{display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap"}}>
+                {customizationOptions.map((option, index) => (
                   <div 
                     key={index}
                     className="packagingOptions" 
                     style={{
                       border: "2px solid #f0f0f0", 
                       borderRadius: "12px", 
-                      padding: "15px", 
+                      padding: "20px", 
+                      width: "16%",
                       cursor: "pointer",
                       transition: "all 0.3s ease",
-                      position: "relative",
-                      minHeight: "200px",
-                      display: "flex",
-                      flexDirection: "column",
-                      backgroundColor: "white"
+                      position: "relative"
                     }}
                     onClick={() => handleCustomizationSelect(option)}
                   >
@@ -2722,8 +2416,7 @@ export default function OrderProcess() {
                 { key: 'homeDecor', label: 'Home Decor' },
                 { key: 'faceAndBody', label: 'Face & Body' },
                 { key: 'clothing', label: 'Clothing' },
-                { key: 'customization', label: 'Customization' },
-                { key: 'others', label: 'Others' }
+                { key: 'customization', label: 'Customization' }
               ].map(category => (
                 <button
                   key={category.key}
@@ -2761,37 +2454,35 @@ export default function OrderProcess() {
                   gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
                   gap: "15px"
                 }}>
-                  {Array.isArray(inventoryProducts) && inventoryProducts
+                  {Array.isArray(inventoryProducts) ? inventoryProducts
                     .filter(product => 
                       mapInventoryCategory(product.category.toLowerCase()) === modalCategory
                     )
                     .map(product => (
                       <div
-                        key={product.sku}
+                        key={product.id}
                         onClick={() => {
-                          const productId = product.sku;
-                          const isSelected = selectedInventoryProducts[modalCategory]?.includes(productId);
+                          const isSelected = selectedInventoryProducts[modalCategory]?.includes(product.id);
                           setSelectedInventoryProducts(prev => ({
                             ...prev,
                             [modalCategory]: isSelected
-                              ? prev[modalCategory]?.filter(id => id !== productId) || []
-                              : [...(prev[modalCategory] || []), productId]
+                              ? prev[modalCategory]?.filter(id => id !== product.id) || []
+                              : [...(prev[modalCategory] || []), product.id]
                           }));
                         }}
                         style={{
                           border: `2px solid ${
-                            selectedInventoryProducts[modalCategory]?.includes(product.sku) 
+                            selectedInventoryProducts[modalCategory]?.includes(product.id) 
                               ? "#ff6b35" 
                               : "#ddd"
                           }`,
                           borderRadius: "8px",
                           padding: "15px",
                           cursor: "pointer",
-                          backgroundColor: selectedInventoryProducts[modalCategory]?.includes(product.sku) 
+                          backgroundColor: selectedInventoryProducts[modalCategory]?.includes(product.id) 
                             ? "#fff3cd" 
                             : "white",
-                          transition: "all 0.2s ease",
-                          position: "relative"
+                          transition: "all 0.2s ease"
                         }}
                       >
                         {product.image_data && (
@@ -2829,7 +2520,7 @@ export default function OrderProcess() {
                         }}>
                           ₱{product.unit_price}
                         </p>
-                        {selectedInventoryProducts[modalCategory]?.includes(product.sku) && (
+                        {selectedInventoryProducts[modalCategory]?.includes(product.id) && (
                           <div style={{
                             position: "absolute",
                             top: "10px",
@@ -2848,7 +2539,85 @@ export default function OrderProcess() {
                           </div>
                         )}
                       </div>
-                    ))}
+                    )) : null}
+                </div>
+              )}
+                            ...prev,
+                            [modalCategory]: isSelected
+                              ? prev[modalCategory]?.filter(id => id !== product.id) || []
+                              : [...(prev[modalCategory] || []), product.id]
+                          }));
+                        }}
+                        style={{
+                          border: `2px solid ${
+                            selectedInventoryProducts[modalCategory]?.includes(product.id) 
+                              ? "#ff6b35" 
+                              : "#ddd"
+                          }`,
+                          borderRadius: "8px",
+                          padding: "15px",
+                          cursor: "pointer",
+                          backgroundColor: selectedInventoryProducts[modalCategory]?.includes(product.id) 
+                            ? "#fff3cd" 
+                            : "white",
+                          transition: "all 0.2s ease"
+                        }}
+                      >
+                        {product.image_data && (
+                          <img
+                            src={`data:image/jpeg;base64,${product.image_data}`}
+                            alt={product.name}
+                            style={{
+                              width: "100%",
+                              height: "120px",
+                              objectFit: "cover",
+                              borderRadius: "4px",
+                              marginBottom: "10px"
+                            }}
+                          />
+                        )}
+                        <h4 style={{ 
+                          margin: "0 0 5px 0", 
+                          fontSize: "14px",
+                          color: "#2c3e50"
+                        }}>
+                          {product.name}
+                        </h4>
+                        <p style={{ 
+                          margin: "0 0 5px 0", 
+                          fontSize: "12px", 
+                          color: "#666" 
+                        }}>
+                          SKU: {product.sku}
+                        </p>
+                        <p style={{ 
+                          margin: 0, 
+                          fontSize: "12px", 
+                          fontWeight: "600",
+                          color: "#27ae60" 
+                        }}>
+                          ₱{product.price}
+                        </p>
+                        {selectedInventoryProducts[modalCategory]?.includes(product.id) && (
+                          <div style={{
+                            position: "absolute",
+                            top: "10px",
+                            right: "10px",
+                            backgroundColor: "#ff6b35",
+                            color: "white",
+                            borderRadius: "50%",
+                            width: "20px",
+                            height: "20px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "12px"
+                          }}>
+                            ✓
+                          </div>
+                        )}
+                      </div>
+                    )) : null}
                 </div>
               )}
             </div>
@@ -2865,38 +2634,21 @@ export default function OrderProcess() {
               <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
                 Selected: {Object.values(selectedInventoryProducts).flat().length} products across all categories
               </p>
-              <div style={{ display: "flex", gap: "10px" }}>
-                <button
-                  onClick={clearSelectedInventoryProducts}
-                  style={{
-                    backgroundColor: "#dc3545",
-                    color: "white",
-                    border: "none",
-                    padding: "12px 24px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                    fontWeight: "600"
-                  }}
-                >
-                  Clear All
-                </button>
-                <button
-                  onClick={() => setShowProductSelection(false)}
-                  style={{
-                    backgroundColor: "#ff6b35",
-                    color: "white",
-                    border: "none",
-                    padding: "12px 24px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                    fontWeight: "600"
-                  }}
-                >
-                  Done
-                </button>
-              </div>
+              <button
+                onClick={() => setShowProductSelection(false)}
+                style={{
+                  backgroundColor: "#ff6b35",
+                  color: "white",
+                  border: "none",
+                  padding: "12px 24px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "600"
+                }}
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>

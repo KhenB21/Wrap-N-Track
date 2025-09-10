@@ -130,13 +130,7 @@ export default function TopbarCustomer() {
                     </>
                   )}
                   {user.source === 'employee' && (
-                    <>
-                      <div style={{ padding: '8px 12px', fontSize: '12px', color: '#666', borderBottom: '1px solid #eee' }}>
-                        Logged in as Employee: {user.name}
-                      </div>
-                      <button onClick={(e) => { e.stopPropagation(); setDropdownVisible(false); navigate('/employee-dashboard'); }}>Employee Dashboard</button>
-                      <button onClick={(e) => { e.stopPropagation(); setDropdownVisible(false); navigate('/user-details'); }}>My Profile</button>
-                    </>
+                    <button onClick={(e) => { e.stopPropagation(); setDropdownVisible(false); navigate('/employee-dashboard'); }}>Employee Dashboard</button>
                   )}
                   <button onClick={(e) => { e.stopPropagation(); setDropdownVisible(false); handleLogout(); }} className="logout-btn">Logout</button>
                 </div>

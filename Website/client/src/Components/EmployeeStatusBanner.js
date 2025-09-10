@@ -1,45 +1,26 @@
 import React from 'react';
 import { useAuth } from '../Context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
-const EmployeeStatusBanner = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+export default function EmployeeStatusBanner() {
+  const { isEmployee } = useAuth();
 
-  if (!user || user.source !== 'employee') {
-    return null;
+  if (!isEmployee) {
+    return null; // Don't render anything if not an employee
   }
 
   return (
     <div style={{
-      backgroundColor: '#e3f2fd',
-      color: '#1976d2',
-      padding: '8px 16px',
+      backgroundColor: '#ff6b35',
+      color: 'white',
+      padding: '10px 20px',
       textAlign: 'center',
+      fontWeight: 'bold',
       fontSize: '14px',
-      borderBottom: '1px solid #bbdefb',
-      position: 'sticky',
-      top: 0,
-      zIndex: 1000
+      borderRadius: '6px',
+      margin: '10px auto',
+      maxWidth: '600px'
     }}>
-      🏢 You are browsing the customer website as an employee ({user.name}). 
-      <button 
-        onClick={() => navigate('/employee-dashboard')}
-        style={{
-          marginLeft: '10px',
-          padding: '4px 8px',
-          backgroundColor: '#1976d2',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontSize: '12px'
-        }}
-      >
-        Return to Dashboard
-      </button>
+      🔧 Employee Mode: You have administrative access to manage products and orders
     </div>
   );
-};
-
-export default EmployeeStatusBanner;
+}

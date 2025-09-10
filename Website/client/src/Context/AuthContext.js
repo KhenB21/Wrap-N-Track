@@ -13,73 +13,36 @@ export const AuthProvider = ({ children }) => {
       const employeeToken = localStorage.getItem('token');
       const customerToken = localStorage.getItem('customerToken');
       
-      // Only log if in development mode
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 AuthContext: Initializing auth...', {
-          hasEmployeeToken: !!employeeToken,
-          hasCustomerToken: !!customerToken
-        });
-      }
-      
       let sessionUser = null;
 
-      // Priority: Check employee token first, then customer token
-      if (employeeToken) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('👤 AuthContext: Trying to authenticate as employee...');
-        }
-        try {
-          const response = await api.get('/api/user/details');
-          if (response.data) {
-            sessionUser = { ...response.data, source: 'employee' };
-            localStorage.setItem('user', JSON.stringify(sessionUser));
-            // Clear any customer data when employee is logged in
-            localStorage.removeItem('customerToken');
-            localStorage.removeItem('customer');
-            if (process.env.NODE_ENV === 'development') {
-              console.log('✅ AuthContext: Employee authentication successful', sessionUser.name);
-            }
-          }
-        } catch (error) {
-          console.error('❌ AuthContext: Failed to fetch employee details, logging out.', error);
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-        }
-      } else if (customerToken) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('👥 AuthContext: Trying to authenticate as customer...');
-        }
+      if (customerToken) {
         try {
           const response = await api.get('/api/customer/profile');
           if (response.data?.success) {
             sessionUser = { ...response.data.customer, source: 'customer' };
             localStorage.setItem('customer', JSON.stringify(sessionUser));
-            // Clear any employee data when customer is logged in
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            if (process.env.NODE_ENV === 'development') {
-              console.log('✅ AuthContext: Customer authentication successful', sessionUser.name);
-            }
           }
         } catch (error) {
-          console.error('❌ AuthContext: Failed to fetch customer profile, logging out.', error);
+          console.error('Failed to fetch customer profile, logging out.', error);
           localStorage.removeItem('customerToken');
           localStorage.removeItem('customer');
         }
-      } else {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🚫 AuthContext: No tokens found, user not authenticated');
+      } else if (employeeToken) {
+        try {
+          const response = await api.get('/api/user/details');
+          if (response.data) {
+            sessionUser = { ...response.data, source: 'employee' };
+            localStorage.setItem('user', JSON.stringify(sessionUser));
+          }
+        } catch (error) {
+          console.error('Failed to fetch employee details, logging out.', error);
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
         }
       }
       
       setUser(sessionUser);
       setLoading(false);
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🏁 AuthContext: Initialization complete', { 
-          authenticated: !!sessionUser, 
-          userType: sessionUser?.source || 'none' 
-        });
-      }
     };
 
     initializeAuth();
@@ -121,6 +84,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     isAuthenticated: !!user,
+    isEmployee: user?.source === 'employee',
     isLoading: loading,
     login,
     logout,

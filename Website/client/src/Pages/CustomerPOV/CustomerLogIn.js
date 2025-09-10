@@ -13,17 +13,8 @@ function CustomerLogIn() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
-  const { login, user, isAuthenticated } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
-
-  // Only redirect customers if already authenticated
-  // Employees who come to customer login page want to stay on customer site
-  useEffect(() => {
-    if (isAuthenticated && user && user.source === 'customer') {
-      navigate('/about');
-    }
-  }, [isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,62 +22,17 @@ function CustomerLogIn() {
     setError("");
 
     try {
-      // First, try customer login
-      let response;
-      let loginSuccess = false;
-      let userType = '';
+      const response = await api.post('/api/auth/customer/login', {
+        username: formData.username,
+        password: formData.password
+      });
 
-      console.log('🔐 Attempting customer login...');
-      try {
-        response = await api.post('/api/auth/customer/login', {
-          username: formData.username,
-          password: formData.password
-        });
-
-        if (response.data.success) {
-          login(response.data.customer, response.data.token, 'customer');
-          userType = 'customer';
-          loginSuccess = true;
-          console.log('✅ Customer login successful');
-        }
-      } catch (customerError) {
-        console.log('❌ Customer login failed, trying employee login...');
-        
-        // If customer login fails, try employee login
-        try {
-          response = await api.post('/api/auth/login', {
-            username: formData.username,
-            password: formData.password
-          });
-
-          if (response.data.success) {
-            login(response.data.user, response.data.token, 'employee');
-            userType = 'employee';
-            loginSuccess = true;
-            console.log('✅ Employee login successful');
-          }
-        } catch (employeeError) {
-          console.log('❌ Both login attempts failed');
-          // Both failed, show error
-          throw new Error('Invalid username or password');
-        }
-      }
-
-      if (loginSuccess) {
-        if (userType === 'employee') {
-          setSuccessMessage('Welcome! You are logged in as an employee. Redirecting to customer website...');
-          setTimeout(() => {
-            navigate('/about');
-          }, 2000);
-        } else {
-          setSuccessMessage('Welcome! Redirecting...');
-          setTimeout(() => {
-            navigate('/about');
-          }, 1500);
-        }
+      if (response.data.success) {
+        login(response.data.customer, response.data.token, 'customer');
+        navigate('/about');
       }
     } catch (err) {
-      setError(err.message || 'An error occurred during login.');
+      setError(err.response?.data?.message || 'An error occurred during login.');
     } finally {
       setLoading(false);
     }
@@ -99,7 +45,6 @@ function CustomerLogIn() {
       [name]: value,
     }));
     setError("");
-    setSuccessMessage("");
   };
 
   const togglePasswordVisibility = () => {
@@ -122,21 +67,9 @@ function CustomerLogIn() {
           <div className="right-section">
             <h3>Login</h3>
             <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
-              Sign in with your customer or employee account
+              Sign in as a customer
             </p>
             {error && <div className="error-message">{error}</div>}
-            {successMessage && (
-              <div style={{
-                backgroundColor: '#d4edda',
-                color: '#155724',
-                padding: '10px',
-                borderRadius: '4px',
-                marginBottom: '15px',
-                border: '1px solid #c3e6cb'
-              }}>
-                {successMessage}
-              </div>
-            )}
             <form onSubmit={handleSubmit}>
               <div className="input-container">
                 <label htmlFor="username">Username:</label>

@@ -1,12 +1,10 @@
 import React from "react";
 import TopbarCustomer from "../../Components/TopbarCustomer";
-import EmployeeStatusBanner from "../../Components/EmployeeStatusBanner";
 import "./CustomerAboutUs.css";
 
 export default function CustomerAboutUs() {
   return (
     <div className="customeraboutus-container">
-      <EmployeeStatusBanner />
       <TopbarCustomer />
       {/* Hero Section with background image */}
       <section

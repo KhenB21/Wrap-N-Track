@@ -13,21 +13,8 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { login, user, isAuthenticated } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
-
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      if (user.source === 'employee') {
-        // Employee is already logged in, redirect to dashboard
-        navigate('/employee-dashboard');
-      } else if (user.source === 'customer') {
-        // Customer is logged in, redirect to customer area
-        navigate('/about');
-      }
-    }
-  }, [isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
