@@ -1134,36 +1134,55 @@ export default function OrderProcess() {
 
   // OTP helpers
   const sendOtp = async (email, token) => {
-    // backend should provide an endpoint to send OTP to customer's email
-    // Example: POST /api/otp/send-otp with { email }
+    if (!email) {
+      setOtpError('Missing email for OTP. Please update your profile.');
+      return Promise.reject(new Error('Email missing'));
+    }
     try {
+      console.log('[OTP] Sending OTP to', email);
       const resp = await api.post('/api/otp/send-otp', { email });
-      // Start resend cooldown
-      const availableAt = Date.now() + 30000; // 30s
+      console.log('[OTP] Send success:', resp.data);
+      // Cooldown start (30s)
+      const availableAt = Date.now() + 30000;
       setResendAvailableAt(availableAt);
       setResendCountdown(30);
       if (resendTimerRef.current) clearInterval(resendTimerRef.current);
       resendTimerRef.current = setInterval(() => {
-        const secsLeft = Math.ceil((availableAt - Date.now()) / 1000);
-        setResendCountdown(secsLeft > 0 ? secsLeft : 0);
-        if (secsLeft <= 0 && resendTimerRef.current) {
-          clearInterval(resendTimerRef.current);
-          resendTimerRef.current = null;
-        }
-      }, 500);
+        setResendCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(resendTimerRef.current);
+            resendTimerRef.current = null;
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      setOtpError('');
       return resp.data;
     } catch (err) {
-      console.error('sendOtp error', err);
+      const status = err.response?.status;
+      const message = err.response?.data?.message;
+      console.error('[OTP] sendOtp error status=', status, 'message=', message, err);
+      if (status === 429) setOtpError(message || 'Please wait before requesting another OTP.');
+      else if (status === 400) setOtpError(message || 'Unable to send OTP. Please check your email.');
+      else setOtpError('Server error while sending OTP. Please try later.');
       throw err;
     }
   };
 
   const verifyOtp = async (email, code, token) => {
     try {
+      console.log('[OTP] Verifying code', code, 'for', email);
       const resp = await api.post('/api/otp/verify-otp', { email, code });
+      console.log('[OTP] Verification success:', resp.data);
       return resp.data;
     } catch (err) {
-      console.error('verifyOtp error', err);
+      const status = err.response?.status;
+      const message = err.response?.data?.message;
+      console.error('[OTP] verifyOtp error status=', status, 'message=', message, err);
+      if (status === 400) setOtpError(message || 'Invalid or expired code.');
+      else if (status === 429) setOtpError(message || 'Too many attempts. Request a new code.');
+      else setOtpError('Server error verifying code.');
       throw err;
     }
   };
@@ -1176,7 +1195,6 @@ export default function OrderProcess() {
     if (resendAvailableAt && Date.now() < resendAvailableAt) return;
     try {
   await sendOtp(customerData.email, token);
-      await sendOtp(customerData.email, token);
       toast.info('OTP resent to your email.');
     } catch (err) {
       alert('Failed to resend OTP. Please try again later.');
@@ -1187,27 +1205,35 @@ export default function OrderProcess() {
     setOtpError('');
     const token = localStorage.getItem('customerToken');
     const customerData = JSON.parse(localStorage.getItem('customer')) || {};
-    if (!pendingOrderPayload) {
-      setOtpError('No pending order found.');
-      return;
+    if (!pendingOrderPayload) { setOtpError('No pending order found.'); return; }
+    if (!otpCode || otpCode.trim().length < 6) { setOtpError('Please enter the 6-digit code.'); return; }
+    if (!token) { setOtpError('Session expired. Please log in again.'); return; }
+    console.log('[ORDER] Starting verification+placement flow');
+    console.log('[ORDER] Pending payload:', JSON.stringify(pendingOrderPayload, null, 2));
+    try {
+      await verifyOtp(customerData.email, otpCode.trim(), token);
+    } catch (verifyErr) {
+      console.warn('[ORDER] Verification failed; aborting order placement.');
+      return; // otpError already set
     }
     try {
-      await verifyOtp(customerData.email, otpCode, token);
-      // OTP ok — place the original order
-      const response = await api.post('/api/orders', pendingOrderPayload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      console.log('[ORDER] OTP verified. Placing order...');
+      const response = await api.post('/api/orders', pendingOrderPayload, { headers: { Authorization: `Bearer ${token}` } });
+      console.log('[ORDER] Order response:', response.data);
       if (response.data) {
-        toast.success('Order is completed');
+        toast.success('Order placed successfully');
         setOtpModalVisible(false);
         setOtpCode('');
         setPendingOrderPayload(null);
-        // optionally redirect to orders or order summary
         navigate('/customer/orders');
       }
-    } catch (err) {
-      console.error('OTP verification or order placement failed', err);
-      setOtpError(err.response?.data?.message || 'Invalid OTP or server error.');
+    } catch (orderErr) {
+      const status = orderErr.response?.status;
+      const backendMessage = orderErr.response?.data?.error || orderErr.response?.data?.message;
+      console.error('[ORDER] Placement failed status=', status, backendMessage, orderErr);
+      if (status === 400) setOtpError(backendMessage || 'Order data invalid. Review selections.');
+      else if (status === 401) setOtpError('Authorization failed. Please log in again.');
+      else setOtpError('Server error placing order. Try again.');
     }
   };
 
