@@ -293,77 +293,79 @@ router.post('/customer/resend-code', async (req, res) => {
   }
 });
 
-// Customer login
+// Customer login (now also allows employee login using same form)
 router.post('/customer/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // Find customer by username
-    const result = await pool.query(
+    // 1. Try customer_details by username
+    const customerResult = await pool.query(
       'SELECT * FROM customer_details WHERE username = $1',
       [username]
     );
 
-    if (result.rows.length === 0) {
-      console.log(`[LOGIN DEBUG] Username not found: ${username}`);
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid username or password'
-      });
-    }
-
-    const customer = result.rows[0];
-
-    // Verify password
-    const validPassword = await bcrypt.compare(password, customer.password_hash);
-    if (!validPassword) {
-      console.log(`[LOGIN DEBUG] Password mismatch for username: ${username}`);
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid username or password'
-      });
-    }
-
-    // Check if email is verified
-    if (!customer.is_verified) {
-      console.log(`[LOGIN DEBUG] Email not verified for username: ${username}`);
-      return res.status(401).json({
-        success: false,
-        message: 'Please verify your email before logging in'
-      });
-    }
-
-    // Create JWT token
-    const token = jwt.sign(
-      {
-        customer_id: customer.customer_id,
-        username: customer.username,
-        name: customer.name,
-  email: customer.email_address,
-  role: 'customer' // mark this token as a customer token
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    res.json({
-      success: true,
-      token,
-      customer: {
+    if (customerResult.rows.length > 0) {
+      const customer = customerResult.rows[0];
+      const validPassword = await bcrypt.compare(password, customer.password_hash);
+      if (!validPassword) {
+        return res.status(401).json({ success: false, message: 'Invalid username or password' });
+      }
+      if (!customer.is_verified) {
+        return res.status(401).json({ success: false, message: 'Please verify your email before logging in' });
+      }
+      const token = jwt.sign({
         customer_id: customer.customer_id,
         username: customer.username,
         name: customer.name,
         email: customer.email_address,
-        phone_number: customer.phone_number
+        role: 'customer'
+      }, process.env.JWT_SECRET, { expiresIn: '24h' });
+      return res.json({
+        success: true,
+        token,
+        customer: {
+          customer_id: customer.customer_id,
+          username: customer.username,
+          name: customer.name,
+          email: customer.email_address,
+          phone_number: customer.phone_number,
+          role: 'customer'
+        }
+      });
+    }
+
+    // 2. Fallback: treat username as employee 'name' in users table
+    const employeeResult = await pool.query(
+      'SELECT * FROM users WHERE name = $1',
+      [username]
+    );
+    if (employeeResult.rows.length === 0) {
+      return res.status(401).json({ success: false, message: 'Invalid username or password' });
+    }
+    const user = employeeResult.rows[0];
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
+      return res.status(401).json({ success: false, message: 'Invalid username or password' });
+    }
+    const token = jwt.sign({
+      user_id: user.user_id,
+      name: user.name,
+      role: user.role,
+      email: user.email
+    }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    return res.json({
+      success: true,
+      token,
+      employee: {
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        role: user.role
       }
     });
-
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Login failed. Please try again.'
-    });
+    console.error('Unified customer/employee login error:', error);
+    res.status(500).json({ success: false, message: 'Login failed. Please try again.' });
   }
 });
 

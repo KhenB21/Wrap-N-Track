@@ -6,6 +6,22 @@ require('dotenv').config();
 
 const router = express.Router();
 
+// Helper to generate a unique customer order ID (retry loop safeguards duplicates under concurrency)
+async function generateUniqueCustomerOrderId(client) {
+  // Format: #COYYYYMMDD-HHMMSS-<6 random base36>
+  const pad = (n) => n.toString().padStart(2, '0');
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const now = new Date();
+    const id = `#CO${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-` +
+      `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}-` +
+      Math.random().toString(36).substring(2, 8).toUpperCase();
+    const exists = await client.query('SELECT 1 FROM orders WHERE order_id = $1', [id]);
+    if (exists.rows.length === 0) return id;
+  }
+  // Fallback (extremely unlikely to reach)
+  return `#CO${Date.now()}`;
+}
+
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -122,23 +138,18 @@ router.post('/', async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Generate a unique order ID if not provided
-      let order_id = providedOrderId;
-      if (!order_id) {
-        order_id = `#CO${Date.now()}`;
-      } else {
-        // Check if order_id already exists
-        const existingOrder = await client.query(
-          'SELECT order_id FROM orders WHERE order_id = $1',
-          [order_id]
-        );
-        if (existingOrder.rows.length > 0) {
-          await client.query('ROLLBACK');
-          return res.status(400).json({ 
-            error: 'Order ID already exists',
-            details: `An order with ID ${order_id} already exists. Please try again with a different order ID.`
-          });
+      // Always ensure we end up with a unique order_id
+      let order_id;
+      if (providedOrderId) {
+        const existingOrder = await client.query('SELECT 1 FROM orders WHERE order_id = $1', [providedOrderId]);
+        if (existingOrder.rows.length === 0) {
+          order_id = providedOrderId; // safe to use
+        } else {
+          // Auto-generate a new one instead of failing (prevents user confusion about invisible orders)
+          order_id = await generateUniqueCustomerOrderId(client);
         }
+      } else {
+        order_id = await generateUniqueCustomerOrderId(client);
       }
 
       // Get customer's address from customer_details
@@ -297,7 +308,13 @@ router.post('/', async (req, res) => {
       await client.query('COMMIT');
 
       // Construct the response object, ensuring total_cost is up-to-date
-      const finalOrderData = { ...orderResult.rows[0], total_cost: calculatedTotalCost, products };
+      const finalOrderData = { 
+        ...orderResult.rows[0], 
+        total_cost: calculatedTotalCost, 
+        products,
+        // Provide visibility if server auto-changed a duplicate provided ID
+        original_provided_order_id: providedOrderId && providedOrderId !== order_id ? providedOrderId : null
+      };
       res.status(201).json(finalOrderData);
     } catch (error) {
       await client.query('ROLLBACK');
