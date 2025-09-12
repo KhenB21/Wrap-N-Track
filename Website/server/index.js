@@ -1197,14 +1197,24 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Upgrade HTTP server to WebSocket server
 server.on('upgrade', (request, socket, head) => {
-  wss.handleUpgrade(request, socket, head, (ws) => {
-    wss.emit('connection', ws, request);
-  });
+  if (!wss) {
+    socket.destroy();
+    return;
+  }
+  try {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  } catch (e) {
+    console.error('WebSocket upgrade failed:', e.message);
+    try { socket.destroy(); } catch(_) {}
+  }
 });
 
 // WebSocket connection handling
-wss.on('connection', (ws) => {
-  console.log('New WebSocket connection established');
+if (wss) {
+  wss.on('connection', (ws) => {
+    console.log('New WebSocket connection established');
 
   ws.on('message', (message) => {
     try {
@@ -1225,19 +1235,20 @@ wss.on('connection', (ws) => {
     }
   });
 
-  ws.on('close', () => {
-    console.log('Client disconnected');
+    ws.on('close', () => {
+      console.log('Client disconnected');
+    });
   });
-});
+} else {
+  console.log('WebSocket server (wss) not initialized; skipping connection handler setup.');
+}
 
 // Broadcast barcode to all connected clients
 const broadcastBarcode = (barcode) => {
+  if (!wss) return; // silently ignore if websocket not available
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({
-        type: 'barcode_scanned',
-        barcode: barcode
-      }));
+      client.send(JSON.stringify({ type: 'barcode_scanned', barcode }));
     }
   });
 };
@@ -1267,6 +1278,7 @@ app.get('/api/orders/customer/:customer_name', async (req, res) => {
         COALESCE(
           JSON_AGG(
             JSON_BUILD_OBJECT(
+              'line_id', op.line_id,
               'sku', op.sku, 
               'quantity', op.quantity, 
               'profit_margin', op.profit_margin,
@@ -1344,6 +1356,7 @@ app.get('/api/orders', async (req, res) => {
         COALESCE(
           JSON_AGG(
             JSON_BUILD_OBJECT(
+              'line_id', op.line_id,
               'sku', op.sku, 
               'quantity', op.quantity,
               'profit_margin', op.profit_margin,
