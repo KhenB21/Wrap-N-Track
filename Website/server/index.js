@@ -33,6 +33,26 @@ require('dotenv').config({ path: __dirname + '/../.env' });
 
 
 const app = express();
+
+// --- Environment validation (fail fast for missing DB config) ---
+const requiredEnv = ['DB_USER','DB_HOST','DB_NAME','DB_PASSWORD','DB_PORT','JWT_SECRET'];
+const missing = requiredEnv.filter(k => !process.env[k] || String(process.env[k]).trim() === '');
+if (missing.length) {
+  console.error('[Startup][WARN] Missing environment variables (server will still start, expect DB failures):', missing);
+  console.error('Loaded keys snapshot:', requiredEnv.reduce((o,k)=>{o[k]=process.env[k]?'set':'missing';return o;},{}));
+}
+if (process.env.DB_PASSWORD && typeof process.env.DB_PASSWORD !== 'string') {
+  console.error('[Startup][WARN] DB_PASSWORD not a string type (value coerced)');
+}
+
+// Conditional concise request logging (development only or explicit VERBOSE_LOGS=true)
+const verboseLogs = (process.env.NODE_ENV !== 'production') || process.env.VERBOSE_LOGS === 'true';
+if (verboseLogs) {
+  app.use((req,res,next)=>{
+    console.log('[REQ]', req.method, req.path, 'origin=', req.headers.origin || 'n/a');
+    next();
+  });
+}
 // Dynamic port selection: use platform-provided PORT (e.g. DigitalOcean) or fallback to 3001 locally
 const port = process.env.PORT || 3001;
 const portSource = process.env.PORT ? 'env:PORT' : 'default:3001';
@@ -41,8 +61,27 @@ const portSource = process.env.PORT ? 'env:PORT' : 'default:3001';
 pool.connect((err, client, release) => {
   if (err) {
     console.error('❌ Database connection error (initial pool.connect):', err.stack || err.message);
+    console.error('Database connection details:', {
+      user: process.env.DB_USER,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      port: process.env.DB_PORT || 5432,
+      ssl: process.env.DB_SSL,
+      hasPassword: !!process.env.DB_PASSWORD,
+      hasDatabaseUrl: !!process.env.DATABASE_URL
+    });
+    console.error('Full error:', err);
   } else {
     console.log('✅ Database pool connected (initial test)');
+    console.log('Database connection details:', {
+      user: process.env.DB_USER,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      port: process.env.DB_PORT || 5432,
+      ssl: process.env.DB_SSL,
+      hasPassword: !!process.env.DB_PASSWORD,
+      hasDatabaseUrl: !!process.env.DATABASE_URL
+    });
     release();
   }
 });
@@ -130,15 +169,25 @@ async function archiveCompletedOrCancelledOrders() {
 
         console.log(`Successfully archived order: ${order.order_id}`);
 
-        // Notify WebSocket clients
-        wss.clients.forEach(client => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({
-              type: 'order-archived',
-              orderId: order.order_id
-            }));
+        // Notify WebSocket clients (guard if wss not initialized)
+        try {
+          if (typeof wss !== 'undefined' && wss && wss.clients) {
+            wss.clients.forEach(client => {
+              try {
+                if (client.readyState === WebSocket.OPEN) {
+                  client.send(JSON.stringify({
+                    type: 'order-archived',
+                    orderId: order.order_id
+                  }));
+                }
+              } catch (innerErr) {
+                console.warn('Failed to notify one WS client about archived order', order.order_id, innerErr.message);
+              }
+            });
           }
-        });
+        } catch (wsErr) {
+          console.warn('WebSocket broadcast skipped (not initialized or error):', wsErr.message);
+        }
       } catch (error) {
         console.error(`Error archiving order ${order.order_id}:`, error);
         // Continue with other orders even if one fails
@@ -269,60 +318,33 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Test database connection
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('Error acquiring client', err.stack);
-    console.error('Database connection details:', {
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      port: process.env.DB_PORT || 5432,
-      // Don't log the actual password
-      hasPassword: !!process.env.DB_PASSWORD,
-      hasDatabaseUrl: !!process.env.DATABASE_URL
-    });
-    console.error('Full error:', err);
-    process.exit(1);
+// Database schema updates (moved from duplicate connection test)
+const updateDatabaseSchema = async () => {
+  const client = await pool.connect();
+  try {
+    // Add profit-related columns to orders table
+    await client.query(`
+      ALTER TABLE orders 
+      ADD COLUMN IF NOT EXISTS total_profit_estimation DECIMAL(10,2) DEFAULT 0.00;
+    `);
+    console.log('Successfully added total_profit_estimation column to orders table');
+
+    // Add profit-related columns to order_products table
+    await client.query(`
+      ALTER TABLE order_products 
+      ADD COLUMN IF NOT EXISTS profit_margin DECIMAL(5,2) DEFAULT 0.00,
+      ADD COLUMN IF NOT EXISTS profit_estimation DECIMAL(10,2) DEFAULT 0.00;
+    `);
+    console.log('Successfully added profit columns to order_products table');
+  } catch (err) {
+    console.error('Error updating database schema:', err);
+  } finally {
+    client.release();
   }
-  console.log('Successfully connected to PostgreSQL database');
-  console.log('Database connection details:', {
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT || 5432,
-    // Don't log the actual password
-    hasPassword: !!process.env.DB_PASSWORD,
-    hasDatabaseUrl: !!process.env.DATABASE_URL
-  });
+};
 
-  // Add profit-related columns to orders table
-  client.query(`
-    ALTER TABLE orders 
-    ADD COLUMN IF NOT EXISTS total_profit_estimation DECIMAL(10,2) DEFAULT 0.00;
-  `, (err) => {
-    if (err) {
-      console.error('Error adding total_profit_estimation column:', err);
-    } else {
-      console.log('Successfully added total_profit_estimation column to orders table');
-    }
-  });
-
-  // Add profit-related columns to order_products table
-  client.query(`
-    ALTER TABLE order_products 
-    ADD COLUMN IF NOT EXISTS profit_margin DECIMAL(5,2) DEFAULT 0.00,
-    ADD COLUMN IF NOT EXISTS profit_estimation DECIMAL(10,2) DEFAULT 0.00;
-  `, (err) => {
-    if (err) {
-      console.error('Error adding profit columns to order_products:', err);
-    } else {
-      console.log('Successfully added profit columns to order_products table');
-    }
-  });
-
-  release();
-});
+// Run schema updates after initial connection
+updateDatabaseSchema();
 
 // Add error handler for pool
 pool.on('error', (err, client) => {
@@ -355,450 +377,10 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// Add this test endpoint before the registration endpoint
-app.get('/api/test/roles', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT conname, pg_get_constraintdef(oid) 
-      FROM pg_constraint 
-      WHERE conrelid = 'users'::regclass 
-      AND conname = 'users_role_check'
-    `);
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Error checking constraint:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+// (Removed dev/maintenance endpoints: /api/test/roles, /api/fix-role-constraint, /api/test/env)
+// If needed for future diagnostics, re-implement in a dedicated admin-only route file.
 
-// Add this before the registration endpoint
-app.post('/api/fix-role-constraint', async (req, res) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    // First, update any existing rows with invalid roles to 'director'
-    await client.query(`
-      UPDATE users 
-      SET role = 'director' 
-      WHERE role NOT IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer')
-    `);
-    
-    // Then update the constraint
-    await client.query(`
-      ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
-      ALTER TABLE users ADD CONSTRAINT users_role_check 
-      CHECK (role IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer'));
-    `);
-    
-    await client.query('COMMIT');
-    res.json({ success: true, message: 'Role constraint updated successfully' });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error updating constraint:', error);
-    res.status(500).json({ error: error.message });
-  } finally {
-    client.release();
-  }
-});
-
-
-// Add this before the registration endpoint
-app.get('/api/test/env', async (req, res) => {
-  try {
-    // Only return non-sensitive environment information
-    const envInfo = {
-      NODE_ENV: process.env.NODE_ENV,
-      PORT: process.env.PORT,
-      DATABASE_URL: process.env.DATABASE_URL ? 'Set' : 'Not Set',
-      JWT_SECRET: process.env.JWT_SECRET ? 'Set' : 'Not Set',
-      CORS_ORIGIN: process.env.CORS_ORIGIN ? 'Set' : 'Not Set',
-      // Add server info
-      SERVER_TIME: new Date().toISOString(),
-      SERVER_TIMEZONE: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      DATABASE_CONNECTED: pool.totalCount > 0
-    };
-    
-    res.json({
-      success: true,
-      environment: envInfo
-    });
-  } catch (error) {
-    console.error('Error checking environment:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message,
-      stack: error.stack
-    });
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error checking environment',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-
-  }
-});
-
-// Registration endpoint with file upload (store profile picture in DB)
-app.post('/api/auth/register', upload.single('profilePicture'), async (req, res) => {
-  console.log('Registration request received:', {
-    body: req.body,
-    role: req.body.role,
-    roleType: typeof req.body.role
-  });
-
-  const { name, email, password, role } = req.body;
-  let profilePictureData = null;
-  if (req.file) {
-    profilePictureData = req.file.buffer;
-  }
-
-  // Convert role to lowercase for validation
-  const roleLower = role.toLowerCase();
-  console.log('Role after conversion:', {
-    original: role,
-    converted: roleLower
-  });
-
-  // Validate role
-  const validRoles = [
-    'business_developer',
-    'creatives',
-    'director',
-    'admin',
-    'sales_manager',
-    'assistant_sales',
-    'packer'
-  ];
-
-  console.log('Validating role:', {
-    roleLower,
-    isValid: validRoles.includes(roleLower),
-    validRoles
-  });
-
-  if (!validRoles.includes(roleLower)) {
-    return res.status(400).json({
-      success: false,
-      message: 'Invalid role selected'
-    });
-  }
-
-  try {
-    // Check if email already exists
-    const emailCheck = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
-
-    if (emailCheck.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email already registered'
-      });
-    }
-
-    // Hash password
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    console.log('Attempting to insert user with role:', roleLower);
-
-    // Insert new user with profile picture data (using lowercase role)
-    const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role, profile_picture_data) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email, role',
-      [name, email, passwordHash, roleLower, profilePictureData]
-    );
-
-    const newUser = result.rows[0];
-
-    // Create JWT token
-    const token = jwt.sign(
-      { 
-        user_id: newUser.user_id,
-        name: newUser.name,
-        role: newUser.role 
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    // Return success response
-    res.status(201).json({
-      success: true,
-      token,
-      user: {
-        user_id: newUser.user_id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-        profile_picture_data: profilePictureData ? profilePictureData.toString('base64') : null
-      }
-    });
-
-  } catch (error) {
-    console.error('Registration error:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message,
-      detail: error.detail
-    });
-    // Check for specific database errors
-    if (error.code === '23514') { // Check constraint violation
-      res.status(400).json({
-        success: false,
-        message: 'Invalid role selected'
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error'
-      });
-    }
-  }
-});
-
-// Login endpoint
-app.post('/api/auth/login', async (req, res) => {
-  console.log('Login attempt received:', {
-    body: req.body,
-    origin: req.headers.origin,
-    headers: req.headers
-  });
-
-  const { username, password } = req.body;
-
-  if (!username || !password) {
-    return res.status(400).json({
-      success: false,
-      message: 'Username and password are required'
-    });
-  }
-
-  try {
-    // Get user from database
-    const result = await pool.query(
-      'SELECT * FROM users WHERE name = $1',
-      [username]
-    );
-
-    const user = result.rows[0];
-
-    if (!user) {
-      console.log('Login failed: User not found');
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid username or password'
-      });
-    }
-
-    // Compare password
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-
-    if (!validPassword) {
-      console.log('Login failed: Invalid password');
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid username or password'
-      });
-    }
-
-    // Create JWT token
-    const token = jwt.sign(
-      { 
-        user_id: user.user_id,
-        name: user.name,
-        role: user.role 
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    console.log('Login successful for user:', username);
-
-    // Return success response with profile picture data
-    res.json({
-      success: true,
-      token,
-      user: {
-        user_id: user.user_id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        profile_picture_data: user.profile_picture_data ? user.profile_picture_data.toString('base64') : null
-      }
-    });
-
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-
-// Email verification endpoint
-app.post('/api/auth/verify', async (req, res) => {
-  const { email, code } = req.body;
-
-  if (!email || !code) {
-    return res.status(400).json({ success: false, message: 'Email and verification code are required.' });
-  }
-
-  try {
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'User not found.' });
-    }
-
-    const user = userResult.rows[0];
-
-    if (user.is_email_verified) {
-      return res.status(400).json({ success: false, message: 'Email is already verified.' });
-    }
-
-    // Check if 'email_verification_code' and 'email_verification_expires_at' columns exist before querying them
-    // This is a placeholder check; ideally, these columns should be guaranteed by migrations.
-    if (user.email_verification_code === undefined || user.email_verification_expires_at === undefined) {
-        console.error('Missing email verification columns in users table for user:', email);
-        return res.status(500).json({ success: false, message: 'Server configuration error for email verification.' });
-    }
-
-    if (user.email_verification_code !== code) {
-      return res.status(400).json({ success: false, message: 'Invalid verification code.' });
-    }
-
-    if (new Date() > new Date(user.email_verification_expires_at)) {
-      return res.status(400).json({ success: false, message: 'Verification code has expired.' });
-    }
-
-    // Mark email as verified and clear the code
-    await pool.query(
-      'UPDATE users SET is_email_verified = TRUE, email_verification_code = NULL, email_verification_expires_at = NULL WHERE user_id = $1',
-      [user.user_id]
-    );
-
-    res.json({ success: true, message: 'Email successfully verified.' });
-
-  } catch (error) {
-    console.error('Email verification error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error during email verification.' });
-  }
-});
-
-// Resend verification code endpoint
-app.post('/api/auth/resend-code', async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ success: false, message: 'Email is required.' });
-  }
-
-  try {
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'User not found.' });
-    }
-
-    const user = userResult.rows[0];
-
-    if (user.is_email_verified) {
-      return res.status(400).json({ success: false, message: 'Email is already verified.' });
-    }
-
-    // Generate new verification code (e.g., 6-digit number)
-    const verificationCode = crypto.randomInt(100000, 999999).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // Code expires in 15 minutes
-
-    await pool.query(
-      'UPDATE users SET email_verification_code = $1, email_verification_expires_at = $2 WHERE user_id = $3',
-      [verificationCode, expiresAt, user.user_id]
-    );
-
-    // Send email using nodemailer
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: 'Your Email Verification Code for Wrap N\' Track',
-      text: `Hello ${user.name},
-
-Your email verification code is: ${verificationCode}
-
-This code will expire in 15 minutes.
-
-If you did not request this, please ignore this email.
-
-Thanks,
-The Wrap N' Track Team`,
-      html: `<p>Hello ${user.name},</p><p>Your email verification code is: <strong>${verificationCode}</strong></p><p>This code will expire in 15 minutes.</p><p>If you did not request this, please ignore this email.</p><p>Thanks,<br/>The Wrap N' Track Team</p>`
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    res.json({ success: true, message: 'New verification code sent to your email.' });
-
-  } catch (error) {
-    console.error('Error resending verification code:', error);
-    if (error.code === 'EENVELOPE' || error.responseCode === 550) {
-        return res.status(500).json({ success: false, message: 'Failed to send verification email. Please check server email configuration or recipient address.' });
-    }
-    res.status(500).json({ success: false, message: 'Internal server error while resending code.' });
-  }
-});
-
-// User details endpoint (return profile_picture_data as base64)
-app.get('/api/user/details', verifyToken, async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT user_id, name, email, role, created_at, profile_picture_data FROM users WHERE user_id = $1',
-      [req.user.user_id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    const user = result.rows[0];
-    user.profile_picture_data = user.profile_picture_data ? user.profile_picture_data.toString('base64') : null;
-    res.json(user);
-  } catch (error) {
-    console.error('Error fetching user details:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-});
-
-// Upload or change profile picture endpoint (store in DB)
-app.post('/api/user/profile-picture', verifyToken, upload.single('profilePicture'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ success: false, message: 'No file uploaded' });
-  }
-  const profilePictureData = req.file.buffer;
-  try {
-    await pool.query(
-      'UPDATE users SET profile_picture_data = $1 WHERE user_id = $2',
-      [profilePictureData, req.user.user_id]
-    );
-    res.json({ success: true, profile_picture_data: profilePictureData.toString('base64') });
-  } catch (error) {
-    console.error('Profile picture upload error:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
+// (Removed duplicate auth & profile endpoints now handled in routes/auth.js)
 
 // Add a new inventory item (with image upload to DB)
 app.post('/api/inventory', upload.single('image'), async (req, res) => {
