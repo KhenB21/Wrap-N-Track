@@ -262,9 +262,11 @@ router.post('/', async (req, res) => {
         ]);
       }
 
-      // Insert order products if provided (allow duplicate SKUs as separate lines)
-      if (products && Array.isArray(products) && products.length > 0) {
-        for (const raw of products) {
+    // Insert order products if provided (allow duplicate SKUs as separate lines)
+    console.log('Received products for order:', JSON.stringify(products, null, 2));
+    if (products && Array.isArray(products) && products.length > 0) {
+      console.log(`Processing ${products.length} products for order ${order_id}`);
+      for (const raw of products) {
           const product = { ...raw };
           if (product.itemName && !product.sku) {
             const skuResult = await client.query('SELECT sku FROM inventory_items WHERE name = $1', [product.itemName]);
@@ -287,6 +289,7 @@ router.post('/', async (req, res) => {
             'INSERT INTO order_products (order_id, sku, quantity, profit_margin) VALUES ($1,$2,$3,$4)',
             [order_id, product.sku, Number(product.quantity) || 0, product.profit_margin != null ? Number(product.profit_margin) : 0]
           );
+          console.log(`Successfully inserted product: ${product.sku} (qty: ${product.quantity}) for order ${order_id}`);
         }
       }
 

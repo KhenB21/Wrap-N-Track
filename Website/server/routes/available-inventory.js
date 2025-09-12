@@ -1,0 +1,72 @@
+const express = require('express');
+const router = express.Router();
+const pool = require('../config/db');
+const { verifyToken } = require('../middleware/auth');
+
+// GET available inventory (grouped by category, with item details) - public for customers
+router.get('/', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT ai.category, i.sku, i.name, i.unit_price, i.category AS inventory_category, 
+             CASE WHEN i.image_data IS NOT NULL THEN encode(i.image_data, 'base64') ELSE NULL END AS image_data
+      FROM available_inventory ai
+      JOIN inventory_items i ON i.sku = ai.sku
+      ORDER BY ai.category, i.name ASC
+    `);
+
+    const byCategory = {};
+    for (const row of result.rows) {
+      if (!byCategory[row.category]) byCategory[row.category] = [];
+      byCategory[row.category].push({
+        sku: row.sku,
+        name: row.name,
+        unit_price: row.unit_price,
+        image_data: row.image_data,
+        inventory_category: row.inventory_category
+      });
+    }
+    res.json({ success: true, available: byCategory });
+  } catch (err) {
+    console.error('Error fetching available inventory:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch available inventory' });
+  }
+});
+
+// Mutations require auth (employees only)
+router.use(verifyToken);
+
+// PUT entire available set (idempotent replace per category)
+router.put('/', async (req, res) => {
+  const { available } = req.body; // { category: [sku,...], ... }
+  if (!available || typeof available !== 'object') {
+    return res.status(400).json({ success: false, message: 'Invalid payload' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const categories = Object.keys(available);
+    for (const category of categories) {
+      await client.query('DELETE FROM available_inventory WHERE category = $1', [category]);
+      const skus = Array.isArray(available[category]) ? available[category] : [];
+      for (const sku of skus) {
+        await client.query(
+          'INSERT INTO available_inventory (category, sku, created_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+          [category, sku, req.user?.user_id || null]
+        );
+      }
+    }
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error saving available inventory:', err);
+    res.status(500).json({ success: false, message: 'Failed to save available inventory' });
+  } finally {
+    client.release();
+  }
+});
+
+module.exports = router;
+
+

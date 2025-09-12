@@ -205,19 +205,16 @@ export default function OrderProcess() {
     others: []
   });
   const [showProductSelection, setShowProductSelection] = useState(false);
-  const [selectedInventoryProducts, setSelectedInventoryProducts] = useState(() => {
-    const saved = localStorage.getItem('selectedInventoryProducts');
-    return saved ? JSON.parse(saved) : {
-      packaging: [],
-      beverages: [],
-      food: [],
-      kitchenware: [],
-      homeDecor: [],
-      faceAndBody: [],
-      clothing: [],
-      customization: [],
-      others: []
-    };
+  const [selectedInventoryProducts, setSelectedInventoryProducts] = useState({
+    packaging: [],
+    beverages: [],
+    food: [],
+    kitchenware: [],
+    homeDecor: [],
+    faceAndBody: [],
+    clothing: [],
+    customization: [],
+    others: []
   });
 
   // Fetch inventory products
@@ -243,10 +240,39 @@ export default function OrderProcess() {
     fetchInventoryProducts();
   }, []);
 
-  // Save selectedInventoryProducts to localStorage whenever it changes
+  // On mount, fetch staff-managed available inventory so all users see the same options
   useEffect(() => {
-    localStorage.setItem('selectedInventoryProducts', JSON.stringify(selectedInventoryProducts));
-  }, [selectedInventoryProducts]);
+    const fetchAvailable = async () => {
+      try {
+        const res = await api.get('/api/available-inventory');
+        const available = res.data?.available || {};
+        setSelectedInventoryProducts({
+          packaging: available.packaging?.map(p => p.sku) || [],
+          beverages: available.beverages?.map(p => p.sku) || [],
+          food: available.food?.map(p => p.sku) || [],
+          kitchenware: available.kitchenware?.map(p => p.sku) || [],
+          homeDecor: available.homeDecor?.map(p => p.sku) || [],
+          faceAndBody: available.faceAndBody?.map(p => p.sku) || [],
+          clothing: available.clothing?.map(p => p.sku) || [],
+          customization: available.customization?.map(p => p.sku) || [],
+          others: available.others?.map(p => p.sku) || []
+        });
+      } catch (err) {
+        console.warn('Failed to fetch available inventory; defaulting to empty', err?.message || err);
+      }
+    };
+    fetchAvailable();
+  }, []);
+
+  const saveAvailableInventory = async () => {
+    try {
+      await api.put('/api/available-inventory', { available: selectedInventoryProducts });
+      toast.success('Available products saved');
+    } catch (err) {
+      console.error('Failed to save available inventory', err);
+      toast.error('Failed to save available products');
+    }
+  };
 
   // Map inventory categories to UI categories
   const mapInventoryCategory = (category) => {
@@ -395,7 +421,6 @@ export default function OrderProcess() {
       others: []
     };
     setSelectedInventoryProducts(emptyState);
-    localStorage.setItem('selectedInventoryProducts', JSON.stringify(emptyState));
   };
 
   // Dynamic product arrays based on employee-selected inventory
@@ -531,6 +556,8 @@ export default function OrderProcess() {
     try {
       const guestQuantity = parseInt(formData.guestCount, 10) || 1;
       let productsForOrder = [];
+      const hasInventorySelections = Object.values(selectedInventoryProducts || {})
+        .some(arr => Array.isArray(arr) && arr.length > 0);
 
       const productNameToSku = {
         "Blanc Box": "BC2350932997462", "Signature Box": "BC8201847934939", "Premium Box": "BC3344504438612",
@@ -599,58 +626,64 @@ export default function OrderProcess() {
           }).filter(Boolean);
         } else {
           console.warn(`Style '${formData.style}' selected but no items found or style data is invalid. Falling back to handpicked items if any.`);
-          productsForOrder = getAllSelectedItems().map(item => {
-            // For inventory products, use the SKU directly from the database
-            let sku = item.sku;
-            
-            // Only fall back to hardcoded mapping if no SKU is available
-            if (!sku) {
-              sku = productNameToSku[item.name];
-            }
-            
-            if (!sku) {
-              alert(`Product '${item.name}' (handpicked fallback) does not have a matching SKU and will not be included.`);
-              return null;
-            }
-            return { name: item.name, quantity: guestQuantity, sku };
-          }).filter(Boolean);
-        }
-      } else { 
-        productsForOrder = getAllSelectedItems().map(item => {
-          // For inventory products, use the SKU directly from the database
-          let sku = item.sku;
-          
-          // Only fall back to hardcoded mapping if no SKU is available
-          if (!sku) {
-            sku = productNameToSku[item.name];
+          // If style is invalid, prefer explicit inventory selections; else legacy selections
+          if (hasInventorySelections) {
+            productsForOrder = [];
+            Object.entries(selectedInventoryProducts).forEach(([category, skuArray]) => {
+              if (Array.isArray(skuArray) && skuArray.length > 0) {
+                skuArray.forEach(sku => {
+                  const inventoryItem = inventoryProducts.find(product => product.sku === sku);
+                  if (inventoryItem) {
+                    productsForOrder.push({ name: inventoryItem.name, quantity: guestQuantity, sku: inventoryItem.sku });
+                  }
+                });
+              }
+            });
+          } else {
+            productsForOrder = getAllSelectedItems().map(item => {
+              let sku = item.sku;
+              if (!sku) sku = productNameToSku[item.name];
+              if (!sku) {
+                alert(`Product '${item.name}' (handpicked fallback) does not have a matching SKU and will not be included.`);
+                return null;
+              }
+              return { name: item.name, quantity: guestQuantity, sku };
+            }).filter(Boolean);
           }
-          
+        }
+      } else if (hasInventorySelections) {
+        // Build exclusively from explicit inventory selections
+        productsForOrder = [];
+        Object.entries(selectedInventoryProducts).forEach(([category, skuArray]) => {
+          if (Array.isArray(skuArray) && skuArray.length > 0) {
+            skuArray.forEach(sku => {
+              const inventoryItem = inventoryProducts.find(product => product.sku === sku);
+              if (inventoryItem) {
+                productsForOrder.push({ name: inventoryItem.name, quantity: guestQuantity, sku: inventoryItem.sku });
+              }
+            });
+          }
+        });
+      } else { 
+        // Legacy handpick selections
+        productsForOrder = getAllSelectedItems().map(item => {
+          let sku = item.sku;
+          if (!sku) sku = productNameToSku[item.name];
           if (!sku) {
             alert(`Product '${item.name}' does not have a matching SKU and will not be included in the order.`);
             return null;
           }
-          return {
-            name: item.name,
-            quantity: guestQuantity,
-            sku
-          };
+          return { name: item.name, quantity: guestQuantity, sku };
         }).filter(Boolean);
       }
 
-      // Add inventory products from selectedInventoryProducts
-      Object.entries(selectedInventoryProducts).forEach(([category, skuArray]) => {
-        if (Array.isArray(skuArray) && skuArray.length > 0) {
-          skuArray.forEach(sku => {
-            const inventoryItem = inventoryProducts.find(product => product.sku === sku);
-            if (inventoryItem) {
-              productsForOrder.push({
-                name: inventoryItem.name,
-                quantity: guestQuantity,
-                sku: inventoryItem.sku
-              });
-            }
-          });
-        }
+      // De-duplicate by SKU to avoid accidental duplicates
+      const seenSkus = new Set();
+      productsForOrder = productsForOrder.filter(p => {
+        if (!p || !p.sku) return false;
+        if (seenSkus.has(p.sku)) return false;
+        seenSkus.add(p.sku);
+        return true;
       });
 
       if (!productsForOrder || productsForOrder.length === 0) {
@@ -663,6 +696,26 @@ export default function OrderProcess() {
       console.log('Products for order:', productsForOrder);
       productsForOrder.forEach(product => {
         console.log(`Product: ${product.name}, SKU: ${product.sku}`);
+      });
+
+      // Log the complete order payload being sent to server
+      console.log('Complete order payload:', {
+        account_name: customerData.account_name || 'Guest',
+        name: customerData.name || 'Guest',
+        order_date: new Date().toISOString().split('T')[0],
+        expected_delivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'Pending',
+        package_name: selectedStyle || 'Custom',
+        payment_method: 'Cash on Delivery',
+        payment_type: 'Cash',
+        shipped_to: customerData.name || 'Guest',
+        shipping_address: customerData.address || 'TBD',
+        total_cost: 0,
+        remarks: formData.specialRequests || '',
+        telephone: customerData.telephone || '',
+        cellphone: customerData.cellphone || '',
+        email_address: customerData.email_address || '',
+        products: productsForOrder
       });
 
       let shippingAddress = '';
@@ -1739,6 +1792,23 @@ export default function OrderProcess() {
                   >
                     📦 Manage Available Products
                   </button>
+                  <button
+                    type="button"
+                    onClick={saveAvailableInventory}
+                    style={{
+                      marginLeft: "10px",
+                      backgroundColor: "#198754",
+                      color: "white",
+                      border: "none",
+                      padding: "10px 20px",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: "600"
+                    }}
+                  >
+                    💾 Save Available Products
+                  </button>
                 </div>
               )}
 
@@ -2774,24 +2844,38 @@ export default function OrderProcess() {
               <h3 style={{ marginBottom: "15px", textTransform: "capitalize" }}>
                 {modalCategory?.replace(/([A-Z])/g, ' $1').trim()} Products
               </h3>
-              
-              {Array.isArray(inventoryProducts) && inventoryProducts.filter(product => 
-                mapInventoryCategory(product.category.toLowerCase()) === modalCategory
-              ).length === 0 ? (
-                <p style={{ color: "#999", fontStyle: "italic" }}>
-                  No inventory products found for this category.
-                </p>
-              ) : (
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                  gap: "15px"
-                }}>
-                  {Array.isArray(inventoryProducts) && inventoryProducts
-                    .filter(product => 
-                      mapInventoryCategory(product.category.toLowerCase()) === modalCategory
-                    )
-                    .map(product => (
+
+              {(() => {
+                if (!Array.isArray(inventoryProducts)) {
+                  return (
+                    <p style={{ color: "#999", fontStyle: "italic" }}>
+                      Loading inventory products...
+                    </p>
+                  );
+                }
+
+                const filteredProducts = inventoryProducts.filter((product) => {
+                  const mappedCategory = mapInventoryCategory(
+                    (product.category || '').toLowerCase()
+                  );
+                  return mappedCategory === modalCategory;
+                });
+
+                if (filteredProducts.length === 0) {
+                  return (
+                    <p style={{ color: "#999", fontStyle: "italic" }}>
+                      No inventory products found for this category.
+                    </p>
+                  );
+                }
+
+                return (
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                    gap: "15px"
+                  }}>
+                    {filteredProducts.map((product) => (
                       <div
                         key={product.sku}
                         onClick={() => {
@@ -2805,17 +2889,11 @@ export default function OrderProcess() {
                           }));
                         }}
                         style={{
-                          border: `2px solid ${
-                            selectedInventoryProducts[modalCategory]?.includes(product.sku) 
-                              ? "#ff6b35" 
-                              : "#ddd"
-                          }`,
+                          border: `2px solid ${selectedInventoryProducts[modalCategory]?.includes(product.sku) ? "#ff6b35" : "#ddd"}`,
                           borderRadius: "8px",
                           padding: "15px",
                           cursor: "pointer",
-                          backgroundColor: selectedInventoryProducts[modalCategory]?.includes(product.sku) 
-                            ? "#fff3cd" 
-                            : "white",
+                          backgroundColor: selectedInventoryProducts[modalCategory]?.includes(product.sku) ? "#fff3cd" : "white",
                           transition: "all 0.2s ease",
                           position: "relative"
                         }}
@@ -2833,25 +2911,25 @@ export default function OrderProcess() {
                             }}
                           />
                         )}
-                        <h4 style={{ 
-                          margin: "0 0 5px 0", 
+                        <h4 style={{
+                          margin: "0 0 5px 0",
                           fontSize: "14px",
                           color: "#2c3e50"
                         }}>
                           {product.name}
                         </h4>
-                        <p style={{ 
-                          margin: "0 0 5px 0", 
-                          fontSize: "12px", 
-                          color: "#666" 
+                        <p style={{
+                          margin: "0 0 5px 0",
+                          fontSize: "12px",
+                          color: "#666"
                         }}>
                           SKU: {product.sku}
                         </p>
-                        <p style={{ 
-                          margin: 0, 
-                          fontSize: "12px", 
+                        <p style={{
+                          margin: 0,
+                          fontSize: "12px",
                           fontWeight: "600",
-                          color: "#27ae60" 
+                          color: "#27ae60"
                         }}>
                           ₱{product.unit_price}
                         </p>
@@ -2875,8 +2953,9 @@ export default function OrderProcess() {
                         )}
                       </div>
                     ))}
-                </div>
-              )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Footer */}
