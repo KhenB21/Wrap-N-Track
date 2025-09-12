@@ -5,6 +5,12 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const router = express.Router();
+// Embed a lightweight build signature (update manually when deploying)
+const ORDERS_ROUTE_BUILD = 'orders-route-build:2025-09-12-01';
+
+router.get('/_version', (req,res)=>{
+  res.json({ route: 'orders', build: ORDERS_ROUTE_BUILD });
+});
 
 // Helper to generate a unique customer order ID (retry loop safeguards duplicates under concurrency)
 async function generateUniqueCustomerOrderId(client) {
@@ -165,46 +171,59 @@ router.post('/', async (req, res) => {
 
       const customerAddress = customerResult.rows[0].address || 'Unknown Address';
 
-      // Insert into orders table
-      const orderResult = await client.query(`
-        INSERT INTO orders (
-          order_id,
-          account_name,
-          name,
-          order_date,
-          expected_delivery,
-          status,
-          package_name,
-          payment_method,
-          payment_type,
-          shipped_to,
-          shipping_address,
-          total_cost,
-          remarks,
-          telephone,
-          cellphone,
-          email_address
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *
-      `, [
-        order_id,
-        account_name,
-        name,
-        order_date,
-        expected_delivery,
-        status,
-        package_name,
-        payment_method,
-        payment_type,
-        shipped_to,
-        customerAddress,
-        total_cost,
-        remarks,
-        telephone,
-        cellphone,
-        email_address
-      ]);
+      // Insert into orders table with duplicate retry guard (handles rare race conditions)
+      let orderResult;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          orderResult = await client.query(`
+            INSERT INTO orders (
+              order_id,
+              account_name,
+              name,
+              order_date,
+              expected_delivery,
+              status,
+              package_name,
+              payment_method,
+              payment_type,
+              shipped_to,
+              shipping_address,
+              total_cost,
+              remarks,
+              telephone,
+              cellphone,
+              email_address
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *
+          `, [
+            order_id,
+            account_name,
+            name,
+            order_date,
+            expected_delivery,
+            status,
+            package_name,
+            payment_method,
+            payment_type,
+            shipped_to,
+            customerAddress,
+            total_cost,
+            remarks,
+            telephone,
+            cellphone,
+            email_address
+          ]);
+          break; // success
+        } catch (e) {
+          if (e.code === '23505') { // duplicate primary key
+            order_id = await generateUniqueCustomerOrderId(client); // regenerate and retry
+            if (attempt === 4) throw e; // give up after retries
+            continue;
+          }
+          throw e;
+        }
+      }
 
-      if (!orderResult.rows.length) {
+      if (!orderResult || !orderResult.rows.length) {
         await client.query('ROLLBACK');
         return res.status(500).json({ error: 'Failed to create customer order' });
       }
@@ -313,7 +332,8 @@ router.post('/', async (req, res) => {
         total_cost: calculatedTotalCost, 
         products,
         // Provide visibility if server auto-changed a duplicate provided ID
-        original_provided_order_id: providedOrderId && providedOrderId !== order_id ? providedOrderId : null
+        original_provided_order_id: providedOrderId && providedOrderId !== order_id ? providedOrderId : null,
+        build: ORDERS_ROUTE_BUILD
       };
       res.status(201).json(finalOrderData);
     } catch (error) {
@@ -321,10 +341,13 @@ router.post('/', async (req, res) => {
       console.error('Error creating customer order:', error);
       
       // Handle specific database errors
-      if (error.code === '23505') { // Unique violation
-        return res.status(400).json({ 
-          error: 'Order ID already exists',
-          details: `An order with ID ${providedOrderId} already exists. Please try again with a different order ID.`
+      // Unique violation should be unreachable due to retry logic, but if it occurs we auto-respond with generic message
+      if (error.code === '23505') {
+        console.error('[ORDERS_DUPLICATE_AFTER_RETRIES]', { providedOrderId, message: error.message, build: ORDERS_ROUTE_BUILD });
+        return res.status(500).json({ 
+          error: 'Unexpected duplicate order ID after retries',
+          details: 'Please retry placing the order.',
+          build: ORDERS_ROUTE_BUILD
         });
       }
       
