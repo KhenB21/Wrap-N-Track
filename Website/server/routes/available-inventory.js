@@ -22,11 +22,18 @@ const verifyToken = (req, res, next) => {
 // GET available inventory (grouped by category, with item details) - public for customers
 router.get('/', async (req, res) => {
   try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS public.available_inventory (
+      category TEXT NOT NULL,
+      sku TEXT NOT NULL REFERENCES public.inventory_items(sku) ON DELETE CASCADE,
+      created_by UUID NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (category, sku)
+    )`);
     const result = await pool.query(`
       SELECT ai.category, i.sku, i.name, i.unit_price, i.category AS inventory_category, 
              CASE WHEN i.image_data IS NOT NULL THEN encode(i.image_data, 'base64') ELSE NULL END AS image_data
-      FROM available_inventory ai
-      JOIN inventory_items i ON i.sku = ai.sku
+      FROM public.available_inventory ai
+      JOIN public.inventory_items i ON i.sku = ai.sku
       ORDER BY ai.category, i.name ASC
     `);
 
@@ -58,16 +65,25 @@ router.put('/', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid payload' });
   }
 
+  // Ensure table exists outside the transaction, then do the upsert work
+  await pool.query(`CREATE TABLE IF NOT EXISTS public.available_inventory (
+    category TEXT NOT NULL,
+    sku TEXT NOT NULL REFERENCES public.inventory_items(sku) ON DELETE CASCADE,
+    created_by UUID NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (category, sku)
+  )`);
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const categories = Object.keys(available);
     for (const category of categories) {
-      await client.query('DELETE FROM available_inventory WHERE category = $1', [category]);
+      await client.query('DELETE FROM public.available_inventory WHERE category = $1', [category]);
       const skus = Array.isArray(available[category]) ? available[category] : [];
       for (const sku of skus) {
         await client.query(
-          'INSERT INTO available_inventory (category, sku, created_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+          'INSERT INTO public.available_inventory (category, sku, created_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
           [category, sku, req.user?.user_id || null]
         );
       }
