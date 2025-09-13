@@ -19,6 +19,11 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+// Helper: validate UUID v4/standard format
+const isValidUuid = (value) => {
+  return typeof value === 'string' && /^(?:[0-9a-fA-F]{8}-){1}[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value);
+};
+
 // GET available inventory (grouped by category, with item details) - public for customers
 router.get('/', async (req, res) => {
   try {
@@ -82,9 +87,11 @@ router.put('/', async (req, res) => {
       await client.query('DELETE FROM public.available_inventory WHERE category = $1', [category]);
       const skus = Array.isArray(available[category]) ? available[category] : [];
       for (const sku of skus) {
+        const rawUserId = req.user?.user_id || req.user?.id || null;
+        const createdBy = isValidUuid(rawUserId) ? rawUserId : null;
         await client.query(
           'INSERT INTO public.available_inventory (category, sku, created_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-          [category, sku, req.user?.user_id || null]
+          [category, sku, createdBy]
         );
       }
     }
