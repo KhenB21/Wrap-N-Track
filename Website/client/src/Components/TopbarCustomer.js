@@ -24,9 +24,14 @@ export default function TopbarCustomer() {
     navigate('/customer-home');
   };
 
+  const placeholderUrl = (process.env.PUBLIC_URL || '') + '/placeholder-profile.svg';
+
   const getProfilePictureUrl = () => {
-    if (!user) return "/placeholder-profile.png";
+    if (!user) return placeholderUrl;
     
+    if (user.profile_picture_base64) {
+      return `data:image/jpeg;base64,${user.profile_picture_base64}`;
+    }
     if (user.profile_picture_data) {
       return `data:image/jpeg;base64,${user.profile_picture_data}`;
     }
@@ -38,7 +43,16 @@ export default function TopbarCustomer() {
   return `${user.profile_picture_path}`;
     }
     
-    return "/placeholder-profile.png";
+    return placeholderUrl;
+  };
+
+  const getInitials = () => {
+    const displayName = user?.name || user?.username || '';
+    if (!displayName) return 'U';
+    const parts = displayName.trim().split(/\s+/);
+    const first = parts[0]?.[0] || '';
+    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (first + last).toUpperCase();
   };
 
   const handleProfileClick = (e) => {
@@ -112,15 +126,21 @@ export default function TopbarCustomer() {
               ref={dropdownRef}
               onClick={handleProfileClick}
             >
-              <img
-                src={getProfilePictureUrl()}
-                alt="Profile"
-                className="customer-avatar"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = '/placeholder-profile.png';
-                }}
-              />
+              {user && (user.profile_picture_base64 || user.profile_picture_data || user.profile_picture_path) ? (
+                <img
+                  src={getProfilePictureUrl()}
+                  alt="Profile"
+                  className="customer-avatar"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = placeholderUrl;
+                  }}
+                />
+              ) : (
+                <div className="customer-avatar-initials" aria-label="Profile">
+                  {getInitials()}
+                </div>
+              )}
               {dropdownVisible && (
                 <div className="customer-dropdown-menu">
                   {user.source === 'customer' && (

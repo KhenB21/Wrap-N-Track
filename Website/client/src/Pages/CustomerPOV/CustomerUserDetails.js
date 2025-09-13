@@ -1,22 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import config from '../../config';
+import { Link, useNavigate } from 'react-router-dom';
 import './CustomerUserDetails.css';
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import api from '../../api';
+import { useAuth } from '../../Context/AuthContext';
 
 export default function CustomerUserDetails() {
+  const { isEmployee, logout } = useAuth();
   const [userData, setUserData] = useState({
     user_id: '',
     name: '',
     username: '',
     email: '',
-    profile_picture_path: '',
-    profile_picture_data: '',
+    profile_picture_base64: '', // customer
+    profile_picture_data: '',   // employee
     phone_number: '',
     address: '',
-    addresses: []
+    created_at: '',
+    role: ''
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -28,6 +29,7 @@ export default function CustomerUserDetails() {
   const [newPhone, setNewPhone] = useState('');
   const fileInputRef = useRef();
   const navigate = useNavigate();
+  const [viewMode, setViewMode] = useState('view'); // 'view' | 'edit'
   const [editingField, setEditingField] = useState(null);
   const [editValues, setEditValues] = useState({
     username: '',
@@ -41,52 +43,69 @@ export default function CustomerUserDetails() {
   const fieldOrder = ['username', 'name', 'email', 'phone_number', 'address'];
 
   useEffect(() => {
-    const token = localStorage.getItem('customerToken');
-    if (!token) {
+    const customerToken = localStorage.getItem('customerToken');
+    const employeeToken = localStorage.getItem('token');
+    if (!customerToken && !employeeToken) {
       navigate('/customer-login');
       return;
     }
     const fetchUserData = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/api/customer/profile', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        if (!response.data) {
-          throw new Error('Failed to fetch user data');
-        }
-        const address = response.data.address || '';
-        const userData = {
-          user_id: response.data.customer_id,
-          name: response.data.name || '',
-          username: response.data.username || '',
-          email: response.data.email_address || '',
-          phone_number: response.data.phone_number || '',
-          address,
-          profile_picture_data: response.data.profile_picture_data,
-          addresses: response.data.addresses || []
-        };
-        setUserData(userData);
-        setEditValues({
-          username: userData.username,
-          name: userData.name,
-          email: userData.email,
-          phone_number: userData.phone_number,
-          address: userData.address
-        });
         setError(null);
-      } catch (error) {
-        if (error.response && error.response.status === 401) {
-          localStorage.removeItem('customerToken');
-          localStorage.removeItem('customer');
-          navigate('/customer-login');
+        if (customerToken) {
+          const response = await api.get('/api/customer/profile');
+          if (!response.data?.success || !response.data.customer) {
+            throw new Error('Failed to fetch customer profile');
+          }
+          const c = response.data.customer;
+          const mapped = {
+            user_id: c.customer_id,
+            name: c.name || '',
+            username: c.username || '',
+            email: c.email || c.email_address || '',
+            phone_number: c.phone_number || '',
+            address: c.address || '',
+            profile_picture_base64: c.profile_picture_base64 || '',
+            created_at: c.created_at || '',
+            role: 'Customer'
+          };
+          setUserData(mapped);
+          setEditValues({
+            username: mapped.username,
+            name: mapped.name,
+            email: mapped.email,
+            phone_number: mapped.phone_number,
+            address: mapped.address
+          });
         } else {
-          console.error('Error fetching user data:', error);
-          setError(error.message);
+          const response = await api.get('/api/user/details');
+          if (!response.data) {
+            throw new Error('Failed to fetch employee details');
+          }
+          const e = response.data;
+          setUserData({
+            user_id: e.user_id,
+            name: e.name || '',
+            username: e.name || '',
+            email: e.email || '',
+            phone_number: e.phone_number || '',
+            address: e.address || '',
+            profile_picture_data: e.profile_picture_data || '',
+            created_at: e.created_at || e.createdAt || '',
+            role: 'Employee'
+          });
+          setEditValues({
+            username: e.name || '',
+            name: e.name || '',
+            email: e.email || '',
+            phone_number: e.phone_number || '',
+            address: e.address || ''
+          });
         }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        setError(error.message || 'Failed to fetch user details');
       } finally {
         setLoading(false);
       }
@@ -95,10 +114,22 @@ export default function CustomerUserDetails() {
   }, [navigate]);
 
   const getProfilePictureUrl = () => {
+    if (previewUrl) return previewUrl;
+    if (userData.profile_picture_base64) {
+      return `data:image/jpeg;base64,${userData.profile_picture_base64}`;
+    }
     if (userData.profile_picture_data) {
       return `data:image/jpeg;base64,${userData.profile_picture_data}`;
     }
-    return '/placeholder-profile.png';
+    return '';
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    const first = parts[0]?.[0] || '';
+    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (first + last).toUpperCase();
   };
 
   const handlePencilClick = () => {
@@ -427,15 +458,19 @@ export default function CustomerUserDetails() {
     }
   };
 
+  const createdLabel = userData.created_at ? new Date(userData.created_at).toLocaleDateString() : '—';
+
   if (loading) {
     return (
-      <div className="customer-dashboard-container">
+      <div className="customer-user-details-container">
         <TopbarCustomer />
-        <div className="customer-dashboard-main">
-          <div className="customer-user-details-container">
-            <div className="customer-user-details-card">
-              <div className="loading">Loading user data...</div>
-            </div>
+        <div className="customer-user-details-content">
+          <div className="profile-card">
+            <div className="skeleton-avatar" />
+            <div className="skeleton-line" style={{ width: '60%' }} />
+            <div className="skeleton-line" style={{ width: '40%' }} />
+            <div className="skeleton-line" style={{ width: '80%', marginTop: 16 }} />
+            <div className="skeleton-line" style={{ width: '70%' }} />
           </div>
         </div>
       </div>
@@ -446,43 +481,105 @@ export default function CustomerUserDetails() {
     <div className="customer-user-details-container">
       <TopbarCustomer />
       <div className="customer-user-details-content">
-        <div className="customer-user-details-header">
-          <h2>User Details</h2>
-        </div>
+        {/* Employee banner (blue), dismissible */}
+        {isEmployee && (
+          <EmployeeBanner />
+        )}
+
         <div className="profile-card">
           <div className="profile-pic-section">
-            <img src={previewUrl || getProfilePictureUrl()} alt="Profile" className="profile-picture" />
+            {getProfilePictureUrl() ? (
+              <img src={getProfilePictureUrl()} alt="Profile" className="profile-picture" />
+            ) : (
+              <div className="profile-initials" aria-label="Profile placeholder">
+                {getInitials(userData.name)}
+              </div>
+            )}
             <button className="edit-profile-pic-btn" onClick={handlePencilClick} title="Change profile picture">
               <span role="img" aria-label="Edit">✏️</span>
             </button>
             <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleProfilePictureChange} />
           </div>
-          <form className="profile-form" onSubmit={handleSubmit}>
-            <h2>Profile</h2>
-            <div className="form-row">
-              <label>Username</label>
-              <input type="text" name="username" value={editValues.username} onChange={handleInputChange} required />
+
+          {/* Top section: name + role */}
+          <div style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
+            <div className="user-name-heading">{userData.name || userData.username}</div>
+            <span className={`role-badge ${isEmployee ? 'employee' : 'customer'}`}>{userData.role || (isEmployee ? 'Employee' : 'Customer')}</span>
+          </div>
+
+          {/* Details */}
+          {error && <div className="error" role="alert">{error}</div>}
+          {success && <div className="success" role="status">{success}</div>}
+
+          {viewMode === 'view' && (
+            <div className="details-list">
+              <div className="detail-row"><span className="detail-label">Email</span><span className="detail-value">{userData.email || '—'}</span></div>
+              <div className="detail-row"><span className="detail-label">Role</span><span className="detail-value">{userData.role || (isEmployee ? 'Employee' : 'Customer')}</span></div>
+              <div className="detail-row"><span className="detail-label">Account Created</span><span className="detail-value">{createdLabel}</span></div>
+              {userData.phone_number && (
+                <div className="detail-row"><span className="detail-label">Phone</span><span className="detail-value">{userData.phone_number}</span></div>
+              )}
+              {userData.address && (
+                <div className="detail-row"><span className="detail-label">Address</span><span className="detail-value">{userData.address}</span></div>
+              )}
             </div>
-            <div className="form-row">
-              <label>Name</label>
-              <input type="text" name="name" value={editValues.name} onChange={handleInputChange} required />
-            </div>
-            <div className="form-row">
-              <label>Email</label>
-              <input type="email" name="email" value={editValues.email} onChange={handleInputChange} required />
-            </div>
-            <div className="form-row">
-              <label>Phone Number</label>
-              <input type="text" value={userData.phone_number} disabled />
-            </div>
-            <div className="form-row">
-              <label>Address</label>
-              <input type="text" value={userData.address || ''} disabled />
-            </div>
-            <button className="save-btn" type="submit" style={{ marginTop: 24 }}>Save</button>
-          </form>
+          )}
+
+          {viewMode === 'edit' && (
+            <form className="profile-form" onSubmit={handleSubmit}>
+              <h2>Profile</h2>
+              <div className="form-row">
+                <label>Username</label>
+                <input type="text" name="username" value={editValues.username} onChange={handleInputChange} required />
+              </div>
+              <div className="form-row">
+                <label>Name</label>
+                <input type="text" name="name" value={editValues.name} onChange={handleInputChange} required />
+              </div>
+              <div className="form-row">
+                <label>Email</label>
+                <input type="email" name="email" value={editValues.email} onChange={handleInputChange} required />
+              </div>
+              <div className="form-row">
+                <label>Phone Number</label>
+                <input type="text" value={userData.phone_number} disabled />
+              </div>
+              <div className="form-row">
+                <label>Address</label>
+                <input type="text" value={userData.address || ''} disabled />
+              </div>
+              <button className="save-btn" type="submit" style={{ marginTop: 24 }}>Save</button>
+            </form>
+          )}
+
+          {/* Actions */}
+          <div className="actions-row">
+            <button className="secondary-btn" onClick={() => setViewMode(viewMode === 'view' ? 'edit' : 'view')}>
+              {viewMode === 'view' ? 'Edit Profile' : 'Cancel'}
+            </button>
+            <button className="danger-btn" onClick={() => { logout(); navigate('/customer-home'); }}>Logout</button>
+          </div>
         </div>
       </div>
     </div>
   );
 } 
+
+function EmployeeBanner() {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+  return (
+    <div className="employee-banner">
+      <div className="employee-banner-left">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm0 15h-1v-6h2v6h-1Zm0-8h-1V7h2v2h-1Z" fill="#0369a1"/>
+        </svg>
+        <span>You are logged in with employee privileges.</span>
+      </div>
+      <div className="employee-banner-actions">
+        <Link to="/employee-dashboard" className="employee-banner-cta">Go to Employee Dashboard</Link>
+        <button className="employee-banner-dismiss" aria-label="Dismiss" onClick={() => setDismissed(true)}>×</button>
+      </div>
+    </div>
+  );
+}

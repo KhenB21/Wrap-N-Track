@@ -28,8 +28,14 @@ function CustomerLogIn() {
       });
 
       if (response.data.success) {
-        login(response.data.customer, response.data.token, 'customer');
-        navigate('/about');
+        // If customer field present, treat as customer; otherwise treat as employee
+        if (response.data.customer) {
+          login(response.data.customer, response.data.token, 'customer');
+        } else if (response.data.employee) {
+          login(response.data.employee, response.data.token, 'employee');
+        }
+        // Redirect both roles to customer home
+        navigate('/customer-home');
       }
     } catch (err) {
       setError(err.response?.data?.message || 'An error occurred during login.');
