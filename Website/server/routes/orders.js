@@ -363,15 +363,15 @@ router.put('/:order_id', async (req, res) => {
     telephone,
     cellphone,
     email_address,
-    products // array of { line_id? (ignored), sku, quantity, profit_margin }
+    products // optional array of { line_id? (ignored), sku, quantity, profit_margin }
   } = req.body;
 
-  if (!products || !Array.isArray(products) || products.length === 0) {
-    return res.status(400).json({ error: 'Products array required' });
-  }
-  for (const p of products) {
-    if (!p.sku || typeof p.quantity !== 'number' || p.quantity <= 0) {
-      return res.status(400).json({ error: 'Each product needs sku and positive quantity' });
+  const hasProductsPayload = Array.isArray(products) && products.length > 0;
+  if (hasProductsPayload) {
+    for (const p of products) {
+      if (!p.sku || typeof p.quantity !== 'number' || p.quantity <= 0) {
+        return res.status(400).json({ error: 'Each product needs sku and positive quantity' });
+      }
     }
   }
 
@@ -385,46 +385,69 @@ router.put('/:order_id', async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Order not found' });
     }
+    const existingOrder = existingOrderResult.rows[0];
+    const normalize = (s) => (typeof s === 'string' ? s.toLowerCase().replace(/\s+/g, '').replace(/-/g, '') : '');
+    const currentNorm = normalize(existingOrder.status);
+    const statusHasDeducted = ['tobepack','readyfordeliver','readyfordelivery','enroute','completed'].includes(currentNorm);
 
-    // Fetch existing lines to restore inventory
+    // If we are replacing products, first restore inventory only if it was previously deducted
     const existingLinesResult = await client.query('SELECT line_id, sku, quantity FROM order_products WHERE order_id = $1', [order_id]);
     const existingLines = existingLinesResult.rows;
-    for (const old of existingLines) {
-      await client.query('UPDATE inventory_items SET quantity = quantity + $1 WHERE sku = $2', [old.quantity, old.sku]);
+    if (hasProductsPayload && statusHasDeducted) {
+      for (const old of existingLines) {
+        await client.query('UPDATE inventory_items SET quantity = quantity + $1 WHERE sku = $2', [old.quantity, old.sku]);
+      }
     }
 
-    // Remove old lines
-    await client.query('DELETE FROM order_products WHERE order_id = $1', [order_id]);
-
-    // Insert new lines & deduct inventory
-    for (const p of products) {
-      // Validate sku exists
-      const skuCheck = await client.query('SELECT unit_price FROM inventory_items WHERE sku = $1', [p.sku]);
-      if (!skuCheck.rows.length) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ error: `SKU ${p.sku} not found in inventory` });
+    if (hasProductsPayload) {
+      // Remove old lines before inserting new ones
+      await client.query('DELETE FROM order_products WHERE order_id = $1', [order_id]);
+      // Insert new lines & deduct inventory
+      for (const p of products) {
+        // Validate sku exists
+        const skuCheck = await client.query('SELECT unit_price FROM inventory_items WHERE sku = $1', [p.sku]);
+        if (!skuCheck.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `SKU ${p.sku} not found in inventory` });
+        }
+        await client.query(
+          'INSERT INTO order_products (order_id, sku, quantity, profit_margin) VALUES ($1,$2,$3,$4)',
+          [order_id, p.sku, p.quantity, p.profit_margin != null ? Number(p.profit_margin) : 0]
+        );
+        const invResult = await client.query('UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2 RETURNING quantity', [p.quantity, p.sku]);
+        if (invResult.rowCount === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `SKU ${p.sku} not found while deducting` });
+        }
+        if (invResult.rows[0].quantity < 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `Insufficient stock for SKU ${p.sku}` });
+        }
       }
-      await client.query(
-        'INSERT INTO order_products (order_id, sku, quantity, profit_margin) VALUES ($1,$2,$3,$4)',
-        [order_id, p.sku, p.quantity, p.profit_margin != null ? Number(p.profit_margin) : 0]
-      );
-      const invResult = await client.query('UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2 RETURNING quantity', [p.quantity, p.sku]);
-      if (invResult.rowCount === 0) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ error: `SKU ${p.sku} not found while deducting` });
-      }
-      if (invResult.rows[0].quantity < 0) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ error: `Insufficient stock for SKU ${p.sku}` });
+    } else if (status && normalize(status) === 'tobepack' && !statusHasDeducted) {
+      // Status-only move from Pending -> To Be Pack: deduct existing lines now
+      for (const line of existingLines) {
+        const invResult = await client.query('UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2 RETURNING quantity', [line.quantity, line.sku]);
+        if (invResult.rowCount === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `SKU ${line.sku} not found while deducting` });
+        }
+        if (invResult.rows[0].quantity < 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `Insufficient stock for SKU ${line.sku}` });
+        }
       }
     }
 
     // Recalculate total cost from fresh lines
     let newTotalCost = 0;
-    for (const p of products) {
-      const priceResult = await client.query('SELECT unit_price FROM inventory_items WHERE sku = $1', [p.sku]);
+    const pricedLines = hasProductsPayload ? products : existingLines;
+    for (const p of pricedLines) {
+      const sku = p.sku;
+      const qty = parseInt(p.quantity, 10) || 0;
+      const priceResult = await client.query('SELECT unit_price FROM inventory_items WHERE sku = $1', [sku]);
       const unitPrice = priceResult.rows.length ? parseFloat(priceResult.rows[0].unit_price) || 0 : 0;
-      newTotalCost += unitPrice * (parseInt(p.quantity, 10) || 0);
+      newTotalCost += unitPrice * qty;
     }
 
     // Dynamically build update statement (always set total_cost)
