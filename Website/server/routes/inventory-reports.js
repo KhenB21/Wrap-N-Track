@@ -1,3 +1,4 @@
+
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
@@ -307,6 +308,344 @@ router.get('/supplier-performance', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch supplier performance' 
+    });
+  }
+});
+
+// GET /api/inventory-reports/movement-analysis - Get fast/slow moving items analysis
+router.get('/movement-analysis', async (req, res) => {
+  try {
+    const { days = 90 } = req.query;
+    
+    const result = await pool.query(`
+      WITH sales_analysis AS (
+        SELECT 
+          i.sku,
+          i.name,
+          i.category,
+          i.quantity as current_stock,
+          i.unit_price,
+          i.reorder_level,
+          COALESCE(SUM(CASE 
+            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
+            THEN op.quantity 
+            ELSE 0 
+          END), 0) as sold_quantity,
+          COALESCE(SUM(CASE 
+            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
+            THEN op.quantity * op.unit_price 
+            ELSE 0 
+          END), 0) as sales_value,
+          COUNT(CASE 
+            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
+            THEN 1 
+          END) as sales_frequency
+        FROM inventory_items i
+        LEFT JOIN order_products op ON i.sku = op.sku
+        LEFT JOIN orders o ON op.order_id = o.order_id
+        WHERE i.is_active = true
+        GROUP BY i.sku, i.name, i.category, i.quantity, i.unit_price, i.reorder_level
+      ),
+      movement_classification AS (
+        SELECT 
+          *,
+          CASE 
+            WHEN sold_quantity = 0 THEN 'DEAD_STOCK'
+            WHEN sold_quantity > 0 AND sold_quantity <= 10 THEN 'SLOW_MOVING'
+            WHEN sold_quantity > 10 AND sold_quantity <= 50 THEN 'MODERATE_MOVING'
+            WHEN sold_quantity > 50 THEN 'FAST_MOVING'
+          END as movement_category,
+          CASE 
+            WHEN current_stock > 0 THEN sold_quantity::float / current_stock
+            ELSE 0
+          END as velocity_ratio,
+          CASE 
+            WHEN sold_quantity > 0 THEN current_stock::float / sold_quantity
+            ELSE 999
+          END as months_of_stock
+        FROM sales_analysis
+      )
+      SELECT 
+        sku,
+        name,
+        category,
+        current_stock,
+        unit_price,
+        reorder_level,
+        sold_quantity,
+        sales_value,
+        sales_frequency,
+        movement_category,
+        ROUND(velocity_ratio::numeric, 2) as velocity_ratio,
+        ROUND(months_of_stock::numeric, 1) as months_of_stock,
+        (current_stock * unit_price) as inventory_value
+      FROM movement_classification
+      ORDER BY 
+        CASE movement_category
+          WHEN 'FAST_MOVING' THEN 1
+          WHEN 'MODERATE_MOVING' THEN 2
+          WHEN 'SLOW_MOVING' THEN 3
+          WHEN 'DEAD_STOCK' THEN 4
+        END,
+        sales_value DESC
+    `);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching movement analysis:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch movement analysis' 
+    });
+  }
+});
+
+// GET /api/inventory-reports/replenishment-suggestions - Get AI-powered replenishment suggestions
+router.get('/replenishment-suggestions', async (req, res) => {
+  try {
+    const { days = 90 } = req.query;
+    
+    const result = await pool.query(`
+      WITH demand_forecast AS (
+        SELECT 
+          i.sku,
+          i.name,
+          i.category,
+          i.quantity as current_stock,
+          i.unit_price,
+          i.reorder_level,
+          i.lead_time_days,
+          i.supplier_id,
+          s.name as supplier_name,
+          COALESCE(SUM(CASE 
+            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
+            THEN op.quantity 
+            ELSE 0 
+          END), 0) as avg_daily_demand,
+          COALESCE(AVG(CASE 
+            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
+            THEN op.quantity 
+          END), 0) as avg_order_quantity,
+          COUNT(CASE 
+            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
+            THEN 1 
+          END) as order_frequency
+        FROM inventory_items i
+        LEFT JOIN order_products op ON i.sku = op.sku
+        LEFT JOIN orders o ON op.order_id = o.order_id
+        LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id
+        WHERE i.is_active = true
+        GROUP BY i.sku, i.name, i.category, i.quantity, i.unit_price, i.reorder_level, i.lead_time_days, i.supplier_id, s.name
+      ),
+      replenishment_calculations AS (
+        SELECT 
+          *,
+          CASE 
+            WHEN avg_daily_demand > 0 THEN avg_daily_demand / ${parseInt(days)}
+            ELSE 0
+          END as daily_demand_rate,
+          CASE 
+            WHEN avg_daily_demand > 0 THEN 
+              GREATEST(
+                CEIL(avg_daily_demand / ${parseInt(days)} * COALESCE(lead_time_days, 7) * 1.5),
+                COALESCE(reorder_level, CEIL(quantity * 0.2))
+              )
+            ELSE COALESCE(reorder_level, CEIL(quantity * 0.2))
+          END as suggested_reorder_point,
+          CASE 
+            WHEN avg_daily_demand > 0 THEN 
+              CEIL(avg_daily_demand / ${parseInt(days)} * 30) -- 30 days supply
+            ELSE 0
+          END as suggested_order_quantity,
+          CASE 
+            WHEN quantity <= COALESCE(reorder_level, CEIL(quantity * 0.2)) THEN 'URGENT'
+            WHEN quantity <= COALESCE(reorder_level, CEIL(quantity * 0.2)) * 1.5 THEN 'SOON'
+            WHEN avg_daily_demand > 0 AND quantity <= (avg_daily_demand / ${parseInt(days)}) * COALESCE(lead_time_days, 7) * 2 THEN 'PLAN'
+            ELSE 'ADEQUATE'
+          END as priority_level,
+          CASE 
+            WHEN avg_daily_demand > 0 THEN 
+              ROUND((quantity / (avg_daily_demand / ${parseInt(days)}))::numeric, 1)
+            ELSE 999
+          END as days_of_supply
+        FROM demand_forecast
+      )
+      SELECT 
+        sku,
+        name,
+        category,
+        current_stock,
+        unit_price,
+        reorder_level,
+        lead_time_days,
+        supplier_name,
+        ROUND(avg_daily_demand::numeric, 2) as avg_daily_demand,
+        ROUND(avg_order_quantity::numeric, 2) as avg_order_quantity,
+        order_frequency,
+        suggested_reorder_point,
+        suggested_order_quantity,
+        priority_level,
+        days_of_supply,
+        (current_stock * unit_price) as current_inventory_value,
+        (suggested_order_quantity * unit_price) as suggested_order_value
+      FROM replenishment_calculations
+      ORDER BY 
+        CASE priority_level
+          WHEN 'URGENT' THEN 1
+          WHEN 'SOON' THEN 2
+          WHEN 'PLAN' THEN 3
+          WHEN 'ADEQUATE' THEN 4
+        END,
+        suggested_order_value DESC
+    `);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching replenishment suggestions:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch replenishment suggestions' 
+    });
+  }
+});
+
+// GET /api/inventory-reports/advanced-analytics - Get comprehensive inventory analytics
+router.get('/advanced-analytics', async (req, res) => {
+  try {
+    const { days = 90 } = req.query;
+    
+    const result = await pool.query(`
+      WITH inventory_metrics AS (
+        SELECT 
+          i.sku,
+          i.name,
+          i.category,
+          i.quantity as current_stock,
+          i.unit_price,
+          i.reorder_level,
+          i.supplier_id,
+          s.name as supplier_name,
+          COALESCE(SUM(CASE 
+            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
+            THEN op.quantity 
+            ELSE 0 
+          END), 0) as sold_quantity,
+          COALESCE(SUM(CASE 
+            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
+            THEN op.quantity * op.unit_price 
+            ELSE 0 
+          END), 0) as sales_value,
+          COUNT(CASE 
+            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
+            THEN 1 
+          END) as order_count,
+          AVG(CASE 
+            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
+            THEN op.quantity 
+          END) as avg_order_quantity
+        FROM inventory_items i
+        LEFT JOIN order_products op ON i.sku = op.sku
+        LEFT JOIN orders o ON op.order_id = o.order_id
+        LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id
+        WHERE i.is_active = true
+        GROUP BY i.sku, i.name, i.category, i.quantity, i.unit_price, i.reorder_level, i.supplier_id, s.name
+      ),
+      analytics_calculations AS (
+        SELECT 
+          *,
+          (current_stock * unit_price) as inventory_value,
+          CASE 
+            WHEN sold_quantity > 0 THEN sales_value / sold_quantity
+            ELSE unit_price
+          END as avg_selling_price,
+          CASE 
+            WHEN sold_quantity > 0 THEN 
+              ROUND((sold_quantity / ${parseInt(days)})::numeric, 2)
+            ELSE 0
+          END as daily_velocity,
+          CASE 
+            WHEN sold_quantity > 0 THEN 
+              ROUND((current_stock / (sold_quantity / ${parseInt(days)}))::numeric, 1)
+            ELSE 999
+          END as days_of_supply,
+          CASE 
+            WHEN sold_quantity > 0 THEN 
+              ROUND((sold_quantity / current_stock)::numeric, 2)
+            ELSE 0
+          END as turnover_ratio,
+          CASE 
+            WHEN sold_quantity = 0 THEN 'DEAD_STOCK'
+            WHEN sold_quantity > 0 AND sold_quantity <= 10 THEN 'SLOW_MOVING'
+            WHEN sold_quantity > 10 AND sold_quantity <= 50 THEN 'MODERATE_MOVING'
+            WHEN sold_quantity > 50 THEN 'FAST_MOVING'
+          END as movement_category,
+          CASE 
+            WHEN current_stock <= COALESCE(reorder_level, CEIL(current_stock * 0.2)) THEN 'LOW_STOCK'
+            WHEN current_stock <= COALESCE(reorder_level, CEIL(current_stock * 0.2)) * 1.5 THEN 'MEDIUM_STOCK'
+            ELSE 'HIGH_STOCK'
+          END as stock_level,
+          CASE 
+            WHEN sold_quantity > 0 THEN 
+              ROUND(((sales_value / sold_quantity) - unit_price)::numeric, 2)
+            ELSE 0
+          END as profit_margin,
+          CASE 
+            WHEN sold_quantity > 0 THEN 
+              ROUND((((sales_value / sold_quantity) - unit_price) / (sales_value / sold_quantity) * 100)::numeric, 1)
+            ELSE 0
+          END as profit_margin_percentage
+        FROM inventory_metrics
+      )
+      SELECT 
+        sku,
+        name,
+        category,
+        current_stock,
+        unit_price,
+        reorder_level,
+        supplier_name,
+        sold_quantity,
+        sales_value,
+        order_count,
+        ROUND(avg_order_quantity::numeric, 2) as avg_order_quantity,
+        inventory_value,
+        ROUND(avg_selling_price::numeric, 2) as avg_selling_price,
+        daily_velocity,
+        days_of_supply,
+        turnover_ratio,
+        movement_category,
+        stock_level,
+        ROUND(profit_margin::numeric, 2) as profit_margin,
+        profit_margin_percentage
+      FROM analytics_calculations
+      ORDER BY sales_value DESC
+    `);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching advanced analytics:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch advanced analytics' 
     });
   }
 });
