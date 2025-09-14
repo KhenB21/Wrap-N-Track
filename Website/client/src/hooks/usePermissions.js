@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 
 const rolePermissions = {
-  super_admin: { inventory: true, suppliers: true, accountManagement: true },
-  admin: { inventory: true, suppliers: true, accountManagement: true },
-  operations_manager: { inventory: true, suppliers: true, accountManagement: false },
-  sales_manager: { inventory: true, suppliers: true, accountManagement: false },
-  social_media_manager: { inventory: false, suppliers: false, accountManagement: false },
-  default: { inventory: true, suppliers: true, accountManagement: false },
+  super_admin: { inventory: true, suppliers: true, accountManagement: true, reports: true },
+  admin: { inventory: true, suppliers: true, accountManagement: true, reports: true },
+  operations_manager: { inventory: true, suppliers: true, accountManagement: false, reports: true },
+  sales_manager: { inventory: true, suppliers: true, accountManagement: false, reports: true },
+  social_media_manager: { inventory: false, suppliers: false, accountManagement: false, reports: true },
+  default: { inventory: true, suppliers: true, accountManagement: false, reports: true },
 };
 
 const usePermissions = () => {
@@ -16,10 +16,13 @@ const usePermissions = () => {
 
   const checkPermission = (page) => {
     const permissions = role ? (rolePermissions[role] || rolePermissions.default) : {};
-    if (!permissions[page]) {
+    const hasPermission = permissions[page] || false;
+    
+    if (!hasPermission) {
       navigate('/'); // Redirect to dashboard if no permission
       return false;
     }
+    
     return true;
   };
 

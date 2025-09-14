@@ -23,6 +23,7 @@ const supplierOrdersRouter = require('./routes/supplier-orders');
 const notificationsRouter = require('./routes/notifications');
 const inventoryRouter = require('./routes/inventory');
 const availableInventoryRouter = require('./routes/available-inventory');
+const inventoryReportsRouter = require('./routes/inventory-reports');
 
 const authRouter = require('./routes/auth');
 const customerRoutes = require('./routes/customer');
@@ -245,6 +246,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/customer', customerRoutes);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/available-inventory', availableInventoryRouter);
+app.use('/api/inventory-reports', inventoryReportsRouter);
 // Employee-only routes (protected)
 app.use('/api/employee', verifyJwt, requireRole(['admin','business_developer','creatives','director','sales_manager','assistant_sales','packer']), employeeRouter);
 

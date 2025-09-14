@@ -1,3 +1,8 @@
+.dashboard-main {
+  margin-left: 220px;
+  width: calc(100% - 220px);
+}
+
 .archived-orders-container {
     padding: 24px;
     background-color: #f8f9fa;

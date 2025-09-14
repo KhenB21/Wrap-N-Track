@@ -1,6 +1,10 @@
 /* Suppliers styles */
 
 /* Modern Suppliers Page Styles */
+.dashboard-main {
+  margin-left: 220px;
+  width: calc(100% - 220px);
+}
 .suppliers-container {
   background: #f8f9fc;
   padding: 28px 36px;

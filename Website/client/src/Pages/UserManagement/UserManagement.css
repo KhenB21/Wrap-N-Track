@@ -8,6 +8,8 @@
   
   .dashboard-main {
     flex: 1;
+    margin-left: 220px;
+    width: calc(100% - 220px);
     display: flex;
     flex-direction: column;
     background: #f6f7fb;

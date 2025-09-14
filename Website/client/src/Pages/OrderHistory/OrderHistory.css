@@ -1,3 +1,8 @@
+.dashboard-main {
+  margin-left: 220px;
+  width: calc(100% - 220px);
+}
+
 .order-filters { display:flex; gap:12px; align-items:center; padding:12px 20px; background:#fff; border-radius:10px; margin:16px 20px; box-shadow:0 1px 6px rgba(0,0,0,0.06) }
 .order-filters .order-search { flex:1; max-width:420px; padding:8px 10px; border:1px solid #e1e5ea; border-radius:8px }
 .order-details-layout { display:flex; gap:20px; padding:0 20px 20px 20px }

@@ -214,9 +214,9 @@ export default function Inventory() {
   };
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container" style={{ backgroundColor: '#ffffff', height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
-      <div className="dashboard-main">
+      <div className="dashboard-main" style={{ marginLeft: '220px', width: 'calc(100% - 220px)', height: '100vh', backgroundColor: '#ffffff', overflow: 'hidden' }}>
         <TopBar
           lowStockProducts={Array.isArray(products) ? products.filter(item => Number(item.quantity || 0) < 300) : []}
           searchValue={searchTerm}
@@ -265,19 +265,19 @@ export default function Inventory() {
                 <table className="inventory-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '80px' }}>Image</th>
-                    <th style={{ width: '120px' }}>SKU</th>
-                    <th style={{ width: '150px' }}>Name</th>
-                    <th style={{ width: '200px' }}>Description</th>
-                    <th style={{ width: '120px' }}>Unit Price</th>
-                    <th style={{ width: '150px' }}>Category</th>
-                    <th style={{ width: '120px' }}>Expiration</th>
-                    <th style={{ width: '150px' }}>Last Updated</th>
-                    <th style={{ width: '100px' }}>UOM</th>
-                    <th style={{ width: '100px' }}>In Stocks</th>
-                    <th style={{ width: '100px' }}>Ordered</th>
-                    <th style={{ width: '100px' }}>Delivered</th>
-                    <th style={{ width: '160px' }}>Action</th>
+                    <th style={{ width: '60px', textAlign: 'center' }}>Image</th>
+                    <th style={{ width: '100px' }}>SKU</th>
+                    <th style={{ width: '120px' }}>Name</th>
+                    <th style={{ width: '140px' }}>Description</th>
+                    <th style={{ width: '80px', textAlign: 'right' }}>Unit Price</th>
+                    <th style={{ width: '100px' }}>Category</th>
+                    <th style={{ width: '100px', textAlign: 'center' }}>Expiration</th>
+                    <th style={{ width: '120px', textAlign: 'center' }}>Last Updated</th>
+                    <th style={{ width: '60px', textAlign: 'center' }}>UOM</th>
+                    <th style={{ width: '80px', textAlign: 'center' }}>In Stocks</th>
+                    <th style={{ width: '70px', textAlign: 'center' }}>Ordered</th>
+                    <th style={{ width: '70px', textAlign: 'center' }}>Delivered</th>
+                    <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -307,17 +307,17 @@ export default function Inventory() {
                           <div className="img-placeholder" />
                         )}
                       </td>
-                      <td className="ellipsis" title={product.sku} style={{ textAlign: 'center' }}>
+                      <td className="ellipsis" title={product.sku}>
                         {product.sku}
                       </td>
-                      <td className="ellipsis" title={product.name} style={{ textAlign: 'center' }}>
+                      <td className="ellipsis" title={product.name}>
                         {product.name}
                       </td>
-                      <td className="ellipsis" title={product.description} style={{ textAlign: 'center' }}>
+                      <td className="ellipsis" title={product.description}>
                         {product.description}
                       </td>
-                      <td style={{ textAlign: 'center' }}>₱{parseFloat(product.unit_price).toFixed(2)}</td>
-                      <td className="ellipsis" title={product.category} style={{ textAlign: 'center' }}>
+                      <td style={{ textAlign: 'right' }}>₱{parseFloat(product.unit_price).toFixed(2)}</td>
+                      <td className="ellipsis" title={product.category}>
                         {product.category}
                       </td>
                       <td style={{ textAlign: 'center' }}>
@@ -330,17 +330,20 @@ export default function Inventory() {
                           : product.uom}
                       </td>
                       <td style={{ textAlign: 'center' }}>
-                        <span style={{
-                          display: 'inline-block',
-                          width: '10px',
-                          height: '10px',
-                          borderRadius: '50%',
-                          marginRight: '5px',
-                          backgroundColor: Number(product.quantity || 0) <= 300 ? 'red' :
-                                           Number(product.quantity || 0) > 800 ? 'green' :
-                                           'orange'
-                        }}></span>
-                        {product.quantity}
+                        <div className={`stock-indicator ${
+                          Number(product.quantity || 0) <= 300 ? 'low' :
+                          Number(product.quantity || 0) > 800 ? 'high' : 'medium'
+                        }`}>
+                          <span style={{ 
+                            display: 'inline-block',
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            backgroundColor: 'currentColor',
+                            marginRight: '4px'
+                          }}></span>
+                          {product.quantity}
+                        </div>
                       </td>
                       <td style={{ textAlign: 'center' }}>{product.ordered_quantity || 0}</td>
                       <td style={{ textAlign: 'center' }}>{product.delivered_quantity || 0}</td>
@@ -348,21 +351,27 @@ export default function Inventory() {
                         <button className="action-btn add" title="Add Stock" onClick={e => { 
                           e.stopPropagation(); 
                           setModalMode('addStock');
-                          setSelectedProduct(product); 
-                          setShowModal(true); 
+                          setSelectedProduct(product);
+                          setShowModal(true);
                         }}>
-                          Add
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                          </svg>
                         </button>
                         <button className="action-btn edit" title="Edit" onClick={e => { 
                           e.stopPropagation();
                           setModalMode('edit');
-                          setSelectedProduct(product); 
-                          setShowModal(true); 
+                          setSelectedProduct(product);
+                          setShowModal(true);
                         }}>
-                          Edit
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                          </svg>
                         </button>
                         <button className="action-btn archive" title="Archive" onClick={e => { e.stopPropagation(); handleArchive(product.sku); }}>
-                          Archive
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                          </svg>
                         </button>
                       </td>
                     </tr>
