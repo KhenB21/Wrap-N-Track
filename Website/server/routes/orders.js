@@ -402,7 +402,9 @@ router.put('/:order_id', async (req, res) => {
     if (hasProductsPayload) {
       // Remove old lines before inserting new ones
       await client.query('DELETE FROM order_products WHERE order_id = $1', [order_id]);
-      // Insert new lines & deduct inventory
+      // Insert new lines & conditionally deduct inventory
+      const newStatusNorm = normalize(status);
+      const shouldDeductNow = statusHasDeducted || ['tobepack','readyfordeliver','readyfordelivery','enroute','completed'].includes(newStatusNorm);
       for (const p of products) {
         // Validate sku exists
         const skuCheck = await client.query('SELECT unit_price FROM inventory_items WHERE sku = $1', [p.sku]);
@@ -414,14 +416,16 @@ router.put('/:order_id', async (req, res) => {
           'INSERT INTO order_products (order_id, sku, quantity, profit_margin) VALUES ($1,$2,$3,$4)',
           [order_id, p.sku, p.quantity, p.profit_margin != null ? Number(p.profit_margin) : 0]
         );
-        const invResult = await client.query('UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2 RETURNING quantity', [p.quantity, p.sku]);
-        if (invResult.rowCount === 0) {
-          await client.query('ROLLBACK');
-          return res.status(400).json({ error: `SKU ${p.sku} not found while deducting` });
-        }
-        if (invResult.rows[0].quantity < 0) {
-          await client.query('ROLLBACK');
-          return res.status(400).json({ error: `Insufficient stock for SKU ${p.sku}` });
+        if (shouldDeductNow) {
+          const invResult = await client.query('UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2 RETURNING quantity', [p.quantity, p.sku]);
+          if (invResult.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: `SKU ${p.sku} not found while deducting` });
+          }
+          if (invResult.rows[0].quantity < 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: `Insufficient stock for SKU ${p.sku}` });
+          }
         }
       }
     } else if (status && normalize(status) === 'tobepack' && !statusHasDeducted) {
@@ -483,6 +487,63 @@ router.put('/:order_id', async (req, res) => {
          WHERE op.order_id = $1 ORDER BY op.line_id ASC`,
       [order_id]
     );
+
+    // Determine final status after update (either provided or existing)
+    const finalStatus = status !== undefined ? status : existingOrder.status;
+    const finalNorm = normalize(finalStatus);
+
+    // If Completed/Cancelled, archive immediately (move to order_history)
+    if (['completed','cancelled'].includes(finalNorm)) {
+      const updatedOrderResult = await client.query('SELECT * FROM orders WHERE order_id = $1', [order_id]);
+      const updatedOrder = updatedOrderResult.rows[0];
+
+      // Insert order header to history
+      await client.query(
+        `INSERT INTO order_history (
+          order_id, customer_name, name, shipped_to, order_date, expected_delivery,
+          status, shipping_address, total_cost, payment_type, payment_method,
+          account_name, remarks, telephone, cellphone, email_address, archived_by
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+        [
+          updatedOrder.order_id,
+          updatedOrder.name || 'Customer',
+          updatedOrder.name || 'Customer',
+          updatedOrder.shipped_to || updatedOrder.name || 'Customer',
+          updatedOrder.order_date,
+          updatedOrder.expected_delivery,
+          finalStatus,
+          updatedOrder.shipping_address || 'Unknown Address',
+          newTotalCost || 0,
+          updatedOrder.payment_type || 'Pending',
+          updatedOrder.payment_method || 'Pending',
+          updatedOrder.account_name || null,
+          updatedOrder.remarks || null,
+          updatedOrder.telephone || null,
+          updatedOrder.cellphone || null,
+          updatedOrder.email_address || null,
+          req.user?.user_id || null
+        ]
+      );
+
+      // Insert products to history with unit prices
+      const pricedResult = await client.query(
+        'SELECT op.sku, op.quantity, i.unit_price FROM order_products op JOIN inventory_items i ON op.sku = i.sku WHERE op.order_id = $1',
+        [order_id]
+      );
+      for (const row of pricedResult.rows) {
+        await client.query(
+          'INSERT INTO order_history_products (order_id, sku, quantity, unit_price) VALUES ($1,$2,$3,$4)',
+          [order_id, row.sku, row.quantity, row.unit_price]
+        );
+      }
+
+      // Cleanup current tables
+      await client.query('DELETE FROM order_products WHERE order_id = $1', [order_id]);
+      await client.query('DELETE FROM orders WHERE order_id = $1', [order_id]);
+
+      await client.query('COMMIT');
+      return res.json({ archived: true, order_id, status: finalStatus });
+    }
 
     await client.query('COMMIT');
 
@@ -579,35 +640,40 @@ router.delete('/:order_id', async (req, res) => {
       return res.status(403).json({ success: false, message: 'Order cannot be cancelled. Only orders with status "Pending" or "To Be Pack" can be cancelled.' });
     }
 
-    // If status is 'Pending', proceed to cancel and restock
-    console.log(`[CancelOrder-${order_id}] Attempting to cancel and restock.`);
-    // Fetch products for the order
-    const productsResult = await client.query(
-      'SELECT sku, quantity FROM order_products WHERE order_id = $1',
-      [order_id]
-    );
-    const orderProducts = productsResult.rows;
-    console.log(`[CancelOrder-${order_id}] Fetched products for restocking:`, JSON.stringify(orderProducts));
-
-    if (orderProducts.length === 0) {
-      console.log(`[CancelOrder-${order_id}] No products found in order_products to restock.`);
-    }
-
-    // Restock inventory for each product
-    for (const product of orderProducts) {
-      console.log(`[CancelOrder-${order_id}] Processing product SKU: ${product.sku}, Quantity to restock: ${product.quantity}`);
-      if (typeof product.quantity !== 'number' || product.quantity <= 0) {
-        console.error(`[CancelOrder-${order_id}] Invalid quantity for SKU ${product.sku}: ${product.quantity}. Skipping restock for this item.`);
-        continue;
-      }
-      const updateInventoryResult = await client.query(
-        'UPDATE inventory_items SET quantity = quantity + $1 WHERE sku = $2',
-        [product.quantity, product.sku]
+    // If order was already deducted ('To Be Pack' and beyond), restock. If still 'Pending', skip restock.
+    const wasDeducted = ['tobepack','readyfordeliver','readyfordelivery','enroute','completed'].includes(normalizedDBStatus);
+    if (wasDeducted) {
+      console.log(`[CancelOrder-${order_id}] Order was deducted (status=${currentStatus}). Restocking inventory before cancelling.`);
+      // Fetch products for the order
+      const productsResult = await client.query(
+        'SELECT sku, quantity FROM order_products WHERE order_id = $1',
+        [order_id]
       );
-      console.log(`[CancelOrder-${order_id}] Inventory update result for SKU ${product.sku}: rowCount = ${updateInventoryResult.rowCount}`);
-      if (updateInventoryResult.rowCount === 0) {
-        console.warn(`[CancelOrder-${order_id}] WARN: No inventory item found for SKU ${product.sku} or quantity_in_stock was not updated.`);
+      const orderProducts = productsResult.rows;
+      console.log(`[CancelOrder-${order_id}] Fetched products for restocking:`, JSON.stringify(orderProducts));
+
+      if (orderProducts.length === 0) {
+        console.log(`[CancelOrder-${order_id}] No products found in order_products to restock.`);
       }
+
+      // Restock inventory for each product
+      for (const product of orderProducts) {
+        console.log(`[CancelOrder-${order_id}] Processing product SKU: ${product.sku}, Quantity to restock: ${product.quantity}`);
+        if (typeof product.quantity !== 'number' || product.quantity <= 0) {
+          console.error(`[CancelOrder-${order_id}] Invalid quantity for SKU ${product.sku}: ${product.quantity}. Skipping restock for this item.`);
+          continue;
+        }
+        const updateInventoryResult = await client.query(
+          'UPDATE inventory_items SET quantity = quantity + $1 WHERE sku = $2',
+          [product.quantity, product.sku]
+        );
+        console.log(`[CancelOrder-${order_id}] Inventory update result for SKU ${product.sku}: rowCount = ${updateInventoryResult.rowCount}`);
+        if (updateInventoryResult.rowCount === 0) {
+          console.warn(`[CancelOrder-${order_id}] WARN: No inventory item found for SKU ${product.sku} or quantity_in_stock was not updated.`);
+        }
+      }
+    } else {
+      console.log(`[CancelOrder-${order_id}] Order is Pending. No inventory was deducted; skipping restock.`);
     }
 
     // Update the order status to 'Cancelled'

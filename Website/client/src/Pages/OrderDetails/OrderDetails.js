@@ -266,6 +266,24 @@ const normalizeStatus = (status) => {
   return status.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
 };
 
+// Heuristically detect MIME type from base64 and construct a proper data URL
+function buildDataUrlFromBase64(possibleBase64) {
+  if (!possibleBase64) return null;
+  // If it's already a data URL, return as-is
+  if (typeof possibleBase64 === 'string' && possibleBase64.startsWith('data:')) {
+    return possibleBase64;
+  }
+  const base64 = String(possibleBase64);
+  // Common magic headers (base64) for quick detection
+  // JPEG: /9j/ , PNG: iVBORw0KGgo , GIF: R0lGOD , WebP: UklGR
+  let mime = 'image/jpeg';
+  if (base64.startsWith('iVBORw0KGgo')) mime = 'image/png';
+  else if (base64.startsWith('/9j/')) mime = 'image/jpeg';
+  else if (base64.startsWith('R0lGOD')) mime = 'image/gif';
+  else if (base64.startsWith('UklGR')) mime = 'image/webp';
+  return `data:${mime};base64,${base64}`;
+}
+
 export default function OrderDetails() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -276,7 +294,7 @@ export default function OrderDetails() {
   const [readyToDeliverOrders, setReadyToDeliverOrders] = useState([]);
   const [enRouteOrders, setEnRouteOrders] = useState([]);
   const [completedOrders, setCompletedOrders] = useState([]);
-  const [showMoreModal, setShowMoreModal] = useState(false);
+  // Removed "More" modal for now per request
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({
     order_id: '',
@@ -483,14 +501,14 @@ export default function OrderDetails() {
   useEffect(() => {
     fetchOrders();
     const fetchInventory = async () => {
-      console.log('fetchInventory called - STUB');
       try {
-        // const response = await api.get('/inventory'); // Replace with actual API call
-        // setInventory(response.data);
-        setInventory([]); // STUB: Remove this line
-        console.warn("Inventory fetch is a stub. Implement actual API call.");
+        const response = await api.get('/api/inventory');
+        const payload = response?.data;
+        const items = Array.isArray(payload) ? payload : (payload?.inventory || []);
+        setInventory(items || []);
       } catch (error) {
-        console.error("Error fetching inventory (stub):", error);
+        console.error('Error fetching inventory:', error);
+        setInventory([]);
       }
     };
     fetchInventory();
@@ -540,12 +558,7 @@ export default function OrderDetails() {
             >
               Add Order
             </button>
-            <button 
-              style={{...styles.button, ...styles.secondaryButton}} 
-              onClick={() => setShowMoreModal(true)}
-            >
-              More
-            </button>
+            {/* More button removed */}
           </div>
         </div>
 
@@ -639,94 +652,7 @@ export default function OrderDetails() {
           </div>
         </div>
 
-        {/* More Modal */}
-        {showMoreModal && (
-          <div className="modal-backdrop" style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.5)',
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <div style={styles.modal}>
-              <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>Additional Order Statuses</h2>
-              </div>
-              
-              {/* En Route Orders */}
-              <div style={{ marginBottom: '32px' }}>
-                <h3 style={{ marginBottom: '16px', color: '#2c3e50', fontSize: '18px' }}>En Route Orders</h3>
-                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                  {enRouteOrders.map(order => (
-                    <div 
-                      key={order.order_id} 
-                      style={styles.orderCard}
-                      onClick={() => {
-                        setSelectedOrderId(order.order_id);
-                        setShowMoreModal(false);
-                      }}
-                    >
-                      <div style={styles.orderName}>{order.name}</div>
-                      <div style={styles.orderInfo}>
-                        <span>{order.order_id}</span>
-                        <span>
-                      ₱{
-                        (order.total_cost && Number(order.total_cost) > 0)
-                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      }
-                    </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Completed Orders */}
-              <div>
-                <h3 style={{ marginBottom: '16px', color: '#2c3e50', fontSize: '18px' }}>Completed Orders</h3>
-                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                  {completedOrders.map(order => (
-                    <div 
-                      key={order.order_id} 
-                      style={styles.orderCard}
-                      onClick={() => {
-                        setSelectedOrderId(order.order_id);
-                        setShowMoreModal(false);
-                      }}
-                    >
-                      <div style={styles.orderName}>{order.name}</div>
-                      <div style={styles.orderInfo}>
-                        <span>{order.order_id}</span>
-                        <span>
-                      ₱{
-                        (order.total_cost && Number(order.total_cost) > 0)
-                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      }
-                    </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
-                <button 
-                  onClick={() => setShowMoreModal(false)} 
-                  style={{...styles.button, ...styles.primaryButton}}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* More modal removed */}
 
         {/* Modal for Add Order */}
         {showModal && (
@@ -1374,6 +1300,22 @@ export default function OrderDetails() {
                   {normalizeStatus(selectedOrder.status) === normalizeStatus('tobepack') ? 'Confirm Delivery' : 'Confirm Order'}
                 </button>
               )}
+              {(normalizeStatus(selectedOrder.status) === normalizeStatus('ready for deliver') || normalizeStatus(selectedOrder.status) === normalizeStatus('confirmed')) && (
+                <button
+                  style={{ padding:'12px 24px', fontSize:15, fontWeight:700, background:'#4caf50', color:'#fff', border:'none', borderRadius:8, cursor:'pointer' }}
+                  onClick={async ()=>{
+                    try {
+                      const encodedOrderId = encodeURIComponent(String(selectedOrder.order_id));
+                      const response = await api.put(`/api/orders/${encodedOrderId}`, { status: 'Completed' });
+                      alert('Order completed and moved to Order History.');
+                      fetchOrders();
+                      setSelectedOrderId(null);
+                    } catch (e) {
+                      alert('Failed to complete order.');
+                    }
+                  }}
+                >Complete Order</button>
+              )}
             </div>
           </>
           );
@@ -1384,18 +1326,20 @@ export default function OrderDetails() {
               {selectedOrder.products && selectedOrder.products.length > 0 ? (
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: 'calc(100% - 70px)', overflowY: 'auto' }}>
                   {selectedOrder.products.map((product, idx) => {
-                    const inventoryItem = inventory.find(item => item.name.toLowerCase() === product.name.toLowerCase());
+                    const inventoryItem =
+                      inventory.find(item => item.sku === product.sku) ||
+                      inventory.find(item => (item.name || '').toLowerCase() === (product.name || '').toLowerCase());
+                    const imageBase64 = (inventoryItem && inventoryItem.image_data) || product.image_data || null;
                     return (
                       <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 22 }}>
-                        {inventoryItem && inventoryItem.image_data ? (
-                          <img 
-                            src={`data:image/jpeg;base64,${inventoryItem.image_data}`} 
-                            alt={product.name} 
-                            style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', background: '#eee', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }} 
+                        {imageBase64 ? (
+                          <img
+                            src={buildDataUrlFromBase64(imageBase64)}
+                            alt={product.name}
+                            style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', background: '#eee', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
                           />
                         ) : (
-                          <div style={{ width: 48, height: 48, background: '#e0e0e0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 28, fontWeight: 700 }}>
-                            ?
+                          <div style={{ width: 48, height: 48, background: '#e0e0e0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 28, fontWeight: 700 }}>?
                           </div>
                         )}
                         <div style={{ flex: 1 }}>
@@ -1403,7 +1347,7 @@ export default function OrderDetails() {
                             {product.name}
                           </div>
                           <div style={{ fontSize: 14, color: '#888', fontWeight: 500, letterSpacing:1 }}>
-                            QTY: <span style={{fontWeight:600}}>{selectedOrder.order_quantity || product.quantity}</span>
+                            QTY: <span style={{fontWeight:600}}>{product.quantity}</span>
                           </div>
                         </div>
                       </li>

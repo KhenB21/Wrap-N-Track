@@ -5,6 +5,19 @@ import api from "../../api";
 import "./OrderHistory.css";
 import { useNavigate } from "react-router-dom";
 
+// Build a robust data URL from base64, detecting common image MIME types
+function buildDataUrlFromBase64(possibleBase64) {
+  if (!possibleBase64) return null;
+  const str = String(possibleBase64);
+  if (str.startsWith('data:')) return str;
+  let mime = 'image/jpeg';
+  if (str.startsWith('iVBORw0KGgo')) mime = 'image/png';
+  else if (str.startsWith('/9j/')) mime = 'image/jpeg';
+  else if (str.startsWith('R0lGOD')) mime = 'image/gif';
+  else if (str.startsWith('UklGR')) mime = 'image/webp';
+  return `data:${mime};base64,${str}`;
+}
+
 function getProfilePictureUrl() {
   const user = JSON.parse(localStorage.getItem('user'));
   if (!user) return "/placeholder-profile.png";
@@ -24,6 +37,7 @@ export default function OrderHistory() {
   const [error, setError] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [orderProducts, setOrderProducts] = useState([]);
+  const [filterStatus, setFilterStatus] = useState('all'); // all | completed | cancelled
   const selectedOrder = orders.find(o => o.order_id === selectedOrderId);
   const [ws, setWs] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -43,13 +57,13 @@ export default function OrderHistory() {
       }
 
 
-      // Fetch only archived orders
+      // Fetch archived orders (Completed and Cancelled)
       const response = await api.get(`/api/orders/history`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       let data = response.data;
-      // Only show Deleted, Cancelled, Completed, or Invoiced
-      data = data.filter(order => ['Deleted', 'Cancelled', 'Completed', 'Invoiced'].includes(order.status));
+      // Only show Cancelled or Completed
+      data = data.filter(order => ['Cancelled', 'Completed'].includes(order.status));
       setOrders(data);
       setError(null);
     } catch (err) {
@@ -90,7 +104,11 @@ export default function OrderHistory() {
   }, []);
 
   useEffect(() => {
-    if (selectedOrderId) fetchOrderProducts(selectedOrderId);
+    if (selectedOrderId) {
+      // Clear previous products to avoid showing stale data that may resemble order names
+      setOrderProducts([]);
+      fetchOrderProducts(selectedOrderId);
+    }
   }, [selectedOrderId]);
 
   const fetchOrderProducts = async (orderId) => {
@@ -109,20 +127,45 @@ export default function OrderHistory() {
       <div className="dashboard-main">
         <TopBar avatarUrl={getProfilePictureUrl()} />
         
-        {/* Filters */}
+        {/* Header / Filters */}
         <div className="order-filters">
           <span>Total Archived Orders: {orders.length}</span>
-          <select><option>All</option></select>
-          <select><option>Category</option></select>
-          <select><option>Filter by</option></select>
-          <input className="order-search" type="text" placeholder="Search" />
+          <div className="history-badges">
+            <button
+              type="button"
+              className={`badge badge-green filter-badge${filterStatus==='completed'?' active':''}`}
+              onClick={() => {
+                const newStatus = filterStatus === 'completed' ? 'all' : 'completed';
+                setFilterStatus(newStatus);
+                setSelectedOrderId(null); // Clear selection when switching filters
+              }}
+              aria-pressed={filterStatus==='completed'}
+            >
+              Completed
+            </button>
+            <button
+              type="button"
+              className={`badge badge-red filter-badge${filterStatus==='cancelled'?' active':''}`}
+              onClick={() => {
+                const newStatus = filterStatus === 'cancelled' ? 'all' : 'cancelled';
+                setFilterStatus(newStatus);
+                setSelectedOrderId(null); // Clear selection when switching filters
+              }}
+              aria-pressed={filterStatus==='cancelled'}
+            >
+              Cancelled
+            </button>
+          </div>
+          <input className="order-search" type="text" placeholder="Search archived orders…" />
         </div>
 
         <div className="order-details-layout">
           {/* Order List */}
           <div className="order-list">
             <div className="order-list-title">ARCHIVED ORDERS</div>
-            {loading ? <div>Loading...</div> : orders.map((o) => (
+            {loading ? <div>Loading...</div> : orders
+              .filter((o)=> filterStatus==='all' ? true : (filterStatus==='completed' ? o.status==='Completed' : o.status==='Cancelled'))
+              .map((o) => (
               <div
                 className={`order-list-item${selectedOrderId === o.order_id ? " selected" : ""}`}
                 key={o.order_id}
@@ -133,8 +176,10 @@ export default function OrderHistory() {
                   <div className="order-name">{o.name}</div>
                   <div className="order-code">{o.order_id}</div>
                 </div>
-                <div className="order-price">{Number(o.total_cost).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
-                <div className="order-date">{new Date(o.archived_at).toLocaleDateString()}</div>
+                <div className="order-meta">
+                  <div className="order-price">₱{Number(o.total_cost).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
+                  <div className="order-date">{new Date(o.archived_at).toLocaleDateString()}</div>
+                </div>
               </div>
             ))}
           </div>
@@ -154,6 +199,7 @@ export default function OrderHistory() {
                         <div style={{fontSize:18,color:'#888'}}>{selectedOrder.order_id}</div>
                         <div style={{fontSize:14,color:'#666',marginTop:4}}>Archived on {new Date(selectedOrder.archived_at).toLocaleString()}</div>
                       </div>
+                      {/* Action buttons removed per request. Filtering handled by header badges. */}
                     </div>
                     <hr style={{margin:'18px 0'}}/>
                     <div style={{marginBottom:18}}>
@@ -217,26 +263,64 @@ export default function OrderHistory() {
                   {/* RIGHT COLUMN: PRODUCTS CARD */}
                   <div style={{width:340,minWidth:260,background:'#fafbfc',borderRadius:10,padding:'18px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
                     <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
-                    {orderProducts.length === 0 ? (
-                      <div style={{color:'#aaa'}}>No products in this order.</div>
-                    ) : (
-                      <div>
-                        {orderProducts.map((p, idx) => (
-                          <div key={p.sku} style={{display:'flex',alignItems:'center',gap:16,padding:'10px 0',borderBottom:idx!==orderProducts.length-1?'1px solid #eee':'none'}}>
-                            <div style={{flex:1}}>
-                              <div style={{fontWeight:600,fontSize:15}}>{p.name}</div>
-                              <div style={{fontSize:13,color:'#888'}}>₱{Number(p.unit_price).toLocaleString(undefined, {minimumFractionDigits:2})} each</div>
-                            </div>
-                            <div style={{display:'flex',alignItems:'center',gap:8}}>
-                              <div style={{color:'#888',fontWeight:500,fontSize:15}}>Qty: {p.quantity}</div>
-                              <div style={{color:'#666',fontWeight:600,fontSize:15}}>
-                                ₱{Number(p.unit_price * p.quantity).toLocaleString(undefined, {minimumFractionDigits:2})}
+                    {(() => {
+                      // Prefer explicitly fetched products; fall back to embedded products if valid
+                      const fetched = Array.isArray(orderProducts) ? orderProducts : [];
+                      const embedded = Array.isArray(selectedOrder?.products) ? selectedOrder.products : [];
+                      const hasValidFetched = fetched.some(p => p && (p.sku || p.image_data || p.unit_price !== undefined || p.quantity !== undefined));
+                      const effectiveProducts = hasValidFetched ? fetched : embedded;
+                      if (!effectiveProducts || effectiveProducts.length === 0) {
+                        return <div style={{color:'#aaa'}}>No products in this order.</div>;
+                      }
+                      return (
+                        <div>
+                        {effectiveProducts.map((p, idx) => {
+                          const unitPrice = Number(p && p.unit_price != null ? p.unit_price : 0);
+                          const qty = Number(p && p.quantity != null ? p.quantity : 0);
+                          const lineTotal = unitPrice * (isNaN(qty) ? 0 : qty);
+                          const orderName = selectedOrder?.name;
+                          const displayName = (p?.name && p.name !== orderName) ? p.name : (p?.sku || 'Item');
+                          const imgSrc = p?.image_data ? buildDataUrlFromBase64(p.image_data) : null;
+                          return (
+                            <div key={`${p.sku}-${idx}`} style={{display:'flex',alignItems:'center',gap:16,padding:'10px 0',borderBottom:idx!==effectiveProducts.length-1?'1px solid #eee':'none'}}>
+                              <div style={{width:40,height:40,borderRadius:8,overflow:'hidden',background:'#f1f3f5',flexShrink:0}}>
+                                {imgSrc ? (
+                                  <img
+                                    src={imgSrc}
+                                    alt={displayName}
+                                    style={{width:'100%',height:'100%',objectFit:'cover'}}
+                                    onError={(e)=>{ 
+                                      e.currentTarget.style.display = 'none';
+                                      e.currentTarget.nextElementSibling.style.display = 'flex';
+                                    }}
+                                  />
+                                ) : null}
+                                <div 
+                                  style={{
+                                    width:'100%',height:'100%',display:imgSrc ? 'none' : 'flex',
+                                    alignItems:'center',justifyContent:'center',
+                                    background:'#e9ecef',color:'#6c757d',fontSize:'12px',fontWeight:'600'
+                                  }}
+                                >
+                                  📦
+                                </div>
+                              </div>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontWeight:600,fontSize:15}}>{displayName}</div>
+                                <div style={{fontSize:13,color:'#888'}}>₱{unitPrice.toLocaleString(undefined, {minimumFractionDigits:2})} each</div>
+                              </div>
+                              <div style={{display:'flex',alignItems:'baseline',gap:12}}>
+                                <div style={{color:'#888',fontWeight:500,fontSize:15, minWidth:70}}>Qty: {qty}</div>
+                                <div style={{color:'#666',fontWeight:600,fontSize:15}}>
+                                  ₱{lineTotal.toLocaleString(undefined, {minimumFractionDigits:2})}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          );
+                        })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

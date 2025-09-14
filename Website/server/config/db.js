@@ -1,6 +1,11 @@
 const { Pool } = require('pg');
-// Load environment variables from the server .env (one level up from this config directory)
-require('dotenv').config({ path: __dirname + '/../.env' });
+const path = require('path');
+const fs = require('fs');
+// Prefer .env.local if present, else fallback to .env (keeps prod safe)
+const envLocal = path.join(__dirname, '..', '.env.local');
+const envProd = path.join(__dirname, '..', '.env');
+const envPath = fs.existsSync(envLocal) ? envLocal : envProd;
+require('dotenv').config({ path: envPath });
 
 // Adaptive SSL: explicit DB_SSL=true enables; also auto-enable for DigitalOcean managed PG hostname or port 25060
 let useSsl = (process.env.DB_SSL || '').toLowerCase() === 'true';
