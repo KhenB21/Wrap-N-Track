@@ -368,6 +368,45 @@ export default function InventoryReport() {
     toast.success('Enhanced Excel report exported successfully');
   };
 
+  // Test data functions
+  const insertTestData = async () => {
+    try {
+      setLoading(true);
+      const response = await api.post('/api/inventory-reports/test-data/insert');
+      if (response.data.success) {
+        toast.success('Test data inserted successfully!');
+        // Refresh data to show the new test data
+        await fetchInventoryData();
+      } else {
+        toast.error('Failed to insert test data');
+      }
+    } catch (error) {
+      console.error('Error inserting test data:', error);
+      toast.error('Error inserting test data: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearTestData = async () => {
+    try {
+      setLoading(true);
+      const response = await api.post('/api/inventory-reports/test-data/clear');
+      if (response.data.success) {
+        toast.success('Test data cleared successfully!');
+        // Refresh data to show the cleared state
+        await fetchInventoryData();
+      } else {
+        toast.error('Failed to clear test data');
+      }
+    } catch (error) {
+      console.error('Error clearing test data:', error);
+      toast.error('Error clearing test data: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredData = selectedCategory === 'all' 
     ? (inventoryData || []) 
     : (inventoryData || []).filter(item => item.category === selectedCategory);
@@ -391,10 +430,15 @@ export default function InventoryReport() {
         <TopBar />
         <div className="inventory-report">
           <div className="report-header">
-            <h1>Enhanced Inventory Analytics</h1>
+            <div>
+              <h1>Enhanced Inventory Analytics</h1>
+              <p style={{ margin: '8px 0 0 0', color: '#718096', fontSize: '16px' }}>
+                Comprehensive insights into your inventory performance and optimization opportunities
+              </p>
+            </div>
             <div className="report-controls">
               <div className="date-range">
-                <label>Analysis Period:</label>
+                <label>Analysis Period</label>
                 <input
                   type="date"
                   value={dateRange.startDate}
@@ -416,6 +460,12 @@ export default function InventoryReport() {
                 </button>
                 <button onClick={fetchInventoryData} className="refresh-btn">
                   🔄 Refresh
+                </button>
+                <button onClick={insertTestData} className="test-btn insert" disabled={loading}>
+                  🧪 Insert Test Data
+                </button>
+                <button onClick={clearTestData} className="test-btn clear" disabled={loading}>
+                  🗑️ Clear Test Data
                 </button>
               </div>
             </div>

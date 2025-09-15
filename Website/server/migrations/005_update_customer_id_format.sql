@@ -1,4 +1,20 @@
 -- Up Migration:
+-- First, drop any foreign key constraints that reference customer_details
+DO $$ 
+BEGIN
+    -- Drop foreign key constraints that reference customer_details
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'customer_details') THEN
+        -- Get all foreign key constraints that reference customer_details
+        FOR rec IN 
+            SELECT conname, conrelid::regclass as table_name
+            FROM pg_constraint 
+            WHERE confrelid = 'customer_details'::regclass
+        LOOP
+            EXECUTE 'ALTER TABLE ' || rec.table_name || ' DROP CONSTRAINT IF EXISTS ' || rec.conname;
+        END LOOP;
+    END IF;
+END $$;
+
 -- Drop the existing customer_details table
 DROP TABLE IF EXISTS customer_details;
 

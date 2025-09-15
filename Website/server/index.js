@@ -15,6 +15,7 @@ require('dotenv').config({ path: envPath });
 // Pool now sourced from config/db.js
 let wss, notifyChange;
 const pool = require('./config/db');
+const { runAutoMigrations } = require('./auto-migrate');
 const customersRouter = require('./routes/customers');
 const otpRouter = require('./routes/otp');
 const suppliersRouter = require('./routes/suppliers');
@@ -38,12 +39,15 @@ const port = process.env.PORT || 3001;
 const portSource = process.env.PORT ? 'env:PORT' : 'default:3001';
 
 // Immediate DB connectivity test (task requirement)
-pool.connect((err, client, release) => {
+pool.connect(async (err, client, release) => {
   if (err) {
     console.error('❌ Database connection error (initial pool.connect):', err.stack || err.message);
   } else {
     console.log('✅ Database pool connected (initial test)');
     release();
+    
+    // Run auto-migrations after successful connection
+    await runAutoMigrations();
   }
 });
 

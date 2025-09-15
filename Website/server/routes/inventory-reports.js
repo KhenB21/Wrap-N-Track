@@ -1,7 +1,7 @@
 
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
+const pool = require('../config/db');
 
 // GET /api/inventory-reports/summary - Get inventory summary data
 router.get('/summary', async (req, res) => {
@@ -457,9 +457,9 @@ router.get('/replenishment-suggestions', async (req, res) => {
             WHEN avg_daily_demand > 0 THEN 
               GREATEST(
                 CEIL(avg_daily_demand / ${parseInt(days)} * COALESCE(lead_time_days, 7) * 1.5),
-                COALESCE(reorder_level, CEIL(quantity * 0.2))
+                COALESCE(reorder_level, CEIL(current_stock * 0.2))
               )
-            ELSE COALESCE(reorder_level, CEIL(quantity * 0.2))
+            ELSE COALESCE(reorder_level, CEIL(current_stock * 0.2))
           END as suggested_reorder_point,
           CASE 
             WHEN avg_daily_demand > 0 THEN 
@@ -467,14 +467,14 @@ router.get('/replenishment-suggestions', async (req, res) => {
             ELSE 0
           END as suggested_order_quantity,
           CASE 
-            WHEN quantity <= COALESCE(reorder_level, CEIL(quantity * 0.2)) THEN 'URGENT'
-            WHEN quantity <= COALESCE(reorder_level, CEIL(quantity * 0.2)) * 1.5 THEN 'SOON'
-            WHEN avg_daily_demand > 0 AND quantity <= (avg_daily_demand / ${parseInt(days)}) * COALESCE(lead_time_days, 7) * 2 THEN 'PLAN'
+            WHEN current_stock <= COALESCE(reorder_level, CEIL(current_stock * 0.2)) THEN 'URGENT'
+            WHEN current_stock <= COALESCE(reorder_level, CEIL(current_stock * 0.2)) * 1.5 THEN 'SOON'
+            WHEN avg_daily_demand > 0 AND current_stock <= (avg_daily_demand / ${parseInt(days)}) * COALESCE(lead_time_days, 7) * 2 THEN 'PLAN'
             ELSE 'ADEQUATE'
           END as priority_level,
           CASE 
-            WHEN avg_daily_demand > 0 THEN 
-              ROUND((quantity / (avg_daily_demand / ${parseInt(days)}))::numeric, 1)
+            WHEN avg_daily_demand > 0 AND (avg_daily_demand / ${parseInt(days)}) > 0 THEN 
+              ROUND((current_stock / (avg_daily_demand / ${parseInt(days)}))::numeric, 1)
             ELSE 999
           END as days_of_supply
         FROM demand_forecast
@@ -575,12 +575,12 @@ router.get('/advanced-analytics', async (req, res) => {
             ELSE unit_price
           END as avg_selling_price,
           CASE 
-            WHEN sold_quantity > 0 THEN 
+            WHEN sold_quantity > 0 AND ${parseInt(days)} > 0 THEN 
               ROUND((sold_quantity / ${parseInt(days)})::numeric, 2)
             ELSE 0
           END as daily_velocity,
           CASE 
-            WHEN sold_quantity > 0 THEN 
+            WHEN sold_quantity > 0 AND ${parseInt(days)} > 0 AND (sold_quantity / ${parseInt(days)}) > 0 THEN 
               ROUND((current_stock / (sold_quantity / ${parseInt(days)}))::numeric, 1)
             ELSE 999
           END as days_of_supply,
@@ -646,6 +646,196 @@ router.get('/advanced-analytics', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch advanced analytics' 
+    });
+  }
+});
+
+// Test data endpoints for development/testing
+router.post('/test-data/insert', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Insert test orders with different movement patterns
+      const testOrders = [
+        // Fast moving items (high sales)
+        {
+          order_id: 'TEST-FAST-001',
+          name: 'Test Customer Fast',
+          shipped_to: 'Test Address',
+          order_date: new Date(),
+          status: 'DELIVERED',
+          shipping_address: 'Test Address',
+          total_cost: 150.00,
+          payment_type: 'Cash',
+          payment_method: 'Cash',
+          telephone: '123-456-7890',
+          cellphone: '123-456-7890',
+          email_address: 'testfast@example.com'
+        },
+        {
+          order_id: 'TEST-FAST-002',
+          name: 'Test Customer Fast 2',
+          shipped_to: 'Test Address 2',
+          order_date: new Date(),
+          status: 'DELIVERED',
+          shipping_address: 'Test Address 2',
+          total_cost: 200.00,
+          payment_type: 'Cash',
+          payment_method: 'Cash',
+          telephone: '123-456-7891',
+          cellphone: '123-456-7891',
+          email_address: 'testfast2@example.com'
+        },
+        // Moderate moving items (medium sales)
+        {
+          order_id: 'TEST-MOD-001',
+          name: 'Test Customer Mod',
+          shipped_to: 'Test Address',
+          order_date: new Date(),
+          status: 'DELIVERED',
+          shipping_address: 'Test Address',
+          total_cost: 75.00,
+          payment_type: 'Cash',
+          payment_method: 'Cash',
+          telephone: '123-456-7892',
+          cellphone: '123-456-7892',
+          email_address: 'testmod@example.com'
+        },
+        // Slow moving items (low sales)
+        {
+          order_id: 'TEST-SLOW-001',
+          name: 'Test Customer Slow',
+          shipped_to: 'Test Address',
+          order_date: new Date(),
+          status: 'DELIVERED',
+          shipping_address: 'Test Address',
+          total_cost: 25.00,
+          payment_type: 'Cash',
+          payment_method: 'Cash',
+          telephone: '123-456-7893',
+          cellphone: '123-456-7893',
+          email_address: 'testslow@example.com'
+        }
+      ];
+      
+      // Insert orders
+      for (const order of testOrders) {
+        await client.query(`
+          INSERT INTO orders (order_id, name, shipped_to, order_date, status, shipping_address, total_cost, payment_type, payment_method, telephone, cellphone, email_address)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          ON CONFLICT (order_id) DO NOTHING
+        `, [order.order_id, order.name, order.shipped_to, order.order_date, order.status, order.shipping_address, order.total_cost, order.payment_type, order.payment_method, order.telephone, order.cellphone, order.email_address]);
+      }
+      
+      // Get some existing inventory items to use for test data
+      const inventoryItems = await client.query(`
+        SELECT sku, name, unit_price FROM inventory_items 
+        WHERE is_active = true 
+        ORDER BY sku 
+        LIMIT 10
+      `);
+      
+      if (inventoryItems.rows.length === 0) {
+        throw new Error('No inventory items found to create test data');
+      }
+      
+      // Insert order products with different quantities to simulate movement patterns
+      const testOrderProducts = [
+        // Fast moving - high quantities
+        { order_id: 'TEST-FAST-001', sku: inventoryItems.rows[0].sku, quantity: 15, unit_price: inventoryItems.rows[0].unit_price },
+        { order_id: 'TEST-FAST-001', sku: inventoryItems.rows[1].sku, quantity: 12, unit_price: inventoryItems.rows[1].unit_price },
+        { order_id: 'TEST-FAST-002', sku: inventoryItems.rows[0].sku, quantity: 20, unit_price: inventoryItems.rows[0].unit_price },
+        { order_id: 'TEST-FAST-002', sku: inventoryItems.rows[2].sku, quantity: 18, unit_price: inventoryItems.rows[2].unit_price },
+        
+        // Moderate moving - medium quantities
+        { order_id: 'TEST-MOD-001', sku: inventoryItems.rows[3].sku, quantity: 5, unit_price: inventoryItems.rows[3].unit_price },
+        { order_id: 'TEST-MOD-001', sku: inventoryItems.rows[4].sku, quantity: 3, unit_price: inventoryItems.rows[4].unit_price },
+        
+        // Slow moving - low quantities
+        { order_id: 'TEST-SLOW-001', sku: inventoryItems.rows[5].sku, quantity: 1, unit_price: inventoryItems.rows[5].unit_price },
+        { order_id: 'TEST-SLOW-001', sku: inventoryItems.rows[6].sku, quantity: 2, unit_price: inventoryItems.rows[6].unit_price }
+      ];
+      
+      // Insert order products
+      for (const product of testOrderProducts) {
+        await client.query(`
+          INSERT INTO order_products (order_id, sku, quantity, unit_price)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (line_id) DO NOTHING
+        `, [product.order_id, product.sku, product.quantity, product.unit_price]);
+      }
+      
+      await client.query('COMMIT');
+      
+      res.json({
+        success: true,
+        message: 'Test data inserted successfully',
+        data: {
+          orders_inserted: testOrders.length,
+          order_products_inserted: testOrderProducts.length,
+          inventory_items_used: inventoryItems.rows.length
+        }
+      });
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    
+  } catch (error) {
+    console.error('Error inserting test data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to insert test data',
+      error: error.message
+    });
+  }
+});
+
+router.post('/test-data/clear', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Delete test order products first (due to foreign key constraints)
+      await client.query(`
+        DELETE FROM order_products 
+        WHERE order_id LIKE 'TEST-%'
+      `);
+      
+      // Delete test orders
+      await client.query(`
+        DELETE FROM orders 
+        WHERE order_id LIKE 'TEST-%'
+      `);
+      
+      await client.query('COMMIT');
+      
+      res.json({
+        success: true,
+        message: 'Test data cleared successfully'
+      });
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    
+  } catch (error) {
+    console.error('Error clearing test data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear test data',
+      error: error.message
     });
   }
 });

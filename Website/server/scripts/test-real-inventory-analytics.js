@@ -1,4 +1,4 @@
-const pool = require('../db');
+const pool = require('../config/db');
 
 // Real inventory products from your system
 const realProducts = [

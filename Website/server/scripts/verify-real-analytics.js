@@ -1,4 +1,4 @@
-const pool = require('../db');
+const pool = require('../config/db');
 
 async function verifyRealAnalytics() {
   console.log('🎁 Verifying Real Gift Wrapping Inventory Analytics...\n');
@@ -244,3 +244,4 @@ if (require.main === module) {
 }
 
 module.exports = { verifyRealAnalytics };
+
