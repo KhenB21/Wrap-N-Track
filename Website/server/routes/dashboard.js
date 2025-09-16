@@ -59,75 +59,66 @@ router.get('/analytics', async (req, res) => {
       });
     }
 
-    // Get sales overview data
+    // Get sales overview data - optimized query
     const salesOverview = await pool.query(`
+      WITH monthly_orders AS (
+        SELECT 
+          o.order_id,
+          o.name,
+          o.total_cost,
+          o.status,
+          SUM(op.quantity) as total_quantity
+        FROM orders o
+        LEFT JOIN order_products op ON o.order_id = op.order_id
+        WHERE DATE_PART('month', o.order_date) = $1 
+        AND DATE_PART('year', o.order_date) = $2
+        GROUP BY o.order_id, o.name, o.total_cost, o.status
+      )
       SELECT 
         COALESCE(SUM(CASE 
-          WHEN o.status IN ('DELIVERED', 'COMPLETED') 
-          AND DATE_PART('month', o.order_date) = $1 
-          AND DATE_PART('year', o.order_date) = $2
-          THEN o.total_cost 
+          WHEN status IN ('DELIVERED', 'COMPLETED') 
+          THEN total_cost 
           ELSE 0 
         END), 0) as total_revenue,
-        COUNT(CASE 
-          WHEN DATE_PART('month', o.order_date) = $1 
-          AND DATE_PART('year', o.order_date) = $2
-          THEN 1 
-        END) as total_orders,
+        COUNT(*) as total_orders,
         COALESCE(SUM(CASE 
-          WHEN o.status IN ('DELIVERED', 'COMPLETED') 
-          AND DATE_PART('month', o.order_date) = $1 
-          AND DATE_PART('year', o.order_date) = $2
-          THEN op.quantity 
+          WHEN status IN ('DELIVERED', 'COMPLETED') 
+          THEN total_quantity 
           ELSE 0 
         END), 0) as total_units_sold,
-        COUNT(DISTINCT CASE 
-          WHEN DATE_PART('month', o.order_date) = $1 
-          AND DATE_PART('year', o.order_date) = $2
-          THEN o.name 
-        END) as total_customers
-      FROM orders o
-      LEFT JOIN order_products op ON o.order_id = op.order_id
+        COUNT(DISTINCT name) as total_customers
+      FROM monthly_orders
     `, [targetMonth, targetYear]);
 
-    // Get top selling products for the month
+    // Get top selling products for the month - optimized query
     const topSellingProducts = await pool.query(`
+      WITH monthly_sales AS (
+        SELECT 
+          op.sku,
+          SUM(op.quantity) as units_sold,
+          SUM(op.quantity * op.unit_price) as sales_value
+        FROM order_products op
+        JOIN orders o ON op.order_id = o.order_id
+        WHERE o.status IN ('DELIVERED', 'COMPLETED')
+        AND DATE_PART('month', o.order_date) = $1 
+        AND DATE_PART('year', o.order_date) = $2
+        GROUP BY op.sku
+      )
       SELECT 
         i.sku,
         i.name,
         i.category,
         i.unit_price,
-        COALESCE(SUM(CASE 
-          WHEN o.status IN ('DELIVERED', 'COMPLETED') 
-          AND DATE_PART('month', o.order_date) = $1 
-          AND DATE_PART('year', o.order_date) = $2
-          THEN op.quantity 
-          ELSE 0 
-        END), 0) as units_sold,
-        COALESCE(SUM(CASE 
-          WHEN o.status IN ('DELIVERED', 'COMPLETED') 
-          AND DATE_PART('month', o.order_date) = $1 
-          AND DATE_PART('year', o.order_date) = $2
-          THEN op.quantity * op.unit_price 
-          ELSE 0 
-        END), 0) as sales_value
+        COALESCE(ms.units_sold, 0) as units_sold,
+        COALESCE(ms.sales_value, 0) as sales_value
       FROM inventory_items i
-      LEFT JOIN order_products op ON i.sku = op.sku
-      LEFT JOIN orders o ON op.order_id = o.order_id
-      WHERE i.is_active = true
-      GROUP BY i.sku, i.name, i.category, i.unit_price
-      HAVING COALESCE(SUM(CASE 
-        WHEN o.status IN ('DELIVERED', 'COMPLETED') 
-        AND DATE_PART('month', o.order_date) = $1 
-        AND DATE_PART('year', o.order_date) = $2
-        THEN op.quantity 
-        ELSE 0 
-      END), 0) > 0
+      LEFT JOIN monthly_sales ms ON i.sku = ms.sku
+      WHERE COALESCE(ms.units_sold, 0) > 0
       ORDER BY units_sold DESC, sales_value DESC
       LIMIT 5
     `, [targetMonth, targetYear]);
 
-    // Get order status counts for sales activity
+    // Get order status counts for sales activity - optimized query
     const orderStatusCounts = await pool.query(`
       SELECT 
         o.status,
@@ -142,9 +133,22 @@ router.get('/analytics', async (req, res) => {
     const classifyStatus = (status) => {
       if (!status) return null;
       const s = status.toString().toLowerCase();
-      if (/deliver|out for|outfor|en\s?-?route|enroute/.test(s)) return 'outForDelivery';
-      if (/ship|shipped|to be ship|to-be-ship|tobe ship|to be shipped/.test(s)) return 'toBeShipped';
-      if (/pack|pending|to be pack|to-be-pack|tobe pack/.test(s)) return 'toBePack';
+      
+      // Check for delivery statuses
+      if (s.includes('deliver') || s.includes('out for') || s.includes('ready for deliver')) {
+        return 'outForDelivery';
+      }
+      
+      // Check for shipping statuses
+      if (s.includes('ship') || s.includes('shipped')) {
+        return 'toBeShipped';
+      }
+      
+      // Check for packing/pending statuses
+      if (s.includes('pack') || s.includes('pending') || s.includes('confirmed')) {
+        return 'toBePack';
+      }
+      
       return null;
     };
 
@@ -154,12 +158,17 @@ router.get('/analytics', async (req, res) => {
       outForDelivery: 0
     };
 
+    console.log('Order status counts:', orderStatusCounts.rows);
+    
     orderStatusCounts.rows.forEach(row => {
       const classification = classifyStatus(row.status);
+      console.log(`Status: ${row.status} -> Classification: ${classification}`);
       if (classification && salesActivity.hasOwnProperty(classification)) {
         salesActivity[classification] = parseInt(row.count);
       }
     });
+    
+    console.log('Final sales activity:', salesActivity);
 
     // Get recent activity (last 5 orders)
     const recentActivity = await pool.query(`
@@ -168,11 +177,10 @@ router.get('/analytics', async (req, res) => {
         o.name as customer_name,
         o.order_date,
         o.status,
-        u.name as archived_by_name,
-        u.profile_picture_data as archived_by_profile_picture,
-        o.archived_at
+        o.name as archived_by_name,
+        NULL as archived_by_profile_picture,
+        o.order_date as archived_at
       FROM orders o
-      LEFT JOIN users u ON o.archived_by = u.user_id
       ORDER BY o.order_date DESC
       LIMIT 5
     `);

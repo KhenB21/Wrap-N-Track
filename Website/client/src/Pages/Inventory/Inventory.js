@@ -90,7 +90,11 @@ export default function Inventory() {
       const res = await api.get('/api/inventory');
       console.log('API response:', res.data);
       // Backend returns { success: true, inventory: [...] }
-      setProducts(res.data.inventory || []);
+      const inventoryData = res.data.inventory || [];
+      console.log('First product data sample:', inventoryData[0]);
+      console.log('Product quantities:', inventoryData.map(p => ({ sku: p.sku, quantity: p.quantity, stock_quantity: p.stock_quantity })));
+      console.log('All product data:', inventoryData);
+      setProducts(inventoryData);
     } catch (err) {
       console.error('Error fetching inventory:', err);
       setError('Failed to load inventory');
@@ -330,23 +334,22 @@ export default function Inventory() {
                           : product.uom}
                       </td>
                       <td style={{ textAlign: 'center' }}>
-                        <div className={`stock-indicator ${
-                          Number(product.quantity || 0) <= 300 ? 'low' :
-                          Number(product.quantity || 0) > 800 ? 'high' : 'medium'
-                        }`}>
-                          <span style={{ 
-                            display: 'inline-block',
-                            width: '6px',
-                            height: '6px',
-                            borderRadius: '50%',
-                            backgroundColor: 'currentColor',
-                            marginRight: '4px'
-                          }}></span>
-                          {product.quantity}
+                        <div style={{
+                          padding: '8px 16px',
+                          backgroundColor: '#f0f0f0',
+                          borderRadius: '4px',
+                          fontWeight: 'bold',
+                          fontSize: '14px'
+                        }}>
+                          {(() => {
+                            const qty = Number(product.quantity || product.stock_quantity || 0);
+                            console.log(`Product ${product.sku}: quantity=${product.quantity}, stock_quantity=${product.stock_quantity}, final=${qty}`);
+                            return qty.toLocaleString();
+                          })()}
                         </div>
                       </td>
-                      <td style={{ textAlign: 'center' }}>{product.ordered_quantity || 0}</td>
-                      <td style={{ textAlign: 'center' }}>{product.delivered_quantity || 0}</td>
+                      <td style={{ textAlign: 'center' }}>{Number(product.ordered_quantity || 0).toLocaleString()}</td>
+                      <td style={{ textAlign: 'center' }}>{Number(product.delivered_quantity || 0).toLocaleString()}</td>
                       <td style={{ textAlign: 'center' }}>
                         <button className="action-btn add" title="Add Stock" onClick={e => { 
                           e.stopPropagation(); 

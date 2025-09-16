@@ -622,6 +622,8 @@ body.dark .stock-info {
   background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
 }
 
+
+Y
 /* Loading Animation */
 @keyframes pulse {
   0%, 100% { opacity: 1; }

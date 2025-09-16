@@ -82,6 +82,31 @@ export default function SupplierDetails() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
 
+  // Phone number formatting and validation functions
+  const formatPhoneNumber = (value) => {
+    // Remove all non-numeric characters
+    const phoneNumber = value.replace(/\D/g, '');
+    
+    // Format for Philippine phone numbers
+    if (phoneNumber.length === 0) return '';
+    if (phoneNumber.length <= 3) return phoneNumber;
+    if (phoneNumber.length <= 6) return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
+    if (phoneNumber.length <= 10) return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6)}`;
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
+  };
+
+  const validatePhoneNumber = (phoneNumber) => {
+    if (!phoneNumber) return true; // Optional field
+    const cleanNumber = phoneNumber.replace(/\D/g, '');
+    // Philippine phone numbers: 10-11 digits (landline: 10, mobile: 11)
+    return cleanNumber.length >= 10 && cleanNumber.length <= 11;
+  };
+
+  const handlePhoneChange = (field, value) => {
+    const formatted = formatPhoneNumber(value);
+    setEditForm({...editForm, [field]: formatted});
+  };
+
   const fetchSupplierProducts = useCallback(async (supplierId) => {
     if (!selectedSupplier) {
       console.log('No supplier selected');
@@ -465,12 +490,12 @@ export default function SupplierDetails() {
       setError('Invalid email format');
       return false;
     }
-    if (editForm.telephone && !/^\+?[\d\s-]{10,}$/.test(editForm.telephone)) {
-      setError('Invalid telephone number format');
+    if (editForm.telephone && !validatePhoneNumber(editForm.telephone)) {
+      setError('Invalid telephone number format. Please use Philippine format: (XXX) XXX-XXXX');
       return false;
     }
-    if (editForm.cellphone && !/^\+?[\d\s-]{10,}$/.test(editForm.cellphone)) {
-      setError('Invalid cellphone number format');
+    if (editForm.cellphone && !validatePhoneNumber(editForm.cellphone)) {
+      setError('Invalid cellphone number format. Please use Philippine format: (XXX) XXX-XXXX');
       return false;
     }
     if (!editForm.province.trim()) {
@@ -501,7 +526,15 @@ export default function SupplierDetails() {
 
     try {
       const token = localStorage.getItem('token');
-  const response = await api.post(`/api/suppliers`, editForm, {
+      
+      // Prepare data for database - clean phone numbers
+      const supplierData = {
+        ...editForm,
+        telephone: editForm.telephone ? editForm.telephone.replace(/\D/g, '') : '',
+        cellphone: editForm.cellphone ? editForm.cellphone.replace(/\D/g, '') : ''
+      };
+      
+      const response = await api.post(`/api/suppliers`, supplierData, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -532,8 +565,8 @@ export default function SupplierDetails() {
     setEditForm({
       name: supplier.name,
       email_address: supplier.email_address,
-      telephone: supplier.telephone || '',
-      cellphone: supplier.cellphone || '',
+      telephone: supplier.telephone ? formatPhoneNumber(supplier.telephone) : '',
+      cellphone: supplier.cellphone ? formatPhoneNumber(supplier.cellphone) : '',
       description: supplier.description || '',
       province: supplier.province || '',
       city_municipality: supplier.city_municipality || '',
@@ -569,7 +602,15 @@ export default function SupplierDetails() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await api.put(`/api/suppliers/${selectedSupplier.supplier_id}`, editForm, {
+      
+      // Prepare data for database - clean phone numbers
+      const supplierData = {
+        ...editForm,
+        telephone: editForm.telephone ? editForm.telephone.replace(/\D/g, '') : '',
+        cellphone: editForm.cellphone ? editForm.cellphone.replace(/\D/g, '') : ''
+      };
+      
+      const response = await api.put(`/api/suppliers/${selectedSupplier.supplier_id}`, supplierData, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -653,41 +694,43 @@ export default function SupplierDetails() {
   };
 
   const renderForm = () => (
-    <div className="modal-overlay" onClick={handleCancel}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2 className="text-xl font-bold">{isAdding ? 'Add New Supplier' : 'Edit Supplier'}</h2>
-          <button className="modal-close" onClick={handleCancel}>×</button>
-        </div>
-        <div className="modal-body">
-          {error && <div className="error-message">{error}</div>}
+    <div className="compact-form">
+      {error && <div className="error-message">{error}</div>}
+      
+      {/* Basic Information Section */}
+      <div className="form-section">
+        <h3 className="section-title">Basic Information</h3>
+        <div className="form-row">
           <div className="form-group">
-            <label>Name: *</label>
+            <label>Name *</label>
             <input
               type="text"
               value={editForm.name}
               onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-              placeholder="Enter supplier name"
+              placeholder="Supplier name"
               required
             />
           </div>
           <div className="form-group">
-            <label>Email Address: *</label>
+            <label>Email *</label>
             <input
               type="email"
               value={editForm.email_address}
               onChange={(e) => setEditForm({...editForm, email_address: e.target.value})}
-              placeholder="Enter email address"
+              placeholder="Email address"
               required
             />
           </div>
+        </div>
+        <div className="form-row">
           <div className="form-group">
             <label>Telephone</label>
             <input
               type="tel"
               value={editForm.telephone}
-              onChange={(e) => setEditForm({...editForm, telephone: e.target.value})}
-              placeholder="Enter telephone number"
+              onChange={(e) => handlePhoneChange('telephone', e.target.value)}
+              placeholder="(XXX) XXX-XXXX"
+              maxLength="15"
             />
           </div>
           <div className="form-group">
@@ -695,75 +738,87 @@ export default function SupplierDetails() {
             <input
               type="tel"
               value={editForm.cellphone}
-              onChange={(e) => setEditForm({...editForm, cellphone: e.target.value})}
-              placeholder="Enter cellphone number"
+              onChange={(e) => handlePhoneChange('cellphone', e.target.value)}
+              placeholder="(XXX) XXX-XXXX"
+              maxLength="15"
             />
           </div>
+        </div>
+        <div className="form-group">
+          <label>Description</label>
+          <textarea
+            value={editForm.description}
+            onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+            placeholder="Brief description (optional)"
+            rows="2"
+          />
+        </div>
+      </div>
+
+      {/* Address Section */}
+      <div className="form-section">
+        <h3 className="section-title">Address</h3>
+        <div className="form-row">
           <div className="form-group">
-            <label>Description</label>
-            <textarea
-              value={editForm.description}
-              onChange={(e) => setEditForm({...editForm, description: e.target.value})}
-              placeholder="Enter supplier description"
-            />
-          </div>
-          <div className="form-group">
-            <label>Province: *</label>
+            <label>Province *</label>
             <input
               type="text"
               value={editForm.province}
               onChange={(e) => setEditForm({...editForm, province: e.target.value})}
-              placeholder="Enter province"
+              placeholder="Province"
               required
             />
           </div>
           <div className="form-group">
-            <label>City/Municipality: *</label>
+            <label>City/Municipality *</label>
             <input
               type="text"
               value={editForm.city_municipality}
               onChange={(e) => setEditForm({...editForm, city_municipality: e.target.value})}
-              placeholder="Enter city/municipality"
+              placeholder="City/Municipality"
               required
             />
           </div>
+        </div>
+        <div className="form-row">
           <div className="form-group">
-            <label>Barangay: *</label>
+            <label>Barangay *</label>
             <input
               type="text"
               value={editForm.barangay}
               onChange={(e) => setEditForm({...editForm, barangay: e.target.value})}
-              placeholder="Enter barangay"
+              placeholder="Barangay"
               required
             />
           </div>
           <div className="form-group">
-            <label>Street Address: *</label>
-            <input
-              type="text"
-              value={editForm.street_address}
-              onChange={(e) => setEditForm({...editForm, street_address: e.target.value})}
-              placeholder="Enter street address"
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>ZIP Code: *</label>
+            <label>ZIP Code *</label>
             <input
               type="text"
               value={editForm.zip_code}
               onChange={(e) => setEditForm({...editForm, zip_code: e.target.value})}
-              placeholder="Enter ZIP code"
+              placeholder="ZIP Code"
               required
             />
           </div>
         </div>
-        <div className="modal-footer">
-          <button className="btn-cancel" onClick={handleCancel}>Cancel</button>
-          <button className="btn-save" onClick={isAdding ? handleSaveAdd : handleSaveEdit}>
-            {isAdding ? 'Add Supplier' : 'Save Changes'}
-          </button>
+        <div className="form-group">
+          <label>Street Address *</label>
+          <input
+            type="text"
+            value={editForm.street_address}
+            onChange={(e) => setEditForm({...editForm, street_address: e.target.value})}
+            placeholder="Street address"
+            required
+          />
         </div>
+      </div>
+
+      <div className="form-actions">
+        <button className="btn-save" onClick={isAdding ? handleSaveAdd : handleSaveEdit}>
+          {isAdding ? 'Add Supplier' : 'Save Changes'}
+        </button>
+        <button className="btn-cancel" onClick={handleCancel}>Cancel</button>
       </div>
     </div>
   );
@@ -1059,235 +1114,235 @@ export default function SupplierDetails() {
     );
   };
 
+  // Calculate statistics
+  const stats = {
+    total: suppliers.length,
+    active: suppliers.filter(s => s.status === 'active' || !s.status).length,
+    inactive: suppliers.filter(s => s.status === 'inactive').length,
+    selected: selectedSuppliers.size
+  };
+
   return (
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
         <TopBar avatarUrl={getProfilePictureUrl()} />
         
-        {/* Action Bar */}
-        <div className="supplier-action-bar">
-          <button className="btn-add" onClick={handleAdd}>
-            <span className="icon">✏️</span> Add Supplier
-          </button>
-          <button 
-            className="btn-delete" 
-            onClick={() => {
-              if (window.confirm(`Are you sure you want to delete ${selectedSuppliers.size} supplier(s)?`)) {
-                Array.from(selectedSuppliers).forEach(handleDelete);
-              }
-            }}
-          >
-            <span className="icon">🗑️</span> Delete
-          </button>
-          <span className="selected-count">
-            {selectedSuppliers.size} {selectedSuppliers.size === 1 ? 'Supplier' : 'Suppliers'} Selected
-          </span>
-        </div>
-
-        {/* Filters */}
-        <div className="supplier-filters">
-          <span>Total Suppliers: {suppliers.length}</span>
-          <select 
-            value={selectedCategory} 
-            onChange={(e) => setSelectedCategory(e.target.value)}
-          >
-            <option value="All">All Categories</option>
-            <option value="Local">Local</option>
-            <option value="National">National</option>
-            <option value="International">International</option>
-          </select>
-          <input 
-            className="supplier-search" 
-            type="text" 
-            placeholder="Search suppliers..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        <div className="supplier-details-layout">
-          {/* Supplier List */}
-          <div className="supplier-list">
-            <div className="supplier-list-header">
-              <div className="supplier-list-title">SUPPLIERS</div>
-              <div className="select-all-suppliers">
-                <input 
-                  type="checkbox"
-                  checked={selectedSuppliers.size === filteredSuppliers.length && filteredSuppliers.length > 0}
-                  onChange={handleSelectAll}
-                />
-                <span>Select All Suppliers</span>
+        <div className="suppliers-page">
+          {/* Header Section */}
+          <div className="suppliers-header">
+            <div className="header-content">
+              <div className="header-left">
+                <h1 className="page-title">
+                  <span className="title-icon">🏢</span>
+                  Supplier Management
+                </h1>
+                <p className="page-subtitle">Manage your supplier database</p>
+              </div>
+              <div className="header-actions">
+                <button 
+                  className="btn-primary"
+                  onClick={handleAdd}
+                >
+                  <span className="btn-icon">+</span>
+                  Add Supplier
+                </button>
               </div>
             </div>
-            {loading ? (
-              <div className="loading">Loading suppliers...</div>
-            ) : filteredSuppliers.length === 0 ? (
-              <div className="no-results">No suppliers found</div>
-            ) : (
-              filteredSuppliers.map((s) => (
-                <div 
-                  className={`supplier-list-item${selectedSuppliers.has(s.supplier_id) ? " selected" : ""}`} 
-                  key={s.supplier_id}
-                  onClick={(e) => handleSupplierSelect(s, e)}
-                >
-                  <input 
-                    type="checkbox" 
-                    checked={selectedSuppliers.has(s.supplier_id)}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleSupplierSelect(s, e);
-                    }}
-                  />
-                  <div className="supplier-info">
-                    <div className="supplier-name">{s.name}</div>
-                    <div className="supplier-code">#{s.supplier_id}</div>
-                  </div>
-                  <div className="supplier-actions">
-                    <button 
-                      className="icon-btn edit-btn" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(s);
-                      }}
-                    >
-                      ✏️
-                    </button>
-                    <button 
-                      className="icon-btn delete-btn" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(s.supplier_id);
-                      }}
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
           </div>
 
-          {/* Supplier Details */}
-          <div className="supplier-details-panel">
-            {isAdding ? (
-              <>
-                <div className="supplier-details-header">
-                  <div>
-                    <div className="supplier-details-title">Add New Supplier</div>
-                  </div>
-                </div>
-                {renderForm()}
-              </>
-            ) : selectedSupplier ? (
-              <>
-                <div className="supplier-details-header">
-                  <div>
-                    <div className="supplier-details-title">Supplier #{selectedSupplier.supplier_id}</div>
-                    <div className="supplier-details-name">{selectedSupplier.name}</div>
-                  </div>
-                  <div className="supplier-details-actions">
-                    <button className="icon-btn" onClick={() => handleEdit(selectedSupplier)}>✏️</button>
-                    <button className="icon-btn" onClick={() => handleDelete(selectedSupplier.supplier_id)}>🗑️</button>
-                    <button className="icon-btn" onClick={() => setSelectedSupplier(null)}>❌</button>
-                  </div>
-                </div>
-                
-                {isEditing ? (
-                  renderForm()
-                ) : (
-                  <>
-                    <div className="supplier-details-tabs">
-                      {tabs.map((tab, idx) => (
-                        <button
-                          key={tab}
-                          className={`tab-btn${activeTab === idx ? " active" : ""}`}
-                          onClick={() => setActiveTab(idx)}
-                        >
-                          {tab}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="supplier-details-content" style={{ overflowY: 'auto', height: 'calc(100% - 120px)' }}>
-                      {activeTab === 0 && (
-                        <>
-                          <div className="details-section">
-                            <div className="details-label">CONTACT DETAILS</div>
-                            <div className="details-row">
-                              <span>Email Address</span>
-                              <span>{selectedSupplier.email_address}</span>
-                            </div>
-                            <div className="details-row">
-                              <span>Telephone</span>
-                              <span>{selectedSupplier.telephone || 'N/A'}</span>
-                            </div>
-                            <div className="details-row">
-                              <span>Cellphone</span>
-                              <span>{selectedSupplier.cellphone || 'N/A'}</span>
-                            </div>
-                            {selectedSupplier.description && (
-                              <div className="details-row">
-                                <span>Description</span>
-                                <span>{selectedSupplier.description}</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="details-section">
-                            <div className="details-label">ADDRESS</div>
-                            <div className="details-row">
-                              <span>Street Address</span>
-                              <span>{selectedSupplier.street_address}</span>
-                            </div>
-                            <div className="details-row">
-                              <span>Barangay</span>
-                              <span>{selectedSupplier.barangay}</span>
-                            </div>
-                            <div className="details-row">
-                              <span>City/Municipality</span>
-                              <span>{selectedSupplier.city_municipality}</span>
-                            </div>
-                            <div className="details-row">
-                              <span>Province</span>
-                              <span>{selectedSupplier.province}</span>
-                            </div>
-                            <div className="details-row">
-                              <span>ZIP Code</span>
-                              <span>{selectedSupplier.zip_code}</span>
-                            </div>
-                          </div>
-                          {renderSupplierProducts()}
-                        </>
-                      )}
-                      {activeTab === 1 && (
-                        <div className="orders-section">
-                          <div className="orders-header">
-                            <h3>Order History</h3>
-                          </div>
-                          <div className="orders-grid">
-                          {renderSupplierOrders()}
-                          </div>
-                        </div>
-                      )}
-                      {activeTab === 2 && (
-                        <div className="orders-section">
-                          <div className="orders-header">
-                            <h3>Ongoing Orders</h3>
-                            <button className="btn-primary" onClick={handleAddOrder}>Add Order</button>
-                          </div>
-                          <div className="orders-grid">
-                          {renderSupplierOrders()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </>
+          {/* Statistics Cards */}
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-icon total">📊</div>
+              <div className="stat-content">
+                <div className="stat-number">{stats.total}</div>
+                <div className="stat-label">Total Suppliers</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon active">✅</div>
+              <div className="stat-content">
+                <div className="stat-number">{stats.active}</div>
+                <div className="stat-label">Active</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon inactive">⏸️</div>
+              <div className="stat-content">
+                <div className="stat-number">{stats.inactive}</div>
+                <div className="stat-label">Inactive</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon selected">🎯</div>
+              <div className="stat-content">
+                <div className="stat-number">{stats.selected}</div>
+                <div className="stat-label">Selected</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filters and Controls */}
+          <div className="suppliers-controls">
+            <div className="controls-left">
+              <div className="search-box">
+                <span className="search-icon">🔍</span>
+                <input
+                  type="text"
+                  placeholder="Search suppliers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="search-input"
+                />
+              </div>
+              
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="filter-select"
+              >
+                <option value="All">All Categories</option>
+                <option value="Local">Local</option>
+                <option value="National">National</option>
+                <option value="International">International</option>
+              </select>
+            </div>
+
+            <div className="controls-right">
+              {selectedSuppliers.size > 0 && (
+                <button
+                  className="btn-danger"
+                  onClick={() => {
+                    if (window.confirm(`Are you sure you want to delete ${selectedSuppliers.size} supplier(s)?`)) {
+                      Array.from(selectedSuppliers).forEach(handleDelete);
+                    }
+                  }}
+                >
+                  <span className="btn-icon">🗑️</span>
+                  Delete Selected ({selectedSuppliers.size})
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Supplier List */}
+          <div className="suppliers-content">
+            {error && (
+              <div className="error-message">
+                <span className="error-icon">⚠️</span>
+                {error}
+                <button onClick={fetchSuppliers} className="retry-btn">Retry</button>
+              </div>
+            )}
+
+            {filteredSuppliers.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">🏢</div>
+                <h3>No suppliers found</h3>
+                <p>
+                  {searchTerm || selectedCategory !== 'All' 
+                    ? 'Try adjusting your search or filters'
+                    : 'Get started by adding your first supplier'
+                  }
+                </p>
+                {!searchTerm && selectedCategory === 'All' && (
+                  <button className="btn-primary" onClick={handleAdd}>
+                    Add First Supplier
+                  </button>
                 )}
-              </>
+              </div>
             ) : (
-              <div className="no-selection">Select a supplier to view details</div>
+              <div className="suppliers-grid">
+                {filteredSuppliers.map((supplier) => (
+                  <div 
+                    key={supplier.supplier_id}
+                    className={`supplier-card ${selectedSuppliers.has(supplier.supplier_id) ? 'selected' : ''}`}
+                    onClick={(e) => handleSupplierSelect(supplier, e)}
+                  >
+                    <div className="card-header">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedSuppliers.has(supplier.supplier_id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleSupplierSelect(supplier, e);
+                        }}
+                        className="card-checkbox"
+                      />
+                      <div className="supplier-avatar">
+                        {supplier.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="supplier-info">
+                        <h3 className="supplier-name">{supplier.name}</h3>
+                        <p className="supplier-id">#{supplier.supplier_id}</p>
+                      </div>
+                      <div className="card-actions">
+                        <button 
+                          className="action-btn edit-btn" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(supplier);
+                          }}
+                          title="Edit Supplier"
+                        >
+                          ✏️
+                        </button>
+                        <button 
+                          className="action-btn delete-btn" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(supplier.supplier_id);
+                          }}
+                          title="Delete Supplier"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="card-body">
+                      <div className="info-row">
+                        <span className="info-icon">📧</span>
+                        <span className="info-text">{supplier.email_address}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-icon">📞</span>
+                        <span className="info-text">{supplier.telephone || supplier.cellphone || 'No phone'}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-icon">📍</span>
+                        <span className="info-text">{supplier.city_municipality}, {supplier.province}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="card-footer">
+                      <span className="status-badge active">Active</span>
+                      <span className="date-added">Added: {new Date().toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
+
+        {/* Add/Edit Modal */}
+        {(isAdding || isEditing) && (
+          <div className="modal-overlay" onClick={handleCancel}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2 className="modal-title">
+                  {isAdding ? 'Add New Supplier' : 'Edit Supplier'}
+                </h2>
+                <button className="modal-close" onClick={handleCancel}>×</button>
+              </div>
+              <div className="modal-body">
+                {renderForm()}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Add the modal render at the end of the component */}
         {showOngoingOrderModal && renderOngoingOrderModal()}

@@ -88,7 +88,7 @@ const Sidebar = () => {
           )}
           {permissions.customers && (
             <li>
-              <Link to="/customer-details">
+              <Link to="/customers">
                 <span className="icon">👥</span>
                 <span className="text">Customers</span>
               </Link>

@@ -4,6 +4,7 @@ import Login from "./Pages/Login/Login";
 import OrderDetails from "./Pages/OrderDetails/OrderDetails";
 import ProductDetails from "./Pages/ProductDetails/ProductDetails";
 import CustomerDetails from "./Pages/CustomerDetails/CustomerDetails";
+import Customers from "./Pages/Customers/Customers";
 import SupplierDetails from "./Pages/SupplierDetails/SupplierDetails";
 import SupplierForm from "./Pages/SupplierDetails/SupplierForm";
 import UserDetails from "./Pages/UserDetails/UserDetails";
@@ -53,6 +54,7 @@ function App() {
         
         <Route path="/archived-orders" element={<ArchivedOrders />} />
         <Route path="/customer-details" element={<CustomerDetails />} />
+        <Route path="/customers" element={<Customers />} />
         <Route path="/supplier-details" element={<SupplierDetails />} />
         <Route path="/supplier-form" element={<SupplierForm />} />
         <Route path="/register" element={<Register />} />

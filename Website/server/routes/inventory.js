@@ -35,22 +35,48 @@ router.use(verifyToken);
 // GET /api/inventory - Get all inventory items
 router.get('/', async (req, res) => {
   try {
+    // Optimized inventory query with better performance
     const result = await pool.query(`
+      WITH order_quantities AS (
+        SELECT 
+          op.sku,
+          SUM(CASE 
+            WHEN o.status NOT IN ('DELIVERED', 'COMPLETED', 'CANCELLED') 
+            THEN op.quantity 
+            ELSE 0 
+          END) AS ordered_quantity,
+          SUM(CASE 
+            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            THEN op.quantity 
+            ELSE 0 
+          END) AS delivered_quantity
+        FROM order_products op
+        JOIN orders o ON op.order_id = o.order_id
+        GROUP BY op.sku
+      )
       SELECT 
-        sku, 
-        name, 
-        description,
-        category, 
-        quantity, 
-        unit_price, 
-        last_updated,
+        i.sku,
+        i.name,
+        i.description,
+        i.category,
+        i.quantity,
+        i.unit_price,
+        i.last_updated,
+        i.uom,
+        i.conversion_qty,
         CASE 
-          WHEN image_data IS NOT NULL THEN encode(image_data, 'base64')
+          WHEN i.image_data IS NOT NULL THEN encode(i.image_data, 'base64')
           ELSE NULL 
-        END as image_data
-      FROM inventory_items 
-      ORDER BY name ASC
+        END as image_data,
+        COALESCE(oq.ordered_quantity, 0) AS ordered_quantity,
+        COALESCE(oq.delivered_quantity, 0) AS delivered_quantity
+      FROM inventory_items i
+      LEFT JOIN order_quantities oq ON i.sku = oq.sku
+      ORDER BY i.name ASC
     `);
+    
+    console.log('Inventory query result:', result.rows.length, 'items found');
+    console.log('Sample inventory item:', result.rows[0]);
     
     return res.json({
       success: true,
