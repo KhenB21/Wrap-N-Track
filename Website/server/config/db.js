@@ -1,10 +1,10 @@
 const { Pool } = require('pg');
 const path = require('path');
 const fs = require('fs');
-// Prefer .env.local if present, else fallback to .env (keeps prod safe)
+// Load environment variables - prioritize .env for production, .env.local for development
 const envLocal = path.join(__dirname, '..', '.env.local');
 const envProd = path.join(__dirname, '..', '.env');
-const envPath = fs.existsSync(envLocal) ? envLocal : envProd;
+const envPath = process.env.NODE_ENV === 'production' ? envProd : (fs.existsSync(envLocal) ? envLocal : envProd);
 require('dotenv').config({ path: envPath });
 
 // Adaptive SSL: explicit DB_SSL=true enables; also auto-enable for DigitalOcean managed PG hostname or port 25060
@@ -23,12 +23,13 @@ if (host === 'localhost' || host === '127.0.0.1') {
   console.log('[DB] Auto-disabling SSL for localhost development');
   useSsl = false;
 }
-// Create connection string for local development
-const connectionString = `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME}?sslmode=disable`;
+// Create connection string with proper SSL configuration
+const sslMode = useSsl ? 'require' : 'disable';
+const connectionString = `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME}?sslmode=${sslMode}`;
 
 const pool = new Pool({
   connectionString: connectionString,
-  ssl: false,
+  ssl: useSsl ? { rejectUnauthorized: false } : false,
   application_name: 'wrap-n-track-server',
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,

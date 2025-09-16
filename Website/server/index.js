@@ -7,10 +7,10 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
-// Load .env.local if present, else .env (without affecting prod)
+// Load environment variables - prioritize .env for production, .env.local for development
 const envLocal = path.join(__dirname, '..', '.env.local');
 const envProd = path.join(__dirname, '..', '.env');
-const envPath = fs.existsSync(envLocal) ? envLocal : envProd;
+const envPath = process.env.NODE_ENV === 'production' ? envProd : (fs.existsSync(envLocal) ? envLocal : envProd);
 require('dotenv').config({ path: envPath });
 // Pool now sourced from config/db.js
 let wss, notifyChange;
