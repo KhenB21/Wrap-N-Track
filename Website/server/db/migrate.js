@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const { pool } = require('../db');
+// Use the unified pool from config/db (respects .env.local)
+const pool = require('../config/db');
 
 // Create migrations table if it doesn't exist
 async function createMigrationsTable() {

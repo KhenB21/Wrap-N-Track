@@ -1,6 +1,11 @@
 const { Pool } = require('pg');
-// Load environment variables from the server .env (one level up from this config directory)
-require('dotenv').config({ path: __dirname + '/../.env' });
+const path = require('path');
+const fs = require('fs');
+// Prefer .env.local if present, else fallback to .env (keeps prod safe)
+const envLocal = path.join(__dirname, '..', '.env.local');
+const envProd = path.join(__dirname, '..', '.env');
+const envPath = fs.existsSync(envLocal) ? envLocal : envProd;
+require('dotenv').config({ path: envPath });
 
 // Adaptive SSL: explicit DB_SSL=true enables; also auto-enable for DigitalOcean managed PG hostname or port 25060
 let useSsl = (process.env.DB_SSL || '').toLowerCase() === 'true';
@@ -12,19 +17,31 @@ if (/\.ondigitalocean\.com$/i.test(host) || port === 25060) {
   console.log('[DB] Auto-enabling SSL for DigitalOcean managed database');
   useSsl = true;
 }
+
+// Force disable SSL for localhost development
+if (host === 'localhost' || host === '127.0.0.1') {
+  console.log('[DB] Auto-disabling SSL for localhost development');
+  useSsl = false;
+}
+// Create connection string for local development
+const connectionString = `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME}?sslmode=disable`;
+
 const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 5432,
-  ssl: useSsl ? { 
-    rejectUnauthorized: false,
-    require: true
-  } : false,
+  connectionString: connectionString,
+  ssl: false,
+  application_name: 'wrap-n-track-server',
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
   max: 20
+});
+
+console.log('[DB] SSL configuration:', {
+  useSsl,
+  host,
+  port,
+  dbSsl: process.env.DB_SSL,
+  isLocalhost: host === 'localhost' || host === '127.0.0.1',
+  isDigitalOcean: /\.ondigitalocean\.com$/i.test(host) || port === 25060
 });
 
 if (!useSsl) {

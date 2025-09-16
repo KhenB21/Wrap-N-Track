@@ -4,6 +4,7 @@ import Login from "./Pages/Login/Login";
 import OrderDetails from "./Pages/OrderDetails/OrderDetails";
 import ProductDetails from "./Pages/ProductDetails/ProductDetails";
 import CustomerDetails from "./Pages/CustomerDetails/CustomerDetails";
+import Customers from "./Pages/Customers/Customers";
 import SupplierDetails from "./Pages/SupplierDetails/SupplierDetails";
 import SupplierForm from "./Pages/SupplierDetails/SupplierForm";
 import UserDetails from "./Pages/UserDetails/UserDetails";
@@ -19,6 +20,7 @@ import CustomerHome from "./Pages/CustomerPOV/CustomerHome";
 import CustomerCorporate from "./Pages/CustomerCorporate/CustomerCorporate";
 
 import ArchivedOrders from './Pages/ArchivedOrders/ArchivedOrders';
+import InventoryReport from './Pages/InventoryReport/InventoryReport';
 
 import ForgotPassword from "./Pages/ForgotPassword/ForgotPassword";
 import EmailVerify from "./Pages/EmailVerify/EmailVerify";
@@ -52,11 +54,13 @@ function App() {
         
         <Route path="/archived-orders" element={<ArchivedOrders />} />
         <Route path="/customer-details" element={<CustomerDetails />} />
+        <Route path="/customers" element={<Customers />} />
         <Route path="/supplier-details" element={<SupplierDetails />} />
         <Route path="/supplier-form" element={<SupplierForm />} />
         <Route path="/register" element={<Register />} />
         <Route path="/user-details" element={<UserDetails />} />
         <Route path="/inventory" element={<Inventory />} />
+        <Route path="/reports/inventory" element={<InventoryReport />} />
         <Route path="/user-management" element={<UserManagement />} />
         <Route path="/orders" element={<OrderDetails />} />
         <Route path="/orders/:orderId" element={<OrderDetails />} />

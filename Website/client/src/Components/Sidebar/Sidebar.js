@@ -83,13 +83,12 @@ const Sidebar = () => {
               <ul className="dropdown-menu">
                 <li><Link to="/reports/sales">Sales Reports</Link></li>
                 <li><Link to="/reports/inventory">Inventory Reports</Link></li>
-                <li><Link to="/reports/financial">Financial Reports</Link></li>
               </ul>
             </li>
           )}
           {permissions.customers && (
             <li>
-              <Link to="/customer-details">
+              <Link to="/customers">
                 <span className="icon">👥</span>
                 <span className="text">Customers</span>
               </Link>

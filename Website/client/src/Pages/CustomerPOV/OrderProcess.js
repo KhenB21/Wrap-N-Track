@@ -556,8 +556,6 @@ export default function OrderProcess() {
     try {
       const guestQuantity = parseInt(formData.guestCount, 10) || 1;
       let productsForOrder = [];
-      const hasInventorySelections = Object.values(selectedInventoryProducts || {})
-        .some(arr => Array.isArray(arr) && arr.length > 0);
 
       const productNameToSku = {
         "Blanc Box": "BC2350932997462", "Signature Box": "BC8201847934939", "Premium Box": "BC3344504438612",
@@ -625,21 +623,8 @@ export default function OrderProcess() {
             };
           }).filter(Boolean);
         } else {
-          console.warn(`Style '${formData.style}' selected but no items found or style data is invalid. Falling back to handpicked items if any.`);
-          // If style is invalid, prefer explicit inventory selections; else legacy selections
-          if (hasInventorySelections) {
-            productsForOrder = [];
-            Object.entries(selectedInventoryProducts).forEach(([category, skuArray]) => {
-              if (Array.isArray(skuArray) && skuArray.length > 0) {
-                skuArray.forEach(sku => {
-                  const inventoryItem = inventoryProducts.find(product => product.sku === sku);
-                  if (inventoryItem) {
-                    productsForOrder.push({ name: inventoryItem.name, quantity: guestQuantity, sku: inventoryItem.sku });
-                  }
-                });
-              }
-            });
-          } else {
+          console.warn(`Style '${formData.style}' selected but no items found or style data is invalid. Falling back to customer-selected items if any.`);
+          // Fall back to items the customer actually selected in the UI
             productsForOrder = getAllSelectedItems().map(item => {
               let sku = item.sku;
               if (!sku) sku = productNameToSku[item.name];
@@ -650,22 +635,8 @@ export default function OrderProcess() {
               return { name: item.name, quantity: guestQuantity, sku };
             }).filter(Boolean);
           }
-        }
-      } else if (hasInventorySelections) {
-        // Build exclusively from explicit inventory selections
-        productsForOrder = [];
-        Object.entries(selectedInventoryProducts).forEach(([category, skuArray]) => {
-          if (Array.isArray(skuArray) && skuArray.length > 0) {
-            skuArray.forEach(sku => {
-              const inventoryItem = inventoryProducts.find(product => product.sku === sku);
-              if (inventoryItem) {
-                productsForOrder.push({ name: inventoryItem.name, quantity: guestQuantity, sku: inventoryItem.sku });
-              }
-            });
-          }
-        });
       } else { 
-        // Legacy handpick selections
+        // Build from customer-selected items only
         productsForOrder = getAllSelectedItems().map(item => {
           let sku = item.sku;
           if (!sku) sku = productNameToSku[item.name];

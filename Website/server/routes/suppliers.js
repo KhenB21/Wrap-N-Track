@@ -9,7 +9,26 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM suppliers ORDER BY name');
-    res.json(result.rows);
+    
+    // Map database fields to frontend format
+    const suppliers = result.rows.map(supplier => ({
+      supplier_id: supplier.supplier_id,
+      name: supplier.name,
+      contact_person: supplier.contact_person,
+      telephone: supplier.phone, // Map phone to telephone
+      cellphone: supplier.phone, // Map phone to cellphone
+      email_address: supplier.email,
+      description: supplier.notes,
+      province: supplier.state,
+      city_municipality: supplier.city,
+      barangay: '', // Not in current schema
+      street_address: supplier.address,
+      zip_code: supplier.postal_code,
+      created_at: supplier.created_at,
+      updated_at: supplier.updated_at
+    }));
+    
+    res.json(suppliers);
   } catch (error) {
     console.error('Error fetching suppliers:', error);
     res.status(500).json({ error: 'Failed to fetch suppliers' });
@@ -24,7 +43,27 @@ router.get('/:supplier_id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Supplier not found' });
     }
-    res.json(result.rows[0]);
+    
+    const supplier = result.rows[0];
+    // Map database fields to frontend format
+    const mappedSupplier = {
+      supplier_id: supplier.supplier_id,
+      name: supplier.name,
+      contact_person: supplier.contact_person,
+      telephone: supplier.phone,
+      cellphone: supplier.phone,
+      email_address: supplier.email,
+      description: supplier.notes,
+      province: supplier.state,
+      city_municipality: supplier.city,
+      barangay: '',
+      street_address: supplier.address,
+      zip_code: supplier.postal_code,
+      created_at: supplier.created_at,
+      updated_at: supplier.updated_at
+    };
+    
+    res.json(mappedSupplier);
   } catch (error) {
     console.error('Error fetching supplier:', error);
     res.status(500).json({ error: 'Failed to fetch supplier' });
@@ -48,27 +87,35 @@ router.post('/', upload.single('image'), async (req, res) => {
       zip_code
     } = req.body;
 
+    // Validate required fields
+    if (!name || !email_address) {
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        required: ['name', 'email_address']
+      });
+    }
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
+      // Map frontend fields to database fields
       const result = await client.query(`
         INSERT INTO suppliers (
-          name, contact_person, telephone, cellphone, email_address, 
-          description, province, city_municipality, barangay, street_address, zip_code
+          name, contact_person, phone, email, address, city, state, postal_code, country, notes, is_active
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *
       `, [
         name,
-        contact_person,
-        telephone,
-        cellphone,
+        contact_person || name, // Use name as contact_person if not provided
+        cellphone || telephone || '', // Use cellphone first, then telephone
         email_address,
-        description,
-        province,
-        city_municipality,
-        barangay,
-        street_address,
-        zip_code
+        street_address || '', // Map street_address to address
+        city_municipality || '', // Map city_municipality to city
+        province || '', // Map province to state
+        zip_code || '', // Map zip_code to postal_code
+        'Philippines', // Default country
+        description || '', // Map description to notes
+        true // is_active
       ]);
 
       if (!result.rows || result.rows.length === 0) {
@@ -86,7 +133,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
   } catch (error) {
     console.error('Error creating supplier:', error);
-    res.status(500).json({ error: 'Failed to create supplier' });
+    res.status(500).json({ error: 'Failed to create supplier', details: error.message });
   }
 });
 
@@ -107,10 +154,10 @@ router.put('/:supplier_id', upload.single('image'), async (req, res) => {
     zip_code = ''
   } = req.body || {};
 
-  if (!name.trim() || !email_address.trim() || !cellphone.trim()) {
+  if (!name.trim() || !email_address.trim()) {
     return res.status(400).json({ 
       error: 'Missing required fields',
-      required: ['name', 'email_address', 'cellphone']
+      required: ['name', 'email_address']
     });
   }
 
@@ -123,28 +170,24 @@ router.put('/:supplier_id', upload.single('image'), async (req, res) => {
         UPDATE suppliers SET 
           name = $1, 
           contact_person = $2, 
-          telephone = $3, 
-          cellphone = $4, 
-          email_address = $5,
-          description = $6,
-          province = $7,
-          city_municipality = $8,
-          barangay = $9,
-          street_address = $10,
-          zip_code = $11
-        WHERE supplier_id = $12 RETURNING *
+          phone = $3, 
+          email = $4,
+          address = $5,
+          city = $6,
+          state = $7,
+          postal_code = $8,
+          notes = $9
+        WHERE supplier_id = $10 RETURNING *
       `, [
         name,
-        contact_person,
-        telephone,
-        cellphone,
+        contact_person || name,
+        cellphone || telephone || '',
         email_address,
-        description,
-        province,
-        city_municipality,
-        barangay,
-        street_address,
-        zip_code,
+        street_address || '',
+        city_municipality || '',
+        province || '',
+        zip_code || '',
+        description || '',
         supplier_id
       ]);
 
@@ -153,8 +196,27 @@ router.put('/:supplier_id', upload.single('image'), async (req, res) => {
         return res.status(404).json({ error: 'Supplier not found' });
       }
 
+      // Map response back to frontend format
+      const supplier = result.rows[0];
+      const mappedSupplier = {
+        supplier_id: supplier.supplier_id,
+        name: supplier.name,
+        contact_person: supplier.contact_person,
+        telephone: supplier.phone,
+        cellphone: supplier.phone,
+        email_address: supplier.email,
+        description: supplier.notes,
+        province: supplier.state,
+        city_municipality: supplier.city,
+        barangay: '',
+        street_address: supplier.address,
+        zip_code: supplier.postal_code,
+        created_at: supplier.created_at,
+        updated_at: supplier.updated_at
+      };
+
       await client.query('COMMIT');
-      return res.json(result.rows[0]);
+      return res.json(mappedSupplier);
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -163,7 +225,7 @@ router.put('/:supplier_id', upload.single('image'), async (req, res) => {
     }
   } catch (error) {
     console.error('Error updating supplier:', error);
-    return res.status(500).json({ error: 'Failed to update supplier' });
+    return res.status(500).json({ error: 'Failed to update supplier', details: error.message });
   }
 });
 

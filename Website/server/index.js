@@ -5,17 +5,17 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-// Pool now sourced from config/db.js (task requirement). Retaining wss/notifyChange from legacy db.js if still needed.
+const path = require('path');
+const fs = require('fs');
+// Load .env.local if present, else .env (without affecting prod)
+const envLocal = path.join(__dirname, '..', '.env.local');
+const envProd = path.join(__dirname, '..', '.env');
+const envPath = fs.existsSync(envLocal) ? envLocal : envProd;
+require('dotenv').config({ path: envPath });
+// Pool now sourced from config/db.js
 let wss, notifyChange;
 const pool = require('./config/db');
-try {
-  // Attempt to also load websocket exports if old db.js still present
-  const legacy = require('./db');
-  if (legacy && legacy.wss) wss = legacy.wss;
-  if (legacy && legacy.notifyChange) notifyChange = legacy.notifyChange;
-} catch (e) {
-  console.log('Legacy db.js (wss/notifyChange) not loaded (optional):', e.message);
-}
+const { runAutoMigrations } = require('./auto-migrate');
 const customersRouter = require('./routes/customers');
 const otpRouter = require('./routes/otp');
 const suppliersRouter = require('./routes/suppliers');
@@ -24,13 +24,14 @@ const supplierOrdersRouter = require('./routes/supplier-orders');
 const notificationsRouter = require('./routes/notifications');
 const inventoryRouter = require('./routes/inventory');
 const availableInventoryRouter = require('./routes/available-inventory');
+const inventoryReportsRouter = require('./routes/inventory-reports');
+const dashboardRouter = require('./routes/dashboard');
 
 const authRouter = require('./routes/auth');
 const customerRoutes = require('./routes/customer');
 const employeeRouter = require('./routes/employee');
 const verifyJwt = require('./middleware/verifyJwt')();
 const requireRole = require('./middleware/requireRole');
-require('dotenv').config({ path: __dirname + '/../.env' });
 
 
 const app = express();
@@ -39,12 +40,15 @@ const port = process.env.PORT || 3001;
 const portSource = process.env.PORT ? 'env:PORT' : 'default:3001';
 
 // Immediate DB connectivity test (task requirement)
-pool.connect((err, client, release) => {
+pool.connect(async (err, client, release) => {
   if (err) {
     console.error('❌ Database connection error (initial pool.connect):', err.stack || err.message);
   } else {
     console.log('✅ Database pool connected (initial test)');
     release();
+    
+    // Run auto-migrations after successful connection
+    await runAutoMigrations();
   }
 });
 
@@ -247,6 +251,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/customer', customerRoutes);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/available-inventory', availableInventoryRouter);
+app.use('/api/inventory-reports', inventoryReportsRouter);
+app.use('/api/dashboard', dashboardRouter);
 // Employee-only routes (protected)
 app.use('/api/employee', verifyJwt, requireRole(['admin','business_developer','creatives','director','sales_manager','assistant_sales','packer']), employeeRouter);
 
@@ -307,6 +313,52 @@ pool.connect((err, client, release) => {
       console.error('Error adding total_profit_estimation column:', err);
     } else {
       console.log('Successfully added total_profit_estimation column to orders table');
+    }
+  });
+
+  // Ensure order_history and order_history_products tables exist (idempotent)
+  client.query(`
+    CREATE TABLE IF NOT EXISTS order_history (
+      order_id VARCHAR(50) PRIMARY KEY,
+      customer_name VARCHAR(255) NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      shipped_to VARCHAR(255) NOT NULL,
+      order_date DATE NOT NULL,
+      expected_delivery DATE,
+      status VARCHAR(50) NOT NULL,
+      shipping_address TEXT NOT NULL,
+      total_cost NUMERIC(10,2) NOT NULL DEFAULT 0,
+      payment_type VARCHAR(50) NOT NULL DEFAULT 'Pending',
+      payment_method VARCHAR(50) NOT NULL DEFAULT 'Pending',
+      account_name VARCHAR(255),
+      remarks TEXT,
+      telephone VARCHAR(20),
+      cellphone VARCHAR(20),
+      email_address VARCHAR(255),
+      archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      archived_by INTEGER REFERENCES users(user_id)
+    );
+  `, (err) => {
+    if (err) {
+      console.error('Error ensuring order_history table:', err);
+    } else {
+      console.log('order_history table is ready');
+    }
+  });
+
+  client.query(`
+    CREATE TABLE IF NOT EXISTS order_history_products (
+      order_id VARCHAR(50) REFERENCES order_history(order_id) ON DELETE CASCADE,
+      sku VARCHAR(50) REFERENCES inventory_items(sku),
+      quantity INTEGER NOT NULL,
+      unit_price NUMERIC(10,2) NOT NULL DEFAULT 0,
+      PRIMARY KEY (order_id, sku)
+    );
+  `, (err) => {
+    if (err) {
+      console.error('Error ensuring order_history_products table:', err);
+    } else {
+      console.log('order_history_products table is ready');
     }
   });
 

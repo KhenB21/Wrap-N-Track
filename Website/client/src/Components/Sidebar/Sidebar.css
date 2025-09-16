@@ -2,18 +2,28 @@
   font-family: Cinder;
   src: url(../../../public/Assets/Fonts/Cinzel-Regular.ttf);
 }
-body {
+html, body {
   font-family: Cinder;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
 }
 .sidebar {
   width: 220px;
   height: 100vh;
+  min-height: 100vh;
   background-color: #696a8f;
   color: white;
   display: flex;
   flex-direction: column;
   transition: all 0.3s;
   font-size: 15px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  overflow-y: auto;
 }
 
 .text {
