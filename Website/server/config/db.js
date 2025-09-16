@@ -29,7 +29,10 @@ const connectionString = `postgresql://${process.env.DB_USER}:${process.env.DB_P
 
 const pool = new Pool({
   connectionString: connectionString,
-  ssl: useSsl ? { rejectUnauthorized: false } : false,
+  ssl: useSsl ? { 
+    rejectUnauthorized: false,
+    checkServerIdentity: () => undefined
+  } : false,
   application_name: 'wrap-n-track-server',
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
