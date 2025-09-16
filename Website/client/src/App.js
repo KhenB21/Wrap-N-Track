@@ -21,6 +21,7 @@ import CustomerCorporate from "./Pages/CustomerCorporate/CustomerCorporate";
 
 import ArchivedOrders from './Pages/ArchivedOrders/ArchivedOrders';
 import InventoryReport from './Pages/InventoryReport/InventoryReport';
+import SalesReport from './Pages/SalesReport/SalesReport';
 
 import ForgotPassword from "./Pages/ForgotPassword/ForgotPassword";
 import EmailVerify from "./Pages/EmailVerify/EmailVerify";
@@ -61,6 +62,7 @@ function App() {
         <Route path="/user-details" element={<UserDetails />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/reports/inventory" element={<InventoryReport />} />
+        <Route path="/reports/sales" element={<SalesReport />} />
         <Route path="/user-management" element={<UserManagement />} />
         <Route path="/orders" element={<OrderDetails />} />
         <Route path="/orders/:orderId" element={<OrderDetails />} />
