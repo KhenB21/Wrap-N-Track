@@ -31,8 +31,10 @@ const dashboardRouter = require('./routes/dashboard');
 const authRouter = require('./routes/auth');
 const customerRoutes = require('./routes/customer');
 const employeeRouter = require('./routes/employee');
+const accountManagementRouter = require('./routes/accountManagement');
 const verifyJwt = require('./middleware/verifyJwt')();
 const requireRole = require('./middleware/requireRole');
+const requireReadOnly = require('./middleware/requireReadOnly');
 
 
 const app = express();
@@ -247,16 +249,19 @@ app.use('/api/customers', otpRouter);      // legacy alias (remove after fronten
 app.use('/api/suppliers', suppliersRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/supplier-orders', supplierOrdersRouter);
-app.use('/api/notifications', notificationsRouter);
+app.use('/api/notifications', verifyJwt, requireReadOnly(), notificationsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/customer', customerRoutes);
-app.use('/api/inventory', inventoryRouter);
-app.use('/api/available-inventory', availableInventoryRouter);
-app.use('/api/inventory-reports', inventoryReportsRouter);
-app.use('/api/sales-reports', salesReportsRouter);
-app.use('/api/dashboard', dashboardRouter);
+app.use('/api/inventory', verifyJwt, requireReadOnly(), inventoryRouter);
+app.use('/api/available-inventory', verifyJwt, requireReadOnly(), availableInventoryRouter);
+app.use('/api/inventory-reports', verifyJwt, requireReadOnly(), inventoryReportsRouter);
+app.use('/api/sales-reports', verifyJwt, requireReadOnly(), salesReportsRouter);
+app.use('/api/dashboard', verifyJwt, requireReadOnly(), dashboardRouter);
 // Employee-only routes (protected)
-app.use('/api/employee', verifyJwt, requireRole(['admin','business_developer','creatives','director','sales_manager','assistant_sales','packer']), employeeRouter);
+app.use('/api/employee', verifyJwt, requireRole(['admin','business_developer','creatives','director','sales_manager','assistant_sales','packer']), requireReadOnly(), employeeRouter);
+
+// Account Management routes (Admin only)
+app.use('/api/account-management', accountManagementRouter);
 
 // Add error handling middleware
 app.use((err, req, res, next) => {
@@ -1879,3 +1884,7 @@ app.post('/api/inventory/add-stock', async (req, res) => {
         client.release();
     }
 });
+
+// Start notification scheduler
+const scheduler = require('./scripts/scheduler');
+scheduler.start();

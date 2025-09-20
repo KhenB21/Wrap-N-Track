@@ -108,6 +108,7 @@ export default function Inventory() {
     fetchProducts();
   }, []);
 
+
   const handleAddProduct = async (formData) => {
     // Handle add stock mode
     if (formData.isAddStock) {
@@ -202,6 +203,9 @@ export default function Inventory() {
           Description: product.description,
           'Unit Price': `₱${parseFloat(product.unit_price).toFixed(2)}`,
           Category: product.category,
+          Supplier: product.supplier_name || 'No supplier',
+          'Supplier Phone': product.supplier_phone || '',
+          'Supplier Website': product.supplier_website || '',
           Expiration: product.expiration ? new Date(product.expiration).toISOString().slice(0, 10) : '',
           'Last Updated': new Date(product.last_updated).toLocaleString(),
           UOM: UOMS_REQUIRING_CONVERSION.includes(product.uom) && product.conversion_qty ? `${product.uom} (${product.conversion_qty})` : product.uom,
@@ -275,6 +279,7 @@ export default function Inventory() {
                     <th style={{ width: '140px' }}>Description</th>
                     <th style={{ width: '80px', textAlign: 'right' }}>Unit Price</th>
                     <th style={{ width: '100px' }}>Category</th>
+                    <th style={{ width: '120px' }}>Supplier</th>
                     <th style={{ width: '100px', textAlign: 'center' }}>Expiration</th>
                     <th style={{ width: '120px', textAlign: 'center' }}>Last Updated</th>
                     <th style={{ width: '60px', textAlign: 'center' }}>UOM</th>
@@ -323,6 +328,18 @@ export default function Inventory() {
                       <td style={{ textAlign: 'right' }}>₱{parseFloat(product.unit_price).toFixed(2)}</td>
                       <td className="ellipsis" title={product.category}>
                         {product.category}
+                      </td>
+                      <td className="ellipsis" title={product.supplier_name || 'No supplier'}>
+                        {product.supplier_name ? (
+                          <div className="supplier-cell">
+                            <div className="supplier-name">{product.supplier_name}</div>
+                            {product.supplier_phone && (
+                              <div className="supplier-phone">{product.supplier_phone}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="no-supplier">No supplier</span>
+                        )}
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         {product.expiration ? new Date(product.expiration).toISOString().slice(0, 10) : ''}

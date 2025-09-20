@@ -64,6 +64,12 @@ router.get('/', async (req, res) => {
         i.last_updated,
         i.uom,
         i.conversion_qty,
+        i.expirable,
+        i.expiration,
+        i.supplier_id,
+        s.name as supplier_name,
+        s.phone as supplier_phone,
+        s.website as supplier_website,
         CASE 
           WHEN i.image_data IS NOT NULL THEN encode(i.image_data, 'base64')
           ELSE NULL 
@@ -71,6 +77,7 @@ router.get('/', async (req, res) => {
         COALESCE(oq.ordered_quantity, 0) AS ordered_quantity,
         COALESCE(oq.delivered_quantity, 0) AS delivered_quantity
       FROM inventory_items i
+      LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id
       LEFT JOIN order_quantities oq ON i.sku = oq.sku
       ORDER BY i.name ASC
     `);
@@ -94,19 +101,28 @@ router.get('/:sku', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-        sku, 
-        name, 
-        description,
-        category, 
-        quantity, 
-        unit_price, 
-        last_updated,
+        i.sku, 
+        i.name, 
+        i.description,
+        i.category, 
+        i.quantity, 
+        i.unit_price, 
+        i.last_updated,
+        i.uom,
+        i.conversion_qty,
+        i.expirable,
+        i.expiration,
+        i.supplier_id,
+        s.name as supplier_name,
+        s.phone as supplier_phone,
+        s.website as supplier_website,
         CASE 
-          WHEN image_data IS NOT NULL THEN encode(image_data, 'base64')
+          WHEN i.image_data IS NOT NULL THEN encode(i.image_data, 'base64')
           ELSE NULL 
         END as image_data
-      FROM inventory_items 
-      WHERE sku = $1
+      FROM inventory_items i
+      LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id
+      WHERE i.sku = $1
     `, [sku]);
     
     if (result.rows.length === 0) {
@@ -172,7 +188,13 @@ router.post('/add-stock', async (req, res) => {
 
 // POST /api/inventory - Create new inventory item OR update existing item
 router.post('/', async (req, res) => {
-  const { sku, name, description, category, quantity, unit_price, image_data, isUpdate } = req.body;
+  const { sku, name, description, category, quantity, unit_price, image_data, isUpdate, supplier_id, uom, conversion_qty, expirable, expiration } = req.body;
+  
+  // Convert expirable to boolean
+  const expirableBool = expirable === 'true' || expirable === true;
+  
+  // Handle empty string conversion_qty - convert to null for database
+  const conversionQty = conversion_qty === '' || conversion_qty === null ? null : Number(conversion_qty);
   
   console.log('Inventory POST request:', { sku, isUpdate, name });
   
@@ -203,10 +225,15 @@ router.post('/', async (req, res) => {
             category = COALESCE($3, category),
             unit_price = COALESCE($4, unit_price),
             image_data = COALESCE($5, image_data),
+            supplier_id = COALESCE($6, supplier_id),
+            uom = COALESCE($7, uom),
+            conversion_qty = COALESCE($8, conversion_qty),
+            expirable = COALESCE($9, expirable),
+            expiration = COALESCE($10, expiration),
             last_updated = NOW()
-        WHERE sku = $6
-        RETURNING sku, name, description, category, quantity, unit_price
-      `, [name, description, category, unit_price, imageBuffer, sku]);
+        WHERE sku = $11
+        RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration
+      `, [name, description, category, unit_price, imageBuffer, supplier_id, uom, conversionQty, expirableBool, expiration, sku]);
       
       return res.json({
         success: true,
@@ -229,10 +256,10 @@ router.post('/', async (req, res) => {
       }
       
       const result = await pool.query(`
-        INSERT INTO inventory_items (sku, name, description, category, quantity, unit_price, image_data, last_updated)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-        RETURNING sku, name, description, category, quantity, unit_price
-      `, [sku, name, description, category, quantity || 0, unit_price, imageBuffer]);
+        INSERT INTO inventory_items (sku, name, description, category, quantity, unit_price, image_data, supplier_id, uom, conversion_qty, expirable, expiration, last_updated)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+        RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration
+      `, [sku, name, description, category, quantity || 0, unit_price, imageBuffer, supplier_id, uom, conversionQty, expirableBool, expiration]);
       
       return res.status(201).json({
         success: true,
@@ -252,7 +279,13 @@ router.post('/', async (req, res) => {
 // PUT /api/inventory/:sku - Update inventory item
 router.put('/:sku', async (req, res) => {
   const { sku } = req.params;
-  const { name, description, category, quantity, unit_price, image_data } = req.body;
+  const { name, description, category, quantity, unit_price, image_data, supplier_id, uom, conversion_qty, expirable, expiration } = req.body;
+  
+  // Convert expirable to boolean
+  const expirableBool = expirable === 'true' || expirable === true;
+  
+  // Handle empty string conversion_qty - convert to null for database
+  const conversionQty = conversion_qty === '' || conversion_qty === null ? null : Number(conversion_qty);
   
   try {
     // Check if item exists
@@ -278,10 +311,15 @@ router.put('/:sku', async (req, res) => {
           quantity = COALESCE($4, quantity),
           unit_price = COALESCE($5, unit_price),
           image_data = COALESCE($6, image_data),
+          supplier_id = COALESCE($7, supplier_id),
+          uom = COALESCE($8, uom),
+          conversion_qty = COALESCE($9, conversion_qty),
+          expirable = COALESCE($10, expirable),
+          expiration = COALESCE($11, expiration),
           last_updated = NOW()
-      WHERE sku = $7
-      RETURNING sku, name, description, category, quantity, unit_price
-    `, [name, description, category, quantity, unit_price, imageBuffer, sku]);
+      WHERE sku = $12
+      RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration
+    `, [name, description, category, quantity, unit_price, imageBuffer, supplier_id, uom, conversionQty, expirableBool, expiration, sku]);
     
     return res.json({
       success: true,

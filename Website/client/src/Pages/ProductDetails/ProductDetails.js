@@ -366,6 +366,55 @@ export default function ProductDetails() {
                       </div>
                     </div>
                   </div>
+
+                  {product.supplier_name && (
+                    <div className="details-card supplier-card">
+                      <div className="card-header">
+                        <h3>Supplier Information</h3>
+                      </div>
+                      <div className="card-content">
+                        <div className="supplier-info">
+                          <div className="supplier-avatar">
+                            {product.supplier_name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="supplier-details">
+                            <div className="supplier-name">
+                              <a 
+                                href={`/suppliers/${product.supplier_id}`}
+                                className="supplier-link"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  navigate(`/suppliers/${product.supplier_id}`);
+                                }}
+                              >
+                                {product.supplier_name}
+                              </a>
+                            </div>
+                            {product.supplier_phone && (
+                              <div className="supplier-contact">
+                                <span className="contact-icon">📞</span>
+                                <span className="contact-text">{product.supplier_phone}</span>
+                              </div>
+                            )}
+                            {product.supplier_website && (
+                              <div className="supplier-contact">
+                                <span className="contact-icon">🌐</span>
+                                <a 
+                                  href={product.supplier_website}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="supplier-website"
+                                >
+                                  {product.supplier_website}
+                                  <span className="external-link-icon">↗</span>
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

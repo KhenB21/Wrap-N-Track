@@ -1,0 +1,217 @@
+.supplier-dropdown-container {
+  width: 100%;
+  position: relative;
+}
+
+.supplier-option {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+}
+
+.supplier-option:last-child {
+  border-bottom: none;
+}
+
+.supplier-option:hover {
+  background-color: #f9fafb;
+}
+
+.supplier-option.focused {
+  background-color: #f0f4ff;
+}
+
+.supplier-option.selected {
+  background-color: #4361ee;
+  color: white;
+}
+
+.supplier-option-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.supplier-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: inherit;
+}
+
+.supplier-contact {
+  font-size: 0.875rem;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.supplier-option-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.supplier-phone,
+.supplier-email {
+  font-size: 0.75rem;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.no-options-message {
+  padding: 16px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.no-options-text {
+  margin-bottom: 12px;
+  font-size: 0.875rem;
+}
+
+.add-supplier-btn {
+  background: linear-gradient(135deg, #4361ee, #3b82f6);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 auto;
+}
+
+.add-supplier-btn:hover {
+  background: linear-gradient(135deg, #3b5bdb, #2563eb);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+}
+
+.add-supplier-btn:active {
+  transform: translateY(0);
+}
+
+.supplier-menu-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.add-supplier-option {
+  padding: 8px 16px;
+  border-top: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.add-supplier-option .add-supplier-btn {
+  width: 100%;
+  justify-content: center;
+  margin: 0;
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.add-supplier-option .add-supplier-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* React Select custom styles */
+.supplier-select__control {
+  border-radius: 8px !important;
+  border: 1.5px solid #d1d5db !important;
+  box-shadow: none !important;
+  min-height: 40px !important;
+}
+
+.supplier-select__control--is-focused {
+  border-color: #4361ee !important;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1) !important;
+}
+
+.supplier-select__control--is-disabled {
+  background-color: #f9fafb !important;
+  border-color: #e5e7eb !important;
+}
+
+.supplier-select__value-container {
+  padding: 0 12px !important;
+}
+
+.supplier-select__input-container {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.supplier-select__placeholder {
+  color: #9ca3af !important;
+  font-size: 1rem !important;
+}
+
+.supplier-select__single-value {
+  color: #374151 !important;
+  font-size: 1rem !important;
+}
+
+.supplier-select__indicator-separator {
+  background-color: #d1d5db !important;
+}
+
+.supplier-select__dropdown-indicator {
+  color: #6b7280 !important;
+}
+
+.supplier-select__clear-indicator {
+  color: #6b7280 !important;
+}
+
+.supplier-select__menu {
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
+  border: 1px solid #e5e7eb !important;
+  z-index: 9999 !important;
+}
+
+.supplier-select__menu-list {
+  padding: 0 !important;
+  max-height: 300px !important;
+}
+
+.supplier-select__option {
+  padding: 12px 16px !important;
+  font-size: 1rem !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+}
+
+.supplier-select__option:last-child {
+  border-bottom: none !important;
+}
+
+.supplier-select__option--is-focused {
+  background-color: #f0f4ff !important;
+  color: #374151 !important;
+}
+
+.supplier-select__option--is-selected {
+  background-color: #4361ee !important;
+  color: white !important;
+}
+
+.supplier-select__no-options-message {
+  padding: 16px !important;
+  text-align: center !important;
+  color: #6b7280 !important;
+}
+
+/* Error state */
+.supplier-select__control--error {
+  border-color: #ef4444 !important;
+}
+
+.supplier-select__control--error.supplier-select__control--is-focused {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}

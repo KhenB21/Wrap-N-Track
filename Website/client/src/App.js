@@ -10,6 +10,7 @@ import SupplierForm from "./Pages/SupplierDetails/SupplierForm";
 import UserDetails from "./Pages/UserDetails/UserDetails";
 import Inventory from "./Pages/Inventory/Inventory";
 import UserManagement from "./Pages/UserManagement/UserManagement";
+import AccountManagement from "./Pages/AccountManagement/AccountManagement";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Register from "./Pages/Register/Register";
 import OrderHistory from "./Pages/OrderHistory/OrderHistory";
@@ -37,11 +38,15 @@ import CustomerUserDetails from "./Pages/CustomerPOV/CustomerUserDetails";
 import CustomerVerify from "./Pages/CustomerPOV/CustomerVerify";
 import Forbidden403 from "./Pages/Forbidden403";
 import { AuthProvider } from "./Context/AuthContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
+import NotificationContainer from "./Components/NotificationContainer";
 
 function App() {
   return (
     <AuthProvider>
+    <NotificationProvider>
     <Router>
+      <NotificationContainer />
       <Routes>
         <Route path="/" element={<CustomerHome />} />
         <Route path="/employee-dashboard" element={<Dashboard />} />
@@ -64,6 +69,7 @@ function App() {
         <Route path="/reports/inventory" element={<InventoryReport />} />
         <Route path="/reports/sales" element={<SalesReport />} />
         <Route path="/user-management" element={<UserManagement />} />
+        <Route path="/account-management" element={<AccountManagement />} />
         <Route path="/orders" element={<OrderDetails />} />
         <Route path="/orders/:orderId" element={<OrderDetails />} />
         <Route path="/order-history" element={<OrderHistory />} />
@@ -86,6 +92,7 @@ function App() {
 
       </Routes>
     </Router>
+    </NotificationProvider>
     </AuthProvider>
   );
 }

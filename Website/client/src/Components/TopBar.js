@@ -1,30 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Notifications from "./Notifications/Notifications";
+import NotificationContainer from "./NotificationContainer";
 import "./TopBar.css";
 import api from '../api'; // Unified axios instance
 import { useAuth } from "../Context/AuthContext";
 
 export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowStockProducts, searchValue = "", onSearchChange = () => {} }) {
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const dropdownRef = useRef();
   const navigate = useNavigate();
-  const [lowStockNotifications, setLowStockNotifications] = useState([]);
   const { user, logout } = useAuth();
 
-  // If lowStockProducts is provided as a prop, use it for notifications
-  useEffect(() => {
-    if (Array.isArray(lowStockProducts)) {
-      setLowStockNotifications(lowStockProducts);
-    }
-  }, [lowStockProducts]);
-
-  const handleNotificationsClick = () => {
-    setIsNotificationsOpen(true);
-  };
 
   const handleSettingsClick = () => {
     navigate('/settings');
@@ -78,22 +66,6 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  useEffect(() => {
-    // Only fetch from backend if lowStockProducts is not provided
-    if (typeof lowStockProducts === 'undefined') {
-      const fetchLowStockNotifications = async () => {
-        try {
-          const response = await api.get('/api/notifications/low-stock');
-          setLowStockNotifications(response.data);
-        } catch (error) {
-          console.error('Error fetching low stock notifications:', error);
-        }
-      };
-      fetchLowStockNotifications();
-      const interval = setInterval(fetchLowStockNotifications, 60000); // Fetch every 60 seconds
-      return () => clearInterval(interval);
-    }
-  }, [lowStockProducts]);
 
   const getProfilePictureUrl = () => {
     if (!user) return "/placeholder-profile.png";
@@ -116,18 +88,7 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
         onChange={onSearchChange}
       />
       <div className="dashboard-topbar-icons">
-        <span 
-          className="dashboard-bell" 
-          role="img" 
-          aria-label="Notifications"
-          onClick={handleNotificationsClick}
-          style={{ cursor: 'pointer' }}
-        >
-          🔔
-          {lowStockNotifications.length > 0 && (
-            <span className="notification-count">{lowStockNotifications.length}</span>
-          )}
-        </span>
+        <NotificationContainer />
         <span 
           className="dashboard-settings" 
           role="img" 
@@ -159,11 +120,6 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
           )}
         </span>
       </div>
-      <Notifications 
-        isOpen={isNotificationsOpen} 
-        onClose={() => setIsNotificationsOpen(false)} 
-        notifications={lowStockNotifications}
-      />
       {showDropdown && (
         <div className="settings-dropdown">
           <button 
