@@ -1249,7 +1249,7 @@ export default function OrderProcess() {
         setOtpModalVisible(false);
         setOtpCode('');
         setPendingOrderPayload(null);
-        navigate('/customer/orders');
+        navigate('/customer-cart');
       }
     } catch (orderErr) {
       const status = orderErr.response?.status;

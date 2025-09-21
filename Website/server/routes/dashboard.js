@@ -76,13 +76,13 @@ router.get('/analytics', async (req, res) => {
       )
       SELECT 
         COALESCE(SUM(CASE 
-          WHEN status IN ('DELIVERED', 'COMPLETED') 
+          WHEN status IN ('Order Received', 'Completed') 
           THEN total_cost 
           ELSE 0 
         END), 0) as total_revenue,
         COUNT(*) as total_orders,
         COALESCE(SUM(CASE 
-          WHEN status IN ('DELIVERED', 'COMPLETED') 
+          WHEN status IN ('Order Received', 'Completed') 
           THEN total_quantity 
           ELSE 0 
         END), 0) as total_units_sold,
@@ -99,7 +99,7 @@ router.get('/analytics', async (req, res) => {
           SUM(op.quantity * op.unit_price) as sales_value
         FROM order_products op
         JOIN orders o ON op.order_id = o.order_id
-        WHERE o.status IN ('DELIVERED', 'COMPLETED')
+        WHERE o.status IN ('Order Received', 'Completed')
         AND DATE_PART('month', o.order_date) = $1 
         AND DATE_PART('year', o.order_date) = $2
         GROUP BY op.sku

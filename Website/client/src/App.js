@@ -39,12 +39,17 @@ import CustomerVerify from "./Pages/CustomerPOV/CustomerVerify";
 import Forbidden403 from "./Pages/Forbidden403";
 import { AuthProvider } from "./Context/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { CartProvider } from "./Context/CartContext";
 import NotificationContainer from "./Components/NotificationContainer";
+import CustomerCart from "./Pages/CustomerPOV/CustomerCart";
+import CustomerOrders from "./Pages/CustomerPOV/CustomerOrders";
+import OrderManagementDashboard from "./Pages/OrderManagement/OrderManagementDashboard";
 
 function App() {
   return (
     <AuthProvider>
     <NotificationProvider>
+    <CartProvider>
     <Router>
       <NotificationContainer />
       <Routes>
@@ -88,10 +93,14 @@ function App() {
         <Route path="/customer-login" element={<CustomerLogIn />} />
         <Route path="/customer-user-details" element={<CustomerUserDetails />} />
         <Route path="/customer/verify" element={<CustomerVerify />} />
-  <Route path="/403" element={<Forbidden403 />} />
+        <Route path="/customer-cart" element={<CustomerCart />} />
+        <Route path="/customer-orders" element={<CustomerOrders />} />
+        <Route path="/order-management" element={<OrderManagementDashboard />} />
+        <Route path="/403" element={<Forbidden403 />} />
 
       </Routes>
     </Router>
+    </CartProvider>
     </NotificationProvider>
     </AuthProvider>
   );

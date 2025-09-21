@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './TopbarCustomer.css';
 import { useAuth } from '../Context/AuthContext';
+import { useCart } from '../Context/CartContext';
 
 const navLinks = [
   { label: 'HOME', path: '/customer-home' },
@@ -17,6 +18,7 @@ export default function TopbarCustomer() {
   const navigate = useNavigate();
   const dropdownRef = useRef();
   const { user, isAuthenticated, logout } = useAuth();
+  const { itemCount } = useCart();
   const [dropdownVisible, setDropdownVisible] = useState(false);
 
   const handleLogout = () => {
@@ -104,6 +106,20 @@ export default function TopbarCustomer() {
               {link.label}
             </Link>
           ))}
+          {isAuthenticated && user?.source === 'customer' && (
+            <div className="cart-icon-container">
+              <Link
+                to="/customer-cart"
+                className={`topbar-customer-link cart-link${location.pathname === '/customer-cart' ? ' active' : ''}`}
+                title="My Cart"
+              >
+                🛒
+                {itemCount > 0 && (
+                  <span className="cart-badge">{itemCount}</span>
+                )}
+              </Link>
+            </div>
+          )}
           {!isAuthenticated ? (
             <>
               <Link

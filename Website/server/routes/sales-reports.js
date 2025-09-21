@@ -31,13 +31,13 @@ router.get('/overview', async (req, res) => {
       )
       SELECT 
         COALESCE(SUM(CASE 
-          WHEN status IN ('DELIVERED', 'COMPLETED') 
+          WHEN status IN ('Order Received', 'Completed') 
           THEN total_cost 
           ELSE 0 
         END), 0) as total_revenue,
         COUNT(*) as total_orders,
         COALESCE(SUM(CASE 
-          WHEN status IN ('DELIVERED', 'COMPLETED') 
+          WHEN status IN ('Order Received', 'Completed') 
           THEN total_quantity 
           ELSE 0 
         END), 0) as total_units_sold,
@@ -80,7 +80,7 @@ router.get('/overview', async (req, res) => {
       )
       SELECT 
         COALESCE(SUM(CASE 
-          WHEN status IN ('DELIVERED', 'COMPLETED') 
+          WHEN status IN ('Order Received', 'Completed') 
           THEN total_cost 
           ELSE 0 
         END), 0) as total_revenue,
@@ -167,7 +167,7 @@ router.get('/top-products', async (req, res) => {
         FROM order_products op
         JOIN orders o ON op.order_id = o.order_id
         JOIN inventory_items i ON op.sku = i.sku
-        WHERE o.status IN ('DELIVERED', 'COMPLETED')
+        WHERE o.status IN ('Order Received', 'Completed')
         AND o.order_date BETWEEN $1 AND $2
         GROUP BY op.sku
       )
@@ -309,7 +309,7 @@ router.get('/trends', async (req, res) => {
       SELECT 
         ${dateFormat} as period,
         COUNT(*) as order_count,
-        SUM(CASE WHEN o.status IN ('DELIVERED', 'COMPLETED') THEN o.total_cost ELSE 0 END) as revenue,
+        SUM(CASE WHEN o.status IN ('Order Received', 'Completed') THEN o.total_cost ELSE 0 END) as revenue,
         SUM(o.total_profit_estimation) as profit,
         COUNT(DISTINCT o.name) as unique_customers
       FROM orders o
