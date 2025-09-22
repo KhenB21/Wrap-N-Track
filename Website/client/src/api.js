@@ -2,7 +2,11 @@
 // Priority: REACT_APP_API_URL (new) then legacy REACT_APP_API_BASE_URL then fallback to deployed URL.
 import axios from 'axios';
 
-const baseURL = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://wrapntracwebservice-2g22j.ondigitalocean.app';
+// For local development, use localhost if no environment variable is set
+const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const defaultURL = isLocalDev ? 'http://localhost:3001' : 'https://wrapntracwebservice-2g22j.ondigitalocean.app';
+
+const baseURL = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || defaultURL;
 
 const api = axios.create({ baseURL });
 

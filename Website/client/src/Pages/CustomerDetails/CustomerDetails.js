@@ -368,9 +368,9 @@ export default function CustomerDetails() {
   const ongoingResponse = await api.get(`/api/orders/customer/${encodeURIComponent(selectedCustomer.name)}`);
       console.log('Ongoing orders response:', ongoingResponse.data);
 
-      // Fetch completed orders from order history
-  const historyResponse = await api.get('/api/orders/history');
-      const completedOrders = historyResponse.data.filter(order => 
+      // Fetch completed orders from archived orders
+  const historyResponse = await api.get('/api/order-management/archived-orders');
+      const completedOrders = (historyResponse.data?.orders || []).filter(order => 
         order.name.toLowerCase() === selectedCustomer.name.toLowerCase()
       );
       console.log('Completed orders response:', completedOrders);

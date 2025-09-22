@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../Context/AuthContext';
 import TopBar from '../../Components/TopBar';
+import withEmployeeAuth from '../../Components/withEmployeeAuth';
 import './OrderManagementDashboard.css';
 
-export default function OrderManagementDashboard() {
+function OrderManagementDashboard() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [orders, setOrders] = useState([]);
@@ -27,7 +28,9 @@ export default function OrderManagementDashboard() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusUpdate, setStatusUpdate] = useState({
     newStatus: '',
-    notes: ''
+    notes: '',
+    confirmationText: '',
+    paymentMethod: ''
   });
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [stats, setStats] = useState({});
@@ -46,6 +49,18 @@ export default function OrderManagementDashboard() {
       fetchStats();
     }
   }, [isAuthenticated, user, filters, pagination.page]);
+
+  // Real-time sync - refresh data every 30 seconds
+  useEffect(() => {
+    if (isAuthenticated && user?.source === 'employee') {
+      const interval = setInterval(() => {
+        fetchOrders();
+        fetchStats();
+      }, 30000); // 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, user]);
 
   const fetchOrders = async () => {
     try {
@@ -125,13 +140,23 @@ export default function OrderManagementDashboard() {
     setSelectedOrder(order);
     setStatusUpdate({
       newStatus: order.status,
-      notes: ''
+      notes: '',
+      confirmationText: '',
+      paymentMethod: order.payment_method || ''
     });
     setShowStatusModal(true);
   };
 
   const updateOrderStatus = async () => {
     if (!selectedOrder || !statusUpdate.newStatus) return;
+
+    // Check if marking as completed and require typing confirmation
+    if (statusUpdate.newStatus === 'Completed') {
+      if (statusUpdate.confirmationText !== 'I love Pensee') {
+        alert('To mark this order as completed, please type "I love Pensee" in the confirmation field.');
+        return;
+      }
+    }
 
     try {
       setUpdatingStatus(true);
@@ -143,7 +168,8 @@ export default function OrderManagementDashboard() {
         },
         body: JSON.stringify({
           status: statusUpdate.newStatus,
-          notes: statusUpdate.notes
+          notes: statusUpdate.notes,
+          payment_method: statusUpdate.paymentMethod
         })
       });
       
@@ -152,7 +178,7 @@ export default function OrderManagementDashboard() {
         alert('Order status updated successfully');
         setShowStatusModal(false);
         setSelectedOrder(null);
-        setStatusUpdate({ newStatus: '', notes: '' });
+        setStatusUpdate({ newStatus: '', notes: '', confirmationText: '', paymentMethod: '' });
         fetchOrders();
         fetchStats();
       } else {
@@ -213,6 +239,7 @@ export default function OrderManagementDashboard() {
 
   const getNextStatus = (currentStatus) => {
     const statusFlow = {
+      'Pending': ['Order Paid', 'Cancelled'],
       'Order Placed': ['Order Paid', 'Cancelled'],
       'Order Paid': ['To Be Packed', 'Cancelled'],
       'To Be Packed': ['Order Shipped Out', 'Cancelled'],
@@ -576,6 +603,53 @@ export default function OrderManagementDashboard() {
                     rows="3"
                   />
                 </div>
+
+                {(statusUpdate.newStatus === 'Pending' || statusUpdate.newStatus === 'Order Paid' || statusUpdate.newStatus === 'To Be Packed') && (
+                  <div className="form-group">
+                    <label htmlFor="paymentMethod">Payment Method:</label>
+                    <select
+                      id="paymentMethod"
+                      value={statusUpdate.paymentMethod}
+                      onChange={(e) => setStatusUpdate(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <option value="">Select payment method</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Bank">Bank</option>
+                      <option value="E-Wallet">E-Wallet</option>
+                      <option value="Credit Card">Credit Card</option>
+                      <option value="Debit Card">Debit Card</option>
+                    </select>
+                  </div>
+                )}
+
+                {statusUpdate.newStatus === 'Completed' && (
+                  <div className="form-group">
+                    <label htmlFor="confirmationText">
+                      Confirmation Required: Type "I love Pensee" to complete this order
+                    </label>
+                    <input
+                      type="text"
+                      id="confirmationText"
+                      value={statusUpdate.confirmationText}
+                      onChange={(e) => setStatusUpdate(prev => ({ ...prev, confirmationText: e.target.value }))}
+                      placeholder="Type: I love Pensee"
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="modal-actions">
@@ -589,7 +663,12 @@ export default function OrderManagementDashboard() {
                 <button 
                   onClick={updateOrderStatus}
                   className="update-status-btn"
-                  disabled={updatingStatus || !statusUpdate.newStatus}
+                  disabled={
+                    updatingStatus || 
+                    !statusUpdate.newStatus || 
+                    (statusUpdate.newStatus === 'Completed' && statusUpdate.confirmationText !== 'I love Pensee') ||
+                    ((statusUpdate.newStatus === 'Pending' || statusUpdate.newStatus === 'Order Paid' || statusUpdate.newStatus === 'To Be Packed') && !statusUpdate.paymentMethod)
+                  }
                 >
                   {updatingStatus ? 'Updating...' : 'Update Status'}
                 </button>
@@ -601,3 +680,5 @@ export default function OrderManagementDashboard() {
     </div>
   );
 }
+
+export default withEmployeeAuth(OrderManagementDashboard);

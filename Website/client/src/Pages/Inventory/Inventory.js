@@ -3,6 +3,7 @@ import './Inventory.css';
 import AddProductModal from './AddProductModal';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
+import withEmployeeAuth from '../../Components/withEmployeeAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from "../../api";
 import { ToastContainer, toast } from 'react-toastify';
@@ -14,7 +15,7 @@ import usePermissions from '../../hooks/usePermissions';
 
 const UOMS_REQUIRING_CONVERSION = ['Dozen', 'Box', 'Bundle', 'Set', 'Kit'];
 
-export default function Inventory() {
+function Inventory() {
   const { checkPermission } = usePermissions();
 
   useEffect(() => {
@@ -417,3 +418,5 @@ export default function Inventory() {
     </div>
   );
 }
+
+export default withEmployeeAuth(Inventory);

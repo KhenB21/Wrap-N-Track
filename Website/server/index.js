@@ -27,6 +27,7 @@ const availableInventoryRouter = require('./routes/available-inventory');
 const inventoryReportsRouter = require('./routes/inventory-reports');
 const salesReportsRouter = require('./routes/sales-reports');
 const dashboardRouter = require('./routes/dashboard');
+const khenTestDataRouter = require('./routes/khen-test-data');
 
 const authRouter = require('./routes/auth');
 const customerRoutes = require('./routes/customer');
@@ -264,6 +265,7 @@ app.use('/api/inventory-reports', verifyJwt, requireReadOnly(), inventoryReports
 
 // Unprotected test data endpoints for development
 app.use('/api/test', inventoryReportsRouter);
+app.use('/api/khen-test', khenTestDataRouter);
 app.use('/api/sales-reports', verifyJwt, requireReadOnly(), salesReportsRouter);
 app.use('/api/dashboard', verifyJwt, requireReadOnly(), dashboardRouter);
 // Employee-only routes (protected)
@@ -355,7 +357,8 @@ pool.connect((err, client, release) => {
       cellphone VARCHAR(20),
       email_address VARCHAR(255),
       archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      archived_by INTEGER REFERENCES users(user_id)
+      archived_by INTEGER REFERENCES users(user_id),
+      customer_id INTEGER REFERENCES customer_details(customer_id)
     );
   `, (err) => {
     if (err) {
@@ -378,6 +381,29 @@ pool.connect((err, client, release) => {
       console.error('Error ensuring order_history_products table:', err);
     } else {
       console.log('order_history_products table is ready');
+    }
+  });
+
+  // Add customer_id column to order_history table if it doesn't exist
+  client.query(`
+    ALTER TABLE order_history 
+    ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customer_details(customer_id);
+  `, (err) => {
+    if (err) {
+      console.error('Error adding customer_id to order_history:', err);
+    } else {
+      console.log('customer_id column added to order_history table');
+    }
+  });
+
+  // Create index for better performance
+  client.query(`
+    CREATE INDEX IF NOT EXISTS idx_order_history_customer_id ON order_history(customer_id);
+  `, (err) => {
+    if (err) {
+      console.error('Error creating index on order_history.customer_id:', err);
+    } else {
+      console.log('Index on order_history.customer_id created');
     }
   });
 
@@ -1461,6 +1487,24 @@ app.get('/api/orders', async (req, res) => {
 // Get all archived orders
 app.get('/api/orders/history', async (req, res) => {
   try {
+    // Get customer_id from token
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    let customerId;
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      customerId = decoded.customer_id;
+    } catch (err) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+
+    if (!customerId) {
+      return res.status(401).json({ message: 'Customer authentication required' });
+    }
+
     const result = await pool.query(`
       SELECT 
         oh.*,
@@ -1481,9 +1525,10 @@ app.get('/api/orders/history', async (req, res) => {
       LEFT JOIN users u ON oh.archived_by = u.user_id
       LEFT JOIN order_history_products ohp ON oh.order_id = ohp.order_id
       LEFT JOIN inventory_items i ON ohp.sku = i.sku
+      WHERE oh.customer_id = $1
       GROUP BY oh.order_id, u.name, u.profile_picture_data
       ORDER BY oh.archived_at DESC
-    `);
+    `, [customerId]);
     
     const orders = result.rows.map(order => ({
       ...order,

@@ -42,8 +42,14 @@ import { NotificationProvider } from "./contexts/NotificationContext";
 import { CartProvider } from "./Context/CartContext";
 import NotificationContainer from "./Components/NotificationContainer";
 import CustomerCart from "./Pages/CustomerPOV/CustomerCart";
+import CustomerCartWithOrders from "./Pages/CustomerPOV/CustomerCartWithOrders";
 import CustomerOrders from "./Pages/CustomerPOV/CustomerOrders";
 import OrderManagementDashboard from "./Pages/OrderManagement/OrderManagementDashboard";
+import UnauthorizedAccess from "./Pages/UnauthorizedAccess";
+import NotFound404 from "./Pages/NotFound404";
+import SecurityTest from "./Components/SecurityTest";
+import NotFoundTest from "./Components/NotFoundTest";
+import KhenTestDataGenerator from "./Components/KhenTestDataGenerator";
 
 function App() {
   return (
@@ -93,10 +99,19 @@ function App() {
         <Route path="/customer-login" element={<CustomerLogIn />} />
         <Route path="/customer-user-details" element={<CustomerUserDetails />} />
         <Route path="/customer/verify" element={<CustomerVerify />} />
-        <Route path="/customer-cart" element={<CustomerCart />} />
+        <Route path="/customer-cart" element={<CustomerCartWithOrders />} />
+        <Route path="/customer-cart-old" element={<CustomerCart />} />
         <Route path="/customer-orders" element={<CustomerOrders />} />
         <Route path="/order-management" element={<OrderManagementDashboard />} />
+        <Route path="/unauthorized" element={<UnauthorizedAccess />} />
+        <Route path="/404" element={<NotFound404 />} />
+        <Route path="/security-test" element={<SecurityTest />} />
+        <Route path="/404-test" element={<NotFoundTest />} />
+        <Route path="/khen-test" element={<KhenTestDataGenerator />} />
         <Route path="/403" element={<Forbidden403 />} />
+        
+        {/* Catch-all route for 404 - must be last */}
+        <Route path="*" element={<NotFound404 />} />
 
       </Routes>
     </Router>

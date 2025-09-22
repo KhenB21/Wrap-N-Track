@@ -3,6 +3,7 @@ import { useAuth } from '../../Context/AuthContext';
 import usePermissions from '../../hooks/usePermissions';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
+import withEmployeeAuth from '../../Components/withEmployeeAuth';
 import './AccountManagement.css';
 import api from '../../api';
 
@@ -485,4 +486,4 @@ const AccountManagement = () => {
   );
 };
 
-export default AccountManagement;
+export default withEmployeeAuth(AccountManagement);

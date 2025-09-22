@@ -20,14 +20,14 @@ body{
   justify-content: center;
   max-width: 1600px;
   margin: 0 auto;
-  height: 90px;
+  height: 60px;
   position: relative;
 }
 
 .topbar-customer-links {
   display: flex;
   align-items: center;
-  gap: 48px;
+  gap: 32px;
   flex: 1;
   justify-content: center;
 }
@@ -81,8 +81,8 @@ body{
 }
 
 .topbar-customer-logo {
-  max-width: 80px;
-  max-height: 80px;
+  max-width: 60px;
+  max-height: 60px;
   margin-bottom: 2px;
   display: block;
 }

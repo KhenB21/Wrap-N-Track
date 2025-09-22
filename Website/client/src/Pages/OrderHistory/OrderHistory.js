@@ -38,6 +38,7 @@ export default function OrderHistory() {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [orderProducts, setOrderProducts] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all'); // all | completed | cancelled
+  const [searchTerm, setSearchTerm] = useState('');
   const selectedOrder = orders.find(o => o.order_id === selectedOrderId);
   const [ws, setWs] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -57,13 +58,16 @@ export default function OrderHistory() {
       }
 
 
-      // Fetch archived orders (Completed and Cancelled)
-      const response = await api.get(`/api/orders/history`, {
+      // Fetch all customer orders (including archived ones)
+      const response = await api.get(`/api/customer-orders/orders`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      let data = response.data;
+      let data = response.data.orders || [];
+      console.log('All customer orders:', data);
+      console.log('Order statuses found:', data.map(order => order.status));
       // Only show Cancelled or Completed
       data = data.filter(order => ['Cancelled', 'Completed'].includes(order.status));
+      console.log('Filtered orders (Cancelled/Completed):', data);
       setOrders(data);
       setError(null);
     } catch (err) {
@@ -113,8 +117,12 @@ export default function OrderHistory() {
 
   const fetchOrderProducts = async (orderId) => {
     try {
-      const res = await api.get(`/api/orders/history/${orderId}/products`);
-      setOrderProducts(res.data);
+      const res = await api.get(`/api/customer-orders/orders/${orderId}`);
+      if (res.data && res.data.success && res.data.order && res.data.order.products) {
+        setOrderProducts(res.data.order.products);
+      } else {
+        setOrderProducts([]);
+      }
     } catch (err) {
       console.error('Error fetching order products:', err);
       setError('Failed to load order products');
@@ -156,15 +164,54 @@ export default function OrderHistory() {
               Cancelled
             </button>
           </div>
-          <input className="order-search" type="text" placeholder="Search archived orders…" />
+          <input 
+            className="order-search" 
+            type="text" 
+            placeholder="Search archived orders…" 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
 
         <div className="order-details-layout">
           {/* Order List */}
           <div className="order-list">
             <div className="order-list-title">ARCHIVED ORDERS</div>
-            {loading ? <div>Loading...</div> : orders
-              .filter((o)=> filterStatus==='all' ? true : (filterStatus==='completed' ? o.status==='Completed' : o.status==='Cancelled'))
+            {loading ? (
+              <div style={{padding: '20px', textAlign: 'center', color: '#666'}}>
+                <div style={{fontSize: '16px', marginBottom: '8px'}}>Loading orders...</div>
+                <div style={{fontSize: '14px'}}>Please wait while we fetch your order history</div>
+              </div>
+            ) : error ? (
+              <div style={{padding: '20px', textAlign: 'center', color: '#e74c3c'}}>
+                <div style={{fontSize: '16px', marginBottom: '8px'}}>Error loading orders</div>
+                <div style={{fontSize: '14px'}}>{error}</div>
+              </div>
+            ) : orders.filter((o)=> {
+              const statusMatch = filterStatus==='all' ? true : (filterStatus==='completed' ? o.status==='Completed' : o.status==='Cancelled');
+              const searchMatch = !searchTerm || 
+                (o.name && o.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (o.order_id && o.order_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (o.email_address && o.email_address.toLowerCase().includes(searchTerm.toLowerCase()));
+              return statusMatch && searchMatch;
+            }).length === 0 ? (
+              <div style={{padding: '20px', textAlign: 'center', color: '#666'}}>
+                <div style={{fontSize: '16px', marginBottom: '8px'}}>No orders found</div>
+                <div style={{fontSize: '14px'}}>
+                  {filterStatus === 'all' ? 'No archived orders available' : 
+                   filterStatus === 'completed' ? 'No completed orders found' : 
+                   'No cancelled orders found'}
+                </div>
+              </div>
+            ) : orders
+              .filter((o)=> {
+                const statusMatch = filterStatus==='all' ? true : (filterStatus==='completed' ? o.status==='Completed' : o.status==='Cancelled');
+                const searchMatch = !searchTerm || 
+                  (o.name && o.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                  (o.order_id && o.order_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                  (o.email_address && o.email_address.toLowerCase().includes(searchTerm.toLowerCase()));
+                return statusMatch && searchMatch;
+              })
               .map((o) => (
               <div
                 className={`order-list-item${selectedOrderId === o.order_id ? " selected" : ""}`}
@@ -173,12 +220,32 @@ export default function OrderHistory() {
                 style={{cursor:'pointer'}}
               >
                 <div className="order-info">
-                  <div className="order-name">{o.name}</div>
-                  <div className="order-code">{o.order_id}</div>
+                  <div className="order-name">{o.name || 'Unknown Customer'}</div>
+                  <div className={`order-status-badge ${o.status === 'Completed' ? 'status-completed' : 'status-cancelled'}`}>
+                    {o.status}
+                  </div>
                 </div>
                 <div className="order-meta">
-                  <div className="order-price">₱{Number(o.total_cost).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
-                  <div className="order-date">{new Date(o.archived_at).toLocaleDateString()}</div>
+                  <div className="order-price">₱{Number(o.total_cost || 0).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
+                  <div className="order-date">
+                    {(() => {
+                      // Try different date fields and format properly
+                      const dateField = o.archived_at || o.order_date || o.status_updated_at;
+                      if (!dateField) return 'No date';
+                      
+                      try {
+                        const date = new Date(dateField);
+                        if (isNaN(date.getTime())) return 'Invalid date';
+                        return date.toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        });
+                      } catch (e) {
+                        return 'Invalid date';
+                      }
+                    })()}
+                  </div>
                 </div>
               </div>
             ))}
@@ -197,17 +264,32 @@ export default function OrderHistory() {
                       <div>
                         <div style={{fontSize:28,fontWeight:700,marginBottom:2}}>{selectedOrder.name}</div>
                         <div style={{fontSize:18,color:'#888'}}>{selectedOrder.order_id}</div>
-                        <div style={{fontSize:14,color:'#666',marginTop:4}}>Archived on {new Date(selectedOrder.archived_at).toLocaleString()}</div>
+                        <div style={{fontSize:14,color:'#666',marginTop:4}}>
+                          {(() => {
+                            const dateField = selectedOrder.archived_at || selectedOrder.order_date || selectedOrder.status_updated_at;
+                            if (!dateField) return 'Archived on Unknown Date';
+                            
+                            try {
+                              const date = new Date(dateField);
+                              if (isNaN(date.getTime())) return 'Archived on Invalid Date';
+                              return `Archived on ${date.toLocaleString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}`;
+                            } catch (e) {
+                              return 'Archived on Invalid Date';
+                            }
+                          })()}
+                        </div>
                       </div>
                       {/* Action buttons removed per request. Filtering handled by header badges. */}
                     </div>
                     <hr style={{margin:'18px 0'}}/>
                     <div style={{marginBottom:18}}>
                       <div style={{fontWeight:700,fontSize:16,marginBottom:8,letterSpacing:1}}>CONTACT DETAILS</div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Telephone</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.telephone || '-'}</div>
-                      </div>
                       <div style={{display:'flex',gap:32,marginBottom:4}}>
                         <div style={{minWidth:120,color:'#888'}}>Cellphone</div>
                         <div style={{fontWeight:500}}>{selectedOrder.cellphone || '-'}</div>
@@ -229,34 +311,56 @@ export default function OrderHistory() {
                       </div>
                       <div style={{display:'flex',gap:32,marginBottom:4}}>
                         <div style={{minWidth:120,color:'#888'}}>Date Ordered</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.order_date}</div>
+                        <div style={{fontWeight:500}}>
+                          {(() => {
+                            if (!selectedOrder.order_date) return 'Not specified';
+                            try {
+                              const date = new Date(selectedOrder.order_date);
+                              if (isNaN(date.getTime())) return selectedOrder.order_date;
+                              return date.toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              });
+                            } catch (e) {
+                              return selectedOrder.order_date;
+                            }
+                          })()}
+                        </div>
                       </div>
                       <div style={{display:'flex',gap:32,marginBottom:4}}>
                         <div style={{minWidth:120,color:'#888'}}>Expected Delivery</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.expected_delivery}</div>
+                        <div style={{fontWeight:500}}>
+                          {(() => {
+                            if (!selectedOrder.expected_delivery) return 'Not specified';
+                            try {
+                              const date = new Date(selectedOrder.expected_delivery);
+                              if (isNaN(date.getTime())) return selectedOrder.expected_delivery;
+                              return date.toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              });
+                            } catch (e) {
+                              return selectedOrder.expected_delivery;
+                            }
+                          })()}
+                        </div>
                       </div>
                     </div>
                     <div style={{marginBottom:18}}>
                       <div style={{fontWeight:700,fontSize:16,marginBottom:8,letterSpacing:1}}>PAYMENT DETAILS</div>
                       <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Payment Type</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.payment_type}</div>
-                      </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
                         <div style={{minWidth:120,color:'#888'}}>Payment Method</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.payment_method}</div>
-                      </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Account Name</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.account_name}</div>
+                        <div style={{fontWeight:500}}>{selectedOrder.payment_method || 'Not specified'}</div>
                       </div>
                       <div style={{display:'flex',gap:32,marginBottom:4}}>
                         <div style={{minWidth:120,color:'#888'}}>Total Cost</div>
-                        <div style={{fontWeight:500}}>{Number(selectedOrder.total_cost).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
+                        <div style={{fontWeight:500}}>₱{Number(selectedOrder.total_cost || 0).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
                       </div>
                       <div style={{display:'flex',gap:32,marginBottom:4}}>
                         <div style={{minWidth:120,color:'#888'}}>Remarks</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.remarks}</div>
+                        <div style={{fontWeight:500}}>{selectedOrder.remarks || 'None'}</div>
                       </div>
                     </div>
                   </div>

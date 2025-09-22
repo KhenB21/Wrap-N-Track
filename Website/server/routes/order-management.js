@@ -113,7 +113,7 @@ router.get('/orders', requireRole(['admin', 'sales_manager', 'assistant_sales', 
 router.put('/orders/:orderId/status', requireRole(['admin', 'sales_manager', 'assistant_sales', 'packer']), async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { status, notes } = req.body;
+    const { status, notes, payment_method } = req.body;
     const updatedBy = req.user.user_id;
 
     if (!status) {
@@ -125,7 +125,7 @@ router.put('/orders/:orderId/status', requireRole(['admin', 'sales_manager', 'as
 
     // Validate status transition
     const validStatuses = [
-      'Order Placed', 'Order Paid', 'To Be Packed', 
+      'Pending', 'Order Placed', 'Order Paid', 'To Be Packed', 
       'Order Shipped Out', 'Ready for Delivery', 'Order Received', 'Completed', 'Cancelled'
     ];
 
@@ -159,6 +159,136 @@ router.put('/orders/:orderId/status', requireRole(['admin', 'sales_manager', 'as
       return res.status(400).json({
         success: false,
         message: 'Failed to update order status'
+      });
+    }
+
+    // Update payment method if provided
+    if (payment_method) {
+      console.log(`Updating payment method for order ${orderId} to: ${payment_method}`);
+      const paymentType = payment_method === 'Cash' ? 'Cash' : 'Online';
+      const updateResult = await pool.query(
+        'UPDATE orders SET payment_method = $1, payment_type = $2 WHERE order_id = $3',
+        [payment_method, paymentType, orderId]
+      );
+      console.log(`Payment method update result: ${updateResult.rowCount} rows affected`);
+    }
+
+    // Check if the order should be archived (after status update)
+    const checkOrderResult = await pool.query('SELECT * FROM orders WHERE order_id = $1', [orderId]);
+    console.log(`Order status after update: ${status}, Order exists: ${checkOrderResult.rows.length > 0}`);
+    
+    // If order is completed or cancelled, archive it
+    if (checkOrderResult.rows.length > 0 && (status === 'Completed' || status === 'Cancelled')) {
+      console.log(`Archiving ${status} order: ${orderId}`);
+      
+      const order = checkOrderResult.rows[0];
+      console.log(`Order to archive: ${order.order_id}, customer_id: ${order.customer_id}, status: ${status}`);
+      
+      // Ensure we have a customer_id - try multiple methods
+      let customerId = order.customer_id;
+      
+      if (!customerId) {
+        console.log(`Customer_id is null for order ${order.order_id}, trying to find customer...`);
+        
+        // Method 1: Try by email_address
+        if (order.email_address) {
+          const customerResult = await pool.query(
+            'SELECT customer_id FROM customer_details WHERE email_address = $1',
+            [order.email_address]
+          );
+          if (customerResult.rows.length > 0) {
+            customerId = customerResult.rows[0].customer_id;
+            console.log(`Found customer_id by email_address: ${customerId}`);
+          }
+        }
+        
+        // Method 2: Try by name if email didn't work
+        if (!customerId && order.name) {
+          const customerResult = await pool.query(
+            'SELECT customer_id FROM customer_details WHERE name = $1',
+            [order.name]
+          );
+          if (customerResult.rows.length > 0) {
+            customerId = customerResult.rows[0].customer_id;
+            console.log(`Found customer_id by name: ${customerId}`);
+          }
+        }
+        
+        // Method 3: Try by cellphone if name didn't work
+        if (!customerId && order.cellphone) {
+          const customerResult = await pool.query(
+            'SELECT customer_id FROM customer_details WHERE phone_number = $1',
+            [order.cellphone]
+          );
+          if (customerResult.rows.length > 0) {
+            customerId = customerResult.rows[0].customer_id;
+            console.log(`Found customer_id by cellphone: ${customerId}`);
+          }
+        }
+        
+        if (!customerId) {
+          console.error(`Could not find customer_id for order ${order.order_id}. Email: ${order.email_address}, Name: ${order.name}, Cellphone: ${order.cellphone}`);
+          // Still archive the order but with customer_id as null - it will be visible to all customers
+          customerId = null;
+        }
+      }
+      
+      // Insert into order_history
+      await pool.query(
+        `INSERT INTO order_history (
+          order_id, customer_name, name, shipped_to, order_date, expected_delivery,
+          status, shipping_address, total_cost, payment_type, payment_method,
+          account_name, remarks, telephone, cellphone, email_address, archived_by, customer_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+        [
+          order.order_id,
+          order.name || 'Customer',
+          order.name || 'Customer',
+          order.shipped_to || order.name || 'Customer',
+          order.order_date,
+          order.expected_delivery,
+          status, // Use the status from the request
+          order.shipping_address || 'Unknown Address',
+          order.total_cost || 0,
+          order.payment_type || 'Pending',
+          order.payment_method || 'Pending',
+          order.account_name || null,
+          order.remarks || null,
+          order.telephone || null,
+          order.cellphone || null,
+          order.email_address || null,
+          updatedBy,
+          customerId
+        ]
+      );
+      console.log(`Order ${order.order_id} archived successfully with customer_id: ${customerId}`);
+      
+      // Get and insert order products
+      const productsResult = await pool.query(
+        'SELECT op.*, i.unit_price FROM order_products op JOIN inventory_items i ON op.sku = i.sku WHERE op.order_id = $1',
+        [orderId]
+      );
+      
+      for (const product of productsResult.rows) {
+        await pool.query(
+          `INSERT INTO order_history_products (order_id, sku, quantity, unit_price)
+           VALUES ($1, $2, $3, $4)`,
+          [orderId, product.sku, product.quantity, product.unit_price]
+        );
+      }
+      
+      // Delete from order_products first (due to foreign key constraint)
+      await pool.query('DELETE FROM order_products WHERE order_id = $1', [orderId]);
+      
+      // Delete from orders
+      await pool.query('DELETE FROM orders WHERE order_id = $1', [orderId]);
+      
+      console.log(`Successfully archived order: ${orderId}`);
+      
+      return res.json({
+        success: true,
+        message: `Order ${status.toLowerCase()} and archived successfully`,
+        archived: true
       });
     }
 
@@ -254,6 +384,7 @@ router.get('/dashboard-stats', requireRole(['admin', 'sales_manager', 'assistant
 router.get('/orders/:orderId', requireRole(['admin', 'sales_manager', 'assistant_sales', 'packer']), async (req, res) => {
   try {
     const { orderId } = req.params;
+    console.log(`Fetching single order details for: ${orderId}`);
 
     const orderResult = await pool.query(`
       SELECT 
@@ -265,6 +396,8 @@ router.get('/orders/:orderId', requireRole(['admin', 'sales_manager', 'assistant
       LEFT JOIN customer_details cd ON o.customer_id = cd.customer_id
       WHERE o.order_id = $1
     `, [orderId]);
+    
+    console.log(`Order query result: ${orderResult.rows.length} rows found`);
 
     if (orderResult.rows.length === 0) {
       return res.status(404).json({
@@ -296,9 +429,55 @@ router.get('/orders/:orderId', requireRole(['admin', 'sales_manager', 'assistant
     });
   } catch (error) {
     console.error('Error fetching order details:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    });
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch order details'
+      message: 'Failed to fetch order details',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/order-management/archived-orders - Get archived orders
+router.get('/archived-orders', requireRole(['admin', 'sales_manager', 'assistant_sales', 'packer']), async (req, res) => {
+  try {
+    const { page = 1, limit = 50 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const result = await pool.query(`
+      SELECT 
+        oh.*,
+        u.name as archived_by_name
+      FROM order_history oh
+      LEFT JOIN users u ON oh.archived_by = u.user_id
+      ORDER BY oh.order_date DESC, oh.archived_at DESC
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
+
+    // Get total count
+    const countResult = await pool.query('SELECT COUNT(*) as total FROM order_history');
+    const total = parseInt(countResult.rows[0].total);
+
+    res.json({
+      success: true,
+      orders: result.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching archived orders:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch archived orders'
     });
   }
 });

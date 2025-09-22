@@ -677,8 +677,8 @@ export default function OrderProcess() {
         expected_delivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         status: 'Pending',
         package_name: selectedStyle || 'Custom',
-        payment_method: 'Cash on Delivery',
-        payment_type: 'Cash',
+        payment_method: 'Pending',
+        payment_type: 'Pending',
         shipped_to: customerData.name || 'Guest',
         shipping_address: customerData.address || 'TBD',
         total_cost: 0,
@@ -1245,11 +1245,33 @@ export default function OrderProcess() {
       const response = await api.post('/api/orders', pendingOrderPayload, { headers: { Authorization: `Bearer ${token}` } });
       console.log('[ORDER] Order response:', response.data);
       if (response.data) {
+        // Add ordered items to cart for display
+        if (pendingOrderPayload.products && Array.isArray(pendingOrderPayload.products)) {
+          try {
+            for (const product of pendingOrderPayload.products) {
+              if (product.sku && product.quantity) {
+                await api.post('/api/cart/add', 
+                  { sku: product.sku, quantity: product.quantity },
+                  { headers: { Authorization: `Bearer ${token}` } }
+                );
+              }
+            }
+            console.log('[ORDER] Items added to cart for display');
+          } catch (cartErr) {
+            console.warn('[ORDER] Failed to add items to cart for display:', cartErr);
+            // Don't fail the order if cart addition fails
+          }
+        }
+        
         toast.success('Order placed successfully');
         setOtpModalVisible(false);
         setOtpCode('');
         setPendingOrderPayload(null);
-        navigate('/customer-cart');
+        
+        // Force refresh the page to ensure new order appears
+        setTimeout(() => {
+          window.location.href = '/customer-cart';
+        }, 1000);
       }
     } catch (orderErr) {
       const status = orderErr.response?.status;
@@ -1617,6 +1639,7 @@ export default function OrderProcess() {
                       cols={50}
                     />
                   </div>
+
 
                   <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
                     <input
@@ -2627,6 +2650,7 @@ export default function OrderProcess() {
                     cols={50}
                   ></textarea>
                 </div>
+
 
                 <button type="submit" style={styles.button}>
                   Submit Order
