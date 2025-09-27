@@ -46,7 +46,7 @@ services:
   github:
     repo: your-username/Wrap-N-Track
     branch: main
-  run_command: npm run build && node server.js
+  run_command: npm install && npm run build && node server.js
   environment_slug: node-js
   instance_count: 1
   instance_size_slug: basic-xxs
