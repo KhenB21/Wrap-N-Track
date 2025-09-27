@@ -10,6 +10,7 @@ import SupplierForm from "./Pages/SupplierDetails/SupplierForm";
 import UserDetails from "./Pages/UserDetails/UserDetails";
 import Inventory from "./Pages/Inventory/Inventory";
 import UserManagement from "./Pages/UserManagement/UserManagement";
+import AccountManagement from "./Pages/AccountManagement/AccountManagement";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Register from "./Pages/Register/Register";
 import OrderHistory from "./Pages/OrderHistory/OrderHistory";
@@ -21,6 +22,7 @@ import CustomerCorporate from "./Pages/CustomerCorporate/CustomerCorporate";
 
 import ArchivedOrders from './Pages/ArchivedOrders/ArchivedOrders';
 import InventoryReport from './Pages/InventoryReport/InventoryReport';
+import SalesReport from './Pages/SalesReport/SalesReport';
 
 import ForgotPassword from "./Pages/ForgotPassword/ForgotPassword";
 import EmailVerify from "./Pages/EmailVerify/EmailVerify";
@@ -36,10 +38,23 @@ import CustomerUserDetails from "./Pages/CustomerPOV/CustomerUserDetails";
 import CustomerVerify from "./Pages/CustomerPOV/CustomerVerify";
 import Forbidden403 from "./Pages/Forbidden403";
 import { AuthProvider } from "./Context/AuthContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
+import { CartProvider } from "./Context/CartContext";
+import CustomerCart from "./Pages/CustomerPOV/CustomerCart";
+import CustomerCartWithOrders from "./Pages/CustomerPOV/CustomerCartWithOrders";
+import CustomerOrders from "./Pages/CustomerPOV/CustomerOrders";
+import OrderManagementDashboard from "./Pages/OrderManagement/OrderManagementDashboard";
+import UnauthorizedAccess from "./Pages/UnauthorizedAccess";
+import NotFound404 from "./Pages/NotFound404";
+import SecurityTest from "./Components/SecurityTest";
+import NotFoundTest from "./Components/NotFoundTest";
+import KhenTestDataGenerator from "./Components/KhenTestDataGenerator";
 
 function App() {
   return (
     <AuthProvider>
+    <NotificationProvider>
+    <CartProvider>
     <Router>
       <Routes>
         <Route path="/" element={<CustomerHome />} />
@@ -61,7 +76,9 @@ function App() {
         <Route path="/user-details" element={<UserDetails />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/reports/inventory" element={<InventoryReport />} />
+        <Route path="/reports/sales" element={<SalesReport />} />
         <Route path="/user-management" element={<UserManagement />} />
+        <Route path="/account-management" element={<AccountManagement />} />
         <Route path="/orders" element={<OrderDetails />} />
         <Route path="/orders/:orderId" element={<OrderDetails />} />
         <Route path="/order-history" element={<OrderHistory />} />
@@ -80,10 +97,24 @@ function App() {
         <Route path="/customer-login" element={<CustomerLogIn />} />
         <Route path="/customer-user-details" element={<CustomerUserDetails />} />
         <Route path="/customer/verify" element={<CustomerVerify />} />
-  <Route path="/403" element={<Forbidden403 />} />
+        <Route path="/customer-cart" element={<CustomerCartWithOrders />} />
+        <Route path="/customer-cart-old" element={<CustomerCart />} />
+        <Route path="/customer-orders" element={<CustomerOrders />} />
+        <Route path="/order-management" element={<OrderManagementDashboard />} />
+        <Route path="/unauthorized" element={<UnauthorizedAccess />} />
+        <Route path="/404" element={<NotFound404 />} />
+        <Route path="/security-test" element={<SecurityTest />} />
+        <Route path="/404-test" element={<NotFoundTest />} />
+        <Route path="/khen-test" element={<KhenTestDataGenerator />} />
+        <Route path="/403" element={<Forbidden403 />} />
+        
+        {/* Catch-all route for 404 - must be last */}
+        <Route path="*" element={<NotFound404 />} />
 
       </Routes>
     </Router>
+    </CartProvider>
+    </NotificationProvider>
     </AuthProvider>
   );
 }

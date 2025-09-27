@@ -153,9 +153,9 @@ router.post('/', async (req, res) => {
         order_id = await generateUniqueCustomerOrderId(client);
       }
 
-      // Get customer's address from customer_details
+      // Get customer's address and customer_id from customer_details
       const customerResult = await client.query(
-        'SELECT address FROM customer_details WHERE email_address = $1',
+        'SELECT customer_id, address FROM customer_details WHERE email_address = $1',
         [email_address]
       );
 
@@ -164,6 +164,7 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: 'Customer not found' });
       }
 
+      const customerId = customerResult.rows[0].customer_id;
       const customerAddress = customerResult.rows[0].address || 'Unknown Address';
 
       // Insert into orders table with duplicate retry guard (handles rare race conditions)
@@ -187,8 +188,10 @@ router.post('/', async (req, res) => {
               remarks,
               telephone,
               cellphone,
-              email_address
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *
+              email_address,
+              customer_id,
+              order_placed_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *
           `, [
             order_id,
             account_name,
@@ -205,7 +208,9 @@ router.post('/', async (req, res) => {
             remarks,
             telephone,
             cellphone,
-            email_address
+            email_address,
+            customerId,
+            new Date()
           ]);
           break; // success
         } catch (e) {
@@ -314,6 +319,12 @@ router.post('/', async (req, res) => {
         'UPDATE orders SET total_cost = $1 WHERE order_id = $2',
         [calculatedTotalCost, order_id]
       );
+
+      // Add to status history
+      await client.query(`
+        INSERT INTO order_status_history (order_id, old_status, new_status, updated_by, notes)
+        VALUES ($1, NULL, 'Order Placed', NULL, 'Order created from customer order process')
+      `, [order_id]);
 
   await client.query('COMMIT');
 

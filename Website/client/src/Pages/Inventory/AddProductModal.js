@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './AddProductModal.css';
 import api from '../../api';
 import Select from 'react-select';
+import SupplierDropdown from '../../Components/SupplierDropdown';
+import AddSupplierModal from '../../Components/AddSupplierModal';
 
 const CATEGORIES = [
   'Electronics',
@@ -159,6 +161,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     conversion_qty: initialData.conversion_qty || '',
     expirable: initialData.expirable || false,
     expiration: initialData.expiration || '',
+    supplier_id: initialData.supplier_id || null,
   });
   const [quantityToAdd, setQuantityToAdd] = useState(0);
   const [image, setImage] = useState(null);
@@ -172,6 +175,8 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
   const [selectedExistingProduct, setSelectedExistingProduct] = useState(null); // To track if we are updating
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredCategories, setFilteredCategories] = useState([]);
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [showAddSupplierModal, setShowAddSupplierModal] = useState(false);
 
   useEffect(() => {
     if ((isEdit || isAddStockMode) && initialData && Object.keys(initialData).length > 0) { 
@@ -186,6 +191,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         conversion_qty: initialData.conversion_qty || '',
         expirable: initialData.expirable || false,
         expiration: initialData.expiration || '',
+        supplier_id: initialData.supplier_id || null,
       });
       setCategoryInput(initialData.category || '');
       if (initialData.image_data) {
@@ -224,6 +230,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         conversion_qty: initialData.conversion_qty || '',
         expirable: initialData.expirable || false,
         expiration: initialData.expiration || '',
+        supplier_id: initialData.supplier_id || null,
       });
       setCategoryInput(initialData.category || '');
       if (initialData.image_data) {
@@ -284,6 +291,11 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       if (!form.conversion_qty || isNaN(form.conversion_qty) || Number(form.conversion_qty) <= 0 || !Number.isInteger(Number(form.conversion_qty))) {
         newErrors.conversion_qty = 'Conversion QTY must be a positive integer';
       }
+    }
+
+    // Validate supplier selection
+    if (!form.supplier_id) {
+      newErrors.supplier = 'Please select a supplier';
     }
 
     setErrors(newErrors);
@@ -388,6 +400,29 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     }
   };
 
+  const handleSupplierChange = (selectedOption) => {
+    setSelectedSupplier(selectedOption);
+    setForm(prev => ({ 
+      ...prev, 
+      supplier_id: selectedOption ? selectedOption.value : null 
+    }));
+    setErrors(prev => ({ ...prev, supplier: '' }));
+  };
+
+  const handleAddNewSupplier = () => {
+    setShowAddSupplierModal(true);
+  };
+
+  const handleSupplierAdded = (newSupplier) => {
+    setSelectedSupplier(newSupplier);
+    setForm(prev => ({ 
+      ...prev, 
+      supplier_id: newSupplier.value 
+    }));
+    setErrors(prev => ({ ...prev, supplier: '' }));
+    setShowAddSupplierModal(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -440,6 +475,11 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       dataToSend.append('quantity', String(Number(form.quantity))); // Ensure numeric conversion
       dataToSend.append('unit_price', String(Number(form.unit_price))); // Ensure numeric conversion
       dataToSend.append('category', categoryInput || form.category);
+      dataToSend.append('supplier_id', form.supplier_id || '');
+      dataToSend.append('uom', form.uom || '');
+      dataToSend.append('conversion_qty', form.conversion_qty || '');
+      dataToSend.append('expirable', form.expirable ? 'true' : 'false');
+      dataToSend.append('expiration', form.expiration || '');
       dataToSend.append('image', image);
       // If updating, add a flag
       if (isEdit) dataToSend.append('isUpdate', 'true'); 
@@ -451,6 +491,11 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         category: categoryInput || form.category,
         quantity: Number(form.quantity), // Ensure numeric
         unit_price: Number(form.unit_price), // Ensure numeric
+        supplier_id: form.supplier_id,
+        uom: form.uom,
+        conversion_qty: form.conversion_qty,
+        expirable: form.expirable,
+        expiration: form.expiration,
       };
       // If updating, add the isUpdate flag
       if (isEdit) dataToSend.isUpdate = true;
@@ -462,12 +507,14 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <button className="close-btn" onClick={onClose}>&times;</button>
-        <h3 style={{ textAlign: 'center', fontWeight: 700, marginBottom: '1.5rem', fontSize: '1.5rem', color: '#1f2937' }}>
-          {isAddStockMode ? 'ADD STOCK' : (selectedExistingProduct || (isEdit && initialData.sku) ? 'EDIT PRODUCT DETAILS' : 'ADD PRODUCT')}
-        </h3>
+    <>
+      {!showAddSupplierModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <button className="close-btn" onClick={onClose}>&times;</button>
+          <h3 style={{ textAlign: 'center', fontWeight: 700, marginBottom: '1.5rem', fontSize: '1.5rem', color: '#1f2937' }}>
+            {isAddStockMode ? 'ADD STOCK' : (selectedExistingProduct || (isEdit && initialData.sku) ? 'EDIT PRODUCT DETAILS' : 'ADD PRODUCT')}
+          </h3>
         <form onSubmit={handleSubmit} className="add-product-form" encType="multipart/form-data">
           <div className="section-title">Basic Information</div>
           
@@ -553,6 +600,18 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
             {errors.description && <span className="error-message">{errors.description}</span>}
           </label>
 
+          <label className="full-width">Supplier
+            <SupplierDropdown
+              value={selectedSupplier}
+              onChange={handleSupplierChange}
+              onAddNewSupplier={handleAddNewSupplier}
+              disabled={isAddStockMode}
+              placeholder="Select a supplier..."
+              error={!!errors.supplier}
+            />
+            {errors.supplier && <span className="error-message">{errors.supplier}</span>}
+          </label>
+
           <div className="section-title">Inventory & Pricing</div>
 
           {isAddStockMode ? (
@@ -610,7 +669,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 classNamePrefix={errors.uom ? 'error react-select' : 'react-select'}
                 placeholder="Select UoM"
                 isClearable
-                isDisabled={isAddStockMode || isEdit}
+                isDisabled={isAddStockMode}
                 styles={{
                   control: (base, state) => ({
                     ...base,
@@ -656,7 +715,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 onChange={handleChange}
                 required
                 placeholder={`How many units in one ${form.uom || 'container'}?`}
-                disabled={isAddStockMode || isEdit}
+                disabled={isAddStockMode}
               />
               <span className="help-text">1 {form.uom} = {form.conversion_qty || '?'} Pieces</span>
               {errors.conversion_qty && <span className="error-message">{errors.conversion_qty}</span>}
@@ -687,7 +746,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 checked={form.expirable}
                 onChange={e => setForm(prev => ({ ...prev, expirable: e.target.checked, expiration: e.target.checked ? prev.expiration : '' }))}
                 className="expirable-checkbox"
-                disabled={isAddStockMode || isEdit}
+                disabled={isAddStockMode}
               />
               <span>Expirable Product?</span>
             </label>
@@ -698,7 +757,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 value={form.expiration}
                 onChange={e => setForm(prev => ({ ...prev, expiration: e.target.value }))}
                 className="expirable-date"
-                disabled={isAddStockMode || isEdit}
+                disabled={isAddStockMode}
                 style={{ width: 'auto' }}
               />
             ) : (
@@ -713,7 +772,16 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
             </button>
           </div>
         </form>
-      </div>
-    </div>
+          </div>
+        </div>
+      )}
+      
+      {showAddSupplierModal && (
+        <AddSupplierModal
+          onClose={() => setShowAddSupplierModal(false)}
+          onSupplierAdded={handleSupplierAdded}
+        />
+      )}
+    </>
   );
 } 

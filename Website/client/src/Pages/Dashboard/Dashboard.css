@@ -6,11 +6,12 @@
 
 .dashboard-main {
   flex: 1;
-  padding: 32px 32px 0 32px;
+  padding: 0 32px 0 32px;
   display: flex;
   flex-direction: column;
   margin-left: 220px;
   width: calc(100% - 220px);
+  max-width: none;
 }
 
 .dashboard-topbar {
@@ -443,7 +444,8 @@ body.dark .activity-time {
 }
 
 .dashboard-content {
-  /* Add bottom margin to create space below inventory overview */
+  /* Add top and bottom margin to create proper spacing */
+  margin-top: 24px;
   margin-bottom: 32px;
 }
 

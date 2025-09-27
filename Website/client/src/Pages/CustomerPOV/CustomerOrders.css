@@ -1,0 +1,521 @@
+/* Customer Orders Page Styles */
+.customer-orders-page {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.orders-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.orders-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.orders-header h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2.5rem;
+  color: #4a4a6a;
+  margin-bottom: 10px;
+}
+
+.orders-header p {
+  font-size: 1.1rem;
+  color: #7a7a8c;
+  margin: 0;
+}
+
+/* Loading and Error States */
+.loading-container,
+.error-container {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #4a4a6a;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-container button {
+  background: #4a4a6a;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+/* Empty Orders */
+.empty-orders {
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.empty-orders-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+}
+
+.empty-orders h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2rem;
+  color: #4a4a6a;
+  margin-bottom: 10px;
+}
+
+.empty-orders p {
+  color: #7a7a8c;
+  margin-bottom: 30px;
+}
+
+.start-shopping-btn {
+  background: #4a4a6a;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.start-shopping-btn:hover {
+  background: #3a3a5a;
+}
+
+/* Orders List */
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.order-card {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.order-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.order-info h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.4rem;
+  color: #4a4a6a;
+  margin: 0 0 5px 0;
+}
+
+.order-date {
+  color: #7a7a8c;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.order-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.order-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.order-summary p {
+  margin: 0;
+  color: #4a4a6a;
+  font-size: 0.95rem;
+}
+
+.view-details-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.view-details-btn:hover {
+  background: #0056b3;
+}
+
+/* Tracking Steps */
+.tracking-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 0;
+  border-top: 1px solid #eee;
+}
+
+.tracking-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  position: relative;
+}
+
+.step-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.9rem;
+  color: white;
+  z-index: 2;
+  position: relative;
+}
+
+.tracking-step.completed .step-circle {
+  background: #28a745;
+}
+
+.tracking-step.preparing .step-circle {
+  background: #ffc107;
+  color: #333;
+}
+
+.tracking-step.pending .step-circle {
+  background: #e9ecef;
+  color: #6c757d;
+}
+
+.step-line {
+  width: 2px;
+  height: 40px;
+  background: #e9ecef;
+  margin-top: 5px;
+}
+
+.tracking-step.completed + .tracking-step .step-line {
+  background: #28a745;
+}
+
+.step-content {
+  flex: 1;
+  padding-top: 5px;
+}
+
+.step-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #4a4a6a;
+  margin: 0 0 5px 0;
+}
+
+.step-description {
+  color: #7a7a8c;
+  font-size: 0.9rem;
+  margin: 0 0 5px 0;
+  line-height: 1.4;
+}
+
+.extra-label {
+  display: inline-block;
+  background: #fff3cd;
+  color: #856404;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 5px;
+}
+
+.step-timestamp {
+  color: #999;
+  font-size: 0.8rem;
+  margin: 5px 0 0 0;
+}
+
+/* Order Details Modal */
+.order-details-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.order-details-modal {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 25px 30px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.8rem;
+  color: #4a4a6a;
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #999;
+  padding: 5px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.close-btn:hover {
+  background: #f8f9fa;
+  color: #4a4a6a;
+}
+
+.modal-content {
+  padding: 30px;
+}
+
+.order-info-section,
+.shipping-info-section,
+.products-section,
+.remarks-section {
+  margin-bottom: 30px;
+}
+
+.order-info-section h3,
+.shipping-info-section h3,
+.products-section h3,
+.remarks-section h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.3rem;
+  color: #4a4a6a;
+  margin: 0 0 15px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.info-item label {
+  font-weight: 600;
+  color: #7a7a8c;
+  font-size: 0.9rem;
+}
+
+.info-item span {
+  color: #4a4a6a;
+  font-size: 1rem;
+}
+
+.status-text {
+  font-weight: 600;
+}
+
+.shipping-address {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid #4a4a6a;
+}
+
+.shipping-address p {
+  margin: 0 0 10px 0;
+  color: #4a4a6a;
+  line-height: 1.5;
+}
+
+.shipping-address p:last-child {
+  margin-bottom: 0;
+}
+
+.products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.product-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 20px;
+  align-items: center;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.product-info h4 {
+  font-size: 1.1rem;
+  color: #4a4a6a;
+  margin: 0 0 5px 0;
+}
+
+.product-info p {
+  margin: 0 0 3px 0;
+  color: #7a7a8c;
+  font-size: 0.9rem;
+}
+
+.product-quantity {
+  text-align: center;
+  font-weight: 600;
+  color: #4a4a6a;
+}
+
+.product-price {
+  text-align: right;
+  font-weight: 600;
+  color: #4a4a6a;
+  font-size: 1.1rem;
+}
+
+.remarks-section p {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid #17a2b8;
+  margin: 0;
+  color: #4a4a6a;
+  line-height: 1.5;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .orders-container {
+    padding: 20px 15px;
+  }
+
+  .orders-header h1 {
+    font-size: 2rem;
+  }
+
+  .order-header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .order-details {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .tracking-steps {
+    gap: 15px;
+  }
+
+  .tracking-step {
+    gap: 10px;
+  }
+
+  .step-circle {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+
+  .step-line {
+    height: 30px;
+  }
+
+  .modal-content {
+    padding: 20px;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .product-item {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .product-quantity,
+  .product-price {
+    text-align: center;
+  }
+}

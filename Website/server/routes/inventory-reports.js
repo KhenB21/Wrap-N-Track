@@ -142,18 +142,18 @@ router.get('/movement', async (req, res) => {
         i.category,
         i.quantity as current_stock,
         COALESCE(SUM(CASE 
-          WHEN o.status NOT IN ('DELIVERED', 'COMPLETED', 'CANCELLED') 
+          WHEN o.status NOT IN ('Order Received', 'Completed', 'Cancelled') 
           THEN op.quantity 
           ELSE 0 
         END), 0) as ordered_quantity,
         COALESCE(SUM(CASE 
-          WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+          WHEN o.status IN ('Order Received', 'Completed') 
           THEN op.quantity 
           ELSE 0 
         END), 0) as delivered_quantity,
         COALESCE(SUM(CASE 
-          WHEN o.status IN ('DELIVERED', 'COMPLETED') 
-          THEN op.quantity * op.unit_price 
+          WHEN o.status IN ('Order Received', 'Completed') 
+          THEN op.quantity * i.unit_price 
           ELSE 0 
         END), 0) as sales_value
       FROM inventory_items i
@@ -241,10 +241,10 @@ router.get('/turnover', async (req, res) => {
       WITH monthly_sales AS (
         SELECT 
           DATE_TRUNC('month', o.order_date) as month,
-          SUM(op.quantity * op.unit_price) as monthly_sales
+          SUM(op.quantity * i.unit_price) as monthly_sales
         FROM orders o
         JOIN order_products op ON o.order_id = op.order_id
-        WHERE o.status IN ('DELIVERED', 'COMPLETED')
+        WHERE o.status IN ('Order Received', 'Completed')
           AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(months)} months'
         GROUP BY DATE_TRUNC('month', o.order_date)
       ),
@@ -327,19 +327,19 @@ router.get('/movement-analysis', async (req, res) => {
           i.unit_price,
           i.reorder_level,
           COALESCE(SUM(CASE 
-            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            WHEN o.status IN ('Order Received', 'Completed') 
             AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
             THEN op.quantity 
             ELSE 0 
           END), 0) as sold_quantity,
           COALESCE(SUM(CASE 
-            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            WHEN o.status IN ('Order Received', 'Completed') 
             AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
-            THEN op.quantity * op.unit_price 
+            THEN op.quantity * i.unit_price 
             ELSE 0 
           END), 0) as sales_value,
           COUNT(CASE 
-            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            WHEN o.status IN ('Order Received', 'Completed') 
             AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
             THEN 1 
           END) as sales_frequency
@@ -424,18 +424,18 @@ router.get('/replenishment-suggestions', async (req, res) => {
           i.supplier_id,
           s.name as supplier_name,
           COALESCE(SUM(CASE 
-            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            WHEN o.status IN ('Order Received', 'Completed') 
             AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
             THEN op.quantity 
             ELSE 0 
           END), 0) as avg_daily_demand,
           COALESCE(AVG(CASE 
-            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            WHEN o.status IN ('Order Received', 'Completed') 
             AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
             THEN op.quantity 
           END), 0) as avg_order_quantity,
           COUNT(CASE 
-            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            WHEN o.status IN ('Order Received', 'Completed') 
             AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
             THEN 1 
           END) as order_frequency
@@ -538,24 +538,24 @@ router.get('/advanced-analytics', async (req, res) => {
           i.supplier_id,
           s.name as supplier_name,
           COALESCE(SUM(CASE 
-            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            WHEN o.status IN ('Order Received', 'Completed') 
             AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
             THEN op.quantity 
             ELSE 0 
           END), 0) as sold_quantity,
           COALESCE(SUM(CASE 
-            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            WHEN o.status IN ('Order Received', 'Completed') 
             AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
-            THEN op.quantity * op.unit_price 
+            THEN op.quantity * i.unit_price 
             ELSE 0 
           END), 0) as sales_value,
           COUNT(CASE 
-            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            WHEN o.status IN ('Order Received', 'Completed') 
             AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
             THEN 1 
           END) as order_count,
           AVG(CASE 
-            WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+            WHEN o.status IN ('Order Received', 'Completed') 
             AND o.order_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
             THEN op.quantity 
           END) as avg_order_quantity
@@ -666,7 +666,7 @@ router.post('/test-data/insert', async (req, res) => {
           name: 'Test Customer Fast',
           shipped_to: 'Test Address',
           order_date: new Date(),
-          status: 'DELIVERED',
+          status: 'Completed',
           shipping_address: 'Test Address',
           total_cost: 150.00,
           payment_type: 'Cash',
@@ -680,7 +680,7 @@ router.post('/test-data/insert', async (req, res) => {
           name: 'Test Customer Fast 2',
           shipped_to: 'Test Address 2',
           order_date: new Date(),
-          status: 'DELIVERED',
+          status: 'Completed',
           shipping_address: 'Test Address 2',
           total_cost: 200.00,
           payment_type: 'Cash',
@@ -695,7 +695,7 @@ router.post('/test-data/insert', async (req, res) => {
           name: 'Test Customer Mod',
           shipped_to: 'Test Address',
           order_date: new Date(),
-          status: 'DELIVERED',
+          status: 'Completed',
           shipping_address: 'Test Address',
           total_cost: 75.00,
           payment_type: 'Cash',
@@ -710,7 +710,7 @@ router.post('/test-data/insert', async (req, res) => {
           name: 'Test Customer Slow',
           shipped_to: 'Test Address',
           order_date: new Date(),
-          status: 'DELIVERED',
+          status: 'Completed',
           shipping_address: 'Test Address',
           total_cost: 25.00,
           payment_type: 'Cash',
@@ -745,27 +745,26 @@ router.post('/test-data/insert', async (req, res) => {
       // Insert order products with different quantities to simulate movement patterns
       const testOrderProducts = [
         // Fast moving - high quantities
-        { order_id: 'TEST-FAST-001', sku: inventoryItems.rows[0].sku, quantity: 15, unit_price: inventoryItems.rows[0].unit_price },
-        { order_id: 'TEST-FAST-001', sku: inventoryItems.rows[1].sku, quantity: 12, unit_price: inventoryItems.rows[1].unit_price },
-        { order_id: 'TEST-FAST-002', sku: inventoryItems.rows[0].sku, quantity: 20, unit_price: inventoryItems.rows[0].unit_price },
-        { order_id: 'TEST-FAST-002', sku: inventoryItems.rows[2].sku, quantity: 18, unit_price: inventoryItems.rows[2].unit_price },
+        { order_id: 'TEST-FAST-001', sku: inventoryItems.rows[0].sku, quantity: 15 },
+        { order_id: 'TEST-FAST-001', sku: inventoryItems.rows[1].sku, quantity: 12 },
+        { order_id: 'TEST-FAST-002', sku: inventoryItems.rows[0].sku, quantity: 20 },
+        { order_id: 'TEST-FAST-002', sku: inventoryItems.rows[2].sku, quantity: 18 },
         
         // Moderate moving - medium quantities
-        { order_id: 'TEST-MOD-001', sku: inventoryItems.rows[3].sku, quantity: 5, unit_price: inventoryItems.rows[3].unit_price },
-        { order_id: 'TEST-MOD-001', sku: inventoryItems.rows[4].sku, quantity: 3, unit_price: inventoryItems.rows[4].unit_price },
+        { order_id: 'TEST-MOD-001', sku: inventoryItems.rows[3].sku, quantity: 5 },
+        { order_id: 'TEST-MOD-001', sku: inventoryItems.rows[4].sku, quantity: 3 },
         
         // Slow moving - low quantities
-        { order_id: 'TEST-SLOW-001', sku: inventoryItems.rows[5].sku, quantity: 1, unit_price: inventoryItems.rows[5].unit_price },
-        { order_id: 'TEST-SLOW-001', sku: inventoryItems.rows[6].sku, quantity: 2, unit_price: inventoryItems.rows[6].unit_price }
+        { order_id: 'TEST-SLOW-001', sku: inventoryItems.rows[5].sku, quantity: 1 },
+        { order_id: 'TEST-SLOW-001', sku: inventoryItems.rows[6].sku, quantity: 2 }
       ];
       
       // Insert order products
       for (const product of testOrderProducts) {
         await client.query(`
-          INSERT INTO order_products (order_id, sku, quantity, unit_price)
-          VALUES ($1, $2, $3, $4)
-          ON CONFLICT (line_id) DO NOTHING
-        `, [product.order_id, product.sku, product.quantity, product.unit_price]);
+          INSERT INTO order_products (order_id, sku, quantity)
+          VALUES ($1, $2, $3)
+        `, [product.order_id, product.sku, product.quantity]);
       }
       
       await client.query('COMMIT');

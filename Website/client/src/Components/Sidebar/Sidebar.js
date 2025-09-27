@@ -20,16 +20,34 @@ const Sidebar = () => {
     super_admin: {
       dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
     },
-    operations_manager: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
+    admin: {
+      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
+    },
+    director: {
+      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
+    },
+    business_developer: {
+      dashboard: true, inventory: false, orders: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false,
+    },
+    creatives: {
+      dashboard: true, inventory: true, orders: false, reports: true, customers: false, suppliers: false, orderHistory: false, accountManagement: false,
     },
     sales_manager: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers:true, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
+    },
+    assistant_sales: {
+      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: false, orderHistory: false, accountManagement: false,
+    },
+    packer: {
+      dashboard: true, inventory: true, orders: true, reports: true, customers: false, suppliers: false, orderHistory: true, accountManagement: false,
+      readOnly: true, // Mark as read-only
+    },
+    operations_manager: {
+      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
     },
     social_media_manager: {
       dashboard: true, inventory: false, orders: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false,
     },
-
     default: {
       dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
     }
@@ -113,7 +131,7 @@ const Sidebar = () => {
           )}
           {permissions.accountManagement && (
             <li>
-              <Link to="/user-management">
+              <Link to="/account-management">
                 <span className="icon">👤</span>
                 <span className="text">Account Management</span>
               </Link>

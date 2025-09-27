@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,12 +9,15 @@ import {
   TouchableOpacity,
   FlatList,
   Dimensions,
+  RefreshControl,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import Header from "../Components/Header";
 import SideMenu from "../Components/SideMenu";
 import { useTheme } from "../Context/ThemeContext";
+import { useInventory } from "../Context/InventoryContext";
+import { useCart } from "../Context/CartContext";
 
 const bannerImage = require("../Images/Background/background.png");
 const logo = require("../Images/Logo/pensee-logo-with-name-horizontal.png");
@@ -77,6 +80,18 @@ export default function HomeScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const { darkMode } = useTheme();
   const [expandedSections, setExpandedSections] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const { 
+    filteredInventory, 
+    loading, 
+    error, 
+    loadInventory, 
+    setSearchQuery: setInventorySearchQuery,
+    setCategoryFilter 
+  } = useInventory();
+  const { addToCart, totalItems } = useCart();
 
   const colors = {
     bg: darkMode ? "#18191A" : "#fff",
@@ -113,6 +128,40 @@ export default function HomeScreen() {
     scrollToIndex(newIndex);
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadInventory();
+    setRefreshing(false);
+  };
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+    setInventorySearchQuery(query);
+  };
+
+  const handleCategoryPress = (category) => {
+    setCategoryFilter(category);
+    navigation.navigate('Catalog');
+  };
+
+  const handleAddToCart = async (item) => {
+    try {
+      await addToCart({
+        sku: item.sku,
+        name: item.name,
+        unit_price: item.unit_price,
+        quantity: 1,
+        image_data: item.image_data,
+      });
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+    }
+  };
+
+  const getProductsByCategory = (category) => {
+    return filteredInventory.filter(item => item.category === category).slice(0, 6);
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       {/* Header */}
@@ -124,7 +173,12 @@ export default function HomeScreen() {
         onCartPress={() => navigation.navigate("MyCart")}
         darkMode={darkMode}
       />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Welcome and Search */}
         <Text style={[styles.welcome, { color: colors.text }]}>
           WELCOME TO PENSEE
@@ -139,11 +193,14 @@ export default function HomeScreen() {
                 borderColor: colors.border,
               },
             ]}
-            placeholder="Search"
+            placeholder="Search products..."
             placeholderTextColor={colors.subText}
+            value={searchQuery}
+            onChangeText={handleSearch}
           />
           <TouchableOpacity
             style={[styles.searchButton, { backgroundColor: colors.button }]}
+            onPress={() => navigation.navigate('Catalog')}
           >
             <Ionicons name="search" size={22} color={colors.buttonText} />
           </TouchableOpacity>
@@ -166,13 +223,14 @@ export default function HomeScreen() {
             style={{ flex: 1 }}
           >
             {bannerData.map((banner, idx) => (
-              <View
+              <TouchableOpacity
                 key={banner.title}
                 style={{
                   width,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
+                onPress={() => handleCategoryPress(banner.title.toUpperCase())}
               >
                 <Image
                   source={banner.image}
@@ -189,7 +247,7 @@ export default function HomeScreen() {
                     {banner.title}
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
           <TouchableOpacity style={styles.arrowRight} onPress={handleRight}>
@@ -239,7 +297,7 @@ export default function HomeScreen() {
         </View>
         {/* Product Sections */}
         {sectionData.map((section, idx) => {
-          // Show 3 products by default, more if expanded
+          const categoryProducts = getProductsByCategory(section.title);
           const isExpanded = expandedSections[section.title];
           let showCount = 3;
           if (section.title === "WEDDING") showCount = isExpanded ? 10 : 3;
@@ -255,7 +313,7 @@ export default function HomeScreen() {
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
                   {section.title}
                 </Text>
-                {section.products.length > 3 && (
+                {categoryProducts.length > 3 && (
                   <TouchableOpacity
                     onPress={() =>
                       setExpandedSections((prev) => ({
@@ -270,49 +328,69 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-              {chunkArray(section.products.slice(0, showCount), 3).map((row, rowIdx) => (
-                <View key={rowIdx} style={styles.productRow}>
-                  {row.map((prod) => (
-                    <TouchableOpacity
-                      key={prod.title}
-                      style={[
-                        styles.productCard,
-                        {
-                          backgroundColor: colors.card,
-                          borderColor: colors.border,
-                          opacity: 1,
-                        },
-                      ]}
-                      onPress={() =>
-                        navigation.navigate("ItemPreview", { product: prod })
-                      }
-                    >
-                      <Image
-                        source={prod.image}
-                        style={[styles.productImage, { opacity: 1 }]}
-                        resizeMode="cover"
+              {categoryProducts.length > 0 ? (
+                chunkArray(categoryProducts.slice(0, showCount), 3).map((row, rowIdx) => (
+                  <View key={rowIdx} style={styles.productRow}>
+                    {row.map((product) => (
+                      <TouchableOpacity
+                        key={product.sku}
+                        style={[
+                          styles.productCard,
+                          {
+                            backgroundColor: colors.card,
+                            borderColor: colors.border,
+                            opacity: 1,
+                          },
+                        ]}
+                        onPress={() =>
+                          navigation.navigate("ProductDetail", { product })
+                        }
+                      >
+                        {product.image_data ? (
+                          <Image
+                            source={{ uri: `data:image/png;base64,${product.image_data}` }}
+                            style={[styles.productImage, { opacity: 1 }]}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={[styles.productImage, { backgroundColor: colors.border }]}>
+                            <MaterialCommunityIcons name="image" size={32} color={colors.subText} />
+                          </View>
+                        )}
+                        <Text style={[styles.productName, { color: colors.text }]}>
+                          {product.name}
+                        </Text>
+                        <Text style={[styles.productDesc, { color: colors.subText }]}>
+                          ₱{parseFloat(product.unit_price).toFixed(2)}
+                        </Text>
+                        <TouchableOpacity
+                          style={[styles.addToCartButton, { backgroundColor: colors.accent }]}
+                          onPress={() => handleAddToCart(product)}
+                        >
+                          <MaterialCommunityIcons name="cart-plus" size={16} color={colors.buttonText} />
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    ))}
+                    {/* Add empty views if row has less than 3 items */}
+                    {Array.from({ length: 3 - row.length }).map((_, i) => (
+                      <View
+                        key={`empty-${i}`}
+                        style={[
+                          styles.productCard,
+                          { backgroundColor: "transparent", borderColor: "transparent", elevation: 0, shadowOpacity: 0 }
+                        ]}
+                        pointerEvents="none"
                       />
-                      <Text style={[styles.productName, { color: colors.text }]}>
-                        {prod.title}
-                      </Text>
-                      <Text style={[styles.productDesc, { color: colors.subText }]}>
-                        {prod.desc}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                  {/* Add empty views if row has less than 3 items */}
-                  {Array.from({ length: 3 - row.length }).map((_, i) => (
-                    <View
-                      key={`empty-${i}`}
-                      style={[
-                        styles.productCard,
-                        { backgroundColor: "transparent", borderColor: "transparent", elevation: 0, shadowOpacity: 0 }
-                      ]}
-                      pointerEvents="none"
-                    />
-                  ))}
+                    ))}
+                  </View>
+                ))
+              ) : (
+                <View style={styles.noProductsContainer}>
+                  <Text style={[styles.noProductsText, { color: colors.subText }]}>
+                    No products in this category yet
+                  </Text>
                 </View>
-              ))}
+              )}
             </View>
           );
         })}
@@ -525,6 +603,24 @@ const styles = StyleSheet.create({
     color: "#6B6593",
     fontSize: 10,
     textAlign: "center",
+  },
+  addToCartButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noProductsContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  noProductsText: {
+    fontSize: 14,
+    fontStyle: 'italic',
   },
 });
 

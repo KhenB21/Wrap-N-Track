@@ -1,7 +1,31 @@
-import React from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, Image, StyleSheet, ActivityIndicator, TouchableOpacity } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function SplashScreen({ navigation }) {
+export default function SplashScreen() {
+  const [showSkip, setShowSkip] = useState(false);
+
+  useEffect(() => {
+    console.log('SplashScreen starting...');
+    
+    // Show skip button after 2 seconds
+    const skipTimer = setTimeout(() => {
+      setShowSkip(true);
+    }, 2000);
+    
+    // Just show splash screen - AppNavigator handles navigation
+    console.log('SplashScreen - AppNavigator will handle navigation based on auth state');
+    
+    return () => {
+      clearTimeout(skipTimer);
+    };
+  }, []);
+
+  const handleSkip = () => {
+    console.log('User skipped splash screen');
+    // AppNavigator will handle navigation
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>
@@ -11,12 +35,18 @@ export default function SplashScreen({ navigation }) {
           resizeMode="contain"
         />
       </View>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate("Login")}
-      >
-        <Text style={styles.buttonText}>GET STARTED</Text>
-      </TouchableOpacity>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6B6593" />
+        <Text style={styles.loadingText}>Loading...</Text>
+        {showSkip && (
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handleSkip}
+          >
+            <Text style={styles.skipButtonText}>Skip</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -62,6 +92,30 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "bold",
+    letterSpacing: 1,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  loadingText: {
+    color: "#6B6593",
+    fontSize: 14,
+    marginTop: 10,
+    letterSpacing: 1,
+  },
+  skipButton: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#6B6593",
+  },
+  skipButtonText: {
+    color: "#6B6593",
+    fontSize: 14,
+    fontWeight: "600",
     letterSpacing: 1,
   },
 });

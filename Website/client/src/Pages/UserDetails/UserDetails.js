@@ -20,6 +20,13 @@ export default function UserDetails() {
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const fileInputRef = useRef();
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -76,27 +83,85 @@ export default function UserDetails() {
       const formData = new FormData();
       formData.append('profilePicture', file);
       const token = localStorage.getItem('token');
-      const response = await api.post('/api/user/profile-picture', {
-        method: 'POST',
+      const response = await api.post('/api/user/profile-picture', formData, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
       });
-      if (!response.ok) {
+      
+      if (!response.data.success) {
         throw new Error('Failed to upload profile picture');
       }
-      const data = await response.json();
-      setUserData((prev) => ({ ...prev, profile_picture_path: data.profile_picture_path }));
+      
+      setUserData((prev) => {
+        const updatedUser = { ...prev, profile_picture_data: response.data.profile_picture_data };
+        // Update localStorage with the new state
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        return updatedUser;
+      });
       setPreviewUrl(null);
-      // Update localStorage user object with new profile_picture_path
-      const updatedUser = { ...userData, profile_picture_path: data.profile_picture_path };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      window.location.reload(); // Force reload so all pages update the mini icon
+      
+      // Show success message
+      alert('Profile picture updated successfully!');
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to upload profile picture');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setPasswordError('');
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError('All fields are required');
+      return;
+    }
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+    
+    if (passwordData.newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters long');
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await api.put('/api/user/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.data.success) {
+        alert('Password changed successfully!');
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        setShowPasswordChange(false);
+      }
+    } catch (err) {
+      setPasswordError(err.response?.data?.message || 'Failed to change password');
     }
   };
 
@@ -197,6 +262,57 @@ export default function UserDetails() {
                 <label>Last Updated:</label>
                 <span>{new Date().toLocaleString()}</span>
               </div>
+            </div>
+            
+            {/* Password Change Section */}
+            <div style={{ marginTop: '20px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
+              <button 
+                className="secondary-btn" 
+                onClick={() => setShowPasswordChange(!showPasswordChange)}
+                style={{ marginBottom: '10px' }}
+              >
+                {showPasswordChange ? 'Cancel' : 'Change Password'}
+              </button>
+              
+              {showPasswordChange && (
+                <form onSubmit={handlePasswordSubmit}>
+                  <h3>Change Password</h3>
+                  {passwordError && <div className="error" role="alert">{passwordError}</div>}
+                  <div className="form-group">
+                    <label>Current Password</label>
+                    <input 
+                      type="password" 
+                      name="currentPassword" 
+                      value={passwordData.currentPassword} 
+                      onChange={handlePasswordChange} 
+                      required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>New Password</label>
+                    <input 
+                      type="password" 
+                      name="newPassword" 
+                      value={passwordData.newPassword} 
+                      onChange={handlePasswordChange} 
+                      required 
+                      minLength="8"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Confirm New Password</label>
+                    <input 
+                      type="password" 
+                      name="confirmPassword" 
+                      value={passwordData.confirmPassword} 
+                      onChange={handlePasswordChange} 
+                      required 
+                      minLength="8"
+                    />
+                  </div>
+                  <button className="btn btn-primary" type="submit" style={{ marginTop: '10px' }}>Change Password</button>
+                </form>
+              )}
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 .dashboard-main {
   margin-left: 220px;
   width: calc(100% - 220px);
+  max-width: none;
 }
 
 .order-action-bar {

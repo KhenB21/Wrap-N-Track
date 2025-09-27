@@ -1113,7 +1113,7 @@ export default function OrderProcess() {
         setOtpCode('');
         setPendingOrderPayload(null);
         // optionally redirect to orders or order summary
-        navigate('/customer/orders');
+        navigate('/customer-cart');
       }
     } catch (err) {
       console.error('OTP verification or order placement failed', err);

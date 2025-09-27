@@ -1,0 +1,92 @@
+/* Global App Styles */
+
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Admin Dashboard Layout Fixes */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  background: #f6f6f8;
+}
+
+.dashboard-main {
+  flex: 1;
+  padding: 0 32px 0 32px;
+  display: flex;
+  flex-direction: column;
+  margin-left: 220px;
+  width: calc(100% - 220px);
+  max-width: none !important; /* Override any max-width constraints */
+}
+
+/* Ensure all admin pages use full width */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-left: 220px;
+  width: calc(100% - 220px);
+  max-width: none !important; /* Override any max-width constraints */
+}
+
+/* Override common container constraints */
+.dashboard-container .container,
+.dashboard-container .content-container,
+.dashboard-container .page-container {
+  max-width: none !important;
+  margin: 0 !important;
+  width: 100% !important;
+}
+
+/* Ensure tables and content use full width */
+.dashboard-main table,
+.dashboard-main .table-container,
+.dashboard-main .content-area {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+/* Fix for specific admin pages */
+.account-management,
+.inventory-container,
+.order-management-dashboard,
+.dashboard-container .dashboard-container {
+  max-width: none !important;
+  margin: 0 !important;
+  width: 100% !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dashboard-main,
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+    padding: 16px;
+  }
+}
+
+/* Dark mode support */
+body.dark {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
+
+body.dark .dashboard-container {
+  background-color: #1a1a1a;
+}
+
+body.dark .dashboard-main {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}

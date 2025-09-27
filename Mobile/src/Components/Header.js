@@ -1,96 +1,125 @@
-import React from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  StatusBar,
+} from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../Context/ThemeContext';
+import { useNavigation } from '@react-navigation/native';
 
-export default function Header({
-  showMenu = false,
-  showBack = false,
-  showCart = false,
-  onMenuPress,
-  onBackPress,
-  onCartPress,
-  title = "",
-  logoType = "image", 
-  darkMode = false,
-}) {
-  const bgColor = darkMode ? "#242526" : "#6B6593";
-  const iconColor = darkMode ? "#E4E6EB" : "#fff";
-  const textColor = darkMode ? "#E4E6EB" : "#fff";
+const Header = ({ 
+  title, 
+  showMenu = false, 
+  showBack = false, 
+  showAdd = false, 
+  onAddPress = null,
+  rightComponent = null 
+}) => {
+  const { colors } = useTheme();
+  const navigation = useNavigation();
+
+  const handleMenuPress = () => {
+    navigation.openDrawer();
+  };
+
+  const handleBackPress = () => {
+    navigation.goBack();
+  };
+
   return (
-    <View style={[styles.header, { backgroundColor: bgColor }]}>
-      {showMenu ? (
-        <TouchableOpacity style={styles.iconBtn} onPress={onMenuPress}>
-          <MaterialCommunityIcons name="menu" size={36} color={iconColor} />
-        </TouchableOpacity>
-      ) : showBack ? (
-        <TouchableOpacity style={styles.iconBtn} onPress={onBackPress}>
-          <MaterialCommunityIcons
-            name="arrow-left"
-            size={28}
-            color={iconColor}
-          />
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.iconBtn} />
-      )}
-      <View style={styles.headerCenter}>
-        {logoType === "image" ? (
-          <Image
-            source={require("../Images/Logo/pensee-name-only-white.png")}
-            style={[styles.logo, { width: 180, height: 60 }]}
-            resizeMode="contain"
-          />
-        ) : (
-          <Text style={[styles.logoText, { color: textColor }]}>{title}</Text>
-        )}
+    <View style={[styles.container, { backgroundColor: colors.primary }]}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      <View style={styles.content}>
+        <View style={styles.leftSection}>
+          {showBack && (
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleBackPress}
+            >
+              <MaterialCommunityIcons
+                name="arrow-left"
+                size={24}
+                color={colors.buttonText}
+              />
+            </TouchableOpacity>
+          )}
+          {showMenu && (
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleMenuPress}
+            >
+              <MaterialCommunityIcons
+                name="menu"
+                size={24}
+                color={colors.buttonText}
+              />
+            </TouchableOpacity>
+          )}
+          <Text style={[styles.title, { color: colors.buttonText }]}>
+            {title}
+          </Text>
+        </View>
+        
+        <View style={styles.rightSection}>
+          {showAdd && onAddPress && (
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={onAddPress}
+            >
+              <MaterialCommunityIcons
+                name="plus"
+                size={24}
+                color={colors.buttonText}
+              />
+            </TouchableOpacity>
+          )}
+          {rightComponent}
+        </View>
       </View>
-      {showCart ? (
-        <TouchableOpacity style={styles.iconBtn} onPress={onCartPress}>
-          <MaterialCommunityIcons
-            name="cart-outline"
-            size={28}
-            color={iconColor}
-          />
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.iconBtn} />
-      )}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  header: {
-    backgroundColor: "#6B6593",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 36,
-    paddingBottom: 10,
-    paddingHorizontal: 18,
+  container: {
+    paddingTop: StatusBar.currentHeight || 0,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  iconBtn: {
-    padding: 8,
-    minWidth: 44,
-    alignItems: "center",
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 56,
+    paddingHorizontal: 16,
   },
-  headerCenter: {
+  leftSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
-  logo: {
-    width: 180,
-    height: 60,
-    alignSelf: "center",
+  iconButton: {
+    padding: 8,
+    marginRight: 8,
   },
-  logoText: {
-    color: "#fff",
-    fontSize: 26,
-    fontFamily: "serif",
-    fontWeight: "400",
-    textAlign: "center",
-    lineHeight: 30,
-    letterSpacing: 1,
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    flex: 1,
+  },
+  rightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addButton: {
+    padding: 8,
   },
 });
+
+export default Header;

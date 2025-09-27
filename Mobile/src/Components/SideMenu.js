@@ -12,7 +12,8 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../Context/ThemeContext";
 import { useNavigation } from "@react-navigation/native";
-import { useProfile } from "../Context/ProfileContext"; // <-- Add this import
+import { useProfile } from "../Context/ProfileContext";
+import { useAuth } from "../Context/AuthContext";
 
 const { width } = Dimensions.get("window");
 const MENU_WIDTH = width * 0.7;
@@ -23,13 +24,29 @@ export default function SideMenu({ visible, onClose }) {
   const [displayDropdown, setDisplayDropdown] = useState(false);
   const navigation = useNavigation();
 
-  const { profile } = useProfile(); // { name, avatar, ... }
+  const { profile } = useProfile();
+  const { user, logout, isEmployee, isCustomer } = useAuth();
 
   const menuBg = darkMode ? "#242526" : "#6B6593";
   const cardBg = darkMode ? "#393A3B" : "#B6B3C6";
   const textColor = darkMode ? "#E4E6EB" : "#fff";
   const subTextColor = darkMode ? "#B0B3B8" : "#fff";
   const borderColor = darkMode ? "#3A3B3C" : "#C7C5D1";
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      onClose(); // Close the side menu
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still close the menu even if logout fails
+      onClose();
+    }
+  };
 
   useEffect(() => {
     Animated.timing(slideAnim, {
@@ -75,9 +92,17 @@ export default function SideMenu({ visible, onClose }) {
             }
             style={styles.avatar}
           />
-          <Text style={[styles.userName, { color: textColor }]}>
-            {profile?.name || "JUAN DELA CRUZ"}
-          </Text>
+          <View style={styles.userInfo}>
+            <Text style={[styles.userName, { color: textColor }]}>
+              {user?.name || profile?.name || "User"}
+            </Text>
+            <Text style={[styles.userRole, { color: subTextColor }]}>
+              {isEmployee() ? `Employee - ${user?.role || 'Staff'}` : 'Customer'}
+            </Text>
+            <Text style={[styles.userEmail, { color: subTextColor }]}>
+              {user?.email || user?.email_address || profile?.email || ''}
+            </Text>
+          </View>
         </View>
         {/* Menu Items */}
         <View style={styles.menuItems}>
@@ -174,6 +199,7 @@ export default function SideMenu({ visible, onClose }) {
         {/* Logout */}
         <TouchableOpacity
           style={[styles.logoutRow, { backgroundColor: cardBg }]}
+          onPress={handleLogout}
         >
           <MaterialCommunityIcons
             name="logout"
@@ -236,6 +262,19 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontFamily: "serif",
     letterSpacing: 1,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userRole: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  userEmail: {
+    fontSize: 11,
+    marginTop: 2,
+    opacity: 0.8,
   },
   menuItems: {
     marginTop: 8,

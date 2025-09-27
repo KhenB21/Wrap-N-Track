@@ -381,6 +381,77 @@ export default function OrderDetails() {
   const handleEditOrderSubmit = (e) => { e.preventDefault(); console.log('handleEditOrderSubmit called', form); setShowEditModal(false); /* Add API call here */ };
   const handleUpdateProducts = () => { console.log('handleUpdateProducts called'); setShowEditProductsModal(false); /* Add API call here */ };
   const handleCompleteConfirm = () => { console.log('handleCompleteConfirm called'); setShowCompleteConfirm(false); /* Add API call here */ };
+  
+  const handlePaymentMethodChange = async (newPaymentMethod) => {
+    if (!selectedOrder || !selectedOrder.order_id) {
+      console.error('No order selected or order_id is missing.');
+      console.error('selectedOrder:', selectedOrder);
+      return;
+    }
+
+    // Ensure order_id is properly formatted
+    const orderId = selectedOrder.order_id;
+    if (!orderId || orderId === '') {
+      console.error('Order ID is empty or invalid:', orderId);
+      alert('Invalid order ID. Please refresh and try again.');
+      return;
+    }
+
+    console.log('Updating payment method for order:', orderId);
+    console.log('New payment method:', newPaymentMethod);
+    console.log('Current selected order:', selectedOrder);
+
+    try {
+      setLoading(true);
+      const url = `/api/order-management/orders/${encodeURIComponent(orderId)}/status`;
+      console.log('API URL:', url);
+      console.log('API Base URL:', api.defaults.baseURL);
+      console.log('Full URL:', `${api.defaults.baseURL}${url}`);
+      
+      const payload = {
+        status: selectedOrder.status, // Keep current status
+        payment_method: newPaymentMethod,
+        notes: `Payment method updated to ${newPaymentMethod}`
+      };
+      console.log('Request payload:', payload);
+      
+      const response = await api.put(url, payload);
+      console.log('API Response:', response.data);
+
+      if (response.data.success) {
+        console.log('Payment method update successful, updating local state...');
+        
+        // Update the selected order with new payment method immediately
+        setSelectedOrder(prev => {
+          const updated = {
+            ...prev,
+            payment_method: newPaymentMethod
+          };
+          console.log('Updated selected order:', updated);
+          return updated;
+        });
+        
+        // Refresh the orders list
+        console.log('Refreshing orders list...');
+        await fetchOrders();
+        
+        // The local state update above should be sufficient
+        // The fetchOrders() call will refresh the orders list with updated data
+        console.log('Payment method update completed successfully');
+        
+        alert('Payment method updated successfully');
+      } else {
+        console.error('API returned success: false', response.data);
+        alert(`Failed to update payment method: ${response.data.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error updating payment method:', error);
+      alert('Failed to update payment method');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleEditOrder = (orderToEdit) => { 
     console.log('handleEditOrder called', orderToEdit); 
     setForm(orderToEdit); // Populate form with selected order data
@@ -395,8 +466,8 @@ export default function OrderDetails() {
     }
 
     const normalizedStatus = normalizeStatus(selectedOrder.status);
-    if (normalizedStatus !== 'pending' && normalizedStatus !== 'tobepack') {
-      alert('Only orders with status "Pending" or "To Be Pack" can be cancelled.');
+    if (normalizedStatus !== 'pending' && normalizedStatus !== 'tobepacked') {
+      alert('Only orders with status "Pending" or "To Be Packed" can be cancelled.');
       return;
     }
 
@@ -468,8 +539,8 @@ export default function OrderDetails() {
       } else {
         console.log('Processing orders into categories...');
         setPendingOrders(allOrders.filter(o => normalizeStatus(o.status) === 'pending'));
-        setToBePackOrders(allOrders.filter(o => normalizeStatus(o.status) === 'tobepack'));
-        setReadyToDeliverOrders(allOrders.filter(o => normalizeStatus(o.status) === 'readyfordeliver' || normalizeStatus(o.status) === 'confirmed'));
+        setToBePackOrders(allOrders.filter(o => normalizeStatus(o.status) === 'tobepacked'));
+        setReadyToDeliverOrders(allOrders.filter(o => normalizeStatus(o.status) === 'readyfordelivery' || normalizeStatus(o.status) === 'confirmed'));
         setEnRouteOrders(allOrders.filter(o => normalizeStatus(o.status) === 'enroute'));
         setCompletedOrders(allOrders.filter(o => normalizeStatus(o.status) === 'completed'));
         console.log('Orders processed and state updated.');
@@ -596,7 +667,7 @@ export default function OrderDetails() {
           {/* To Be Pack Column */}
           <div style={styles.column}>
             <div style={styles.columnHeader}>
-              <h3 style={styles.columnTitle}>To Be Pack</h3>
+              <h3 style={styles.columnTitle}>To Be Packed</h3>
               <span style={styles.orderCount}>{toBePackOrders.length}</span>
             </div>
             <div style={styles.orderList}>
@@ -625,7 +696,7 @@ export default function OrderDetails() {
           {/* Ready to Deliver Column */}
           <div style={styles.column}>
             <div style={styles.columnHeader}>
-              <h3 style={styles.columnTitle}>Ready for Deliver</h3>
+              <h3 style={styles.columnTitle}>Ready for Delivery</h3>
               <span style={styles.orderCount}>{readyToDeliverOrders.length}</span>
             </div>
             <div style={styles.orderList}>
@@ -1132,7 +1203,7 @@ export default function OrderDetails() {
 
         {/* Order Details Modal for selectedOrder */}
         {selectedOrder && (() => {
-          const isToBePacked = normalizeStatus(selectedOrder.status) === normalizeStatus('tobepack');
+          const isToBePacked = normalizeStatus(selectedOrder.status) === normalizeStatus('To Be Packed');
           // Resolve shipping address from several possible sources
           const statusNormalized = normalizeStatus(selectedOrder.status || '');
           const isConfirmed = statusNormalized.includes('confirm') || statusNormalized === 'confirmed';
@@ -1177,7 +1248,41 @@ export default function OrderDetails() {
                 <span>{selectedOrder && selectedOrder.order_id ? selectedOrder.order_id : '-'}</span>
               </div>
               <div style={{marginBottom:18, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Date Ordered:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.order_date ? (new Date(selectedOrder.order_date).toLocaleDateString('en-US')) : '-'}</span></div>
-              <div style={{marginBottom:32, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Package Name:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.package_name || '-'}</span></div>
+              {/* Payment Method Section - Only show for Pending orders */}
+              {normalizeStatus(selectedOrder.status) === normalizeStatus('pending') && (
+                <div style={{marginBottom:32, fontSize:18}}>
+                  <span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Payment Method:</span>
+                  <select 
+                    value={selectedOrder.payment_method || ''} 
+                    onChange={(e) => handlePaymentMethodChange(e.target.value)}
+                    disabled={loading}
+                    style={{
+                      marginLeft: 6,
+                      padding: '8px 12px',
+                      fontSize: '16px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      backgroundColor: loading ? '#f5f5f5' : '#fff',
+                      minWidth: '200px',
+                      opacity: loading ? 0.6 : 1,
+                      cursor: loading ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    <option value="">Select payment method</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Bank">Bank</option>
+                    <option value="E-Wallet">E-Wallet</option>
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Debit Card">Debit Card</option>
+                  </select>
+                  {loading && (
+                    <span style={{marginLeft: 10, fontSize: '14px', color: '#666'}}>
+                      Updating...
+                    </span>
+                  )}
+                </div>
+              )}
+              
               {/* Action Buttons */}
               <div style={{display:'flex',gap:18,marginTop:8, justifyContent:'center', alignItems:'center'}}>
                 <button 
@@ -1194,7 +1299,7 @@ export default function OrderDetails() {
                 >
                   Cancel Order
                 </button>
-                {(normalizeStatus(selectedOrder.status) === normalizeStatus('pending') || normalizeStatus(selectedOrder.status) === normalizeStatus('tobepack')) && (
+                {(normalizeStatus(selectedOrder.status) === normalizeStatus('pending') || normalizeStatus(selectedOrder.status) === normalizeStatus('To Be Packed')) && (
                 <button
                   style={{
                     padding: '12px 24px',
@@ -1239,12 +1344,12 @@ export default function OrderDetails() {
                       }));
                       let payload = { products: lightweightProducts }; // Use lightweight products
 
-                    if (currentStatus === normalizeStatus('tobepack')) {
-                      newStatus = 'Ready for Deliver';
+                    if (currentStatus === normalizeStatus('To Be Packed')) {
+                      newStatus = 'Ready for Delivery';
                       confirmMessage = 'This order will be marked as Ready for Delivery. Proceed?';
                       payload.status = newStatus;
                     } else if (currentStatus === 'pending') {
-                      newStatus = 'To Be Pack';
+                      newStatus = 'To Be Packed';
                       confirmMessage = 'Are you sure you want to confirm this order? This will finalize the details and prepare it for processing.';
                       // For pending, send all relevant fields from selectedOrder that can be updated.
                       // Avoid sending the entire selectedOrder if it contains UI-specific state not meant for the backend.
@@ -1297,10 +1402,10 @@ export default function OrderDetails() {
                       }
                     }
                   }}>
-                  {normalizeStatus(selectedOrder.status) === normalizeStatus('tobepack') ? 'Confirm Delivery' : 'Confirm Order'}
+                  {normalizeStatus(selectedOrder.status) === normalizeStatus('To Be Packed') ? 'Confirm Delivery' : 'Confirm Order'}
                 </button>
               )}
-              {(normalizeStatus(selectedOrder.status) === normalizeStatus('ready for deliver') || normalizeStatus(selectedOrder.status) === normalizeStatus('confirmed')) && (
+              {(normalizeStatus(selectedOrder.status) === normalizeStatus('Ready for Delivery') || normalizeStatus(selectedOrder.status) === normalizeStatus('ready for deliver') || normalizeStatus(selectedOrder.status) === normalizeStatus('confirmed')) && (
                 <button
                   style={{ padding:'12px 24px', fontSize:15, fontWeight:700, background:'#4caf50', color:'#fff', border:'none', borderRadius:8, cursor:'pointer' }}
                   onClick={async ()=>{

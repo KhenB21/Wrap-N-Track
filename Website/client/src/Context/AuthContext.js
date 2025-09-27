@@ -81,13 +81,34 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Security function to clear conflicting tokens
+  const clearConflictingTokens = (currentUserType) => {
+    if (currentUserType === 'employee') {
+      localStorage.removeItem('customerToken');
+      localStorage.removeItem('customer');
+    } else if (currentUserType === 'customer') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+  };
+
+  // Security function to validate user access
+  const validateAccess = (requiredUserType) => {
+    if (!user) return false;
+    if (user.source !== requiredUserType) return false;
+    return true;
+  };
+
   const value = {
     user,
     isAuthenticated: !!user,
     isEmployee: user?.source === 'employee',
+    isCustomer: user?.source === 'customer',
     isLoading: loading,
     login,
     logout,
+    clearConflictingTokens,
+    validateAccess
   };
 
   return (

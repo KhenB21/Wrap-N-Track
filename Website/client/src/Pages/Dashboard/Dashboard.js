@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
+import withEmployeeAuth from "../../Components/withEmployeeAuth";
 import api from '../../api';
 import "./Dashboard.css";
 
@@ -123,17 +124,17 @@ function Dashboard() {
         }
 
         try {
-          const historyRes = await api.get('/api/orders/history');
-          if (Array.isArray(historyRes.data)) {
+          const historyRes = await api.get('/api/order-management/archived-orders');
+          if (historyRes.data && Array.isArray(historyRes.data.orders)) {
             // merge by order_id to avoid duplicates
             const map = new Map();
             (orders || []).forEach(o => map.set(o.order_id || o.id || JSON.stringify(o), o));
-            (historyRes.data || []).forEach(o => map.set(o.order_id || o.id || JSON.stringify(o), o));
+            (historyRes.data.orders || []).forEach(o => map.set(o.order_id || o.id || JSON.stringify(o), o));
             orders = Array.from(map.values());
           }
         } catch (hErr) {
           // If history endpoint isn't available, keep orders as-is
-          console.warn('Failed to fetch /api/orders/history (optional):', hErr);
+          console.warn('Failed to fetch /api/order-management/archived-orders (optional):', hErr);
         }
 
         setOrderHistory(Array.isArray(orders) ? orders : []);
@@ -389,4 +390,4 @@ function Dashboard() {
   );
 }
 
-export default Dashboard;
+export default withEmployeeAuth(Dashboard);

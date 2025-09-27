@@ -25,13 +25,20 @@ const notificationsRouter = require('./routes/notifications');
 const inventoryRouter = require('./routes/inventory');
 const availableInventoryRouter = require('./routes/available-inventory');
 const inventoryReportsRouter = require('./routes/inventory-reports');
+const salesReportsRouter = require('./routes/sales-reports');
 const dashboardRouter = require('./routes/dashboard');
+const khenTestDataRouter = require('./routes/khen-test-data');
 
 const authRouter = require('./routes/auth');
 const customerRoutes = require('./routes/customer');
 const employeeRouter = require('./routes/employee');
+const accountManagementRouter = require('./routes/accountManagement');
+const cartRouter = require('./routes/cart');
+const orderManagementRouter = require('./routes/order-management');
+const customerOrdersRouter = require('./routes/customer-orders');
 const verifyJwt = require('./middleware/verifyJwt')();
 const requireRole = require('./middleware/requireRole');
+const requireReadOnly = require('./middleware/requireReadOnly');
 
 
 const app = express();
@@ -47,8 +54,11 @@ pool.connect(async (err, client, release) => {
     console.log('✅ Database pool connected (initial test)');
     release();
     
-    // Run auto-migrations after successful connection
-    await runAutoMigrations();
+    // Run auto-migrations after successful connection (non-blocking)
+    // Temporarily disabled to fix server startup
+    // runAutoMigrations().catch(err => {
+    //   console.error('Migration error (non-blocking):', err.message);
+    // });
   }
 });
 
@@ -246,15 +256,75 @@ app.use('/api/customers', otpRouter);      // legacy alias (remove after fronten
 app.use('/api/suppliers', suppliersRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/supplier-orders', supplierOrdersRouter);
-app.use('/api/notifications', notificationsRouter);
+app.use('/api/notifications', verifyJwt, requireReadOnly(), notificationsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/customer', customerRoutes);
-app.use('/api/inventory', inventoryRouter);
-app.use('/api/available-inventory', availableInventoryRouter);
-app.use('/api/inventory-reports', inventoryReportsRouter);
-app.use('/api/dashboard', dashboardRouter);
+app.use('/api/inventory', verifyJwt, requireReadOnly(), inventoryRouter);
+app.use('/api/available-inventory', verifyJwt, requireReadOnly(), availableInventoryRouter);
+app.use('/api/inventory-reports', verifyJwt, requireReadOnly(), inventoryReportsRouter);
+
+// Public inventory endpoint for mobile app (no authentication required)
+app.get('/api/public/inventory', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(`
+      SELECT 
+        i.sku, 
+        i.name, 
+        i.description, 
+        i.quantity, 
+        i.unit_price, 
+        i.category, 
+        i.last_updated,
+        i.uom,
+        i.conversion_qty,
+        i.expiration,
+        CASE 
+          WHEN i.image_data IS NOT NULL THEN encode(i.image_data, 'base64')
+          ELSE NULL 
+        END as image_data,
+        COALESCE(SUM(CASE WHEN o.status IN ('Pending', 'To Be Packed', 'Order Shipped Out', 'Ready for Delivery') THEN op.quantity ELSE 0 END), 0) AS ordered_quantity
+      FROM 
+        inventory_items i
+      LEFT JOIN 
+        order_products op ON i.sku = op.sku
+      LEFT JOIN 
+        orders o ON op.order_id = o.order_id
+      GROUP BY 
+        i.sku, i.name, i.description, i.quantity, i.unit_price, i.category, i.last_updated, i.uom, i.conversion_qty, i.expiration, i.image_data
+      ORDER BY 
+        i.last_updated DESC
+    `);
+    
+    res.json({
+      success: true,
+      inventory: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching public inventory:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch inventory',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// Unprotected test data endpoints for development
+app.use('/api/test', inventoryReportsRouter);
+app.use('/api/khen-test', khenTestDataRouter);
+app.use('/api/sales-reports', verifyJwt, requireReadOnly(), salesReportsRouter);
+app.use('/api/dashboard', verifyJwt, requireReadOnly(), dashboardRouter);
 // Employee-only routes (protected)
-app.use('/api/employee', verifyJwt, requireRole(['admin','business_developer','creatives','director','sales_manager','assistant_sales','packer']), employeeRouter);
+app.use('/api/employee', verifyJwt, requireRole(['admin','business_developer','creatives','director','sales_manager','assistant_sales','packer']), requireReadOnly(), employeeRouter);
+
+// Account Management routes (Admin only)
+app.use('/api/account-management', accountManagementRouter);
+app.use('/api/cart', cartRouter);
+app.use('/api/order-management', orderManagementRouter);
+app.use('/api/customer-orders', customerOrdersRouter);
 
 // Add error handling middleware
 app.use((err, req, res, next) => {
@@ -336,7 +406,8 @@ pool.connect((err, client, release) => {
       cellphone VARCHAR(20),
       email_address VARCHAR(255),
       archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      archived_by INTEGER REFERENCES users(user_id)
+      archived_by INTEGER REFERENCES users(user_id),
+      customer_id INTEGER REFERENCES customer_details(customer_id)
     );
   `, (err) => {
     if (err) {
@@ -359,6 +430,29 @@ pool.connect((err, client, release) => {
       console.error('Error ensuring order_history_products table:', err);
     } else {
       console.log('order_history_products table is ready');
+    }
+  });
+
+  // Add customer_id column to order_history table if it doesn't exist
+  client.query(`
+    ALTER TABLE order_history 
+    ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customer_details(customer_id);
+  `, (err) => {
+    if (err) {
+      console.error('Error adding customer_id to order_history:', err);
+    } else {
+      console.log('customer_id column added to order_history table');
+    }
+  });
+
+  // Create index for better performance
+  client.query(`
+    CREATE INDEX IF NOT EXISTS idx_order_history_customer_id ON order_history(customer_id);
+  `, (err) => {
+    if (err) {
+      console.error('Error creating index on order_history.customer_id:', err);
+    } else {
+      console.log('Index on order_history.customer_id created');
     }
   });
 
@@ -854,6 +948,72 @@ app.post('/api/user/profile-picture', verifyToken, upload.single('profilePicture
   }
 });
 
+// Change password endpoint for employees
+app.put('/api/user/change-password', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long'
+      });
+    }
+
+    // Get current password hash
+    const userResult = await pool.query(
+      'SELECT password_hash FROM users WHERE user_id = $1',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isValidPassword = await bcrypt.compare(currentPassword, userResult.rows[0].password_hash);
+    if (!isValidPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Hash new password
+    const saltRounds = 10;
+    const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password
+    await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE user_id = $2',
+      [newPasswordHash, userId]
+    );
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password'
+    });
+  }
+});
+
 // Add a new inventory item (with image upload to DB)
 app.post('/api/inventory', upload.single('image'), async (req, res) => {
   const client = await pool.connect();
@@ -1047,7 +1207,7 @@ app.get('/api/inventory', async (req, res) => {
           WHEN i.image_data IS NOT NULL THEN encode(i.image_data, 'base64')
           ELSE NULL 
         END as image_data,
-        COALESCE(SUM(CASE WHEN o.status IN ('Pending', 'To be pack', 'To be ship', 'Out for Delivery') THEN op.quantity ELSE 0 END), 0) AS ordered_quantity
+        COALESCE(SUM(CASE WHEN o.status IN ('Pending', 'To Be Packed', 'Order Shipped Out', 'Ready for Delivery') THEN op.quantity ELSE 0 END), 0) AS ordered_quantity
       FROM 
         inventory_items i
       LEFT JOIN 
@@ -1442,6 +1602,24 @@ app.get('/api/orders', async (req, res) => {
 // Get all archived orders
 app.get('/api/orders/history', async (req, res) => {
   try {
+    // Get customer_id from token
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    let customerId;
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      customerId = decoded.customer_id;
+    } catch (err) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+
+    if (!customerId) {
+      return res.status(401).json({ message: 'Customer authentication required' });
+    }
+
     const result = await pool.query(`
       SELECT 
         oh.*,
@@ -1462,9 +1640,10 @@ app.get('/api/orders/history', async (req, res) => {
       LEFT JOIN users u ON oh.archived_by = u.user_id
       LEFT JOIN order_history_products ohp ON oh.order_id = ohp.order_id
       LEFT JOIN inventory_items i ON ohp.sku = i.sku
+      WHERE oh.customer_id = $1
       GROUP BY oh.order_id, u.name, u.profile_picture_data
       ORDER BY oh.archived_at DESC
-    `);
+    `, [customerId]);
     
     const orders = result.rows.map(order => ({
       ...order,
@@ -1679,12 +1858,12 @@ app.get('/api/inventory', async (req, res) => {
         i.updated_at,
         i.archived_at,
         COALESCE(SUM(CASE 
-                       WHEN o.status NOT IN ('DELIVERED', 'COMPLETED', 'CANCELLED') 
+                       WHEN o.status NOT IN ('Order Received', 'Completed', 'Cancelled') 
                        THEN op.quantity 
                        ELSE 0 
                      END), 0) AS ordered_quantity,
         COALESCE(SUM(CASE 
-                       WHEN o.status IN ('DELIVERED', 'COMPLETED') 
+                       WHEN o.status IN ('Order Received', 'Completed') 
                        THEN op.quantity 
                        ELSE 0 
                      END), 0) AS delivered_quantity
@@ -1877,3 +2056,7 @@ app.post('/api/inventory/add-stock', async (req, res) => {
         client.release();
     }
 });
+
+// Start notification scheduler
+const scheduler = require('./scripts/scheduler');
+scheduler.start();
