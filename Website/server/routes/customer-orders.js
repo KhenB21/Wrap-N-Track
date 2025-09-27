@@ -31,6 +31,8 @@ router.get('/orders', async (req, res) => {
       });
     }
 
+    console.log(`Fetching orders for customer_id: ${customerId}`);
+
     // Fetch active orders from orders table
     const activeOrdersResult = await pool.query(`
       SELECT 
@@ -78,6 +80,7 @@ router.get('/orders', async (req, res) => {
 
     // Fetch completed/cancelled orders from order_history table
     // Include orders that match customer_id OR have matching email/name for this customer
+    console.log(`Fetching archived orders for customer_id: ${customerId}`);
     const historyOrdersResult = await pool.query(`
       SELECT 
         oh.order_id,
@@ -154,9 +157,17 @@ router.get('/orders', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching customer orders:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch orders'
+      message: 'Failed to fetch orders',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
