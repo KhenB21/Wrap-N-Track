@@ -53,27 +53,9 @@ router.get('/orders', async (req, res) => {
         o.order_shipped_at,
         o.order_received_at,
         o.status_updated_at,
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'sku', op.sku,
-              'name', ii.name,
-              'quantity', op.quantity,
-              'unit_price', ii.unit_price,
-              'image_data', ii.image_data
-            )
-          ) FILTER (WHERE op.sku IS NOT NULL),
-          '[]'::json
-        ) as products
+        '[]'::json as products
       FROM orders o
-      LEFT JOIN order_products op ON o.order_id = op.order_id
-      LEFT JOIN inventory_items ii ON op.sku = ii.sku
       WHERE o.customer_id = $1
-      GROUP BY o.order_id, o.name, o.shipped_to, o.order_date, o.expected_delivery, 
-               o.status, o.shipping_address, o.total_cost, o.payment_type, 
-               o.payment_method, o.remarks, o.telephone, o.cellphone, 
-               o.email_address, o.order_placed_at, o.order_paid_at, 
-               o.order_shipped_at, o.order_received_at, o.status_updated_at
     `, [customerId]);
 
     // Fetch completed/cancelled orders from order_history table
@@ -99,21 +81,8 @@ router.get('/orders', async (req, res) => {
         oh.archived_at as order_shipped_at,
         oh.archived_at as order_received_at,
         oh.archived_at as status_updated_at,
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'sku', ohp.sku,
-              'name', ii.name,
-              'quantity', ohp.quantity,
-              'unit_price', ohp.unit_price,
-              'image_data', ii.image_data
-            )
-          ) FILTER (WHERE ohp.sku IS NOT NULL),
-          '[]'::json
-        ) as products
+        '[]'::json as products
       FROM order_history oh
-      LEFT JOIN order_history_products ohp ON oh.order_id = ohp.order_id
-      LEFT JOIN inventory_items ii ON ohp.sku = ii.sku
       LEFT JOIN customer_details cd ON cd.customer_id = $1
       WHERE oh.customer_id = $1 
          OR (oh.customer_id IS NULL AND (
@@ -121,10 +90,6 @@ router.get('/orders', async (req, res) => {
            OR oh.name = cd.name 
            OR oh.cellphone = cd.phone_number
          ))
-      GROUP BY oh.order_id, oh.customer_name, oh.shipped_to, oh.order_date, oh.expected_delivery, 
-               oh.status, oh.shipping_address, oh.total_cost, oh.payment_type, 
-               oh.payment_method, oh.remarks, oh.telephone, oh.cellphone, 
-               oh.email_address, oh.archived_at
     `, [customerId]);
 
     // Combine both results
@@ -485,26 +450,8 @@ async function getAllOrdersForEmployee(req, res) {
         o.order_received_at,
         o.status_updated_at,
         o.customer_id,
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'sku', op.sku,
-              'name', ii.name,
-              'quantity', op.quantity,
-              'unit_price', ii.unit_price,
-              'image_data', ii.image_data
-            )
-          ) FILTER (WHERE op.sku IS NOT NULL),
-          '[]'::json
-        ) as products
+        '[]'::json as products
       FROM orders o
-      LEFT JOIN order_products op ON o.order_id = op.order_id
-      LEFT JOIN inventory_items ii ON op.sku = ii.sku
-      GROUP BY o.order_id, o.name, o.shipped_to, o.order_date, o.expected_delivery, 
-               o.status, o.shipping_address, o.total_cost, o.payment_type, 
-               o.payment_method, o.remarks, o.telephone, o.cellphone, 
-               o.email_address, o.order_placed_at, o.order_paid_at, 
-               o.order_shipped_at, o.order_received_at, o.status_updated_at, o.customer_id
     `);
 
     // Fetch completed/cancelled orders from order_history table
@@ -530,25 +477,8 @@ async function getAllOrdersForEmployee(req, res) {
         oh.archived_at as order_received_at,
         oh.archived_at as status_updated_at,
         oh.customer_id,
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'sku', ohp.sku,
-              'name', ii.name,
-              'quantity', ohp.quantity,
-              'unit_price', ohp.unit_price,
-              'image_data', ii.image_data
-            )
-          ) FILTER (WHERE ohp.sku IS NOT NULL),
-          '[]'::json
-        ) as products
+        '[]'::json as products
       FROM order_history oh
-      LEFT JOIN order_history_products ohp ON oh.order_id = ohp.order_id
-      LEFT JOIN inventory_items ii ON ohp.sku = ii.sku
-      GROUP BY oh.order_id, oh.customer_name, oh.shipped_to, oh.order_date, oh.expected_delivery, 
-               oh.status, oh.shipping_address, oh.total_cost, oh.payment_type, 
-               oh.payment_method, oh.remarks, oh.telephone, oh.cellphone, 
-               oh.email_address, oh.archived_at, oh.customer_id
     `);
 
     // Combine both results
