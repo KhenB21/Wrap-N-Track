@@ -55,10 +55,9 @@ pool.connect(async (err, client, release) => {
     release();
     
     // Run auto-migrations after successful connection (non-blocking)
-    // Temporarily disabled to fix server startup
-    // runAutoMigrations().catch(err => {
-    //   console.error('Migration error (non-blocking):', err.message);
-    // });
+    runAutoMigrations().catch(err => {
+      console.error('Migration error (non-blocking):', err.message);
+    });
   }
 });
 
