@@ -391,27 +391,7 @@ router.get('/check-email', async (req, res) => {
   }
 });
 
-// Check if name exists
-router.get('/check-name', async (req, res) => {
-  const { name } = req.query;
-
-  try {
-    const result = await pool.query(
-      'SELECT * FROM customer_details WHERE name = $1',
-      [name]
-    );
-
-    res.json({
-      exists: result.rows.length > 0
-    });
-  } catch (error) {
-    console.error('Name check error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to check name'
-    });
-  }
-});
+// Name uniqueness check removed - multiple users can have the same name
 
 // Check if username exists
 router.get('/check-username', async (req, res) => {

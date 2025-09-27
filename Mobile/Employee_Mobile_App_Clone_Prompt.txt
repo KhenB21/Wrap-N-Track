@@ -1,0 +1,837 @@
+# Wrap N' Track Employee Mobile App Clone - Comprehensive Development Prompt
+
+## Project Overview
+Create a comprehensive React Native mobile application that clones the employee side of the Wrap N' Track website, providing identical functionality, data structures, and user experience optimized for mobile devices.
+
+## Current Website Analysis
+
+### Employee Side Features Identified:
+1. **Dashboard** - Analytics overview with inventory, sales, and order metrics
+2. **Inventory Management** - Complete product management with CRUD operations
+3. **Order Management** - Order tracking, status updates, and customer communication
+4. **Customer Management** - Customer database with search, filter, and management
+5. **Supplier Management** - Supplier database and relationship management
+6. **Reports System** - Sales reports, inventory reports, and analytics
+7. **Account Management** - User profile and role-based access control
+
+## Technical Architecture
+
+### Core Technologies
+- **Framework**: React Native with Expo
+- **Navigation**: React Navigation (Drawer, Stack, Tab Navigators)
+- **State Management**: Context API with useReducer
+- **UI Components**: React Native Paper + Custom Components
+- **API Integration**: Axios with interceptors
+- **Authentication**: JWT-based with role-based access control
+- **Database**: PostgreSQL (same as website)
+- **Backend**: Node.js/Express (reuse existing API)
+
+### Data Structures (From Website Analysis)
+
+#### Dashboard Data
+```javascript
+const dashboardData = {
+  inventory: {
+    totalProducts: number,
+    totalUnits: number,
+    lowStockProducts: number,
+    replenishmentPending: number
+  },
+  salesOverview: {
+    totalRevenue: number,
+    totalOrders: number,
+    totalUnitsSold: number,
+    totalCustomers: number
+  },
+  salesActivity: {
+    toBePack: number,
+    toBeShipped: number,
+    outForDelivery: number
+  },
+  topSellingProducts: [
+    {
+      sku: string,
+      name: string,
+      units_sold: number
+    }
+  ],
+  recentActivity: [
+    {
+      order_id: string,
+      customer_name: string,
+      order_date: string,
+      archived_by_name: string,
+      archived_by_profile_picture: string
+    }
+  ]
+}
+```
+
+#### Inventory Data
+```javascript
+const inventoryItem = {
+  sku: string,
+  name: string,
+  description: string,
+  unit_price: number,
+  category: string,
+  quantity: number,
+  stock_quantity: number,
+  ordered_quantity: number,
+  delivered_quantity: number,
+  image_data: string, // base64
+  supplier_name: string,
+  supplier_phone: string,
+  supplier_website: string,
+  expiration: string,
+  last_updated: string,
+  uom: string, // Unit of Measure
+  conversion_qty: number,
+  reorder_level: number
+}
+```
+
+#### Order Data
+```javascript
+const order = {
+  order_id: string,
+  customer_name: string,
+  order_date: string,
+  status: string, // Order Placed, Order Paid, To Be Packed, etc.
+  total_cost: number,
+  payment_method: string,
+  expected_delivery: string,
+  status_updated_at: string,
+  shipped_to: string,
+  shipping_address: string,
+  telephone: string,
+  email_address: string,
+  remarks: string,
+  products: [
+    {
+      product_name: string,
+      sku: string,
+      description: string,
+      quantity: number,
+      total_price: number
+    }
+  ]
+}
+```
+
+#### Customer Data
+```javascript
+const customer = {
+  customer_id: string,
+  name: string,
+  email_address: string,
+  phone_number: string,
+  status: string, // active, inactive
+  created_at: string,
+  profile_picture_data: string // base64
+}
+```
+
+#### Supplier Data
+```javascript
+const supplier = {
+  supplier_id: string,
+  name: string,
+  contact_person: string,
+  cellphone: string,
+  telephone: string,
+  email_address: string,
+  street_address: string,
+  barangay: string,
+  city_municipality: string,
+  province: string,
+  type_of_supplies: string,
+  description: string,
+  reliability_score: number
+}
+```
+
+## Mobile App Structure
+
+### Navigation Architecture
+```
+AppNavigator
+├── AuthNavigator (Stack)
+│   ├── LoginScreen
+│   └── SplashScreen
+└── EmployeeNavigator (Drawer)
+    ├── DashboardScreen (Tab)
+    ├── InventoryNavigator (Stack)
+    │   ├── InventoryListScreen
+    │   ├── InventoryDetailScreen
+    │   ├── AddProductScreen
+    │   └── EditProductScreen
+    ├── OrdersNavigator (Stack)
+    │   ├── OrderListScreen
+    │   ├── OrderDetailScreen
+    │   └── OrderStatusUpdateScreen
+    ├── CustomersNavigator (Stack)
+    │   ├── CustomerListScreen
+    │   ├── CustomerDetailScreen
+    │   └── AddEditCustomerScreen
+    ├── SuppliersNavigator (Stack)
+    │   ├── SupplierListScreen
+    │   ├── SupplierDetailScreen
+    │   └── AddEditSupplierScreen
+    ├── ReportsNavigator (Stack)
+    │   ├── ReportsHomeScreen
+    │   ├── SalesReportScreen
+    │   └── InventoryReportScreen
+    └── SettingsScreen
+```
+
+### Screen Specifications
+
+#### 1. Dashboard Screen
+**Features:**
+- Real-time analytics cards (inventory, sales, orders)
+- Interactive charts and graphs
+- Quick action buttons
+- Recent activity feed
+- Pull-to-refresh functionality
+- Month/year selector for analytics
+
+**Data Integration:**
+- `/api/dashboard/analytics` - Monthly analytics
+- `/api/dashboard/available-months` - Available data periods
+- `/api/inventory` - Inventory overview
+- `/api/orders` - Order statistics
+
+**Mobile Optimizations:**
+- Swipeable cards for different metrics
+- Touch-friendly chart interactions
+- Optimized for portrait orientation
+- Offline data caching
+
+#### 2. Inventory Management Screens
+
+**InventoryListScreen:**
+- Searchable and filterable product list
+- Stock level indicators (low, medium, high)
+- Quick actions (add stock, edit, archive)
+- Export functionality (PDF/Excel)
+- Infinite scroll with pagination
+- Pull-to-refresh
+
+**InventoryDetailScreen:**
+- Complete product information
+- Image gallery with zoom
+- Stock adjustment controls
+- Supplier information
+- Order history for the product
+- Edit/Archive actions
+
+**AddProductScreen:**
+- Multi-step form wizard
+- Image capture/upload
+- Category selection
+- Supplier assignment
+- Validation and error handling
+
+**Data Integration:**
+- `/api/inventory` - CRUD operations
+- `/api/inventory/add-stock` - Stock adjustments
+- `/api/suppliers` - Supplier list for assignment
+
+#### 3. Order Management Screens
+
+**OrderListScreen:**
+- Filterable by status, customer, date range
+- Search functionality
+- Status-based color coding
+- Quick status update buttons
+- Real-time updates
+- Pagination
+
+**OrderDetailScreen:**
+- Complete order information
+- Customer details
+- Product list with quantities
+- Status history timeline
+- Update status functionality
+- Special instructions display
+
+**OrderStatusUpdateScreen:**
+- Status workflow validation
+- Payment method selection
+- Notes and comments
+- Confirmation requirements
+- Real-time validation
+
+**Data Integration:**
+- `/api/order-management/orders` - Order list
+- `/api/order-management/orders/:id` - Order details
+- `/api/order-management/orders/:id/status` - Status updates
+- `/api/order-management/dashboard-stats` - Order statistics
+
+#### 4. Customer Management Screens
+
+**CustomerListScreen:**
+- Grid and list view toggle
+- Search and filter options
+- Bulk selection and actions
+- Customer statistics cards
+- Pagination
+
+**CustomerDetailScreen:**
+- Complete customer profile
+- Order history
+- Contact information
+- Activity timeline
+- Edit/Delete actions
+
+**AddEditCustomerScreen:**
+- Form validation
+- Profile picture upload
+- Contact information
+- Status management
+
+**Data Integration:**
+- `/api/customers` - CRUD operations
+- `/api/customers/:id/orders` - Customer order history
+
+#### 5. Supplier Management Screens
+
+**SupplierListScreen:**
+- Searchable supplier list
+- Type-based filtering
+- Reliability score indicators
+- Contact information display
+- Pagination
+
+**SupplierDetailScreen:**
+- Complete supplier profile
+- Contact details
+- Address information
+- Reliability metrics
+- Associated products
+
+**AddEditSupplierScreen:**
+- Comprehensive form
+- Address validation
+- Contact information
+- Type classification
+
+**Data Integration:**
+- `/api/suppliers` - CRUD operations
+- `/api/suppliers/:id/products` - Associated products
+
+#### 6. Reports Screens
+
+**ReportsHomeScreen:**
+- Report type selection
+- Date range picker
+- Quick access to common reports
+- Export options
+
+**SalesReportScreen:**
+- Revenue metrics
+- Order statistics
+- Trend analysis
+- Period comparison
+- Export functionality
+
+**InventoryReportScreen:**
+- Stock level analysis
+- Movement patterns
+- Replenishment suggestions
+- Category breakdown
+- Advanced analytics
+
+**Data Integration:**
+- `/api/sales-reports/overview` - Sales data
+- `/api/inventory-reports/movement-analysis` - Movement data
+- `/api/inventory-reports/replenishment-suggestions` - Replenishment data
+- `/api/inventory-reports/advanced-analytics` - Advanced analytics
+
+## Context Providers
+
+### 1. AuthContext
+```javascript
+const AuthContext = {
+  user: userObject,
+  isAuthenticated: boolean,
+  userType: 'employee',
+  role: string,
+  permissions: object,
+  login: function,
+  logout: function,
+  updateProfile: function
+}
+```
+
+### 2. DashboardContext
+```javascript
+const DashboardContext = {
+  dashboardData: object,
+  loading: boolean,
+  error: string,
+  selectedMonth: number,
+  selectedYear: number,
+  fetchDashboardData: function,
+  updateDateRange: function,
+  refreshData: function
+}
+```
+
+### 3. InventoryContext
+```javascript
+const InventoryContext = {
+  inventory: array,
+  filteredInventory: array,
+  loading: boolean,
+  error: string,
+  searchQuery: string,
+  filter: string,
+  fetchInventory: function,
+  addProduct: function,
+  updateProduct: function,
+  deleteProduct: function,
+  addStock: function,
+  searchProducts: function,
+  filterProducts: function
+}
+```
+
+### 4. OrdersContext
+```javascript
+const OrdersContext = {
+  orders: array,
+  filteredOrders: array,
+  loading: boolean,
+  error: string,
+  filters: object,
+  pagination: object,
+  fetchOrders: function,
+  updateOrderStatus: function,
+  searchOrders: function,
+  filterOrders: function
+}
+```
+
+### 5. CustomersContext
+```javascript
+const CustomersContext = {
+  customers: array,
+  filteredCustomers: array,
+  loading: boolean,
+  error: string,
+  searchQuery: string,
+  filter: string,
+  fetchCustomers: function,
+  addCustomer: function,
+  updateCustomer: function,
+  deleteCustomer: function,
+  searchCustomers: function,
+  filterCustomers: function
+}
+```
+
+### 6. SuppliersContext
+```javascript
+const SuppliersContext = {
+  suppliers: array,
+  filteredSuppliers: array,
+  loading: boolean,
+  error: string,
+  searchQuery: string,
+  filter: string,
+  fetchSuppliers: function,
+  addSupplier: function,
+  updateSupplier: function,
+  deleteSupplier: function,
+  searchSuppliers: function,
+  filterSuppliers: function
+}
+```
+
+### 7. ReportsContext
+```javascript
+const ReportsContext = {
+  salesData: object,
+  inventoryData: object,
+  loading: boolean,
+  error: string,
+  dateRange: object,
+  fetchSalesReport: function,
+  fetchInventoryReport: function,
+  exportToPDF: function,
+  exportToExcel: function,
+  updateDateRange: function
+}
+```
+
+## API Integration
+
+### Base Configuration
+```javascript
+const api = axios.create({
+  baseURL: 'http://your-server.com/api',
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Request interceptor for auth
+api.interceptors.request.use(async (config) => {
+  const token = await AsyncStorage.getItem('authToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Response interceptor for error handling
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      await AsyncStorage.multiRemove(['authToken', 'userData', 'userType']);
+      // Redirect to login
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+### API Endpoints (Reuse Existing)
+- Authentication: `/api/auth/employee/login`
+- Dashboard: `/api/dashboard/analytics`
+- Inventory: `/api/inventory`
+- Orders: `/api/order-management/orders`
+- Customers: `/api/customers`
+- Suppliers: `/api/suppliers`
+- Reports: `/api/sales-reports`, `/api/inventory-reports`
+
+## UI/UX Guidelines
+
+### Design System
+- **Primary Color**: #2E7D32 (Green)
+- **Secondary Color**: #1976D2 (Blue)
+- **Accent Color**: #FF6F00 (Orange)
+- **Error Color**: #D32F2F (Red)
+- **Warning Color**: #F57C00 (Orange)
+- **Success Color**: #388E3C (Green)
+- **Background**: #FAFAFA (Light Gray)
+- **Surface**: #FFFFFF (White)
+- **Text Primary**: #212121 (Dark Gray)
+- **Text Secondary**: #757575 (Medium Gray)
+
+### Typography
+- **Headings**: Roboto Bold, 24px-32px
+- **Subheadings**: Roboto Medium, 18px-24px
+- **Body**: Roboto Regular, 14px-16px
+- **Caption**: Roboto Regular, 12px-14px
+
+### Mobile Patterns
+- **Bottom Navigation**: Primary navigation for main sections
+- **Drawer Menu**: Secondary navigation and settings
+- **Floating Action Button**: Quick actions (Add, etc.)
+- **Pull-to-Refresh**: Data synchronization
+- **Infinite Scroll**: Large data sets
+- **Swipe Gestures**: Quick actions on list items
+- **Modal Sheets**: Forms and detailed views
+- **Tab Navigation**: Related content sections
+
+### Component Library
+- **Cards**: Information display with actions
+- **Lists**: Data display with search/filter
+- **Forms**: Input validation and error handling
+- **Charts**: Data visualization (react-native-chart-kit)
+- **Modals**: Overlay content and forms
+- **Alerts**: User feedback and confirmations
+- **Loading States**: Skeleton screens and spinners
+- **Empty States**: No data illustrations
+
+## Role-Based Access Control
+
+### Permission System
+```javascript
+const permissions = {
+  super_admin: {
+    dashboard: true,
+    inventory: true,
+    orders: true,
+    reports: true,
+    customers: true,
+    suppliers: true,
+    accountManagement: true
+  },
+  admin: {
+    dashboard: true,
+    inventory: true,
+    orders: true,
+    reports: true,
+    customers: true,
+    suppliers: true,
+    accountManagement: true
+  },
+  director: {
+    dashboard: true,
+    inventory: true,
+    orders: true,
+    reports: true,
+    customers: true,
+    suppliers: true,
+    accountManagement: true
+  },
+  business_developer: {
+    dashboard: true,
+    inventory: false,
+    orders: true,
+    reports: true,
+    customers: true,
+    suppliers: false,
+    accountManagement: false
+  },
+  creatives: {
+    dashboard: true,
+    inventory: true,
+    orders: false,
+    reports: true,
+    customers: false,
+    suppliers: false,
+    accountManagement: false
+  },
+  sales_manager: {
+    dashboard: true,
+    inventory: true,
+    orders: true,
+    reports: true,
+    customers: true,
+    suppliers: true,
+    accountManagement: false
+  },
+  assistant_sales: {
+    dashboard: true,
+    inventory: true,
+    orders: true,
+    reports: true,
+    customers: true,
+    suppliers: false,
+    accountManagement: false
+  },
+  packer: {
+    dashboard: true,
+    inventory: true,
+    orders: true,
+    reports: true,
+    customers: false,
+    suppliers: false,
+    accountManagement: false,
+    readOnly: true
+  },
+  operations_manager: {
+    dashboard: true,
+    inventory: true,
+    orders: true,
+    reports: true,
+    customers: true,
+    suppliers: true,
+    accountManagement: false
+  },
+  social_media_manager: {
+    dashboard: true,
+    inventory: false,
+    orders: true,
+    reports: true,
+    customers: true,
+    suppliers: false,
+    accountManagement: false
+  }
+};
+```
+
+## Key Features Implementation
+
+### 1. Real-time Data Synchronization
+- WebSocket connections for live updates
+- Background sync when app becomes active
+- Optimistic updates for better UX
+- Conflict resolution for concurrent edits
+
+### 2. Offline Support
+- Local SQLite database for offline data
+- Sync queue for pending operations
+- Offline indicators and messaging
+- Data consistency validation
+
+### 3. Push Notifications
+- Order status updates
+- Low stock alerts
+- System notifications
+- Custom notification categories
+
+### 4. Advanced Search and Filtering
+- Full-text search across all data
+- Multi-criteria filtering
+- Saved search preferences
+- Search history
+
+### 5. Export and Reporting
+- PDF generation for reports
+- Excel export functionality
+- Email sharing capabilities
+- Scheduled report generation
+
+### 6. Image Management
+- Camera integration for product photos
+- Image compression and optimization
+- Base64 encoding for API compatibility
+- Image gallery with zoom functionality
+
+### 7. Barcode/QR Code Scanning
+- Product identification
+- Quick inventory updates
+- Order verification
+- Asset tracking
+
+## Performance Optimizations
+
+### 1. Data Loading
+- Lazy loading for large datasets
+- Pagination for list views
+- Image lazy loading
+- Data caching strategies
+
+### 2. Memory Management
+- Image memory optimization
+- List item recycling
+- Context optimization
+- Memory leak prevention
+
+### 3. Network Optimization
+- Request batching
+- Response caching
+- Compression
+- Retry mechanisms
+
+### 4. UI Performance
+- FlatList optimization
+- Animation performance
+- Touch response optimization
+- Rendering optimization
+
+## Testing Strategy
+
+### 1. Unit Testing
+- Component testing with React Native Testing Library
+- Context provider testing
+- API service testing
+- Utility function testing
+
+### 2. Integration Testing
+- Navigation flow testing
+- API integration testing
+- State management testing
+- User interaction testing
+
+### 3. End-to-End Testing
+- Complete user workflows
+- Cross-platform testing
+- Performance testing
+- Accessibility testing
+
+## Deployment and Distribution
+
+### 1. Development Builds
+- Expo development builds
+- Hot reloading support
+- Debug tools integration
+- Error reporting
+
+### 2. Production Builds
+- App Store optimization
+- Google Play Store optimization
+- Code signing and certificates
+- Release management
+
+### 3. OTA Updates
+- Expo OTA updates
+- Feature flag management
+- Gradual rollout
+- Rollback capabilities
+
+## Security Considerations
+
+### 1. Data Protection
+- JWT token security
+- API endpoint protection
+- Data encryption
+- Secure storage
+
+### 2. Authentication
+- Biometric authentication
+- Session management
+- Multi-factor authentication
+- Role-based access control
+
+### 3. Network Security
+- HTTPS enforcement
+- Certificate pinning
+- Request validation
+- Response sanitization
+
+## Success Metrics
+
+### 1. Performance Metrics
+- App launch time < 3 seconds
+- Screen transition time < 500ms
+- API response time < 2 seconds
+- Memory usage < 100MB
+
+### 2. User Experience Metrics
+- User retention rate > 80%
+- Session duration > 15 minutes
+- Feature adoption rate > 60%
+- User satisfaction score > 4.5/5
+
+### 3. Business Metrics
+- Employee productivity increase > 30%
+- Data accuracy improvement > 95%
+- Process efficiency gain > 40%
+- Error reduction > 50%
+
+## Development Timeline
+
+### Phase 1: Foundation (Weeks 1-2)
+- Project setup and configuration
+- Navigation structure
+- Authentication system
+- Basic UI components
+
+### Phase 2: Core Features (Weeks 3-6)
+- Dashboard implementation
+- Inventory management
+- Order management
+- Customer management
+
+### Phase 3: Advanced Features (Weeks 7-10)
+- Supplier management
+- Reports system
+- Advanced search and filtering
+- Export functionality
+
+### Phase 4: Polish and Optimization (Weeks 11-12)
+- Performance optimization
+- UI/UX improvements
+- Testing and bug fixes
+- Documentation
+
+### Phase 5: Deployment (Weeks 13-14)
+- Production builds
+- App store submission
+- User training
+- Go-live support
+
+## Conclusion
+
+This comprehensive mobile app will provide employees with full access to all website functionality in a mobile-optimized interface. The app will maintain data consistency with the existing system while providing enhanced mobile-specific features and improved user experience.
+
+The development should focus on creating a seamless, intuitive interface that allows employees to efficiently manage all aspects of the business from their mobile devices, with particular attention to performance, security, and user experience.

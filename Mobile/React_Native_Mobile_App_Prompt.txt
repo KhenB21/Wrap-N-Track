@@ -1,0 +1,289 @@
+# Comprehensive React Native Mobile App Development Prompt
+
+## Project Overview
+Create a React Native mobile application that connects to an existing Node.js/Express server used by a React website. The mobile app should reuse the same backend APIs and follow the same authentication flow as the website. This is a gift wrapping and tracking business called "Wrap N' Track" with both employee and customer interfaces.
+
+## Current System Architecture
+
+### Backend Server (Node.js/Express + PostgreSQL)
+- **Base URL**: `https://wrapntracwebservice-2g22j.ondigitalocean.app/api` (production) or `http://localhost:3001/api` (development)
+- **Database**: PostgreSQL with comprehensive schema including inventory, orders, customers, users, cart, and delivery tracking
+- **Authentication**: JWT-based with unified login for both customers and employees
+- **Key Features**: Inventory management, order processing, cart system, user management, reporting, notifications
+
+### Website (React)
+- **URL**: `https://staticwrapntrack-tz5cu.ondigitalocean.app`
+- **Features**: Employee dashboard, customer portal, inventory management, order tracking, reporting
+- **UI Framework**: React with custom CSS, responsive design
+- **State Management**: Context API for auth, cart, inventory, orders, profile
+
+### Mobile App (React Native + Expo)
+- **Current Status**: Partially implemented with basic structure
+- **Navigation**: React Navigation with drawer and stack navigators
+- **State Management**: Context API (AuthContext, CartContext, InventoryContext, OrdersContext, ProfileContext, ThemeContext)
+- **UI Library**: React Native Paper + custom components
+
+## Technical Requirements
+
+### 1. Server Connection & API Integration
+- Use the existing API endpoints from the website server
+- Implement proper error handling and retry logic
+- Support both development (localhost) and production URLs
+- Handle authentication tokens securely using AsyncStorage
+- Implement proper request/response interceptors
+
+### 2. Authentication System
+**Unified Login Flow:**
+- Single login endpoint: `POST /api/auth/customer/login`
+- Supports both customer and employee authentication
+- Customer login: Uses `customer_details` table with username/password
+- Employee login: Uses `users` table with name/password
+- JWT tokens with 24-hour expiration
+- Automatic token refresh and validation
+
+**User Types:**
+- **Customers**: Can browse products, add to cart, place orders, track deliveries
+- **Employees**: Multiple roles (admin, business_developer, creatives, director, sales_manager, assistant_sales, packer)
+- **Role-based access control** for different features
+
+### 3. Database Schema (Key Tables)
+```sql
+-- Core Tables
+users (user_id, name, email, password_hash, role, profile_picture_data, is_active)
+customer_details (customer_id, username, name, email_address, password_hash, phone_number, address, is_verified)
+inventory_items (sku, name, description, quantity, unit_price, category, image_data, uom, conversion_qty, expiration)
+orders (order_id, name, shipped_to, order_date, expected_delivery, status, shipping_address, total_cost, payment_type, customer_id)
+order_products (line_id, order_id, sku, quantity, profit_margin, profit_estimation)
+customer_cart (cart_id, customer_id, sku, quantity, added_at, updated_at)
+suppliers (supplier_id, name, contact_person, email, phone, address, is_active)
+```
+
+### 4. Mobile App Structure
+
+#### Navigation Architecture
+- **Drawer Navigator** as root navigator
+- **Stack Navigators** for each major section
+- **Tab Navigator** for employee dashboard sections
+- **Conditional rendering** based on user type (employee/customer)
+
+#### Screen Organization
+**Employee Screens:**
+- Dashboard (overview, quick stats, recent orders)
+- Inventory Management (view, search, update, add items)
+- Order Management (view, update status, track orders)
+- Reports (sales, inventory, fast/slow-moving items)
+- Customer Management (view, manage customer details)
+- Supplier Management (view, manage suppliers)
+- Order History (completed/archived orders)
+
+**Customer Screens:**
+- Home (product categories, featured items, search)
+- Product Catalog (browse by category: Wedding, Corporate, Bespoke)
+- Product Details (images, description, pricing, add to cart)
+- Shopping Cart (view, modify, checkout)
+- Order Tracking (real-time status updates)
+- Order History (past orders, reorder functionality)
+- Profile (account settings, address management)
+
+#### Context Providers (Already Implemented)
+- **AuthContext**: User authentication, login/logout, role management
+- **CartContext**: Shopping cart state, add/remove items, quantities
+- **InventoryContext**: Product data, search, filtering
+- **OrdersContext**: Order management, status tracking
+- **ProfileContext**: User profile data, settings
+- **ThemeContext**: Dark/light mode, UI theming
+
+### 5. API Endpoints (Key Ones to Implement)
+
+#### Authentication
+- `POST /api/auth/customer/login` - Unified login
+- `POST /api/auth/customer/register` - Customer registration
+- `POST /api/auth/customer/verify` - Email verification
+- `GET /api/auth/verify` - Token verification
+
+#### Inventory
+- `GET /api/public/inventory` - Public inventory (no auth required)
+- `GET /api/inventory` - Full inventory (authenticated)
+- `GET /api/inventory/:sku` - Single product details
+- `POST /api/inventory` - Add/update product (employee only)
+- `PUT /api/inventory/:sku/adjust` - Adjust stock levels
+
+#### Cart & Orders
+- `GET /api/cart` - Get customer cart
+- `POST /api/cart/add` - Add item to cart
+- `PUT /api/cart/update` - Update cart item quantity
+- `DELETE /api/cart/remove` - Remove item from cart
+- `POST /api/cart/checkout` - Convert cart to order
+- `GET /api/orders` - Get user orders
+- `GET /api/orders/:orderId` - Get specific order
+- `PUT /api/orders/:orderId` - Update order status
+
+#### Reports & Management
+- `GET /api/dashboard` - Dashboard data
+- `GET /api/sales-reports` - Sales reporting
+- `GET /api/inventory-reports` - Inventory reporting
+- `GET /api/customers` - Customer management
+- `GET /api/suppliers` - Supplier management
+
+### 6. UI/UX Guidelines
+
+#### Design System
+- **Primary Color**: #6B6593 (purple)
+- **Secondary Colors**: #B6B3C6 (light purple), #C7C5D1 (border)
+- **Typography**: Clean, readable fonts with proper hierarchy
+- **Spacing**: Consistent 8px grid system
+- **Components**: Cards, buttons, inputs, modals, lists
+
+#### Mobile-Specific Patterns
+- **Bottom Navigation** for main sections
+- **Drawer Menu** for secondary navigation
+- **Pull-to-refresh** for data updates
+- **Infinite scroll** for product lists
+- **Swipe gestures** for cart items
+- **Barcode scanning** for inventory management
+- **Push notifications** for order updates
+
+#### Responsive Design
+- Support both phone and tablet layouts
+- Adaptive grid systems for product displays
+- Touch-friendly button sizes (minimum 44px)
+- Proper keyboard handling for forms
+
+### 7. Key Features to Implement
+
+#### Customer Features
+- **Product Browsing**: Category-based navigation, search, filters
+- **Shopping Cart**: Add/remove items, quantity management, price calculation
+- **Order Placement**: Checkout flow, address management, payment options
+- **Order Tracking**: Real-time status updates, delivery notifications
+- **Profile Management**: Account settings, order history, preferences
+
+#### Employee Features
+- **Dashboard**: Key metrics, recent activity, quick actions
+- **Inventory Management**: Add/edit products, stock adjustments, barcode scanning
+- **Order Processing**: View orders, update status, manage fulfillment
+- **Customer Management**: View customer details, order history
+- **Reporting**: Sales reports, inventory reports, analytics
+- **Supplier Management**: Manage supplier information, reorder levels
+
+#### Shared Features
+- **Authentication**: Login/logout, role-based access
+- **Notifications**: Order updates, low stock alerts
+- **Search**: Global search across products and orders
+- **Offline Support**: Basic offline functionality with sync
+- **Dark Mode**: Theme switching capability
+
+### 8. Technical Implementation Details
+
+#### State Management
+- Use existing Context providers for global state
+- Implement proper error boundaries
+- Add loading states for all async operations
+- Implement optimistic updates where appropriate
+
+#### Data Fetching
+- Use React Query or SWR for server state management
+- Implement proper caching strategies
+- Add retry logic for failed requests
+- Handle network connectivity issues
+
+#### Security
+- Store JWT tokens securely in AsyncStorage
+- Implement proper token refresh logic
+- Validate user permissions on each screen
+- Sanitize all user inputs
+
+#### Performance
+- Implement lazy loading for screens
+- Optimize image loading and caching
+- Use FlatList for large data sets
+- Implement proper memoization
+
+#### Error Handling
+- Global error boundary component
+- User-friendly error messages
+- Proper logging for debugging
+- Graceful degradation for network issues
+
+### 9. Development Setup
+
+#### Dependencies (Already in package.json)
+```json
+{
+  "expo": "~53.0.0",
+  "react": "19.0.0",
+  "react-native": "0.79.5",
+  "@react-navigation/native": "^7.0.14",
+  "@react-navigation/drawer": "^7.1.1",
+  "@react-navigation/stack": "^7.1.1",
+  "@react-navigation/bottom-tabs": "^7.2.0",
+  "react-native-paper": "^5.13.1",
+  "axios": "^1.9.0",
+  "@react-native-async-storage/async-storage": "2.1.2",
+  "expo-barcode-scanner": "^13.0.1",
+  "expo-camera": "~16.1.11",
+  "expo-notifications": "~0.31.4"
+}
+```
+
+#### Project Structure
+```
+Mobile/
+├── src/
+│   ├── Components/          # Reusable UI components
+│   ├── Context/            # State management contexts
+│   ├── Screens/            # Screen components
+│   ├── services/           # API services
+│   ├── Images/             # Static assets
+│   └── utils/              # Utility functions
+├── App.js                  # Main app component
+└── package.json
+```
+
+### 10. Testing & Quality Assurance
+
+#### Testing Strategy
+- Unit tests for utility functions and components
+- Integration tests for API calls
+- E2E tests for critical user flows
+- Performance testing for large data sets
+
+#### Code Quality
+- ESLint configuration for code standards
+- Prettier for code formatting
+- TypeScript for type safety (optional)
+- Proper error handling and logging
+
+### 11. Deployment & Distribution
+
+#### Build Configuration
+- Expo build configuration for iOS/Android
+- Environment-specific API URLs
+- Proper app icons and splash screens
+- App store metadata and descriptions
+
+#### Release Management
+- Version control and tagging
+- Staged rollouts for updates
+- Crash reporting and analytics
+- User feedback collection
+
+## Success Criteria
+
+1. **Functional Requirements**: All core features working as specified
+2. **Performance**: App loads quickly and responds smoothly
+3. **Usability**: Intuitive navigation and user experience
+4. **Reliability**: Stable operation with proper error handling
+5. **Security**: Secure authentication and data protection
+6. **Maintainability**: Clean, well-documented code structure
+
+## Additional Notes
+
+- The existing mobile app has a solid foundation with proper navigation and context setup
+- The server API is comprehensive and well-structured
+- Focus on mobile-first design patterns and touch interactions
+- Implement proper loading states and error handling throughout
+- Ensure the app works offline for basic functionality
+- Test thoroughly on both iOS and Android devices
+
+This prompt provides a comprehensive overview of the entire system and should give your AI Editor all the context needed to build a complete, production-ready React Native mobile application that integrates seamlessly with your existing backend infrastructure.

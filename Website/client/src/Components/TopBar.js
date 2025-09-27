@@ -68,14 +68,24 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
 
 
   const getProfilePictureUrl = () => {
-    if (!user) return "/placeholder-profile.png";
+    if (!user) return null;
     
     // If we have base64 data, use that
     if (user.profile_picture_data) {
       return `data:image/jpeg;base64,${user.profile_picture_data}`;
     }
     
-    return "/placeholder-profile.png";
+    return null;
+  };
+
+  const getInitials = () => {
+    if (!user) return 'U';
+    const displayName = user.name || user.username || '';
+    if (!displayName) return 'U';
+    const parts = displayName.trim().split(/\s+/);
+    const first = parts[0]?.[0] || '';
+    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (first + last).toUpperCase();
   };
 
   return (
@@ -106,14 +116,34 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
           style={{ cursor: 'pointer', position: 'relative' }}
           ref={dropdownRef}
         >
-          <img 
-            src={avatarUrl || getProfilePictureUrl()} 
-            alt="User" 
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = '/placeholder-profile.png';
+          {getProfilePictureUrl() ? (
+            <img 
+              src={avatarUrl || getProfilePictureUrl()} 
+              alt="User" 
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+          ) : null}
+          <div 
+            className="avatar-initials" 
+            style={{ 
+              display: getProfilePictureUrl() ? 'none' : 'flex',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              backgroundColor: '#007bff',
+              color: 'white',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px',
+              fontWeight: 'bold'
             }}
-          />
+          >
+            {getInitials()}
+          </div>
           {dropdownOpen && (
             <div className="avatar-dropdown">
               <button onClick={handleViewProfile}>View Profile</button>

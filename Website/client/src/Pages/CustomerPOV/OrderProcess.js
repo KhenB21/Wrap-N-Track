@@ -540,9 +540,22 @@ export default function OrderProcess() {
     setCurrentConCat(conCatNumber);
   };
 
+  const handleNextStep = () => {
+    if (currentStep < 4) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // If not on step 4, just move to next step
+    if (currentStep < 4) {
+      handleNextStep();
+      return;
+    }
+
+    // Only proceed with order submission and OTP verification on step 4
     const token = localStorage.getItem('customerToken');
     const customerData = JSON.parse(localStorage.getItem('customer'));
 
@@ -1747,7 +1760,7 @@ export default function OrderProcess() {
               </div>
 
               <button type="submit" style={styles.button}>
-                Next
+                {currentStep === 4 ? 'Submit Order' : 'Next'}
               </button>
             </form>
           )}
@@ -2520,7 +2533,7 @@ export default function OrderProcess() {
               )}
 
               <button type="submit" style={styles.button}>
-                Next
+                {currentStep === 4 ? 'Submit Order' : 'Next'}
               </button>
             </form>
           )}
@@ -2596,7 +2609,7 @@ export default function OrderProcess() {
               </div>
 
               <button type="submit" style={styles.button}>
-                Next
+                {currentStep === 4 ? 'Submit Order' : 'Next'}
               </button>
             </form>
           )}

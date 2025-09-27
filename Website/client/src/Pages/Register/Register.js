@@ -32,7 +32,6 @@ function Register() {
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [nameError, setNameError] = useState("");
-  const [checkingName, setCheckingName] = useState(false);
 
   const navigate = useNavigate();
 
@@ -70,26 +69,7 @@ function Register() {
     }
   }, 500);
 
-  const checkNameExists = debounce(async (name) => {
-    if (!name.trim()) return;
-    try {
-      setCheckingName(true);
-      setNameError("");
-
-  const res = await api.get('/api/auth/check-name', {
-        params: { name: name.trim() },
-      });
-
-      if (res.data.exists) {
-        setNameError("Name is already taken (case-sensitive)");
-      }
-    } catch (err) {
-      console.error("Name check failed:", err);
-      setNameError("Could not check name availability");
-    } finally {
-      setCheckingName(false);
-    }
-  }, 500);
+  // Name uniqueness check removed - multiple users can have the same name
 
 
   const handleChange = (e) => {
@@ -127,7 +107,6 @@ function Register() {
         setNameError("Name must be at least 2 characters long");
       } else {
         setNameError("");
-        checkNameExists(value);
       }
     }
   };
@@ -226,7 +205,6 @@ function Register() {
               onChange={handleChange}
               required
             />
-            {checkingName && <small>Checking name...</small>}
             {nameError && <div className="error-message">{nameError}</div>}
           </div>
 

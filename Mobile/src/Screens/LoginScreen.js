@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,14 +6,71 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useAuth } from "../Context/AuthContext";
 
 export default function LoginScreen({ navigation }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [formCleared, setFormCleared] = useState(false);
+  
+  const { login, loading, error, clearError, isAuthenticated } = useAuth();
+
+  // Clear form fields when component mounts (after logout)
+  useEffect(() => {
+    // Clear all form fields
+    setUsername("");
+    setPassword("");
+    setShowPassword(false);
+    setRememberMe(false);
+    // Clear any previous errors
+    clearError();
+    // Set form cleared state
+    setFormCleared(true);
+    
+    // Auto-hide cleared message after 3 seconds
+    const timer = setTimeout(() => {
+      setFormCleared(false);
+    }, 3000);
+    
+    return () => clearTimeout(timer);
+  }, []); // Empty dependency array - runs once when component mounts
+
+  // Note: Removed useFocusEffect to prevent clearing on every keystroke
+  // Form will only clear when component mounts (after logout navigation)
+
+  const handleLogin = async () => {
+    if (!username.trim() || !password.trim()) {
+      Alert.alert("Error", "Please enter both username and password");
+      return;
+    }
+
+    clearError();
+    
+    try {
+      const result = await login(username.trim(), password);
+      
+      if (result.success) {
+        // Navigate based on user type
+        if (result.userType === 'employee') {
+          // For employees, navigate to Dashboard
+          navigation.navigate("Dashboard");
+        } else if (result.userType === 'customer') {
+          // For customers, navigate to Home
+          navigation.navigate("Home");
+        }
+      } else {
+        Alert.alert("Login Failed", result.message || "Invalid credentials");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Login failed. Please try again.");
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -29,7 +86,10 @@ export default function LoginScreen({ navigation }) {
           style={styles.input}
           placeholder="Username:"
           value={username}
-          onChangeText={setUsername}
+          onChangeText={(text) => {
+            setUsername(text);
+            setFormCleared(false); // Hide cleared message when user starts typing
+          }}
         />
         <Text style={styles.label}>Password:</Text>
         <View style={styles.passwordFieldContainer}>
@@ -37,7 +97,10 @@ export default function LoginScreen({ navigation }) {
             style={styles.inputWithIcon}
             placeholder="Password:"
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(text) => {
+              setPassword(text);
+              setFormCleared(false); // Hide cleared message when user starts typing
+            }}
             secureTextEntry={!showPassword}
           />
           <TouchableOpacity
@@ -67,11 +130,24 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.forgotText}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>
+        {error && (
+          <Text style={styles.errorText}>{error}</Text>
+        )}
+        
+        {formCleared && !error && (
+          <Text style={styles.clearedText}>Form cleared - ready for new login</Text>
+        )}
+        
         <TouchableOpacity
-          style={styles.loginButton}
-          onPress={() => navigation.navigate("Home")}
+          style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+          onPress={handleLogin}
+          disabled={loading}
         >
-          <Text style={styles.loginButtonText}>LOGIN</Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.loginButtonText}>LOGIN</Text>
+          )}
         </TouchableOpacity>
         <View style={styles.signupRow}>
           <Text style={styles.signupText}>Don't have an account? </Text>
@@ -203,5 +279,23 @@ const styles = StyleSheet.create({
     color: "#E57373",
     fontSize: 13,
     textDecorationLine: "underline",
+  },
+  errorText: {
+    color: "#E57373",
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 10,
+    paddingHorizontal: 10,
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
+  },
+  clearedText: {
+    color: "#4CAF50",
+    fontSize: 12,
+    textAlign: "center",
+    marginBottom: 10,
+    paddingHorizontal: 10,
+    fontStyle: "italic",
   },
 });

@@ -9,6 +9,7 @@ import {
   Dimensions,
   Alert,
   TextInput,
+  RefreshControl,
 } from "react-native";
 import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -20,28 +21,26 @@ const { width } = Dimensions.get("window");
 export default function MyCartScreen({ navigation }) {
   const {
     cartItems,
-    setCartItems,
-    favoriteItems,
-    setFavoriteItems,
+    totalItems,
+    totalPrice,
+    loading,
+    error,
+    updateQuantity,
+    removeFromCart,
     toggleFavorite,
+    loadCartItems,
+    clearError,
   } = useCart();
   const [activeTab, setActiveTab] = useState("cart");
   const [selectedIds, setSelectedIds] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   const { darkMode } = useTheme();
 
-  const handleQuantityChange = (id, value, isCart) => {
-    if (isCart) {
-      setCartItems((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, quantity: Math.max(1, value) } : item
-        )
-      );
-    } else {
-      setFavoriteItems((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, quantity: Math.max(1, value) } : item
-        )
-      );
+  const handleQuantityChange = async (sku, value) => {
+    try {
+      await updateQuantity(sku, Math.max(1, value));
+    } catch (error) {
+      Alert.alert("Error", "Failed to update quantity. Please try again.");
     }
   };
 
@@ -56,19 +55,33 @@ export default function MyCartScreen({ navigation }) {
     setSelectedIds([]);
   }, [activeTab]);
 
-  const handleRemoveItem = (id) => {
+  const handleRemoveItem = (sku) => {
     Alert.alert("Remove Item", "Do you really want to remove this item?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Remove",
         style: "destructive",
-        onPress: () => {
-          setCartItems((prev) => prev.filter((item) => item.id !== id));
-          setFavoriteItems((prev) => prev.filter((item) => item.id !== id));
-          setSelectedIds((prev) => prev.filter((sid) => sid !== id));
+        onPress: async () => {
+          try {
+            await removeFromCart(sku);
+            setSelectedIds((prev) => prev.filter((sid) => sid !== sku));
+          } catch (error) {
+            Alert.alert("Error", "Failed to remove item. Please try again.");
+          }
         },
       },
     ]);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadCartItems();
+    } catch (error) {
+      console.error("Error refreshing cart:", error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const itemCardBg = darkMode ? "#242526" : "#F5F4FA";
@@ -83,9 +96,9 @@ export default function MyCartScreen({ navigation }) {
   const removeBtnText = darkMode ? "#fff" : "#6B6593";
   const quantityValueColor = darkMode ? "#fff" : "#6B6593";
 
-  const renderItem = (item, isCart) => (
+  const renderItem = (item) => (
     <View
-      key={item.id}
+      key={item.sku}
       style={[
         styles.itemCard,
         { backgroundColor: itemCardBg, borderColor: border },
@@ -93,7 +106,7 @@ export default function MyCartScreen({ navigation }) {
     >
       <TouchableOpacity
         style={[styles.removeBtn, { backgroundColor: removeBtnBg }]}
-        onPress={() => handleRemoveItem(item.id)}
+        onPress={() => handleRemoveItem(item.sku)}
         activeOpacity={0.7}
       >
         <Text style={[styles.removeBtnText, { color: removeBtnText }]}>×</Text>
@@ -101,28 +114,37 @@ export default function MyCartScreen({ navigation }) {
       <View style={styles.itemRow}>
         <TouchableOpacity
           style={[styles.radioCircle, { borderColor: border }]}
-          onPress={() => handleSelect(item.id)}
+          onPress={() => handleSelect(item.sku)}
           activeOpacity={0.7}
         >
-          {selectedIds.includes(item.id) && (
+          {selectedIds.includes(item.sku) && (
             <View style={[styles.radioDot, { backgroundColor: radioDot }]} />
           )}
         </TouchableOpacity>
-        <Image source={item.image} style={styles.itemImage} />
+        {item.image_data ? (
+          <Image 
+            source={{ uri: `data:image/png;base64,${item.image_data}` }} 
+            style={styles.itemImage} 
+          />
+        ) : (
+          <View style={[styles.itemImage, { backgroundColor: border, justifyContent: 'center', alignItems: 'center' }]}>
+            <MaterialCommunityIcons name="image" size={32} color={subText} />
+          </View>
+        )}
         <View style={styles.itemInfo}>
           <Text
             style={[styles.itemTitle, { color: darkMode ? "#E4E6EB" : "#222" }]}
           >
-            {item.title}
+            {item.name}
           </Text>
           <Text style={[styles.itemSubtitle, { color: subText }]}>
-            {item.subtitle}
+            SKU: {item.sku}
           </Text>
           <Text style={[styles.itemDesc, { color: darkMode ? "#B0B3B8" : "#888" }]}>
-            {item.desc}
+            {item.description || "No description available"}
           </Text>
           <Text style={[styles.itemPrice, { color: darkMode ? "#fff" : "#222" }]}>
-            {item.price || "₱1,499"}
+            ₱{parseFloat(item.unit_price).toFixed(2)}
           </Text>
           {/* Move quantity row here */}
           <View style={styles.quantityBoxRow}>
@@ -143,9 +165,8 @@ export default function MyCartScreen({ navigation }) {
               onChangeText={(v) => {
                 const num = v.replace(/[^0-9]/g, "");
                 handleQuantityChange(
-                  item.id,
-                  num === "" ? 1 : parseInt(num, 10),
-                  isCart
+                  item.sku,
+                  num === "" ? 1 : parseInt(num, 10)
                 );
               }}
               keyboardType="numeric"
@@ -158,19 +179,12 @@ export default function MyCartScreen({ navigation }) {
     </View>
   );
 
-  const itemsToShow = activeTab === "cart" ? cartItems : favoriteItems;
-
   const selectedCartItems = cartItems.filter((item) =>
-    selectedIds.includes(item.id)
+    selectedIds.includes(item.sku)
   );
-  const selectedItems =
-    activeTab === "cart"
-      ? selectedCartItems
-      : favoriteItems.filter((item) => selectedIds.includes(item.id));
+  const selectedItems = selectedCartItems;
   const total = selectedItems.reduce((sum, item) => {
-    const price = item.price
-      ? parseInt(item.price.replace(/[^\d]/g, ""), 10)
-      : 0;
+    const price = parseFloat(item.unit_price) || 0;
     return sum + price * item.quantity;
   }, 0);
 
@@ -234,22 +248,45 @@ export default function MyCartScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
       </View>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {itemsToShow.map((item) => renderItem(item, activeTab === "cart"))}
-        {activeTab === "cart" &&
-          selectedIds.length === 0 &&
-          cartItems.length > 0 && (
-            <Text
-              style={{
-                textAlign: "center",
-                color: darkMode ? "#B0B3B8" : "#6B6593",
-                marginTop: 16,
-                fontFamily: "serif",
-              }}
-            >
-              Select items to see total and checkout
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {cartItems.map((item) => renderItem(item))}
+        {selectedIds.length === 0 && cartItems.length > 0 && (
+          <Text
+            style={{
+              textAlign: "center",
+              color: darkMode ? "#B0B3B8" : "#6B6593",
+              marginTop: 16,
+              fontFamily: "serif",
+            }}
+          >
+            Select items to see total and checkout
+          </Text>
+        )}
+        {cartItems.length === 0 && (
+          <View style={styles.emptyCartContainer}>
+            <MaterialCommunityIcons 
+              name="cart-outline" 
+              size={64} 
+              color={subText} 
+            />
+            <Text style={[styles.emptyCartText, { color: subText }]}>
+              Your cart is empty
             </Text>
-          )}
+            <TouchableOpacity
+              style={[styles.shopNowButton, { backgroundColor: accent }]}
+              onPress={() => navigation.navigate("Home")}
+            >
+              <Text style={[styles.shopNowText, { color: darkMode ? "#000" : "#fff" }]}>
+                Shop Now
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
       {selectedIds.length > 0 && (
         <View style={[styles.bottomBar, { backgroundColor: bottomBarBg }]}>
@@ -480,5 +517,27 @@ const styles = StyleSheet.create({
     width: 50,
     textAlign: "center",
     marginTop: 2,
+  },
+  emptyCartContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyCartText: {
+    fontSize: 18,
+    fontFamily: 'serif',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  shopNowButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  shopNowText: {
+    fontSize: 16,
+    fontFamily: 'serif',
+    fontWeight: 'bold',
   },
 });

@@ -263,6 +263,55 @@ app.use('/api/inventory', verifyJwt, requireReadOnly(), inventoryRouter);
 app.use('/api/available-inventory', verifyJwt, requireReadOnly(), availableInventoryRouter);
 app.use('/api/inventory-reports', verifyJwt, requireReadOnly(), inventoryReportsRouter);
 
+// Public inventory endpoint for mobile app (no authentication required)
+app.get('/api/public/inventory', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(`
+      SELECT 
+        i.sku, 
+        i.name, 
+        i.description, 
+        i.quantity, 
+        i.unit_price, 
+        i.category, 
+        i.last_updated,
+        i.uom,
+        i.conversion_qty,
+        i.expiration,
+        CASE 
+          WHEN i.image_data IS NOT NULL THEN encode(i.image_data, 'base64')
+          ELSE NULL 
+        END as image_data,
+        COALESCE(SUM(CASE WHEN o.status IN ('Pending', 'To Be Packed', 'Order Shipped Out', 'Ready for Delivery') THEN op.quantity ELSE 0 END), 0) AS ordered_quantity
+      FROM 
+        inventory_items i
+      LEFT JOIN 
+        order_products op ON i.sku = op.sku
+      LEFT JOIN 
+        orders o ON op.order_id = o.order_id
+      GROUP BY 
+        i.sku, i.name, i.description, i.quantity, i.unit_price, i.category, i.last_updated, i.uom, i.conversion_qty, i.expiration, i.image_data
+      ORDER BY 
+        i.last_updated DESC
+    `);
+    
+    res.json({
+      success: true,
+      inventory: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching public inventory:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch inventory',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  } finally {
+    client.release();
+  }
+});
+
 // Unprotected test data endpoints for development
 app.use('/api/test', inventoryReportsRouter);
 app.use('/api/khen-test', khenTestDataRouter);
@@ -899,6 +948,72 @@ app.post('/api/user/profile-picture', verifyToken, upload.single('profilePicture
   }
 });
 
+// Change password endpoint for employees
+app.put('/api/user/change-password', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long'
+      });
+    }
+
+    // Get current password hash
+    const userResult = await pool.query(
+      'SELECT password_hash FROM users WHERE user_id = $1',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isValidPassword = await bcrypt.compare(currentPassword, userResult.rows[0].password_hash);
+    if (!isValidPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Hash new password
+    const saltRounds = 10;
+    const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password
+    await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE user_id = $2',
+      [newPasswordHash, userId]
+    );
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password'
+    });
+  }
+});
+
 // Add a new inventory item (with image upload to DB)
 app.post('/api/inventory', upload.single('image'), async (req, res) => {
   const client = await pool.connect();
@@ -1092,7 +1207,7 @@ app.get('/api/inventory', async (req, res) => {
           WHEN i.image_data IS NOT NULL THEN encode(i.image_data, 'base64')
           ELSE NULL 
         END as image_data,
-        COALESCE(SUM(CASE WHEN o.status IN ('Pending', 'To be pack', 'To be ship', 'Out for Delivery') THEN op.quantity ELSE 0 END), 0) AS ordered_quantity
+        COALESCE(SUM(CASE WHEN o.status IN ('Pending', 'To Be Packed', 'Order Shipped Out', 'Ready for Delivery') THEN op.quantity ELSE 0 END), 0) AS ordered_quantity
       FROM 
         inventory_items i
       LEFT JOIN 

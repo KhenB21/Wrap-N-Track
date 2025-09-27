@@ -40,7 +40,6 @@ import Forbidden403 from "./Pages/Forbidden403";
 import { AuthProvider } from "./Context/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { CartProvider } from "./Context/CartContext";
-import NotificationContainer from "./Components/NotificationContainer";
 import CustomerCart from "./Pages/CustomerPOV/CustomerCart";
 import CustomerCartWithOrders from "./Pages/CustomerPOV/CustomerCartWithOrders";
 import CustomerOrders from "./Pages/CustomerPOV/CustomerOrders";
@@ -57,7 +56,6 @@ function App() {
     <NotificationProvider>
     <CartProvider>
     <Router>
-      <NotificationContainer />
       <Routes>
         <Route path="/" element={<CustomerHome />} />
         <Route path="/employee-dashboard" element={<Dashboard />} />

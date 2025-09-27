@@ -35,7 +35,6 @@ function CustomerRegister() {
   const [emailError, setEmailError] = useState("");
   const [nameError, setNameError] = useState("");
   const [usernameError, setUsernameError] = useState("");
-  const [checkingName, setCheckingName] = useState(false);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   const [phoneError, setPhoneError] = useState("");
@@ -71,26 +70,7 @@ function CustomerRegister() {
     }
   }, 500);
 
-  const checkNameExists = debounce(async (name) => {
-    if (!name.trim()) return;
-    try {
-      setCheckingName(true);
-  const res = await api.get(`/api/auth/check-name`, {
-        params: { name: name.trim() }
-      });
-
-      if (res.data.exists) {
-        setNameError("Name is already taken");
-      } else {
-        setNameError("");
-      }
-    } catch (err) {
-      console.error("Name check failed:", err);
-      setNameError("Could not check name");
-    } finally {
-      setCheckingName(false);
-    }
-  }, 500);
+  // Name uniqueness check removed - multiple users can have the same name
 
   const checkUsernameExists = debounce(async (username) => {
     if (!username.trim()) return;
@@ -143,7 +123,7 @@ function CustomerRegister() {
     }
 
     if (name === "name") {
-      checkNameExists(value);
+      // Name validation removed - multiple users can have the same name
     }
 
     if (name === "username") {
@@ -297,7 +277,6 @@ function CustomerRegister() {
               onChange={handleChange}
               required
             />
-            {checkingName && <small>Checking name...</small>}
             {nameError && <div className="error-message">{nameError}</div>}
           </div>
 

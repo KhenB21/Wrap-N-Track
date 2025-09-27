@@ -21,7 +21,7 @@ html, body {
 
 .dashboard-main {
   flex: 1;
-  padding: 32px 32px 0 32px;
+  padding: 0 32px 0 32px;
   display: flex;
   flex-direction: column;
   margin-left: 220px;

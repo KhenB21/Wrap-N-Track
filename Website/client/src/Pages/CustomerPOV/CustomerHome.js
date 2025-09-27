@@ -1,9 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import EmployeeStatusBanner from '../../Components/EmployeeStatusBanner';
 import './CustomerPOV.css';
 
 export default function CustomerHome() {
+  const [showContactModal, setShowContactModal] = useState(false);
+  const navigate = useNavigate();
+
+  const scrollToFAQ = () => {
+    const faqSection = document.getElementById('contact');
+    if (faqSection) {
+      faqSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const openContactModal = () => {
+    setShowContactModal(true);
+  };
+
+  const closeContactModal = () => {
+    setShowContactModal(false);
+  };
+
+  const goToOrderPage = () => {
+    navigate('/order');
+  };
+
   return (
     <div className="customerhome-container pensee-home">
       <TopbarCustomer />
@@ -14,7 +37,7 @@ export default function CustomerHome() {
         <div className="pensee-hero-overlay">
           <h1 className="pensee-hero-title">Pensée Gifting Studio</h1>
           <p className="pensee-hero-subtitle">Curating thematic gift boxes for messages you want to send across</p>
-          <button className="pensee-cta-btn">GET IN TOUCH</button>
+          <button className="pensee-cta-btn" onClick={scrollToFAQ}>GET IN TOUCH</button>
         </div>
       </section>
 
@@ -67,7 +90,7 @@ export default function CustomerHome() {
             <span className="pensee-step-title">Make it personal</span>
           </div>
         </div>
-        <button className="pensee-cta-btn pensee-cta-secondary">Curate your own gift box here</button>
+        <button className="pensee-cta-btn pensee-cta-secondary" onClick={goToOrderPage}>Curate your own gift box here</button>
       </section>
 
       {/* Testimonials Section */}
@@ -101,9 +124,48 @@ export default function CustomerHome() {
         </ul>
         <div className="pensee-contact-cta">
           <span>Still have questions?</span>
-          <button className="pensee-cta-btn">Get in Touch</button>
+          <button className="pensee-cta-btn" onClick={openContactModal}>Get in Touch</button>
         </div>
       </section>
+
+      {/* Contact Modal */}
+      {showContactModal && (
+        <div className="modal-overlay" onClick={closeContactModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Get in Touch</h2>
+              <button className="modal-close" onClick={closeContactModal}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="contact-info">
+                <h3>Contact Information</h3>
+                <div className="contact-item">
+                  <strong>Email:</strong>
+                  <p>hello@penseegifting.com</p>
+                </div>
+                <div className="contact-item">
+                  <strong>Phone:</strong>
+                  <p>+63 917 123 4567</p>
+                </div>
+                <div className="contact-item">
+                  <strong>Business Hours:</strong>
+                  <p>Monday - Friday: 9:00 AM - 6:00 PM<br />
+                  Saturday: 10:00 AM - 4:00 PM<br />
+                  Sunday: Closed</p>
+                </div>
+                <div className="contact-item">
+                  <strong>Address:</strong>
+                  <p>123 Gift Street, Makati City<br />
+                  Metro Manila, Philippines 1234</p>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="pensee-cta-btn" onClick={closeContactModal}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

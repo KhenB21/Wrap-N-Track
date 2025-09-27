@@ -38,6 +38,13 @@ export default function CustomerUserDetails() {
     phone_number: '',
     address: ''
   });
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordError, setPasswordError] = useState('');
 
   // Define the order of fields
   const fieldOrder = ['username', 'name', 'email', 'phone_number', 'address'];
@@ -251,18 +258,21 @@ export default function CustomerUserDetails() {
           navigate('/customer/verify');
           return;
         }
-        setUserData(prev => ({
-          ...prev,
-          [field]: value
-        }));
-        const storedCustomer = JSON.parse(localStorage.getItem('customer'));
-        const updatedCustomer = { 
-          ...storedCustomer, 
-          [field]: value
-        };
-        localStorage.setItem('customer', JSON.stringify(updatedCustomer));
+        setUserData(prev => {
+          const updatedUser = { ...prev, [field]: value };
+          // Update localStorage with the new state
+          const storedCustomer = JSON.parse(localStorage.getItem('customer'));
+          const updatedCustomer = { ...storedCustomer, [field]: value };
+          localStorage.setItem('customer', JSON.stringify(updatedCustomer));
+          return updatedUser;
+        });
         setEditingField(null);
         setSuccess('Profile updated successfully!');
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSuccess(null);
+        }, 3000);
       }
     } catch (err) {
       console.error('Error updating profile:', err);
@@ -418,6 +428,65 @@ export default function CustomerUserDetails() {
     setError(null);
   };
 
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setPasswordError('');
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError('All fields are required');
+      return;
+    }
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+    
+    if (passwordData.newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters long');
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('customerToken');
+      const response = await api.put('/api/customer/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.data.success) {
+        setSuccess('Password changed successfully!');
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        setShowPasswordChange(false);
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSuccess(null);
+        }, 3000);
+      }
+    } catch (err) {
+      setPasswordError(err.response?.data?.message || 'Failed to change password');
+    }
+  };
+
   const handleProfilePictureChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -438,20 +507,21 @@ export default function CustomerUserDetails() {
         throw new Error('Failed to update profile picture');
       }
       
-      setUserData(prev => ({ 
-        ...prev, 
-        profile_picture_data: response.data.profile_picture_data 
-      }));
+      setUserData(prev => {
+        const updatedUser = { ...prev, profile_picture_data: response.data.profile_picture_data };
+        // Update localStorage with the new state
+        const storedCustomer = JSON.parse(localStorage.getItem('customer'));
+        const updatedCustomer = { ...storedCustomer, profile_picture_data: response.data.profile_picture_data };
+        localStorage.setItem('customer', JSON.stringify(updatedCustomer));
+        return updatedUser;
+      });
       setPreviewUrl(null);
-      
-      // Update localStorage with new profile picture
-      const storedCustomer = JSON.parse(localStorage.getItem('customer'));
-      const updatedCustomer = { 
-        ...storedCustomer, 
-        profile_picture_data: response.data.profile_picture_data
-      };
-      localStorage.setItem('customer', JSON.stringify(updatedCustomer));
       setSuccess('Profile picture updated successfully!');
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccess(null);
+      }, 3000);
     } catch (err) {
       console.error('Error updating profile picture:', err);
       setError(err.message || 'Failed to update profile picture');
@@ -557,8 +627,52 @@ export default function CustomerUserDetails() {
             <button className="secondary-btn" onClick={() => setViewMode(viewMode === 'view' ? 'edit' : 'view')}>
               {viewMode === 'view' ? 'Edit Profile' : 'Cancel'}
             </button>
+            <button className="secondary-btn" onClick={() => setShowPasswordChange(!showPasswordChange)}>
+              {showPasswordChange ? 'Cancel' : 'Change Password'}
+            </button>
             <button className="danger-btn" onClick={() => { logout(); navigate('/customer-home'); }}>Logout</button>
           </div>
+
+          {/* Password Change Form */}
+          {showPasswordChange && (
+            <form className="password-form" onSubmit={handlePasswordSubmit} style={{ marginTop: '20px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
+              <h3>Change Password</h3>
+              {passwordError && <div className="error" role="alert">{passwordError}</div>}
+              <div className="form-row">
+                <label>Current Password</label>
+                <input 
+                  type="password" 
+                  name="currentPassword" 
+                  value={passwordData.currentPassword} 
+                  onChange={handlePasswordChange} 
+                  required 
+                />
+              </div>
+              <div className="form-row">
+                <label>New Password</label>
+                <input 
+                  type="password" 
+                  name="newPassword" 
+                  value={passwordData.newPassword} 
+                  onChange={handlePasswordChange} 
+                  required 
+                  minLength="8"
+                />
+              </div>
+              <div className="form-row">
+                <label>Confirm New Password</label>
+                <input 
+                  type="password" 
+                  name="confirmPassword" 
+                  value={passwordData.confirmPassword} 
+                  onChange={handlePasswordChange} 
+                  required 
+                  minLength="8"
+                />
+              </div>
+              <button className="save-btn" type="submit" style={{ marginTop: '10px' }}>Change Password</button>
+            </form>
+          )}
         </div>
       </div>
     </div>

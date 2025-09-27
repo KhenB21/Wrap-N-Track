@@ -5,6 +5,7 @@ const pool = require('../config/db');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 
 // Authentication middleware
 const verifyToken = (req, res, next) => {
@@ -38,18 +39,9 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// Apply authentication middleware to all routes
-router.use(verifyToken);
 
 // Get customer profile
-router.get('/profile', async (req, res) => {
-  // 1. Ensure auth middleware attached a user object (defense-in-depth)
-  if (!req.user || !req.user.customer_id) {
-    return res.status(401).json({
-      success: false,
-      message: 'Unauthorized: missing or invalid token'
-    });
-  }
+router.get('/profile', verifyToken, async (req, res) => {
 
   const customerId = req.user.customer_id;
   console.log('[Customer/Profile] Fetching profile for customer_id:', customerId);
@@ -112,7 +104,7 @@ router.get('/profile', async (req, res) => {
 });
 
 // Update customer profile
-router.put('/profile', async (req, res) => {
+router.put('/profile', verifyToken, async (req, res) => {
   try {
     const customerId = req.user.customer_id;
     const { name, username, email_address, phone_number, street, city, zipcode } = req.body;
@@ -229,7 +221,7 @@ router.put('/profile', async (req, res) => {
 });
 
 // Update profile picture
-router.post('/profile-picture', upload.single('profilePicture'), async (req, res) => {
+router.post('/profile-picture', verifyToken, upload.single('profilePicture'), async (req, res) => {
   try {
     const customerId = req.user.customer_id;
     
@@ -367,7 +359,7 @@ router.post('/resend-verification', async (req, res) => {
 });
 
 // Add or update address for customer
-router.post('/profile/address', async (req, res) => {
+router.post('/profile/address', verifyToken, async (req, res) => {
   try {
     const customerId = req.user.customer_id;
     const { address } = req.body;
@@ -401,6 +393,72 @@ router.post('/profile/address', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to save address'
+    });
+  }
+});
+
+// Change password
+router.put('/change-password', verifyToken, async (req, res) => {
+  try {
+    const customerId = req.user.customer_id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long'
+      });
+    }
+
+    // Get current password hash
+    const customerResult = await pool.query(
+      'SELECT password_hash FROM customer_details WHERE customer_id = $1',
+      [customerId]
+    );
+
+    if (customerResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    // Verify current password
+    const isValidPassword = await bcrypt.compare(currentPassword, customerResult.rows[0].password_hash);
+    if (!isValidPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Hash new password
+    const saltRounds = 10;
+    const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password
+    await pool.query(
+      'UPDATE customer_details SET password_hash = $1 WHERE customer_id = $2',
+      [newPasswordHash, customerId]
+    );
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password'
     });
   }
 });
