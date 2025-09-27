@@ -219,6 +219,12 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Serve static files from React build directory (for production)
+if (process.env.NODE_ENV === 'production') {
+  const buildPath = path.join(__dirname, '../client/build');
+  app.use(express.static(buildPath));
+}
+
 // Add headers middleware (only echo allowed origins)
 app.use((req, res, next) => {
   const requestOrigin = req.headers.origin;
@@ -2055,6 +2061,13 @@ app.post('/api/inventory/add-stock', async (req, res) => {
         client.release();
     }
 });
+
+// Catch-all handler: send back React's index.html file for client-side routing
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+  });
+}
 
 // Start notification scheduler
 const scheduler = require('./scripts/scheduler');
