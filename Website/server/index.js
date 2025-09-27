@@ -7,6 +7,8 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const WebSocket = require('ws');
+const http = require('http');
 // Load environment variables - prioritize .env for production, .env.local for development
 const envLocal = path.join(__dirname, '..', '.env.local');
 const envProd = path.join(__dirname, '..', '.env');
@@ -186,10 +188,10 @@ const upload = multer({
 // --- CORS configuration (hardened) ---
 // Build the allowed origins list once. If CORS_ORIGIN env var exists, it overrides defaults.
 const allowedOrigins = (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)) || [
-  // Production deployed frontend (replace if you change deployment URL)
-  'https://staticwrapntrack-tz5cu.ondigitalocean.app',
+  // Production deployed frontend (DigitalOcean App Platform)
+  'https://staticwrapntrack-b3akc.ondigitalocean.app',
   // API origin (self) if browser ever calls directly from same host
-  'https://wrapntrack-ztp8a.ondigitalocean.app',
+  'https://wrapntracwebservice-2g22j.ondigitalocean.app',
   // Development local React
   'http://localhost:3000',
   // Legacy fallbacks (remove when no longer needed)
@@ -1386,6 +1388,20 @@ const server = app.listen(port, () => {
   console.log(`[Startup] API listening on port ${port} (${portSource}) | NODE_ENV=${process.env.NODE_ENV || 'development'} | PID=${process.pid}`);
   console.log('[Startup] If deployed (e.g. DigitalOcean App Platform), PORT is injected via environment.');
 });
+
+// Initialize WebSocket server
+wss = new WebSocket.Server({ 
+  server,
+  path: '/ws',
+  verifyClient: (info) => {
+    // Allow connections from allowed origins
+    const origin = info.origin;
+    if (!origin) return true; // Allow server-to-server connections
+    return allowedOrigins.some(allowedOrigin => origin === allowedOrigin);
+  }
+});
+
+console.log('[WebSocket] Server initialized on /ws path');
 
 // Error handling for the server
 server.on('error', (error) => {

@@ -46,7 +46,7 @@ services:
   github:
     repo: your-username/Wrap-N-Track
     branch: main
-  run_command: npm start
+  run_command: npm run build && node server.js
   environment_slug: node-js
   instance_count: 1
   instance_size_slug: basic-xxs
@@ -63,3 +63,5 @@ services:
     value: production
   - key: REACT_APP_API_URL
     value: https://wrapntracwebservice-2g22j.ondigitalocean.app
+  - key: REACT_APP_WS_URL
+    value: wss://wrapntracwebservice-2g22j.ondigitalocean.app

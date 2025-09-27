@@ -9,6 +9,8 @@ router.use(verifyJwt());
 // GET /api/customer-orders/orders - Get customer's orders
 router.get('/orders', async (req, res) => {
   try {
+    console.log('Customer orders request - user:', req.user);
+    
     // Handle both customer and employee tokens
     let customerId = req.user.customer_id;
     
@@ -21,6 +23,21 @@ router.get('/orders', async (req, res) => {
       } else {
         // Employee wants to see all orders - return all orders
         return await getAllOrdersForEmployee(req, res);
+      }
+    }
+    
+    // For customers without customer_id in token, try to find by email or name
+    if (!customerId && req.user.email) {
+      try {
+        const customerResult = await pool.query(
+          'SELECT customer_id FROM customer_details WHERE email_address = $1',
+          [req.user.email]
+        );
+        if (customerResult.rows.length > 0) {
+          customerId = customerResult.rows[0].customer_id;
+        }
+      } catch (err) {
+        console.error('Error looking up customer by email:', err);
       }
     }
     
