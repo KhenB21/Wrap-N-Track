@@ -79,13 +79,23 @@ export default function OrderHistory() {
   };
 
   useEffect(() => {
-  // WebSocket base: fallback to current origin if env not set
+  // WebSocket base: use config or fallback to current origin
   const wsBase = process.env.REACT_APP_WS_URL || window.location.origin.replace(/^http/, 'ws');
-  const newWs = new WebSocket(`${wsBase}/ws`);
+  const wsUrl = `${wsBase}/ws`;
+  console.log('Connecting to WebSocket:', wsUrl);
+  const newWs = new WebSocket(wsUrl);
     setWs(newWs);
 
     newWs.onopen = () => {
       console.log('WebSocket connected');
+    };
+
+    newWs.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    newWs.onclose = (event) => {
+      console.log('WebSocket closed:', event.code, event.reason);
     };
 
     newWs.onmessage = (event) => {

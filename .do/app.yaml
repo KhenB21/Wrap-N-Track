@@ -1,0 +1,67 @@
+name: wrap-n-track
+services:
+- name: api
+  source_dir: Website/server
+  github:
+    repo: your-username/Wrap-N-Track
+    branch: main
+  run_command: npm start
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 8080
+  health_check:
+    http_path: /
+    initial_delay_seconds: 10
+    period_seconds: 10
+    timeout_seconds: 5
+    success_threshold: 1
+    failure_threshold: 3
+  envs:
+  - key: NODE_ENV
+    value: production
+  - key: PORT
+    value: "8080"
+  - key: DB_USER
+    value: doadmin
+  - key: DB_HOST
+    value: wrapntrackdb-do-user-22907915-0.d.db.ondigitalocean.com
+  - key: DB_NAME
+    value: defaultdb
+  - key: DB_PASSWORD
+    value: AVNS_lnACZxZsFPk_l9_ZmF8
+  - key: DB_PORT
+    value: "25060"
+  - key: DB_SSL
+    value: "true"
+  - key: EMAIL_USER
+    value: marckhennethbolima@gmail.com
+  - key: EMAIL_PASSWORD
+    value: pibm swva qtrz vmod
+  - key: JWT_SECRET
+    value: 917d905af041889478c9a3b0d0c7a4f7af9848504d45a36ca73d6caad0f173e3
+
+- name: web
+  source_dir: Website/client
+  github:
+    repo: your-username/Wrap-N-Track
+    branch: main
+  run_command: npm install && npm run build && node server.js
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 3000
+  health_check:
+    http_path: /
+    initial_delay_seconds: 10
+    period_seconds: 10
+    timeout_seconds: 5
+    success_threshold: 1
+    failure_threshold: 3
+  envs:
+  - key: NODE_ENV
+    value: production
+  - key: REACT_APP_API_URL
+    value: https://wrapntracwebservice-2g22j.ondigitalocean.app
+  - key: REACT_APP_WS_URL
+    value: wss://wrapntracwebservice-2g22j.ondigitalocean.app

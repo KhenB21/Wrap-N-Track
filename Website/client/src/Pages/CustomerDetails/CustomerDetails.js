@@ -369,9 +369,9 @@ export default function CustomerDetails() {
       console.log('Ongoing orders response:', ongoingResponse.data);
 
       // Fetch completed orders from archived orders
-  const historyResponse = await api.get('/api/order-management/archived-orders');
+  const historyResponse = await api.get('/api/order-history');
       const completedOrders = (historyResponse.data?.orders || []).filter(order => 
-        order.name.toLowerCase() === selectedCustomer.name.toLowerCase()
+        order.customer_name && order.customer_name.toLowerCase() === selectedCustomer.name.toLowerCase()
       );
       console.log('Completed orders response:', completedOrders);
 

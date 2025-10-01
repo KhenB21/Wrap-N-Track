@@ -9,6 +9,8 @@ router.use(verifyJwt());
 // GET /api/customer-orders/orders - Get customer's orders
 router.get('/orders', async (req, res) => {
   try {
+    console.log('Customer orders request - user:', req.user);
+    
     // Handle both customer and employee tokens
     let customerId = req.user.customer_id;
     
@@ -24,12 +26,29 @@ router.get('/orders', async (req, res) => {
       }
     }
     
+    // For customers without customer_id in token, try to find by email or name
+    if (!customerId && req.user.email) {
+      try {
+        const customerResult = await pool.query(
+          'SELECT customer_id FROM customer_details WHERE email_address = $1',
+          [req.user.email]
+        );
+        if (customerResult.rows.length > 0) {
+          customerId = customerResult.rows[0].customer_id;
+        }
+      } catch (err) {
+        console.error('Error looking up customer by email:', err);
+      }
+    }
+    
     if (!customerId) {
       return res.status(401).json({
         success: false,
         message: 'Customer authentication required or customer_id parameter needed for employee access'
       });
     }
+
+    console.log(`Fetching orders for customer_id: ${customerId}`);
 
     // Fetch active orders from orders table
     const activeOrdersResult = await pool.query(`
@@ -60,6 +79,7 @@ router.get('/orders', async (req, res) => {
 
     // Fetch completed/cancelled orders from order_history table
     // Include orders that match customer_id OR have matching email/name for this customer
+    console.log(`Fetching archived orders for customer_id: ${customerId}`);
     const historyOrdersResult = await pool.query(`
       SELECT 
         oh.order_id,
@@ -119,9 +139,17 @@ router.get('/orders', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching customer orders:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch orders'
+      message: 'Failed to fetch orders',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });

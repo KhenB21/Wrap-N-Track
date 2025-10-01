@@ -7,10 +7,12 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
-// Load .env.local if present, else .env (without affecting prod)
+const WebSocket = require('ws');
+const http = require('http');
+// Load environment variables - prioritize .env for production, .env.local for development
 const envLocal = path.join(__dirname, '..', '.env.local');
 const envProd = path.join(__dirname, '..', '.env');
-const envPath = fs.existsSync(envLocal) ? envLocal : envProd;
+const envPath = process.env.NODE_ENV === 'production' ? envProd : (fs.existsSync(envLocal) ? envLocal : envProd);
 require('dotenv').config({ path: envPath });
 // Pool now sourced from config/db.js
 let wss, notifyChange;
@@ -186,10 +188,10 @@ const upload = multer({
 // --- CORS configuration (hardened) ---
 // Build the allowed origins list once. If CORS_ORIGIN env var exists, it overrides defaults.
 const allowedOrigins = (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)) || [
-  // Production deployed frontend (replace if you change deployment URL)
-  'https://staticwrapntrack-tz5cu.ondigitalocean.app',
+  // Production deployed frontend (DigitalOcean App Platform)
+  'https://staticwrapntrack-b3akc.ondigitalocean.app',
   // API origin (self) if browser ever calls directly from same host
-  'https://wrapntrack-ztp8a.ondigitalocean.app',
+  'https://wrapntracwebservice-2g22j.ondigitalocean.app',
   // Development local React
   'http://localhost:3000',
   // Legacy fallbacks (remove when no longer needed)
@@ -1136,6 +1138,20 @@ const server = app.listen(port, () => {
   console.log('[Startup] If deployed (e.g. DigitalOcean App Platform), PORT is injected via environment.');
 });
 
+// Initialize WebSocket server
+wss = new WebSocket.Server({ 
+  server,
+  path: '/ws',
+  verifyClient: (info) => {
+    // Allow connections from allowed origins
+    const origin = info.origin;
+    if (!origin) return true; // Allow server-to-server connections
+    return allowedOrigins.some(allowedOrigin => origin === allowedOrigin);
+  }
+});
+
+console.log('[WebSocket] Server initialized on /ws path');
+
 // Error handling for the server
 server.on('error', (error) => {
   console.error('Server error:', error);
@@ -1409,6 +1425,145 @@ app.get('/api/orders/history', async (req, res) => {
   } catch (err) {
     console.error('Error fetching order history:', err);
     res.status(500).json({ message: 'Failed to fetch order history' });
+  }
+});
+
+// Test endpoint for order history (no auth required for debugging)
+app.get('/api/order-history-test', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        oh.*,
+        COALESCE(u.name, 'Deleted User') as archived_by_name
+      FROM order_history oh
+      LEFT JOIN users u ON oh.archived_by = u.user_id
+      ORDER BY oh.archived_at DESC
+      LIMIT 10
+    `);
+    
+    res.json({
+      success: true,
+      orders: result.rows,
+      message: 'Test endpoint working'
+    });
+  } catch (err) {
+    console.error('Error in test endpoint:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Test endpoint failed',
+      error: err.message
+    });
+  }
+});
+
+// Get order history for employees (all archived orders)
+app.get('/api/order-history', verifyJwt, requireRole(['admin', 'sales_manager', 'assistant_sales', 'packer']), async (req, res) => {
+  try {
+    const { page = 1, limit = 50, status, search } = req.query;
+    const offset = (page - 1) * limit;
+    
+    let whereClause = '';
+    let queryParams = [limit, offset];
+    let paramIndex = 3;
+
+    // Add status filter
+    if (status && status !== 'all') {
+      whereClause += ` WHERE oh.status = $${paramIndex}`;
+      queryParams.push(status);
+      paramIndex++;
+    }
+
+    // Add search filter
+    if (search) {
+      const searchCondition = `oh.customer_name ILIKE $${paramIndex} OR oh.order_id ILIKE $${paramIndex}`;
+      if (whereClause) {
+        whereClause += ` AND (${searchCondition})`;
+      } else {
+        whereClause = ` WHERE ${searchCondition}`;
+      }
+      queryParams.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    const result = await pool.query(`
+      SELECT 
+        oh.*,
+        COALESCE(u.name, 'Deleted User') as archived_by_name,
+        u.profile_picture_data as archived_by_profile_picture,
+        COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'sku', ohp.sku,
+              'quantity', ohp.quantity,
+              'unit_price', ohp.unit_price,
+              'name', i.name,
+              'image_data', ENCODE(i.image_data, 'base64')
+            )
+          ) FILTER (WHERE ohp.sku IS NOT NULL), '[]'
+        ) AS products
+      FROM order_history oh
+      LEFT JOIN users u ON oh.archived_by = u.user_id
+      LEFT JOIN order_history_products ohp ON oh.order_id = ohp.order_id
+      LEFT JOIN inventory_items i ON ohp.sku = i.sku
+      ${whereClause}
+      GROUP BY oh.order_id, u.name, u.profile_picture_data
+      ORDER BY oh.archived_at DESC
+      LIMIT $1 OFFSET $2
+    `, queryParams);
+
+    // Get total count for pagination
+    let countQuery = 'SELECT COUNT(*) as total FROM order_history oh';
+    let countParams = [];
+    let countParamIndex = 1;
+
+    if (status && status !== 'all') {
+      countQuery += ' WHERE oh.status = $1';
+      countParams.push(status);
+      countParamIndex++;
+    }
+
+    if (search) {
+      const searchCondition = `oh.customer_name ILIKE $${countParamIndex} OR oh.order_id ILIKE $${countParamIndex}`;
+      if (countParams.length > 0) {
+        countQuery += ` AND (${searchCondition})`;
+      } else {
+        countQuery += ` WHERE ${searchCondition}`;
+      }
+      countParams.push(`%${search}%`);
+    }
+
+    const countResult = await pool.query(countQuery, countParams);
+    const total = parseInt(countResult.rows[0].total);
+
+    const orders = result.rows.map(order => ({
+      ...order,
+      archived_by_profile_picture: order.archived_by_profile_picture ? order.archived_by_profile_picture.toString('base64') : null,
+      products: order.products || []
+    }));
+    
+    res.json({
+      success: true,
+      orders,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching order history:', err);
+    console.error('Error details:', {
+      message: err.message,
+      code: err.code,
+      detail: err.detail,
+      hint: err.hint
+    });
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch order history',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
   }
 });
 
