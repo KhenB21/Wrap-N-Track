@@ -23,12 +23,13 @@ if (host === 'localhost' || host === '127.0.0.1') {
   console.log('[DB] Auto-disabling SSL for localhost development');
   useSsl = false;
 }
-// Create connection string for local development
-const connectionString = `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME}?sslmode=disable`;
+// Create connection string with proper SSL configuration
+const sslMode = useSsl ? 'require' : 'disable';
+const connectionString = `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME}?sslmode=${sslMode}`;
 
 const pool = new Pool({
   connectionString: connectionString,
-  ssl: false,
+  ssl: useSsl ? { rejectUnauthorized: false } : false,
   application_name: 'wrap-n-track-server',
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,

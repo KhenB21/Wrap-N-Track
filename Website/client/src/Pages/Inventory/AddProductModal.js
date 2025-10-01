@@ -475,8 +475,9 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       dataToSend.append('quantity', String(Number(form.quantity))); // Ensure numeric conversion
       dataToSend.append('unit_price', String(Number(form.unit_price))); // Ensure numeric conversion
       dataToSend.append('category', categoryInput || form.category);
-      dataToSend.append('supplier_id', form.supplier_id || '');
-      dataToSend.append('uom', form.uom || '');
+      dataToSend.append('supplier_id', form.supplier_id ?? '');
+      // Send empty as '' which backend now maps to NULL; otherwise the exact value
+      dataToSend.append('uom', form.uom ?? '');
       dataToSend.append('conversion_qty', form.conversion_qty || '');
       dataToSend.append('expirable', form.expirable ? 'true' : 'false');
       dataToSend.append('expiration', form.expiration || '');

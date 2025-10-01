@@ -1380,7 +1380,8 @@ body, .customerpov-container, .carlo-preview-container {
     width: 100%;
     padding: 36px 8vw 18px 8vw;
   }
-  .pensee-step-title {
-    margin-top: 36px;
+  
+  .stat-divider {
+    display: none;
   }
-} 
+}

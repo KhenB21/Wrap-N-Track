@@ -360,8 +360,7 @@ function Inventory() {
                           fontSize: '14px'
                         }}>
                           {(() => {
-                            const qty = Number(product.quantity || product.stock_quantity || 0);
-                            console.log(`Product ${product.sku}: quantity=${product.quantity}, stock_quantity=${product.stock_quantity}, final=${qty}`);
+                            const qty = Number(product.quantity || 0);
                             return qty.toLocaleString();
                           })()}
                         </div>

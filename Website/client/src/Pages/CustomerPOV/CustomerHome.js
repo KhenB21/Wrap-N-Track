@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import EmployeeStatusBanner from '../../Components/EmployeeStatusBanner';
@@ -6,7 +6,31 @@ import './CustomerPOV.css';
 
 export default function CustomerHome() {
   const [showContactModal, setShowContactModal] = useState(false);
+  const [isVisible, setIsVisible] = useState({});
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          setIsVisible(prev => ({
+            ...prev,
+            [entry.target.id]: true
+          }));
+        }
+      });
+    }, observerOptions);
+
+    const sections = document.querySelectorAll('.animate-on-scroll');
+    sections.forEach(section => observer.observe(section));
+
+    return () => observer.disconnect();
+  }, []);
 
   const scrollToFAQ = () => {
     const faqSection = document.getElementById('contact');
@@ -31,13 +55,24 @@ export default function CustomerHome() {
     <div className="customerhome-container pensee-home">
       <TopbarCustomer />
       <EmployeeStatusBanner />
-      {/* Hero Section with Overlay */}
-      <section className="pensee-hero-image-section">
-        <img className="pensee-hero-bg" src="/Assets/Images/HomeBackground.jpg" alt="Gift box background" />
-        <div className="pensee-hero-overlay">
-          <h1 className="pensee-hero-title">Pensée Gifting Studio</h1>
-          <p className="pensee-hero-subtitle">Curating thematic gift boxes for messages you want to send across</p>
-          <button className="pensee-cta-btn" onClick={scrollToFAQ}>GET IN TOUCH</button>
+      {/* Enhanced Hero Section */}
+      <section className="pensee-hero-image-section enhanced">
+        <div className="pensee-hero-bg-wrapper">
+          <img className="pensee-hero-bg" src="/Assets/Images/HomeBackground.jpg" alt="Gift box background" />
+          <div className="pensee-hero-gradient-overlay"></div>
+        </div>
+        <div className="pensee-hero-overlay enhanced">
+          <div className="pensee-hero-badge">✨ Premium Gifting Experience</div>
+          <h1 className="pensee-hero-title enhanced">Pensée Gifting Studio</h1>
+          <p className="pensee-hero-subtitle enhanced">Curating thematic gift boxes for messages you want to send across</p>
+          <div className="pensee-hero-actions">
+            <button className="pensee-cta-btn primary" onClick={scrollToFAQ}>
+              <span>GET IN TOUCH</span>
+              <i className="arrow-icon">→</i>
+            </button>
+            
+          </div>
+          
         </div>
       </section>
 

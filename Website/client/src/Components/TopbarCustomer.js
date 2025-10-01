@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './TopbarCustomer.css';
 import { useAuth } from '../Context/AuthContext';
 import { useCart } from '../Context/CartContext';
+import ZapierChatbotEmbed from './ZapierChatbotEmbed';
 
 const navLinks = [
   { label: 'HOME', path: '/customer-home' },
@@ -42,7 +43,7 @@ export default function TopbarCustomer() {
       if (user.profile_picture_path.startsWith('http')) {
         return user.profile_picture_path;
       }
-  return `${user.profile_picture_path}`;
+    return `${user.profile_picture_path}`;
     }
     
     return placeholderUrl;
@@ -175,6 +176,7 @@ export default function TopbarCustomer() {
           )}
         </div>
       </nav>
+      <ZapierChatbotEmbed chatbotId="cmg83d0pp004cmxd6eyag8jfi" isPopup />
     </header>
   );
 }
