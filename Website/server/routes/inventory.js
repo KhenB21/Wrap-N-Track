@@ -1,6 +1,22 @@
 const express = require('express');
+const multer = require('multer');
 const router = express.Router();
 const pool = require('../config/db');
+
+// Configure multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  }
+});
 
 // Middleware to verify JWT token (reusing from existing patterns)
 const jwt = require('jsonwebtoken');
@@ -188,7 +204,7 @@ router.post('/add-stock', async (req, res) => {
 });
 
 // POST /api/inventory - Create new inventory item OR update existing item
-router.post('/', async (req, res) => {
+router.post('/', upload.single('image'), async (req, res) => {
   const { sku, name, description, category, quantity, unit_price, image_data, isUpdate, supplier_id, uom, conversion_qty, expirable, expiration } = req.body;
   
   // Convert expirable to boolean
@@ -196,6 +212,10 @@ router.post('/', async (req, res) => {
   
   // Handle empty string conversion_qty - convert to null for database
   const conversionQty = conversion_qty === '' || conversion_qty === null ? null : Number(conversion_qty);
+  // Sanitize optional fields that may arrive as empty strings from FormData
+  const supplierId = supplier_id === '' || supplier_id === null || typeof supplier_id === 'undefined' ? null : Number(supplier_id);
+  const uomValue = !uom || (typeof uom === 'string' && uom.trim() === '') ? null : uom;
+  const expirationDate = expiration === '' || typeof expiration === 'undefined' || expiration === null ? null : expiration;
   
   console.log('Inventory POST request:', { sku, isUpdate, name });
   
@@ -215,26 +235,58 @@ router.post('/', async (req, res) => {
       
       // Handle image data if provided
       let imageBuffer = null;
-      if (image_data) {
+      if (req.file) {
+        // Image uploaded via FormData
+        imageBuffer = req.file.buffer;
+      } else if (image_data) {
+        // Base64 image data from JSON
         imageBuffer = Buffer.from(image_data.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
       }
       
-      const result = await pool.query(`
-        UPDATE inventory_items 
-        SET name = COALESCE($1, name),
-            description = COALESCE($2, description),
-            category = COALESCE($3, category),
-            unit_price = COALESCE($4, unit_price),
-            image_data = COALESCE($5, image_data),
-            supplier_id = COALESCE($6, supplier_id),
-            uom = COALESCE($7, uom),
-            conversion_qty = COALESCE($8, conversion_qty),
-            expirable = COALESCE($9, expirable),
-            expiration = COALESCE($10, expiration),
-            last_updated = NOW()
-        WHERE sku = $11
-        RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration
-      `, [name, description, category, unit_price, imageBuffer, supplier_id, uom, conversionQty, expirableBool, expiration, sku]);
+      // Check if expirable column exists before including it in the query
+      const columnCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'inventory_items' 
+        AND column_name = 'expirable'
+      `);
+      
+      const hasExpirableColumn = columnCheck.rows.length > 0;
+      
+      let result;
+      if (hasExpirableColumn) {
+        result = await pool.query(`
+          UPDATE inventory_items 
+          SET name = COALESCE($1, name),
+              description = COALESCE($2, description),
+              category = COALESCE($3, category),
+              unit_price = COALESCE($4, unit_price),
+              image_data = COALESCE($5, image_data),
+              supplier_id = COALESCE($6, supplier_id),
+              uom = COALESCE($7, uom),
+              conversion_qty = COALESCE($8, conversion_qty),
+              expirable = COALESCE($9, expirable),
+              expiration = COALESCE($10, expiration),
+              last_updated = NOW()
+          WHERE sku = $11
+          RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration
+        `, [name, description, category, unit_price, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, sku]);
+      } else {
+        result = await pool.query(`
+          UPDATE inventory_items 
+          SET name = COALESCE($1, name),
+              description = COALESCE($2, description),
+              category = COALESCE($3, category),
+              unit_price = COALESCE($4, unit_price),
+              image_data = COALESCE($5, image_data),
+              supplier_id = COALESCE($6, supplier_id),
+              uom = COALESCE($7, uom),
+              conversion_qty = COALESCE($8, conversion_qty),
+              last_updated = NOW()
+          WHERE sku = $9
+          RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty
+        `, [name, description, category, unit_price, imageBuffer, supplierId, uomValue, conversionQty, sku]);
+      }
       
       return res.json({
         success: true,
@@ -250,17 +302,40 @@ router.post('/', async (req, res) => {
         });
       }
       
-      // Convert base64 to bytea if image_data is provided
+      // Handle image data if provided
       let imageBuffer = null;
-      if (image_data) {
+      if (req.file) {
+        // Image uploaded via FormData
+        imageBuffer = req.file.buffer;
+      } else if (image_data) {
+        // Base64 image data from JSON
         imageBuffer = Buffer.from(image_data.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
       }
       
-      const result = await pool.query(`
-        INSERT INTO inventory_items (sku, name, description, category, quantity, unit_price, image_data, supplier_id, uom, conversion_qty, expirable, expiration, last_updated)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
-        RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration
-      `, [sku, name, description, category, quantity || 0, unit_price, imageBuffer, supplier_id, uom, conversionQty, expirableBool, expiration]);
+      // Check if expirable column exists before including it in the query
+      const columnCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'inventory_items' 
+        AND column_name = 'expirable'
+      `);
+      
+      const hasExpirableColumn = columnCheck.rows.length > 0;
+      
+      let result;
+      if (hasExpirableColumn) {
+        result = await pool.query(`
+          INSERT INTO inventory_items (sku, name, description, category, quantity, unit_price, image_data, supplier_id, uom, conversion_qty, expirable, expiration, last_updated)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+          RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration
+        `, [sku, name, description, category, quantity || 0, unit_price, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate]);
+      } else {
+        result = await pool.query(`
+          INSERT INTO inventory_items (sku, name, description, category, quantity, unit_price, image_data, supplier_id, uom, conversion_qty, last_updated)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+          RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty
+        `, [sku, name, description, category, quantity || 0, unit_price, imageBuffer, supplierId, uomValue, conversionQty]);
+      }
       
       return res.status(201).json({
         success: true,
@@ -287,6 +362,10 @@ router.put('/:sku', async (req, res) => {
   
   // Handle empty string conversion_qty - convert to null for database
   const conversionQty = conversion_qty === '' || conversion_qty === null ? null : Number(conversion_qty);
+  // Sanitize optional fields
+  const supplierId = supplier_id === '' || supplier_id === null || typeof supplier_id === 'undefined' ? null : Number(supplier_id);
+  const uomValue = !uom || (typeof uom === 'string' && uom.trim() === '') ? null : uom;
+  const expirationDate = expiration === '' || typeof expiration === 'undefined' || expiration === null ? null : expiration;
   
   try {
     // Check if item exists
@@ -304,23 +383,52 @@ router.put('/:sku', async (req, res) => {
       imageBuffer = Buffer.from(image_data.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
     }
     
-    const result = await pool.query(`
-      UPDATE inventory_items 
-      SET name = COALESCE($1, name),
-          description = COALESCE($2, description),
-          category = COALESCE($3, category),
-          quantity = COALESCE($4, quantity),
-          unit_price = COALESCE($5, unit_price),
-          image_data = COALESCE($6, image_data),
-          supplier_id = COALESCE($7, supplier_id),
-          uom = COALESCE($8, uom),
-          conversion_qty = COALESCE($9, conversion_qty),
-          expirable = COALESCE($10, expirable),
-          expiration = COALESCE($11, expiration),
-          last_updated = NOW()
-      WHERE sku = $12
-      RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration
-    `, [name, description, category, quantity, unit_price, imageBuffer, supplier_id, uom, conversionQty, expirableBool, expiration, sku]);
+    // Check if expirable column exists before including it in the query
+    const columnCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'inventory_items' 
+      AND column_name = 'expirable'
+    `);
+    
+    const hasExpirableColumn = columnCheck.rows.length > 0;
+    
+    let result;
+    if (hasExpirableColumn) {
+      result = await pool.query(`
+        UPDATE inventory_items 
+        SET name = COALESCE($1, name),
+            description = COALESCE($2, description),
+            category = COALESCE($3, category),
+            quantity = COALESCE($4, quantity),
+            unit_price = COALESCE($5, unit_price),
+            image_data = COALESCE($6, image_data),
+            supplier_id = COALESCE($7, supplier_id),
+            uom = COALESCE($8, uom),
+            conversion_qty = COALESCE($9, conversion_qty),
+            expirable = COALESCE($10, expirable),
+            expiration = COALESCE($11, expiration),
+            last_updated = NOW()
+        WHERE sku = $12
+        RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration
+      `, [name, description, category, quantity, unit_price, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, sku]);
+    } else {
+      result = await pool.query(`
+        UPDATE inventory_items 
+        SET name = COALESCE($1, name),
+            description = COALESCE($2, description),
+            category = COALESCE($3, category),
+            quantity = COALESCE($4, quantity),
+            unit_price = COALESCE($5, unit_price),
+            image_data = COALESCE($6, image_data),
+            supplier_id = COALESCE($7, supplier_id),
+            uom = COALESCE($8, uom),
+            conversion_qty = COALESCE($9, conversion_qty),
+            last_updated = NOW()
+        WHERE sku = $10
+        RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty
+      `, [name, description, category, quantity, unit_price, imageBuffer, supplierId, uomValue, conversionQty, sku]);
+    }
     
     return res.json({
       success: true,

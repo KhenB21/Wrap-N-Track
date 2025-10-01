@@ -34,7 +34,7 @@ export default function CarloPreview() {
   const [inventory, setInventory] = useState([]);
   const [error, setError] = useState("");
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Fetch inventory on mount
     api.get('/api/inventory').then(res => setInventory(res.data)).catch(() => setInventory([]));
   }, []);
@@ -125,32 +125,7 @@ const handleSubmit = async (e) => {
   };
 
 
-  useEffect(() => {
-    // Load the chatbot script
-    const scriptId = "zapier-chatbot-script";
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement("script");
-      script.id = scriptId;
-      script.src =
-        "https://interfaces.zapier.com/assets/web-components/zapier-interfaces/zapier-interfaces.esm.js";
-      script.type = "module";
-      script.async = true;
-      document.body.appendChild(script);
-    }
-
-    // Wait until script is loaded, then add chatbot element
-    const chatbotId = "cmb4k6r9900ek14o7r1yropa0";
-    const existingBot = document.querySelector(
-      "zapier-interfaces-chatbot-embed"
-    );
-
-    if (!existingBot) {
-      const bot = document.createElement("zapier-interfaces-chatbot-embed");
-      bot.setAttribute("is-popup", "true");
-      bot.setAttribute("chatbot-id", chatbotId);
-      document.body.appendChild(bot);
-    }
-  }, []);
+  // Chatbot embed moved globally via <ZapierChatbotEmbed /> in TopbarCustomer
 
 
   return (
