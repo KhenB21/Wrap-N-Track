@@ -1,0 +1,436 @@
+/* ========================================
+   COMPREHENSIVE RESPONSIVE DESIGN ENHANCEMENTS
+   For Wrap-N-Track Website
+   ======================================== */
+
+/* Extra Large Screens (1441px and above) */
+@media (min-width: 1441px) {
+  .customerpov-grid {
+    max-width: 1400px;
+  }
+  
+  .pensee-highlight-row {
+    max-width: 1400px;
+  }
+}
+
+/* Medium-Large Tablets (768px - 1024px) */
+@media (max-width: 1024px) {
+  .customerpov-section-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    padding: 1rem clamp(1.5rem, 4vw, 4rem);
+  }
+  
+  .pensee-hero-title {
+    font-size: clamp(2rem, 5vw, 3rem);
+  }
+  
+  .pensee-section-title {
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+  }
+  
+  .customerpov-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: clamp(1.5rem, 3vw, 3rem);
+    padding: 0 1rem;
+  }
+  
+  .pensee-hero-image-section {
+    min-height: 400px;
+    height: 50vh;
+  }
+  
+  .pensee-hero-overlay {
+    padding: 2rem clamp(2rem, 5vw, 4rem);
+    max-width: 90%;
+  }
+  
+  .pensee-highlight-row {
+    gap: 2rem;
+    padding: 0 1.5rem;
+  }
+  
+  .pensee-highlight-text h2 {
+    font-size: clamp(1.5rem, 3.5vw, 2rem);
+  }
+  
+  .pensee-highlight-text p {
+    font-size: clamp(1rem, 2vw, 1.1rem);
+  }
+}
+
+/* Small Tablets & Large Mobile (481px - 767px) */
+@media (max-width: 767px) {
+  body, .customerpov-container, .carlo-preview-container {
+    padding: 0;
+  }
+  
+  .customerpov-section-title {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+    padding: 0.75rem clamp(1rem, 3vw, 2rem);
+    letter-spacing: 0.05em;
+  }
+  
+  .customerpov-intro {
+    font-size: clamp(1rem, 3vw, 1.25rem);
+    padding: 0 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .customerpov-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 0 1rem;
+  }
+  
+  .customerpov-card {
+    margin: 0 auto;
+    max-width: 100%;
+  }
+  
+  .customerpov-card-image-wrapper {
+    height: clamp(200px, 50vw, 280px);
+  }
+  
+  .customerpov-card-content {
+    padding: 1.5rem 1rem;
+  }
+  
+  .customerpov-card-title {
+    font-size: clamp(1.5rem, 5vw, 2rem);
+  }
+  
+  .customerpov-card-paragraph {
+    font-size: clamp(1rem, 3vw, 1.125rem);
+  }
+  
+  .customerpov-hero {
+    height: clamp(200px, 40vw, 280px);
+  }
+  
+  .customerpov-hero-centerbox {
+    padding: 1rem clamp(1.5rem, 5vw, 3rem);
+  }
+  
+  .customerpov-hero-title {
+    font-size: clamp(2rem, 8vw, 2.5rem);
+  }
+  
+  .pensee-hero-image-section {
+    min-height: 300px;
+    height: 40vh;
+  }
+  
+  .pensee-hero-overlay {
+    padding: 1.5rem clamp(1rem, 4vw, 2rem);
+  }
+  
+  .carlo-preview-header {
+    margin-top: 2rem;
+    padding: 0 1rem;
+  }
+  
+  .carlo-preview-title {
+    font-size: clamp(2rem, 7vw, 2.5rem);
+  }
+  
+  .carlo-preview-subtitle {
+    font-size: clamp(0.75rem, 2.5vw, 0.875rem);
+  }
+  
+  .order-now-btn {
+    padding: 0.875rem clamp(1.5rem, 5vw, 2.25rem);
+    font-size: clamp(1rem, 4vw, 1.25rem);
+    margin: 1.5rem auto;
+  }
+  
+  .pensee-highlight-row,
+  .pensee-highlight-row.reverse {
+    flex-direction: column !important;
+    gap: 1.5rem;
+    padding: 0 1rem;
+  }
+  
+  .pensee-highlight-text,
+  .pensee-highlight-image {
+    max-width: 100%;
+    text-align: center;
+  }
+  
+  .pensee-why-cards,
+  .pensee-testimonial-cards,
+  .pensee-steps {
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 0 1rem;
+  }
+  
+  .pensee-why-card,
+  .pensee-testimonial-card,
+  .pensee-step {
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+/* Extra Small Mobile (320px - 480px) */
+@media (max-width: 480px) {
+  * {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  .customerpov-section-title {
+    font-size: clamp(1.25rem, 7vw, 1.75rem);
+    padding: 0.5rem 1rem;
+    letter-spacing: 0.04em;
+  }
+  
+  .customerpov-intro {
+    font-size: clamp(0.9rem, 4vw, 1.1rem);
+    line-height: 1.6;
+    padding: 0 0.75rem;
+  }
+  
+  .customerpov-grid {
+    gap: 1.5rem;
+    padding: 0 0.75rem;
+  }
+  
+  .customerpov-card-image-wrapper {
+    height: clamp(180px, 45vw, 220px);
+  }
+  
+  .customerpov-card-content {
+    padding: 1rem 0.75rem;
+  }
+  
+  .customerpov-card-title {
+    font-size: clamp(1.25rem, 6vw, 1.75rem);
+    margin-bottom: 0.5rem;
+  }
+  
+  .customerpov-card-paragraph {
+    font-size: clamp(0.9rem, 3.5vw, 1rem);
+    line-height: 1.5;
+  }
+  
+  .customerpov-hero {
+    height: clamp(160px, 35vw, 200px);
+  }
+  
+  .customerpov-hero-centerbox {
+    padding: 0.75rem 1rem;
+  }
+  
+  .customerpov-hero-title {
+    font-size: clamp(1.5rem, 7vw, 2rem);
+  }
+  
+  .customerpov-logo-vertical {
+    max-width: clamp(120px, 30vw, 160px);
+    margin-bottom: 1rem;
+  }
+  
+  .carlo-preview-header {
+    margin-top: 1.5rem;
+  }
+  
+  .carlo-preview-title {
+    font-size: clamp(1.5rem, 8vw, 2rem);
+    margin-bottom: 0.5rem;
+  }
+  
+  .carlo-preview-subtitle {
+    font-size: clamp(0.65rem, 3vw, 0.75rem);
+    margin-bottom: 1rem;
+  }
+  
+  .carlo-preview-image-wrapper {
+    width: 100vw;
+    height: auto;
+    min-height: clamp(250px, 60vw, 400px);
+  }
+  
+  .order-now-btn,
+  .pensee-cta-btn,
+  .customerhome-cta-btn {
+    padding: 1rem 2rem;
+    font-size: clamp(0.9rem, 4vw, 1.125rem);
+    min-height: 44px;
+    width: auto;
+    max-width: 90%;
+    margin: 1rem auto;
+  }
+  
+  .order-form input,
+  .order-form textarea {
+    padding: 0.875rem 1rem;
+    font-size: clamp(0.9rem, 4vw, 1rem);
+    min-height: 44px;
+  }
+  
+  .order-form label {
+    font-size: clamp(0.9rem, 4vw, 1rem);
+    margin-bottom: 0.75rem;
+  }
+  
+  .order-form-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .order-form-actions button {
+    width: 100%;
+    padding: 1rem;
+    font-size: clamp(0.9rem, 4vw, 1rem);
+    min-height: 44px;
+  }
+  
+  .order-modal {
+    width: 95vw;
+    max-width: 95vw;
+    padding: 1.5rem 1rem;
+    margin: 0.5rem;
+  }
+  
+  .order-modal h2 {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+    margin-bottom: 1rem;
+  }
+  
+  .order-modal-two-col {
+    flex-direction: column;
+    min-width: unset;
+    width: 95vw;
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .order-modal-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .order-modal-form-col,
+  .order-modal-details-col {
+    min-width: unset;
+    max-width: 100%;
+    width: 100%;
+  }
+  
+  .order-modal-details-col {
+    padding: 1rem;
+  }
+  
+  .pensee-hero-image-section {
+    min-height: 250px;
+    height: 35vh;
+  }
+  
+  .pensee-hero-overlay {
+    padding: 1rem;
+    max-width: 95%;
+  }
+  
+  .pensee-hero-title.enhanced {
+    font-size: clamp(1.5rem, 7vw, 2rem);
+  }
+  
+  .pensee-hero-subtitle.enhanced {
+    font-size: clamp(0.9rem, 4vw, 1.1rem);
+  }
+  
+  .pensee-hero-badge {
+    font-size: clamp(0.75rem, 3vw, 0.875rem);
+    padding: 0.25rem 0.75rem;
+  }
+  
+  .pensee-highlight-text h2 {
+    font-size: clamp(1.25rem, 5vw, 1.75rem);
+  }
+  
+  .pensee-highlight-text p {
+    font-size: clamp(0.9rem, 4vw, 1rem);
+  }
+  
+  .pensee-faq-list {
+    font-size: clamp(0.85rem, 3.5vw, 1rem);
+    padding: 0 1rem;
+  }
+  
+  .pensee-step {
+    padding: 2rem 1rem 1.5rem;
+  }
+  
+  .pensee-step-bgnum {
+    font-size: clamp(3rem, 12vw, 4rem);
+  }
+  
+  .pensee-step-title {
+    font-size: clamp(1rem, 4.5vw, 1.2rem);
+    margin-top: 2rem;
+  }
+  
+  .pensee-testimonial-card h4 {
+    font-size: clamp(0.9rem, 4vw, 1.1rem);
+  }
+  
+  .pensee-testimonial-card p {
+    font-size: clamp(0.85rem, 3.5vw, 1rem);
+  }
+  
+  .contact-item strong {
+    font-size: clamp(0.8rem, 3.5vw, 0.875rem);
+  }
+  
+  .contact-item p {
+    font-size: clamp(0.8rem, 3.5vw, 0.875rem);
+  }
+}
+
+/* Landscape orientation for mobile */
+@media (max-width: 767px) and (orientation: landscape) {
+  .pensee-hero-image-section,
+  .customerpov-hero {
+    min-height: 200px;
+    height: 60vh;
+  }
+  
+  .carlo-preview-image-wrapper {
+    height: 80vh;
+  }
+  
+  .order-modal-two-col {
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .cart-badge {
+    animation: none !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .topbar-customer,
+  .order-now-btn,
+  .pensee-cta-btn,
+  .order-modal-overlay,
+  .customer-dropdown-menu {
+    display: none !important;
+  }
+  
+  .customerpov-container,
+  .carlo-preview-container {
+    background: white !important;
+  }
+}

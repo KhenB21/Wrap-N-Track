@@ -284,3 +284,263 @@ body{
 .cart-link.active .cart-badge {
   background: #4a4a6a;
 }
+
+/* ========================================
+   MOBILE HAMBURGER MENU
+   ======================================== */
+
+.mobile-menu-toggle {
+  display: none;
+  position: fixed;
+  left: 1rem;
+  top: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  z-index: 1001;
+  width: 40px;
+  height: 40px;
+}
+
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 24px;
+  height: 20px;
+  position: relative;
+}
+
+.hamburger span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background-color: #4a4a6a;
+  transition: all 0.3s ease;
+  border-radius: 2px;
+}
+
+.hamburger.open span:nth-child(1) {
+  transform: rotate(45deg) translate(6px, 6px);
+}
+
+.hamburger.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger.open span:nth-child(3) {
+  transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* ========================================
+   COMPREHENSIVE RESPONSIVE DESIGN
+   ======================================== */
+
+/* Tablets (768px - 1024px) */
+@media (max-width: 1024px) {
+  .topbar-customer-nav {
+    padding: 0 1rem;
+  }
+  
+  .topbar-customer-links {
+    gap: clamp(1rem, 2vw, 2rem);
+  }
+  
+  .topbar-customer-link {
+    font-size: clamp(0.7rem, 1.5vw, 0.75rem);
+  }
+  
+  .topbar-customer-logo-block {
+    margin: 0 1rem;
+    min-width: 120px;
+  }
+}
+
+/* Desktop only class - hide on mobile */
+.desktop-only {
+  display: flex;
+}
+
+/* Mobile menu - hidden by default */
+.topbar-customer-mobile-menu {
+  display: none;
+}
+
+/* Mobile & Tablet Portrait (max-width: 900px) */
+@media (max-width: 900px) {
+  .mobile-menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Hide desktop navigation on mobile */
+  .desktop-only {
+    display: none !important;
+  }
+  
+  .topbar-customer-nav {
+    flex-direction: row;
+    height: 60px;
+    padding: 0 1rem;
+    position: relative;
+    justify-content: center;
+  }
+  
+  .topbar-customer-logo-block {
+    position: relative;
+    left: auto;
+    transform: none;
+    margin: 0;
+    z-index: 1000;
+  }
+  
+  /* Mobile slide-out menu */
+  .topbar-customer-mobile-menu {
+    display: flex;
+    position: fixed;
+    top: 60px;
+    left: -100%;
+    width: 280px;
+    height: calc(100vh - 60px);
+    background: #f1f0e2;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 2rem 1.5rem;
+    gap: 1.5rem;
+    transition: left 0.3s ease;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    overflow-y: auto;
+    z-index: 999;
+  }
+  
+  .topbar-customer-mobile-menu.mobile-open {
+    left: 0;
+  }
+  
+  .topbar-customer-mobile-menu .topbar-customer-link {
+    font-size: 1rem;
+    padding: 0.5rem 0;
+    width: 100%;
+    color: #7a7a8c;
+    text-decoration: none;
+  }
+  
+  .topbar-customer-mobile-menu .topbar-customer-link:hover,
+  .topbar-customer-mobile-menu .topbar-customer-link.active {
+    color: #4a4a6a;
+  }
+  
+  .topbar-customer-mobile-menu .logout-btn {
+    color: #f44336;
+    font-weight: 600;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e0d9c8;
+  }
+  
+  .topbar-customer-mobile-menu .logout-btn:hover {
+    color: #d32f2f;
+  }
+  
+  .customer-profile {
+    width: 100%;
+  }
+  
+  .customer-dropdown-menu {
+    position: static;
+    box-shadow: none;
+    margin-top: 0.5rem;
+    width: 100%;
+  }
+  
+  .cart-icon-container {
+    width: 100%;
+  }
+}
+
+/* Small Mobile (max-width: 600px) */
+@media (max-width: 600px) {
+  .topbar-customer-nav {
+    height: 56px;
+  }
+  
+  .mobile-menu-toggle {
+    left: 0.5rem;
+  }
+  
+  .topbar-customer-logo {
+    max-width: 48px;
+    max-height: 48px;
+  }
+  
+  .topbar-customer-mobile-menu {
+    width: 100%;
+    max-width: 100vw;
+    padding: 1.5rem 1rem;
+    top: 56px;
+    height: calc(100vh - 56px);
+  }
+  
+  .topbar-customer-mobile-menu .topbar-customer-link {
+    font-size: 0.95rem;
+  }
+}
+
+/* Extra Small Mobile (max-width: 480px) */
+@media (max-width: 480px) {
+  .topbar-customer-nav {
+    height: 52px;
+  }
+  
+  .topbar-customer-logo {
+    max-width: 42px;
+    max-height: 42px;
+  }
+  
+  .topbar-customer-mobile-menu {
+    top: 52px;
+    height: calc(100vh - 52px);
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .topbar-customer-mobile-menu .topbar-customer-link {
+    font-size: 0.9rem;
+    padding: 0.4rem 0;
+  }
+  
+  .customer-avatar,
+  .customer-avatar-initials {
+    width: 34px;
+    height: 34px;
+    font-size: 12px;
+  }
+  
+  .cart-badge {
+    width: 18px;
+    height: 18px;
+    font-size: 9px;
+    top: -6px;
+    right: -6px;
+  }
+}
+
+/* Landscape mode adjustments */
+@media (max-width: 900px) and (orientation: landscape) {
+  .topbar-customer-mobile-menu {
+    height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+}
+
+/* Touch-friendly adjustments */
+@media (hover: none) and (pointer: coarse) {
+  .topbar-customer-link,
+  .customer-dropdown-menu button {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}

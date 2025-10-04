@@ -77,21 +77,6 @@
   background: #357abd;
 }
 
-/* Responsive Styles */
-@media (max-width: 768px) {
-  .steps-container {
-    flex-direction: column;
-  }
-
-  .step {
-    margin-bottom: 2rem;
-  }
-
-  .steps-container::before {
-    display: none;
-  }
-}
-
 /* Animation Styles */
 @keyframes fadeIn {
   from {
@@ -106,6 +91,126 @@
 
 .fade-in {
   animation: fadeIn 0.3s ease-out;
+}
+
+/* ========================================
+   COMPREHENSIVE RESPONSIVE DESIGN
+   ======================================== */
+
+/* Tablets (768px - 1024px) */
+@media (max-width: 1024px) {
+  .steps-container {
+    padding: 0 1rem;
+  }
+  
+  .form-control {
+    font-size: clamp(0.9rem, 2vw, 1rem);
+  }
+}
+
+/* Small Tablets & Large Mobile (481px - 767px) */
+@media (max-width: 767px) {
+  .steps-container {
+    flex-direction: column;
+    padding: 0 1rem;
+  }
+
+  .step {
+    margin-bottom: 2rem;
+  }
+
+  .steps-container::before {
+    display: none;
+  }
+  
+  .form-group {
+    margin-bottom: 1.25rem;
+  }
+  
+  .form-control {
+    padding: 0.7rem;
+    font-size: clamp(0.9rem, 3.5vw, 1rem);
+    min-height: 44px;
+  }
+  
+  textarea.form-control {
+    min-height: 100px;
+  }
+  
+  .btn {
+    padding: 0.875rem 1.5rem;
+    font-size: clamp(0.9rem, 3.5vw, 1rem);
+    min-height: 48px;
+    width: 100%;
+  }
+  
+  label {
+    font-size: clamp(0.85rem, 3vw, 0.95rem);
+  }
+}
+
+/* Extra Small Mobile (320px - 480px) */
+@media (max-width: 480px) {
+  .steps-container {
+    padding: 0 0.75rem;
+  }
+  
+  .step {
+    margin-bottom: 1.5rem;
+  }
+  
+  .step-number {
+    width: 36px;
+    height: 36px;
+    font-size: 0.9rem;
+  }
+  
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  .form-control {
+    padding: 0.65rem;
+    font-size: clamp(0.85rem, 4vw, 0.95rem);
+    min-height: 44px;
+  }
+  
+  select.form-control {
+    padding-right: 2rem;
+    background-position: right 0.75rem center;
+  }
+  
+  textarea.form-control {
+    min-height: 90px;
+  }
+  
+  .btn {
+    padding: 0.875rem 1.25rem;
+    font-size: clamp(0.85rem, 4vw, 0.95rem);
+    min-height: 48px;
+    width: 100%;
+  }
+  
+  label {
+    font-size: clamp(0.8rem, 3.5vw, 0.9rem);
+    margin-bottom: 0.4rem;
+  }
+  
+  .invalid-feedback {
+    font-size: clamp(0.75rem, 3vw, 0.8rem);
+  }
+}
+
+/* Touch-friendly adjustments */
+@media (hover: none) and (pointer: coarse) {
+  .form-control,
+  .btn {
+    min-height: 48px;
+  }
+  
+  select.form-control {
+    min-height: 48px;
+  }
 }
 
 /* Custom Select Styles */

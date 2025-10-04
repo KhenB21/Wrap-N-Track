@@ -1,6 +1,5 @@
 /* eslint-disable no-undef */
 import { useState, useEffect } from "react";
-
 import api from '../../api';
 
 import { useNavigate } from "react-router-dom";
@@ -12,6 +11,7 @@ function ResetPassword() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [passwordRequirements, setPasswordRequirements] = useState({
     length: false,
     uppercase: false,
@@ -59,23 +59,28 @@ function ResetPassword() {
 
     setLoading(true);
     try {
-
       if (!code) {
         setError("Verification code is missing. Please restart the reset process.");
         setLoading(false);
         return;
       }
       await api.post("/api/auth/reset-password", {
-
         email,
         code,
         newPassword,
       });
 
+      // Show success modal immediately
+      setShowSuccessModal(true);
       setMessage("Password reset successful! Redirecting...");
-      localStorage.removeItem("reset_email");
-      localStorage.removeItem("reset_code");
-  setTimeout(() => navigate("/login-employee-pensee"), 2000);
+      console.log("Success modal triggered, redirecting in 3 seconds...");
+      
+      // Clean up and redirect after 3 seconds
+      setTimeout(() => {
+        localStorage.removeItem("reset_email");
+        localStorage.removeItem("reset_code");
+        navigate("/customer-login");
+      }, 3000);
     } catch (err) {
       setError(err.response?.data?.message || "Something went wrong.");
     } finally {
@@ -158,6 +163,18 @@ function ResetPassword() {
           </form>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="success-modal-overlay">
+          <div className="success-modal-content">
+            <div className="success-icon">✓</div>
+            <h2>Password Reset Successful!</h2>
+            <p>Your password has been successfully changed.</p>
+            <p className="redirect-message">Redirecting to login page...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
