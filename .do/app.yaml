@@ -41,23 +41,15 @@ services:
   - key: JWT_SECRET
     value: 917d905af041889478c9a3b0d0c7a4f7af9848504d45a36ca73d6caad0f173e3
 
+static_sites:
 - name: web
   source_dir: Website/client
   github:
     repo: your-username/Wrap-N-Track
     branch: main
-  run_command: npm install && npm run build && node server.js
-  environment_slug: node-js
-  instance_count: 1
-  instance_size_slug: basic-xxs
-  http_port: 3000
-  health_check:
-    http_path: /
-    initial_delay_seconds: 10
-    period_seconds: 10
-    timeout_seconds: 5
-    success_threshold: 1
-    failure_threshold: 3
+  build_command: npm install && npm run build
+  output_dir: build
+  catchall_document: index.html
   envs:
   - key: NODE_ENV
     value: production

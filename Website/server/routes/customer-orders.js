@@ -175,12 +175,17 @@ router.get('/orders', async (req, res) => {
       code: error.code,
       detail: error.detail,
       hint: error.hint,
-      stack: error.stack
+      stack: process.env.NODE_ENV === 'development' ? error.stack : 'Stack trace hidden in production'
     });
+    console.error('Request user:', req.user);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch orders',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? {
+        code: error.code,
+        detail: error.detail
+      } : undefined
     });
   }
 });

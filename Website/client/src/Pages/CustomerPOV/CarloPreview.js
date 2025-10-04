@@ -141,9 +141,6 @@ const handleSubmit = async (e) => {
           <img src="/Assets/Images/Previews/carlo.png" alt="Carlo Preview" className="carlo-preview-image" />
         </div>
       </div>
-      <button className="order-now-btn" onClick={() => setModalOpen(true)}>
-        Order now
-      </button>
       {modalOpen && (
         <div className="order-modal-overlay" onClick={() => setModalOpen(false)}>
           <div className="order-modal order-modal-two-col" onClick={e => e.stopPropagation()}>
