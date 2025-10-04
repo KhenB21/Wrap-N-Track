@@ -959,7 +959,12 @@ export default function OrderProcess() {
       return (
         <div style={{ padding: "20px" }}>
           <h3 style={{ color: "#2c3e50", marginBottom: "20px" }}>Selected Items</h3>
-          <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", marginBottom: "40px" }}>
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", 
+            gap: "20px", 
+            marginBottom: "40px" 
+          }}>
             {selectedItems.map((item, index) => (
               <div 
                 key={`selected-${item.category}-${index}`}
@@ -968,9 +973,10 @@ export default function OrderProcess() {
                   border: "2px solid #f0f0f0", 
                   borderRadius: "12px", 
                   padding: "20px", 
-                  maxWidth: "32.4%",
-                  flexShrink: 0,
-                  position: "relative"
+                  position: "relative",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center"
                 }}
               >
                 <button
@@ -991,19 +997,28 @@ export default function OrderProcess() {
                     fontSize: "16px",
                     border: "none",
                     cursor: "pointer",
-                    padding: 0
+                    padding: 0,
+                    zIndex: 10
                   }}
                 >
                   ×
                 </button>
-                <div className="packagingImage">
+                <div className="packagingImage" style={{
+                  width: "100%",
+                  height: "200px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "12px",
+                  overflow: "hidden"
+                }}>
                   {item.isCustom ? (
-                    <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {item.image ? (
                         <img
                           src={item.image}
                           alt={item.name}
-                          style={{ width: '100%', height: 'auto' }}
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                         />
                       ) : (
                         <div style={{
@@ -1036,6 +1051,11 @@ export default function OrderProcess() {
                       src={item.image}
                       alt={`${item.name} - ${item.description}`}
                       className={item.name.toLowerCase().replace(" ", "")}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain"
+                      }}
                     />
                   )}
                 </div>
@@ -1070,8 +1090,8 @@ export default function OrderProcess() {
                   </>
                 ) : (
                   <>
-                    <h4>{item.name}</h4>
-                    <p style={{ fontStyle: "italic", fontSize: "12px"}}>{item.description}</p>
+                    <h4 style={{ textAlign: "center", marginBottom: "8px", margin: "8px 0" }}>{item.name}</h4>
+                    <p style={{ fontStyle: "italic", fontSize: "12px", textAlign: "center", margin: 0 }}>{item.description}</p>
                   </>
                 )}
               </div>
@@ -1079,7 +1099,11 @@ export default function OrderProcess() {
           </div>
 
           <h3 style={{ color: "#2c3e50", marginBottom: "20px" }}>Available Items</h3>
-          <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", 
+            gap: "20px" 
+          }}>
             {unselectedItems.map((item, index) => (
               <div 
                 key={`unselected-${item.category}-${index}`}
@@ -1088,22 +1112,39 @@ export default function OrderProcess() {
                   border: "2px solid #f0f0f0", 
                   borderRadius: "12px", 
                   padding: "20px", 
-                  maxWidth: "32.4%",
-                  flexShrink: 0,
                   position: "relative",
-                  cursor: "pointer"
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  transition: "all 0.2s ease"
                 }}
                 onClick={() => handleAddItem(item)}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = "#696a8f"}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = "#f0f0f0"}
               >
-                <div className="packagingImage">
+                <div className="packagingImage" style={{
+                  width: "100%",
+                  height: "200px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "12px",
+                  overflow: "hidden"
+                }}>
                   <img
                     src={item.image}
                     alt={`${item.name} - ${item.description}`}
                     className={item.name.toLowerCase().replace(" ", "")}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain"
+                    }}
                   />
                 </div>
-                <h4>{item.name}</h4>
-                <p style={{ fontStyle: "italic", fontSize: "12px"}}>{item.description}</p>
+                <h4 style={{ textAlign: "center", marginBottom: "8px", margin: "8px 0" }}>{item.name}</h4>
+                <p style={{ fontStyle: "italic", fontSize: "12px", textAlign: "center", margin: 0 }}>{item.description}</p>
               </div>
             ))}
           </div>
@@ -1579,102 +1620,271 @@ export default function OrderProcess() {
 
           {/* Step Forms */}
           {currentStep === 0 && (
-            <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
-              <div style={{display: "flex", flexDirection: "row", gap: "50px"}}>
-                <div style={{width: "50%"}}>
+            <div style={{...styles.form, width: "100%", padding: "40px"}}>
+              <div style={{display: "flex", flexDirection: "column", gap: "30px"}}>
+                
+                {/* Welcome Section */}
+                <div style={{textAlign: "center", marginBottom: "20px"}}>
+                  <h2 style={{
+                    fontSize: "2rem",
+                    color: "#2c3e50",
+                    marginBottom: "10px",
+                    fontFamily: "'Cormorant Garamond', serif"
+                  }}>
+                    Welcome to Wrap N' Track Custom Gift Box Creator! 🎁
+                  </h2>
+                  <p style={{
+                    fontSize: "1.1rem",
+                    color: "#4a4a6a",
+                    lineHeight: "1.6"
+                  }}>
+                    Create personalized wedding gift boxes in just 4 simple steps
+                  </p>
+                </div>
 
-                  <div style={styles.formGroup}>
-                    <label style={{...styles.label, color: "#f0f0f0"}}>Wedding Date</label>
-                    <input
-                      type="date"
-                      name="weddingDate"
-                      value={formData.weddingDate}
-                      onChange={handleInputChange}
-                      style={styles.input}
-                      required
-                    />
-                  </div>
+                {/* How It Works Section */}
+                <div style={{
+                  background: "#f8f9fa",
+                  borderRadius: "12px",
+                  padding: "30px",
+                  border: "2px solid #e0e0e0"
+                }}>
+                  <h3 style={{
+                    fontSize: "1.5rem",
+                    color: "#2c3e50",
+                    marginBottom: "20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px"
+                  }}>
+                    📋 How It Works
+                  </h3>
+                  
+                  <div style={{display: "flex", flexDirection: "column", gap: "20px"}}>
+                    {/* Step 1 */}
+                    <div style={{
+                      display: "flex",
+                      gap: "15px",
+                      alignItems: "flex-start",
+                      padding: "15px",
+                      background: "#ffffff",
+                      borderRadius: "8px",
+                      borderLeft: "4px solid #696a8f"
+                    }}>
+                      <div style={{
+                        minWidth: "40px",
+                        height: "40px",
+                        borderRadius: "50%",
+                        background: "#696a8f",
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: "bold",
+                        fontSize: "1.2rem"
+                      }}>1</div>
+                      <div>
+                        <h4 style={{color: "#2c3e50", marginBottom: "8px", fontSize: "1.1rem"}}>
+                          Choose Your Packaging
+                        </h4>
+                        <p style={{color: "#5a5a6a", lineHeight: "1.5", margin: 0}}>
+                          Select from our curated collection of elegant boxes, bags, and wrapping options. 
+                          Mix and match to create the perfect presentation for your gifts.
+                        </p>
+                      </div>
+                    </div>
 
-                  <div style={styles.formGroup}>
-                    <label style={{...styles.label, color: "#f0f0f0"}}>Expected Delivery Date</label>
-                    <input
-                      type="date"
-                      name="expectedDeliveryDate"
-                      value={formData.expectedDeliveryDate}
-                      onChange={handleInputChange}
-                      style={styles.input}
-                      required
-                    />
-                  </div>
+                    {/* Step 2 */}
+                    <div style={{
+                      display: "flex",
+                      gap: "15px",
+                      alignItems: "flex-start",
+                      padding: "15px",
+                      background: "#ffffff",
+                      borderRadius: "8px",
+                      borderLeft: "4px solid #696a8f"
+                    }}>
+                      <div style={{
+                        minWidth: "40px",
+                        height: "40px",
+                        borderRadius: "50%",
+                        background: "#696a8f",
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: "bold",
+                        fontSize: "1.2rem"
+                      }}>2</div>
+                      <div>
+                        <h4 style={{color: "#2c3e50", marginBottom: "8px", fontSize: "1.1rem"}}>
+                          Choose the Contents
+                        </h4>
+                        <p style={{color: "#5a5a6a", lineHeight: "1.5", margin: 0}}>
+                          Fill your gift boxes with premium items from our catalog including beverages, 
+                          gourmet food, kitchenware, home decor, beauty products, and more. You can select 
+                          multiple items per category or use your own products.
+                        </p>
+                      </div>
+                    </div>
 
-                  <div style={styles.formGroup}>
-                    <label style={{...styles.label, color: "#f0f0f0"}}>Number of Gift Boxes</label>
-                    <input
-                      type="number"
-                      name="guestCount"
-                      value={formData.guestCount}
-                      onChange={handleInputChange}
-                      style={styles.input}
-                      required
-                    />
+                    {/* Step 3 */}
+                    <div style={{
+                      display: "flex",
+                      gap: "15px",
+                      alignItems: "flex-start",
+                      padding: "15px",
+                      background: "#ffffff",
+                      borderRadius: "8px",
+                      borderLeft: "4px solid #696a8f"
+                    }}>
+                      <div style={{
+                        minWidth: "40px",
+                        height: "40px",
+                        borderRadius: "50%",
+                        background: "#696a8f",
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: "bold",
+                        fontSize: "1.2rem"
+                      }}>3</div>
+                      <div>
+                        <h4 style={{color: "#2c3e50", marginBottom: "8px", fontSize: "1.1rem"}}>
+                          Make it Personal
+                        </h4>
+                        <p style={{color: "#5a5a6a", lineHeight: "1.5", margin: 0}}>
+                          Add personalized touches like custom tags, ribbons, cards, and special decorations. 
+                          Make each gift box unique and memorable for your special day.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 4 */}
+                    <div style={{
+                      display: "flex",
+                      gap: "15px",
+                      alignItems: "flex-start",
+                      padding: "15px",
+                      background: "#ffffff",
+                      borderRadius: "8px",
+                      borderLeft: "4px solid #696a8f"
+                    }}>
+                      <div style={{
+                        minWidth: "40px",
+                        height: "40px",
+                        borderRadius: "50%",
+                        background: "#696a8f",
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: "bold",
+                        fontSize: "1.2rem"
+                      }}>4</div>
+                      <div>
+                        <h4 style={{color: "#2c3e50", marginBottom: "8px", fontSize: "1.1rem"}}>
+                          Finalize Your Order & Submit
+                        </h4>
+                        <p style={{color: "#5a5a6a", lineHeight: "1.5", margin: 0}}>
+                          Review your selections, specify your wedding date, delivery date, and quantity. 
+                          Add any special requests and submit your order. We'll take care of the rest!
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div style={{width: "50%"}}>
-                  <div style={styles.formGroup}>
-                    <label style={{...styles.label, color: "#f0f0f0"}}>Preferred Style</label>
-                    <select
-                      name="style"
-                      value={formData.style}
-                      onChange={(e) => {
-                        handleInputChange(e);
-                        handleStyleChange(e);
-                      }}
-                      style={styles.select}
-                      required
-                    >
-                      <option value="">Select a style</option>
-                      <option value="modern-romantic">Modern Romantic</option>
-                      <option value="boho-chic">Boho Chic</option>
-                      <option value="classic-elegance">Classic Elegance</option>
-                      <option value="minimalist-modern">Minimalist Modern</option>
-                    </select>
-                  </div>
+                {/* Important Guidelines */}
+                <div style={{
+                  background: "#d4edda",
+                  borderRadius: "12px",
+                  padding: "25px",
+                  border: "2px solid #28a745"
+                }}>
+                  <h3 style={{
+                    fontSize: "1.3rem",
+                    color: "#155724",
+                    marginBottom: "15px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px"
+                  }}>
+                    ✨ Important Guidelines
+                  </h3>
+                  <ul style={{
+                    color: "#155724",
+                    lineHeight: "1.8",
+                    paddingLeft: "20px",
+                    margin: 0
+                  }}>
+                    <li><strong>Multiple Selections:</strong> You can select multiple items in each category to create variety</li>
+                    <li><strong>Custom Products:</strong> Want to use your own items? Check the "I want to use my own products" option</li>
+                    <li><strong>Lead Time:</strong> Please order at least 2-3 weeks before your wedding date for best results</li>
+                    <li><strong>Minimum Order:</strong> We recommend a minimum of 10 gift boxes for wedding events</li>
+                    <li><strong>Review Before Submit:</strong> You can go back and edit any step before final submission</li>
+                    <li><strong>Order Tracking:</strong> Once submitted, you can track your order status in the "My Orders" section</li>
+                  </ul>
+                </div>
 
-                  <div style={styles.formGroup}>
-                    <label style={{...styles.label, color: "#f0f0f0"}}>Special Requests</label>
-                    <textarea
-                      name="specialRequests"
-                      value={formData.specialRequests}
-                      onChange={handleInputChange}
-                      style={{ ...styles.input, height: "120px" }}
-                      placeholder="Any specific requirements or preferences?"
-                      cols={50}
-                    />
-                  </div>
+                {/* Tips Section */}
+                <div style={{
+                  background: "#fff3cd",
+                  borderRadius: "12px",
+                  padding: "25px",
+                  border: "2px solid #ffc107"
+                }}>
+                  <h3 style={{
+                    fontSize: "1.3rem",
+                    color: "#856404",
+                    marginBottom: "15px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px"
+                  }}>
+                    💡 Pro Tips
+                  </h3>
+                  <ul style={{
+                    color: "#856404",
+                    lineHeight: "1.8",
+                    paddingLeft: "20px",
+                    margin: 0
+                  }}>
+                    <li>Consider your guests' preferences when selecting items (dietary restrictions, allergies, etc.)</li>
+                    <li>Mix practical items with luxury treats for a balanced gift box</li>
+                    <li>Coordinate packaging colors with your wedding theme</li>
+                    <li>Add a personal thank you note or card for a special touch</li>
+                    <li>Order a few extra boxes for last-minute additions to your guest list</li>
+                  </ul>
+                </div>
 
-
-                  <div style={{...styles.formGroup, display: "flex", flexDirection: "row", gap: "5px"}}>
-                    <input
-                      type="checkbox"
-                      checked={Object.values(customProducts).every(Boolean)}
-                      onChange={handleStep0CustomProducts}
-                    />
-                    <label style={{...styles.label, fontSize: "14px", fontWeight: "bold", color: "#f0f0f0"}}>I want to use my own products</label>
-                  </div>
-
-
-                  <button type="submit" style={styles.button}>
-                    Submit Order
+                {/* Get Started Button */}
+                <div style={{textAlign: "center", marginTop: "20px"}}>
+                  <button 
+                    onClick={() => setCurrentStep(1)}
+                    style={{
+                      ...styles.button,
+                      fontSize: "1.2rem",
+                      padding: "15px 40px",
+                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
+                      transition: "all 0.3s ease"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = "translateY(-2px)";
+                      e.target.style.boxShadow = "0 6px 20px rgba(102, 126, 234, 0.6)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = "translateY(0)";
+                      e.target.style.boxShadow = "0 4px 15px rgba(102, 126, 234, 0.4)";
+                    }}
+                  >
+                    Get Started - Choose Your Packaging →
                   </button>
                 </div>
-
-                <div style={{width: "50%"}}>
-                  <h3 style={{fontWeight: "bold", color: "#f0f0f0", marginBottom: "20px"}}>Preferred Style Preview</h3>
-                  {renderStyleItems()}
-                </div>
               </div>
-            </form>
+            </div>
           )}
           {currentStep === 1 && (
             <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
@@ -2692,12 +2902,10 @@ export default function OrderProcess() {
                 <p>Select an item to customize.</p>
                 
                 <div style={{
-                  display: "flex",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
                   gap: "20px",
-                  overflowX: "auto",
-                  padding: "10px 0",
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "#696a8f #f0f0f0"
+                  padding: "10px 0"
                 }}>
                   {getAllSelectedItems().map((item, index) => (
                     <div 
@@ -2707,20 +2915,34 @@ export default function OrderProcess() {
                         border: "2px solid #f0f0f0", 
                         borderRadius: "12px", 
                         padding: "20px",
-                        maxWidth: "32.4%",
-                        flexShrink: 0,
-                        position: "relative"
+                        position: "relative",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center"
                       }}
                     >
-                      <div className="packagingImage">
+                      <div className="packagingImage" style={{
+                        width: "100%",
+                        height: "200px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginBottom: "12px",
+                        overflow: "hidden"
+                      }}>
                         <img
                           src={item.image}
                           alt={`${item.name} - ${item.description}`}
                           className={item.name.toLowerCase().replace(" ", "")}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain"
+                          }}
                         />
                       </div>
-                      <h4>{item.name}</h4>
-                      <p style={{ fontStyle: "italic", fontSize: "12px"}}>{item.description}</p>
+                      <h4 style={{ textAlign: "center", marginBottom: "8px" }}>{item.name}</h4>
+                      <p style={{ fontStyle: "italic", fontSize: "12px", textAlign: "center", margin: 0 }}>{item.description}</p>
                     </div>
                   ))}
                 </div>
