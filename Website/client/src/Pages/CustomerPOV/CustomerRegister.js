@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import api from "../../api";
 import config from "../../config";
 import "./CustomerRegister.css";
@@ -245,14 +245,15 @@ function CustomerRegister() {
     <div className="customer-register-container">
       <TopbarCustomer />
       <div className="customer-register-card">
-        <h2>Customer Registration</h2>
+        <h2>Create Your Account</h2>
+        <p className="register-subtitle">Join Pensée Gifting Studio and start curating thoughtful gifts</p>
         {error && <div className="error-message">{error}</div>}
         {verificationSent && (
           <div className="success-message">
             Registration successful! Please check your email for verification.
           </div>
         )}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="register-form">
           <div className="form-group">
             <label htmlFor="username">Username:</label>
             <input
@@ -372,6 +373,9 @@ function CustomerRegister() {
             {loading ? "Registering..." : "Register"}
           </button>
         </form>
+        <div className="login-link">
+          Already have an account? <Link to="/customer-login">Log in here</Link>
+        </div>
       </div>
     </div>
   );

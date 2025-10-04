@@ -268,7 +268,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/customer', customerRoutes);
 // Temporarily disable authentication for testing
 app.use('/api/inventory', inventoryRouter);
-app.use('/api/available-inventory', verifyJwt, requireReadOnly(), availableInventoryRouter);
+// Available inventory is public for customers to view products in order page
+app.use('/api/available-inventory', availableInventoryRouter);
 app.use('/api/inventory-reports', verifyJwt, requireReadOnly(), inventoryReportsRouter);
 
 // Public inventory endpoint for mobile app (no authentication required)

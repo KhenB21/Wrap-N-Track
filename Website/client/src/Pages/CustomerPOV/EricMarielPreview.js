@@ -121,9 +121,6 @@ export default function DanielPreview() {
           />
         </div>
       </div>
-      <button className="order-now-btn" onClick={() => setModalOpen(true)}>
-        Order now
-      </button>
       {modalOpen && (
         <div
           className="order-modal-overlay"

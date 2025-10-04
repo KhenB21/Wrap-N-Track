@@ -16,7 +16,7 @@ const styles = {
     fontFamily: "Cormorant Garamond, serif",
     color: "#444",
     margin: "0",
-    padding: "40px 24px",
+    padding: "0 24px 40px 24px",
   },
   header: {
     maxWidth: '1200px',
