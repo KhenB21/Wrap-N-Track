@@ -139,14 +139,13 @@ function CustomerLogIn() {
                 </div>
               </div>
               <button
-                type="submit"
                 className="login-button"
                 disabled={loading}
               >
                 {loading ? "Logging in..." : "Login"}
               </button>
               <div className="forgot-password">
-                <a href="/customer/forgot-password">Forgot password?</a>
+                <a href="/forgot-password">Forgot password?</a>
               </div>
             </form>
           </div>

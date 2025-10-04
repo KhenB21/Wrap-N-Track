@@ -11,11 +11,12 @@ function ForgotPassword() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState("");
-  const [showModal, setShowModal] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
   const [code, setCode] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendMessage, setResendMessage] = useState("");
   const [success, setSuccess] = useState(null);
+  const [savedEmail, setSavedEmail] = useState("");
 
   const navigate = useNavigate();
 
@@ -33,7 +34,7 @@ function ForgotPassword() {
     setError("");
     setLoading(true);
     try {
-      const res = await api.post("/api/auth/forgot-password", { email });
+      const res = await api.post("/api/auth/forgot-password", { email: savedEmail });
       setMessage(res.data.message);
       setResendMessage("A new code has been generated. Please check your email.");
       setResendCooldown(30); // 30s cooldown
@@ -75,7 +76,10 @@ function ForgotPassword() {
 
       if (response.status === 200) {
         setSuccess('Password reset instructions have been sent to your email.');
-        setShowModal(true); // Show the modal after successful code sending
+        setSavedEmail(email);
+        setEmail(""); // Clear the email field
+        setCodeSent(true); // Show OTP input
+        setResendCooldown(30); // Start cooldown
       } else {
         setError('Failed to process request. Please try again.');
       }
@@ -87,21 +91,23 @@ function ForgotPassword() {
     }
   };
 
-  const handleCodeSubmit = async () => {
+  const handleCodeSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
     try {
-
       const res = await api.post(`/api/auth/verify-reset-code`, {
-
-        email,
+        email: savedEmail,
         code,
       });
 
-      localStorage.setItem("reset_email", email);
+      localStorage.setItem("reset_email", savedEmail);
       localStorage.setItem("reset_code", code); // Store the verified code for reset-password step
-      setShowModal(false);
       navigate("/reset-password");
     } catch (err) {
       setError(err.response?.data?.message || "Invalid code.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -120,70 +126,77 @@ function ForgotPassword() {
         </div>
 
         <div className="right-section">
-          <h3>Forgot Password</h3>
+          <h3>{codeSent ? "Verify Your Email" : "Forgot Password"}</h3>
           {error && <div className="error-message">{error}</div>}
-          {message && <div className="success-message">{message}</div>}
-          <form onSubmit={handleSubmit}>
-            <div className="input-container">
-              <label htmlFor="email">Email:</label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={handleChange}
-                placeholder="Enter your email"
-                required
-              />
-              {emailError && (
-                <div className="error-message">{emailError}</div>
-              )}
-            </div>
-            <button
-              type="submit"
-              className="submit-button"
-              disabled={loading || !!emailError}
-            >
-              {loading ? "Sending..." : "Send Reset Instructions"}
-            </button>
-          </form>
+          {success && <div className="success-message">{success}</div>}
+          {resendMessage && <div className="success-message">{resendMessage}</div>}
+          
+          {!codeSent ? (
+            <form onSubmit={handleSubmit}>
+              <div className="input-container">
+                <label htmlFor="email">Email:</label>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={handleChange}
+                  placeholder="Enter your email"
+                  required
+                />
+                {emailError && (
+                  <div className="error-message">{emailError}</div>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="submit-button"
+                disabled={loading || !!emailError}
+              >
+                {loading ? "Sending..." : "Send Reset Instructions"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleCodeSubmit}>
+              <p className="verification-instructions">
+                We've sent a 6-digit verification code to <strong>{savedEmail}</strong>. 
+                Please enter the code below to continue.
+              </p>
+              <div className="input-container">
+                <label htmlFor="code">Verification Code:</label>
+                <input
+                  type="text"
+                  id="code"
+                  value={code}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    setCode(value);
+                    setError('');
+                  }}
+                  placeholder="000000"
+                  maxLength={6}
+                  autoFocus
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="submit-button"
+                disabled={code.length !== 6 || loading}
+              >
+                {loading ? "Verifying..." : "Verify Code"}
+              </button>
+              <button
+                type="button"
+                className="resend-button"
+                onClick={handleResendCode}
+                disabled={resendCooldown > 0 || loading}
+              >
+                {resendCooldown > 0 ? `Resend Code (${resendCooldown}s)` : 'Resend Code'}
+              </button>
+            </form>
+          )}
         </div>
       </div>
-
-      {/* Modal for verification code */}
-      {showModal && (
-        <div className="modal">
-          <div className="modal-content">
-            <button className="modal-close" onClick={() => {
-              setShowModal(false);
-              setError("");
-              setMessage("");
-              setCode("");
-            }}>&times;</button>
-            {error && <div className="error-message modal-error">{error}</div>}
-            <h3>Enter Verification Code</h3>
-            <p className="modal-instructions">
-              Please enter the 6-digit code sent to your email address.
-            </p>
-            <input
-              type="text"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Enter the code"
-              maxLength={6}
-              style={{letterSpacing:'0.3em',textAlign:'center'}}
-            />
-            <button onClick={handleCodeSubmit} style={{marginTop:'1em'}}>Verify</button>
-            <button
-              onClick={handleResendCode}
-              disabled={resendCooldown > 0 || loading}
-              style={{marginTop:'0.5em',marginLeft:'1em'}}
-            >
-              {resendCooldown > 0 ? `Resend Code (${resendCooldown}s)` : 'Resend Code'}
-            </button>
-            {resendMessage && <div className="success-message modal-success">{resendMessage}</div>}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

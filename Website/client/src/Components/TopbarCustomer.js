@@ -21,6 +21,7 @@ export default function TopbarCustomer() {
   const { user, isAuthenticated, logout } = useAuth();
   const { itemCount } = useCart();
   const [dropdownVisible, setDropdownVisible] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -79,7 +80,20 @@ export default function TopbarCustomer() {
   return (
     <header className="topbar-customer">
       <nav className="topbar-customer-nav">
-        <div className="topbar-customer-links left">
+        {/* Mobile Hamburger Menu Button */}
+        <button 
+          className="mobile-menu-toggle"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          <span className={`hamburger ${mobileMenuOpen ? 'open' : ''}`}>
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+        </button>
+        {/* Desktop Navigation - Left Links */}
+        <div className="topbar-customer-links left desktop-only">
           {navLinks.slice(0, 3).map(link => (
             <Link
               key={link.label}
@@ -90,6 +104,8 @@ export default function TopbarCustomer() {
             </Link>
           ))}
         </div>
+        
+        {/* Logo */}
         <div className="topbar-customer-logo-block">
           <img
             src="/Assets/Images/PenseeLogos/pensee-logo-with-name-vertical.png"
@@ -97,7 +113,9 @@ export default function TopbarCustomer() {
             className="topbar-customer-logo"
           />
         </div>
-        <div className="topbar-customer-links right">
+        
+        {/* Desktop Navigation - Right Links */}
+        <div className="topbar-customer-links right desktop-only">
           {navLinks.slice(3, 6).map(link => (
             <Link
               key={link.label}
@@ -173,6 +191,74 @@ export default function TopbarCustomer() {
                 </div>
               )}
             </div>
+          )}
+        </div>
+        
+        {/* Mobile Navigation - Single Slide-out Menu */}
+        <div className={`topbar-customer-mobile-menu ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+          {navLinks.map(link => (
+            <Link
+              key={link.label}
+              to={link.path}
+              className={`topbar-customer-link${location.pathname === link.path ? ' active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              {link.label}
+            </Link>
+          ))}
+          {isAuthenticated && user?.source === 'customer' && (
+            <Link
+              to="/customer-cart"
+              className={`topbar-customer-link cart-link${location.pathname === '/customer-cart' ? ' active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              🛒 My Cart
+              {itemCount > 0 && (
+                <span className="cart-badge">{itemCount}</span>
+              )}
+            </Link>
+          )}
+          {!isAuthenticated ? (
+            <>
+              <Link
+                to="/customer-register"
+                className={`topbar-customer-link${location.pathname === '/customer-register' ? ' active' : ''}`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                REGISTER
+              </Link>
+              <Link
+                to="/customer-login"
+                className={`topbar-customer-link${location.pathname === '/customer-login' ? ' active' : ''}`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                LOG IN
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/customer-user-details"
+                className="topbar-customer-link"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                My Account
+              </Link>
+              <Link
+                to="/customer-cart"
+                className="topbar-customer-link"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                My Purchase
+              </Link>
+              <button
+                className="topbar-customer-link logout-btn"
+                onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
+                style={{ background: 'none', border: 'none', padding: '0.5rem 0', margin: 0, cursor: 'pointer', width: '100%', textAlign: 'left' }}
+              >
+                Logout
+              </button>
+            </>
           )}
         </div>
       </nav>
