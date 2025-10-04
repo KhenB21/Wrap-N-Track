@@ -50,7 +50,7 @@ router.get('/orders', async (req, res) => {
 
     console.log(`Fetching orders for customer_id: ${customerId}`);
 
-    // Fetch active orders from orders table
+    // Fetch active orders from orders table with products
     const activeOrdersResult = await pool.query(`
       SELECT 
         o.order_id,
@@ -72,12 +72,26 @@ router.get('/orders', async (req, res) => {
         o.order_shipped_at,
         o.order_received_at,
         o.status_updated_at,
-        '[]'::json as products
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'sku', op.sku,
+              'name', i.name,
+              'quantity', op.quantity,
+              'unit_price', i.unit_price,
+              'image_data', encode(i.image_data, 'base64')
+            )
+          ) FILTER (WHERE op.sku IS NOT NULL),
+          '[]'::json
+        ) as products
       FROM orders o
+      LEFT JOIN order_products op ON o.order_id = op.order_id
+      LEFT JOIN inventory_items i ON op.sku = i.sku
       WHERE o.customer_id = $1
+      GROUP BY o.order_id
     `, [customerId]);
 
-    // Fetch completed/cancelled orders from order_history table
+    // Fetch completed/cancelled orders from order_history table with products
     // Include orders that match customer_id OR have matching email/name for this customer
     console.log(`Fetching archived orders for customer_id: ${customerId}`);
     const historyOrdersResult = await pool.query(`
@@ -101,15 +115,32 @@ router.get('/orders', async (req, res) => {
         oh.archived_at as order_shipped_at,
         oh.archived_at as order_received_at,
         oh.archived_at as status_updated_at,
-        '[]'::json as products
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'sku', ohp.sku,
+              'name', i.name,
+              'quantity', ohp.quantity,
+              'unit_price', ohp.unit_price,
+              'image_data', encode(i.image_data, 'base64')
+            )
+          ) FILTER (WHERE ohp.sku IS NOT NULL),
+          '[]'::json
+        ) as products
       FROM order_history oh
       LEFT JOIN customer_details cd ON cd.customer_id = $1
+      LEFT JOIN order_history_products ohp ON oh.order_id = ohp.order_id
+      LEFT JOIN inventory_items i ON ohp.sku = i.sku
       WHERE oh.customer_id = $1 
          OR (oh.customer_id IS NULL AND (
            oh.email_address = cd.email_address 
            OR oh.name = cd.name 
            OR oh.cellphone = cd.phone_number
          ))
+      GROUP BY oh.order_id, oh.customer_name, oh.shipped_to, oh.order_date, 
+               oh.expected_delivery, oh.status, oh.shipping_address, oh.total_cost,
+               oh.payment_type, oh.payment_method, oh.remarks, oh.telephone,
+               oh.cellphone, oh.email_address, oh.archived_at
     `, [customerId]);
 
     // Combine both results
@@ -460,7 +491,7 @@ function getTrackingSteps(order, currentStage) {
 // Helper function to get all orders for employee access
 async function getAllOrdersForEmployee(req, res) {
   try {
-    // Fetch all active orders from orders table
+    // Fetch all active orders from orders table with products
     const activeOrdersResult = await pool.query(`
       SELECT 
         o.order_id,
@@ -483,11 +514,25 @@ async function getAllOrdersForEmployee(req, res) {
         o.order_received_at,
         o.status_updated_at,
         o.customer_id,
-        '[]'::json as products
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'sku', op.sku,
+              'name', i.name,
+              'quantity', op.quantity,
+              'unit_price', i.unit_price,
+              'image_data', encode(i.image_data, 'base64')
+            )
+          ) FILTER (WHERE op.sku IS NOT NULL),
+          '[]'::json
+        ) as products
       FROM orders o
+      LEFT JOIN order_products op ON o.order_id = op.order_id
+      LEFT JOIN inventory_items i ON op.sku = i.sku
+      GROUP BY o.order_id
     `);
 
-    // Fetch completed/cancelled orders from order_history table
+    // Fetch completed/cancelled orders from order_history table with products
     const historyOrdersResult = await pool.query(`
       SELECT 
         oh.order_id,
@@ -510,8 +555,25 @@ async function getAllOrdersForEmployee(req, res) {
         oh.archived_at as order_received_at,
         oh.archived_at as status_updated_at,
         oh.customer_id,
-        '[]'::json as products
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'sku', ohp.sku,
+              'name', i.name,
+              'quantity', ohp.quantity,
+              'unit_price', ohp.unit_price,
+              'image_data', encode(i.image_data, 'base64')
+            )
+          ) FILTER (WHERE ohp.sku IS NOT NULL),
+          '[]'::json
+        ) as products
       FROM order_history oh
+      LEFT JOIN order_history_products ohp ON oh.order_id = ohp.order_id
+      LEFT JOIN inventory_items i ON ohp.sku = i.sku
+      GROUP BY oh.order_id, oh.customer_name, oh.shipped_to, oh.order_date,
+               oh.expected_delivery, oh.status, oh.shipping_address, oh.total_cost,
+               oh.payment_type, oh.payment_method, oh.remarks, oh.telephone,
+               oh.cellphone, oh.email_address, oh.archived_at, oh.customer_id
     `);
 
     // Combine both results

@@ -70,8 +70,12 @@ export default function CustomerOrders() {
       setLoading(true);
       setError('');
       const response = await api.get('/api/customer-orders/orders');
+      console.log('Orders API Response:', response.data);
       if (response.data && response.data.success) {
-        setOrders(response.data.orders || []);
+        const orders = response.data.orders || [];
+        console.log('Orders received:', orders);
+        console.log('First order products:', orders[0]?.products);
+        setOrders(orders);
       } else {
         setOrders([]);
       }
@@ -290,6 +294,7 @@ export default function CustomerOrders() {
                         
                         <div className="order-products">
                           <h4>Ordered Products</h4>
+                          {console.log(`Order ${order.order_id} products:`, order.products)}
                           <div className="products-list">
                             {(order.products || []).map((product, index) => (
                               <div key={index} className="product-item">
