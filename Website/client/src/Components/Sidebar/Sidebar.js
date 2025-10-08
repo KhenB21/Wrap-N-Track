@@ -80,6 +80,14 @@ const Sidebar = () => {
               </Link>
             </li>
           )}
+          {permissions.inventory && (
+            <li>
+              <Link to="/archive-products">
+                <span className="icon">🗂️</span>
+                <span className="text">Archive Products</span>
+              </Link>
+            </li>
+          )}
           {permissions.orders && (
             <li>
               <Link to="/orders">
