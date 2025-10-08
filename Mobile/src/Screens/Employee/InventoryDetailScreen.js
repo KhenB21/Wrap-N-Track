@@ -49,11 +49,11 @@ export default function InventoryDetailScreen({ navigation }) {
   };
 
   const handleEdit = () => {
-    navigation.navigate('EditProduct', { product, mode: 'edit' });
+    navigation.navigate('EditProduct', { initialData: product, isEdit: true });
   };
 
   const handleAddStock = () => {
-    navigation.navigate('EditProduct', { product, mode: 'addStock' });
+    navigation.navigate('EditProduct', { initialData: product, isAddStockMode: true });
   };
 
   const handleArchive = () => {
@@ -62,8 +62,8 @@ export default function InventoryDetailScreen({ navigation }) {
       `Are you sure you want to archive "${product.name}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Archive', 
+        {
+          text: 'Archive',
           style: 'destructive',
           onPress: () => {
             Alert.alert('Success', 'Product archived successfully');
@@ -83,7 +83,7 @@ export default function InventoryDetailScreen({ navigation }) {
         <View style={[styles.imageContainer, { backgroundColor: theme.colors.surface }]}>
           {product.image_data ? (
             <Image
-              source={{ uri: `data:image/png;base64,${product.image_data}` }}
+              source={{ uri: `data:image/jpeg;base64,${product.image_data}` }}
               style={styles.productImage}
               resizeMode="cover"
             />
@@ -98,184 +98,178 @@ export default function InventoryDetailScreen({ navigation }) {
         <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
           <Card.Content>
             <View style={styles.header}>
-              <Text style={[styles.productName, { color: theme.colors.onSurface }]}>
-                {product.name}
-              </Text>
-              <Chip
-                style={[styles.stockChip, { backgroundColor: stockLevel.color }]}
-                textStyle={{ color: '#fff' }}
-              >
-                {stockLevel.text}
-              </Chip>
+              <View style={styles.productInfo}>
+                <Text style={[styles.productName, { color: theme.colors.onSurface }]} numberOfLines={2}>
+                  {product.name}
+                </Text>
+                <Text style={[styles.productSku, { color: theme.colors.onSurfaceVariant }]}>
+                  SKU: {product.sku}
+                </Text>
+                <Text style={[styles.productCategory, { color: theme.colors.onSurfaceVariant }]}>
+                  {product.category}
+                </Text>
+              </View>
+              <View style={styles.stockInfo}>
+                <Chip
+                  style={[
+                    styles.stockChip,
+                    { backgroundColor: stockLevel.color }
+                  ]}
+                  textStyle={{ color: '#fff', fontWeight: 'bold' }}
+                >
+                  {stockLevel.text}
+                </Chip>
+                <Text style={[styles.stockQuantity, { color: theme.colors.onSurface }]}>
+                  {product.quantity?.toLocaleString()} {product.uom || 'units'}
+                </Text>
+              </View>
             </View>
-            
-            <Text style={[styles.productSku, { color: theme.colors.onSurfaceVariant }]}>
-              SKU: {product.sku}
-            </Text>
-            
-            <Text style={[styles.productPrice, { color: theme.colors.onSurface }]}>
-              {formatCurrency(product.unit_price)}
-            </Text>
-            
+
+            <Divider style={styles.divider} />
+
+            <View style={styles.detailsRow}>
+              <View style={styles.detailItem}>
+                <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
+                  Unit Price
+                </Text>
+                <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
+                  {formatCurrency(product.unit_price || 0)}
+                </Text>
+              </View>
+              <View style={styles.detailItem}>
+                <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
+                  Total Value
+                </Text>
+                <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
+                  {formatCurrency((product.quantity || 0) * (product.unit_price || 0))}
+                </Text>
+              </View>
+            </View>
+
             {product.description && (
-              <Text style={[styles.productDescription, { color: theme.colors.onSurfaceVariant }]}>
-                {product.description}
-              </Text>
+              <>
+                <Divider style={styles.divider} />
+                <View style={styles.descriptionSection}>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+                    Description
+                  </Text>
+                  <Text style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
+                    {product.description}
+                  </Text>
+                </View>
+              </>
             )}
-          </Card.Content>
-        </Card>
 
-        {/* Stock Information */}
-        <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-          <Card.Content>
-            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-              Stock Information
-            </Text>
-            
-            <View style={styles.stockRow}>
-              <Text style={[styles.stockLabel, { color: theme.colors.onSurfaceVariant }]}>
-                Current Stock:
-              </Text>
-              <Text style={[styles.stockValue, { color: theme.colors.onSurface }]}>
-                {product.quantity.toLocaleString()} units
-              </Text>
-            </View>
-            
-            <View style={styles.stockRow}>
-              <Text style={[styles.stockLabel, { color: theme.colors.onSurfaceVariant }]}>
-                Ordered Quantity:
-              </Text>
-              <Text style={[styles.stockValue, { color: theme.colors.onSurface }]}>
-                {product.ordered_quantity || 0} units
-              </Text>
-            </View>
-            
-            <View style={styles.stockRow}>
-              <Text style={[styles.stockLabel, { color: theme.colors.onSurfaceVariant }]}>
-                Delivered Quantity:
-              </Text>
-              <Text style={[styles.stockValue, { color: theme.colors.onSurface }]}>
-                {product.delivered_quantity || 0} units
-              </Text>
-            </View>
-            
-            <View style={styles.stockRow}>
-              <Text style={[styles.stockLabel, { color: theme.colors.onSurfaceVariant }]}>
-                Reorder Level:
-              </Text>
-              <Text style={[styles.stockValue, { color: theme.colors.onSurface }]}>
-                {product.reorder_level || 0} units
-              </Text>
-            </View>
-          </Card.Content>
-        </Card>
+            {/* Supplier Information */}
+            {product.supplier_id && (
+              <>
+                <Divider style={styles.divider} />
+                <View style={styles.supplierSection}>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+                    Supplier Information
+                  </Text>
+                  <Text style={[styles.supplierName, { color: theme.colors.onSurface }]}>
+                    Supplier ID: {product.supplier_id}
+                  </Text>
+                </View>
+              </>
+            )}
 
-        {/* Product Details */}
-        <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-          <Card.Content>
-            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-              Product Details
-            </Text>
-            
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
-                Category:
-              </Text>
-              <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
-                {product.category}
-              </Text>
-            </View>
-            
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
-                Unit of Measure:
-              </Text>
-              <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
-                {product.uom || 'N/A'}
-              </Text>
-            </View>
-            
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
-                Conversion Quantity:
-              </Text>
-              <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
-                {product.conversion_qty || 'N/A'}
-              </Text>
-            </View>
-            
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
-                Last Updated:
-              </Text>
-              <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
-                {formatDate(product.last_updated)}
-              </Text>
-            </View>
-          </Card.Content>
-        </Card>
-
-        {/* Supplier Information */}
-        {product.supplier_name && (
-          <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-            <Card.Content>
+            {/* Product Details */}
+            <Divider style={styles.divider} />
+            <View style={styles.detailsSection}>
               <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                Supplier Information
+                Product Details
               </Text>
-              
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
-                  Supplier:
-                </Text>
-                <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
-                  {product.supplier_name}
-                </Text>
-              </View>
-              
-              {product.supplier_phone && (
+
+              <View style={styles.detailsGrid}>
                 <View style={styles.detailRow}>
                   <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
-                    Phone:
+                    Unit of Measure:
                   </Text>
                   <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
-                    {product.supplier_phone}
+                    {product.uom || 'Not specified'}
+                  </Text>
+                </View>
+
+                {product.conversion_qty && (
+                  <View style={styles.detailRow}>
+                    <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
+                      Conversion Qty:
+                    </Text>
+                    <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
+                      {product.conversion_qty} units per {product.uom}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
+                    Expirable:
+                  </Text>
+                  <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
+                    {product.expirable ? 'Yes' : 'No'}
+                  </Text>
+                </View>
+
+                {product.expirable && product.expiration && (
+                  <View style={styles.detailRow}>
+                    <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
+                      Expiration Date:
+                    </Text>
+                    <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
+                      {formatDate(product.expiration)}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
+                    Date Added:
+                  </Text>
+                  <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
+                    {formatDate(product.created_at)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Stock Alerts */}
+            <Divider style={styles.divider} />
+            <View style={styles.alertsSection}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+                Stock Alerts
+              </Text>
+
+              {product.quantity <= 0 && (
+                <View style={[styles.alertItem, { backgroundColor: '#FFEBEE' }]}>
+                  <MaterialCommunityIcons name="alert-circle" size={20} color="#D32F2F" />
+                  <Text style={[styles.alertText, { color: '#D32F2F' }]}>
+                    Out of stock - needs replenishment
                   </Text>
                 </View>
               )}
-              
-              {product.supplier_website && (
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
-                    Website:
-                  </Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
-                    {product.supplier_website}
+
+              {product.quantity > 0 && product.quantity <= 300 && (
+                <View style={[styles.alertItem, { backgroundColor: '#FFF3E0' }]}>
+                  <MaterialCommunityIcons name="alert" size={20} color="#F57C00" />
+                  <Text style={[styles.alertText, { color: '#F57C00' }]}>
+                    Low stock - consider restocking
                   </Text>
                 </View>
               )}
-            </Card.Content>
-          </Card>
-        )}
 
-        {/* Expiration Information */}
-        {product.expiration && (
-          <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-            <Card.Content>
-              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                Expiration Information
-              </Text>
-              
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
-                  Expiration Date:
-                </Text>
-                <Text style={[styles.detailValue, { color: theme.colors.onSurface }]}>
-                  {formatDate(product.expiration)}
-                </Text>
-              </View>
-            </Card.Content>
-          </Card>
-        )}
+              {product.quantity > 300 && (
+                <View style={[styles.alertItem, { backgroundColor: '#E8F5E8' }]}>
+                  <MaterialCommunityIcons name="check-circle" size={20} color="#4CAF50" />
+                  <Text style={[styles.alertText, { color: '#4CAF50' }]}>
+                    Stock level is good
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Card.Content>
+        </Card>
       </ScrollView>
 
       {/* Action Buttons */}
@@ -289,17 +283,17 @@ export default function InventoryDetailScreen({ navigation }) {
         </Button>
         <Button
           mode="contained"
+          onPress={handleEdit}
+          style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
+        >
+          Edit Product
+        </Button>
+        <Button
+          mode="contained"
           onPress={handleAddStock}
           style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
         >
           Add Stock
-        </Button>
-        <Button
-          mode="contained"
-          onPress={handleEdit}
-          style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
-        >
-          Edit
         </Button>
         <Button
           mode="contained"
@@ -320,6 +314,7 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     padding: 16,
+    paddingBottom: 80,
   },
   imageContainer: {
     height: 200,
@@ -327,7 +322,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 2,
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -343,85 +338,117 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    marginBottom: 16,
-    elevation: 2,
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    borderRadius: 12,
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 16,
+  },
+  productInfo: {
+    flex: 1,
   },
   productName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    flex: 1,
-    marginRight: 12,
-  },
-  stockChip: {
-    alignSelf: 'flex-start',
-  },
-  productSku: {
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  productPrice: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
   },
-  productDescription: {
+  productSku: {
     fontSize: 16,
-    lineHeight: 24,
+    marginBottom: 4,
+  },
+  productCategory: {
+    fontSize: 14,
+    color: theme.colors.onSurfaceVariant,
+  },
+  stockInfo: {
+    alignItems: 'flex-end',
+    marginLeft: 16,
+  },
+  stockChip: {
+    marginBottom: 8,
+  },
+  stockQuantity: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  divider: {
+    marginVertical: 16,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  detailItem: {
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  descriptionSection: {
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  stockRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 8,
   },
-  stockLabel: {
+  description: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  supplierSection: {
+    marginBottom: 16,
+  },
+  supplierName: {
     fontSize: 14,
   },
-  stockValue: {
-    fontSize: 14,
-    fontWeight: '500',
+  detailsSection: {
+    marginBottom: 16,
+  },
+  detailsGrid: {
+    gap: 12,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  alertsSection: {
+    marginBottom: 16,
+  },
+  alertItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
     marginBottom: 8,
   },
-  detailLabel: {
+  alertText: {
     fontSize: 14,
-    flex: 1,
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
-    textAlign: 'right',
+    marginLeft: 8,
   },
   actionButtons: {
     flexDirection: 'row',
     padding: 16,
     gap: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
   },
   actionButton: {
     flex: 1,

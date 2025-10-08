@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../services/api';
 
@@ -17,7 +17,7 @@ const AUTH_ACTIONS = {
 const initialState = {
   user: null,
   token: null,
-  loading: false,
+  loading: true, // Start with true to show splash while checking auth
   error: null,
   isAuthenticated: false,
   userType: null, // 'employee' or 'customer'
@@ -71,15 +71,8 @@ const authReducer = (state, action) => {
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Check for stored authentication on app start
-  useEffect(() => {
-    checkStoredAuth();
-  }, []);
-
-  const checkStoredAuth = async () => {
+  const checkStoredAuth = useCallback(async () => {
     try {
-      dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
-      
       const token = await AsyncStorage.getItem('authToken');
       const userData = await AsyncStorage.getItem('userData');
       const userType = await AsyncStorage.getItem('userType');
@@ -97,7 +90,7 @@ export const AuthProvider = ({ children }) => {
           },
         });
       } else {
-        // No stored auth, set loading to false
+        // No stored auth, set loading to false to show login screen
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
       }
     } catch (error) {
@@ -105,7 +98,12 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
       dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: 'Failed to check authentication' });
     }
-  };
+  }, []);
+
+  // Check for stored authentication on app start
+  useEffect(() => {
+    checkStoredAuth();
+  }, [checkStoredAuth]);
 
   // Login function
   const login = async (username, password) => {

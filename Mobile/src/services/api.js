@@ -3,19 +3,17 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URL for the web server API
-// For development, use the correct IP for mobile devices/emulators
+// Using deployed DigitalOcean static app server
 const getBaseURL = () => {
-  if (__DEV__) {
-    // Try different URLs based on platform and environment
-    if (Platform.OS === 'android') {
-      // Android emulator - use your computer's actual IP address
-      return 'http://192.168.1.14:3001/api';
-    } else {
-      // iOS simulator or physical device - use localhost for simulator, or your machine's IP for physical device
-      return 'http://localhost:3001/api';
-    }
-  }
-  return 'https://wrapntracwebservice-2g22j.ondigitalocean.app/api';
+  // Always use production server (deployed on DigitalOcean)
+  return 'https://staticwrapntrack-b3akc.ondigitalocean.app/wrap-n-track-website-server/api';
+  
+  // Uncomment below to use local server for development
+  // if (Platform.OS === 'android') {
+  //   return 'http://192.168.1.14:3001/api';
+  // } else {
+  //   return 'http://localhost:3001/api';
+  // }
 };
 
 const BASE_URL = getBaseURL();
@@ -26,7 +24,7 @@ console.log('API Base URL:', BASE_URL);
 // Create axios instance with default config
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
+  timeout: 30000, // Increased timeout for production server
   headers: {
     'Content-Type': 'application/json',
   },
@@ -116,50 +114,24 @@ export const inventoryAPI = {
   // Get all inventory items (using public endpoint)
   getInventory: async () => {
     try {
-      // Try the configured URL first
       const response = await api.get('/public/inventory');
+      // Backend returns array directly
       return response.data;
     } catch (error) {
-      console.error('Primary URL failed, trying fallback URLs:', error.message);
-      
-      // Try fallback URLs
-      const fallbackUrls = [
-        'http://192.168.1.14:3001/api', // Your computer's actual IP address
-        'http://10.0.2.2:3001/api',
-        'http://localhost:3001/api',
-      ];
-      
-      try {
-        return await tryMultipleUrls('/public/inventory', fallbackUrls);
-      } catch (fallbackError) {
-        console.error('All URLs failed:', fallbackError);
-        throw fallbackError;
-      }
+      console.error('Error fetching inventory:', error);
+      throw error;
     }
   },
 
   // Get all inventory items (using public endpoint) - alias
   getAllInventory: async () => {
     try {
-      // Try the configured URL first
       const response = await api.get('/public/inventory');
+      // Backend returns array directly
       return response.data;
     } catch (error) {
-      console.error('Primary URL failed, trying fallback URLs:', error.message);
-      
-      // Try fallback URLs
-      const fallbackUrls = [
-        'http://192.168.1.14:3001/api', // Your computer's actual IP address
-        'http://10.0.2.2:3001/api',
-        'http://localhost:3001/api',
-      ];
-      
-      try {
-        return await tryMultipleUrls('/public/inventory', fallbackUrls);
-      } catch (fallbackError) {
-        console.error('All URLs failed:', fallbackError);
-        throw fallbackError;
-      }
+      console.error('Error fetching inventory:', error);
+      throw error;
     }
   },
 
@@ -334,10 +306,11 @@ export const orderAPI = {
     }
   },
 
-  // Get user orders
+  // Get user orders (returns array directly)
   getUserOrders: async () => {
     try {
       const response = await api.get('/orders');
+      // Backend returns array directly, not wrapped in success/data
       return response.data;
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -449,6 +422,10 @@ export const dashboardAPI = {
       const response = await api.get('/dashboard/analytics', {
         params: { month, year }
       });
+      // Handle nested data structure from backend
+      if (response.data && response.data.success !== false) {
+        return response.data.data || response.data;
+      }
       return response.data;
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -460,6 +437,10 @@ export const dashboardAPI = {
   getAvailableMonths: async () => {
     try {
       const response = await api.get('/dashboard/available-months');
+      // Handle nested data structure
+      if (response.data && response.data.success !== false) {
+        return response.data.data || response.data;
+      }
       return response.data;
     } catch (error) {
       console.error('Error fetching available months:', error);
@@ -473,6 +454,9 @@ export const dashboardAPI = {
       const response = await api.get('/sales-reports', {
         params: dateRange
       });
+      if (response.data && response.data.success !== false) {
+        return response.data.data || response.data;
+      }
       return response.data;
     } catch (error) {
       console.error('Error fetching sales reports:', error);
@@ -484,6 +468,9 @@ export const dashboardAPI = {
   getInventoryReports: async () => {
     try {
       const response = await api.get('/inventory-reports');
+      if (response.data && response.data.success !== false) {
+        return response.data.data || response.data;
+      }
       return response.data;
     } catch (error) {
       console.error('Error fetching inventory reports:', error);
@@ -494,10 +481,11 @@ export const dashboardAPI = {
 
 // Customer API endpoints
 export const customerAPI = {
-  // Get all customers
+  // Get all customers (returns array directly)
   getCustomers: async () => {
     try {
       const response = await api.get('/customers');
+      // Backend returns array directly
       return response.data;
     } catch (error) {
       console.error('Error fetching customers:', error);

@@ -21,6 +21,7 @@ import CustomerHome from "./Pages/CustomerPOV/CustomerHome";
 import CustomerCorporate from "./Pages/CustomerCorporate/CustomerCorporate";
 
 import ArchivedOrders from './Pages/ArchivedOrders/ArchivedOrders';
+import ArchiveProducts from './Pages/ArchiveProducts/ArchiveProducts';
 import InventoryReport from './Pages/InventoryReport/InventoryReport';
 import SalesReport from './Pages/SalesReport/SalesReport';
 
@@ -75,6 +76,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/user-details" element={<UserDetails />} />
         <Route path="/inventory" element={<Inventory />} />
+        <Route path="/archive-products" element={<ArchiveProducts />} />
         <Route path="/reports/inventory" element={<InventoryReport />} />
         <Route path="/reports/sales" element={<SalesReport />} />
         <Route path="/user-management" element={<UserManagement />} />

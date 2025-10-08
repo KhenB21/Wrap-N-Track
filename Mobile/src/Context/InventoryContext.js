@@ -15,6 +15,7 @@ const INVENTORY_ACTIONS = {
   CLEAR_SELECTION: 'CLEAR_SELECTION',
   SET_CATEGORY_FILTER: 'SET_CATEGORY_FILTER',
   SET_SEARCH_QUERY: 'SET_SEARCH_QUERY',
+  SET_FILTER: 'SET_FILTER',
 };
 
 // Initial state
@@ -26,6 +27,7 @@ const initialState = {
   error: null,
   categoryFilter: null,
   searchQuery: '',
+  filter: 'all',
   filteredInventory: [],
 };
 
@@ -132,6 +134,26 @@ const inventoryReducer = (state, action) => {
         filteredInventory: filteredBySearch,
       };
 
+    case INVENTORY_ACTIONS.SET_FILTER:
+      const filterType = action.payload;
+      let filtered = [...state.inventory];
+      
+      if (filterType === 'low-stock') {
+        filtered = filtered.filter(item => item.quantity > 0 && item.quantity <= 300);
+      } else if (filterType === 'medium-stock') {
+        filtered = filtered.filter(item => item.quantity > 300 && item.quantity <= 800);
+      } else if (filterType === 'high-stock') {
+        filtered = filtered.filter(item => item.quantity > 800);
+      } else if (filterType === 'replenishment') {
+        filtered = filtered.filter(item => item.quantity <= 0);
+      }
+      
+      return {
+        ...state,
+        filter: filterType,
+        filteredInventory: filtered,
+      };
+
     default:
       return state;
   }
@@ -147,15 +169,25 @@ export const InventoryProvider = ({ children }) => {
       dispatch({ type: INVENTORY_ACTIONS.SET_LOADING, payload: true });
       const response = await inventoryAPI.getInventory();
       
-      // Handle different response structures
+      // Backend returns array directly from /api/public/inventory
       let inventory = [];
-      if (response && Array.isArray(response)) {
+      if (Array.isArray(response)) {
         inventory = response;
       } else if (response && response.data && Array.isArray(response.data)) {
         inventory = response.data;
-      } else if (response && response.success !== false && response.data) {
-        inventory = response.data;
+      } else if (response && response.inventory && Array.isArray(response.inventory)) {
+        inventory = response.inventory;
       }
+      
+      // Transform inventory items to ensure proper structure
+      inventory = inventory.map(item => ({
+        ...item,
+        quantity: parseInt(item.quantity || 0),
+        unit_price: parseFloat(item.unit_price || 0),
+        ordered_quantity: parseInt(item.ordered_quantity || 0),
+        // Ensure image data is properly formatted for base64 display
+        image_data: item.image_data ? (typeof item.image_data === 'string' ? item.image_data : item.image_data.toString('base64')) : null
+      }));
       
       dispatch({ type: INVENTORY_ACTIONS.SET_INVENTORY, payload: inventory });
     } catch (error) {
@@ -167,10 +199,11 @@ export const InventoryProvider = ({ children }) => {
     }
   }, []);
 
-  // Load inventory on mount - remove loadInventory from dependencies to prevent infinite loop
-  useEffect(() => {
-    loadInventory();
-  }, []); // Empty dependency array - only run once on mount
+  // Don't load inventory on mount - let screens load data when needed
+  // This prevents network errors from blocking app initialization
+  // useEffect(() => {
+  //   loadInventory();
+  // }, []);
 
   // Load inventory by category
   const loadInventoryByCategory = async (category) => {
@@ -245,6 +278,15 @@ export const InventoryProvider = ({ children }) => {
   const setSearchQuery = (query) => {
     dispatch({ type: INVENTORY_ACTIONS.SET_SEARCH_QUERY, payload: query });
   };
+  
+  // Alias methods for compatibility
+  const searchProducts = (query) => {
+    setSearchQuery(query);
+  };
+  
+  const filterProducts = (filterType) => {
+    dispatch({ type: INVENTORY_ACTIONS.SET_FILTER, payload: filterType });
+  };
 
   // Get available categories
   const getCategories = () => {
@@ -313,6 +355,8 @@ export const InventoryProvider = ({ children }) => {
     loadInventory,
     loadInventoryByCategory,
     searchInventory,
+    searchProducts, // Alias for compatibility
+    filterProducts, // For filtering by stock level
     addProduct,
     removeProduct,
     toggleProduct,

@@ -5,18 +5,33 @@ import {
   ScrollView,
   StyleSheet,
   Dimensions,
-  TouchableOpacity
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card, Button, Chip } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
+import { useInventory } from '../../Context/InventoryContext';
+import { useDashboard } from '../../Context/DashboardContext';
 
 const { width } = Dimensions.get('window');
 
 export default function InventoryReportScreen({ navigation }) {
   const theme = useTheme();
+  const { inventory, loading: inventoryLoading, fetchInventory } = useInventory();
+  const { formatCurrency } = useDashboard();
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [loading, setLoading] = useState(false);
+  const [inventoryData, setInventoryData] = useState({
+    totalProducts: 0,
+    totalValue: 0,
+    lowStockItems: 0,
+    outOfStockItems: 0,
+    topCategories: [],
+    lowStockProducts: [],
+    movementAnalysis: []
+  });
 
   const periods = [
     { key: 'week', label: 'This Week' },
@@ -25,30 +40,89 @@ export default function InventoryReportScreen({ navigation }) {
     { key: 'year', label: 'This Year' }
   ];
 
-  // Mock data - replace with actual API call
-  const inventoryData = {
-    totalProducts: 150,
-    totalValue: 250000,
-    lowStockItems: 8,
-    outOfStockItems: 3,
-    topCategories: [
-      { name: 'Wedding', count: 45, value: 75000 },
-      { name: 'Corporate', count: 38, value: 60000 },
-      { name: 'Bespoke', count: 25, value: 50000 }
-    ],
-    lowStockProducts: [
-      { name: 'Gift Box Small', sku: 'PKG-001', current: 15, reorder: 50 },
-      { name: 'Ribbon Red', sku: 'PKG-002', current: 8, reorder: 100 },
-      { name: 'Tissue Paper', sku: 'PKG-003', current: 5, reorder: 200 }
-    ],
-    movementAnalysis: [
-      { name: 'Fast Moving', count: 25, description: 'High turnover items' },
-      { name: 'Slow Moving', count: 15, description: 'Low turnover items' },
-      { name: 'Dead Stock', count: 5, description: 'No movement items' }
-    ]
+  useEffect(() => {
+    loadInventoryData();
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    if (inventory && inventory.length > 0) {
+      calculateInventoryData();
+    }
+  }, [inventory]);
+
+  const loadInventoryData = async () => {
+    try {
+      setLoading(true);
+      await fetchInventory();
+    } catch (error) {
+      console.error('Error loading inventory:', error);
+      Alert.alert('Error', 'Failed to load inventory data');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const formatCurrency = (amount) => {
+  const calculateInventoryData = () => {
+    // Calculate total products and value
+    const totalProducts = inventory.length;
+    const totalValue = inventory.reduce((sum, item) => sum + ((item.quantity || 0) * (parseFloat(item.unit_price) || 0)), 0);
+    
+    // Count low stock and out of stock items
+    const lowStockItems = inventory.filter(item => (item.quantity || 0) > 0 && (item.quantity || 0) <= 300).length;
+    const outOfStockItems = inventory.filter(item => (item.quantity || 0) <= 0).length;
+    
+    // Get low stock products
+    const lowStockProducts = inventory
+      .filter(item => (item.quantity || 0) > 0 && (item.quantity || 0) <= 300)
+      .slice(0, 5)
+      .map(item => ({
+        name: item.name,
+        sku: item.sku,
+        current: item.quantity || 0,
+        reorder: 300 // Default reorder point
+      }));
+    
+    // Group by category and calculate totals
+    const categoryMap = {};
+    inventory.forEach(item => {
+      const category = item.category || 'Uncategorized';
+      if (!categoryMap[category]) {
+        categoryMap[category] = { name: category, count: 0, value: 0 };
+      }
+      categoryMap[category].count += 1;
+      categoryMap[category].value += (item.quantity || 0) * (parseFloat(item.unit_price) || 0);
+    });
+    
+    const topCategories = Object.values(categoryMap)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 3);
+    
+    // Simple movement analysis based on stock levels
+    const fastMoving = inventory.filter(item => (item.quantity || 0) > 800).length;
+    const slowMoving = inventory.filter(item => (item.quantity || 0) > 300 && (item.quantity || 0) <= 800).length;
+    const deadStock = inventory.filter(item => (item.quantity || 0) <= 0).length;
+    
+    const movementAnalysis = [
+      { name: 'High Stock', count: fastMoving, description: 'Well-stocked items' },
+      { name: 'Medium Stock', count: slowMoving, description: 'Moderately stocked items' },
+      { name: 'Out of Stock', count: deadStock, description: 'Items needing replenishment' }
+    ];
+    
+    setInventoryData({
+      totalProducts,
+      totalValue,
+      lowStockItems,
+      outOfStockItems,
+      topCategories,
+      lowStockProducts,
+      movementAnalysis
+    });
+  };
+
+  const formatCurrencyLocal = (amount) => {
+    if (formatCurrency) {
+      return formatCurrency(amount);
+    }
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
       currency: 'PHP',
@@ -111,7 +185,7 @@ export default function InventoryReportScreen({ navigation }) {
               </Text>
             </View>
             <Text style={[styles.categoryValue, { color: theme.colors.onSurface }]}>
-              {formatCurrency(category.value)}
+              {formatCurrencyLocal(category.value)}
             </Text>
           </View>
         ))}
@@ -177,6 +251,16 @@ export default function InventoryReportScreen({ navigation }) {
     </Card>
   );
 
+  if ((loading || inventoryLoading) && inventoryData.totalProducts === 0) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background }]}>        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles.loadingText, { color: theme.colors.onBackground }]}>
+          Loading inventory data...
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -224,7 +308,7 @@ export default function InventoryReportScreen({ navigation }) {
             )}
             {renderMetricCard(
               'Total Value',
-              formatCurrency(inventoryData.totalValue),
+              formatCurrencyLocal(inventoryData.totalValue),
               'currency-usd',
               '#4CAF50',
               'Inventory worth'
@@ -292,6 +376,14 @@ export default function InventoryReportScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    marginTop: 16,
   },
   scrollView: {
     flex: 1,

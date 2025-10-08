@@ -8,8 +8,9 @@ import {
   RefreshControl,
   Alert,
   Modal,
+  Dimensions,
   TextInput,
-  Dimensions
+  Image
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 // Removed Chip import - using custom implementation
@@ -58,11 +59,18 @@ export default function InventoryListScreen() {
   };
 
   const handleSearch = (query) => {
-    searchProducts(query);
+    if (searchProducts) {
+      searchProducts(query);
+    } else {
+      // Fallback local search if context doesn't provide it
+      setSearchQuery(query);
+    }
   };
 
   const handleFilter = (filterType) => {
-    filterProducts(filterType);
+    if (filterProducts) {
+      filterProducts(filterType);
+    }
     setShowFilters(false);
   };
 
@@ -74,20 +82,21 @@ export default function InventoryListScreen() {
   };
 
   const handleItemPress = (item) => {
-    navigation.navigate('InventoryDetail', { product: item });
+    // Use push instead of navigate to go to the next screen in the stack
+    navigation.push('InventoryDetail', { product: item });
   };
 
   const handleAddStock = (item) => {
-    navigation.navigate('EditProduct', { 
-      product: item, 
-      mode: 'addStock' 
+    navigation.push('EditProduct', {
+      initialData: item,
+      isAddStockMode: true
     });
   };
 
   const handleEdit = (item) => {
-    navigation.navigate('EditProduct', { 
-      product: item, 
-      mode: 'edit' 
+    navigation.push('EditProduct', {
+      initialData: item,
+      isEdit: true
     });
   };
 
@@ -170,7 +179,11 @@ export default function InventoryListScreen() {
         <View style={styles.cardHeader}>
           <View style={styles.productImageContainer}>
             {item.image_data ? (
-              <MaterialCommunityIcons name="image" size={40} color={theme.colors.primary} />
+              <Image
+                source={{ uri: `data:image/jpeg;base64,${item.image_data}` }}
+                style={styles.productImage}
+                resizeMode="cover"
+              />
             ) : (
               <MaterialCommunityIcons name="image-outline" size={40} color={theme.colors.outline} />
             )}
@@ -198,7 +211,7 @@ export default function InventoryListScreen() {
 
         <View style={styles.cardFooter}>
           <Text style={[styles.productPrice, { color: theme.colors.onSurface }]}>
-            ₱{parseFloat(item.unit_price).toFixed(2)}
+            ₱{parseFloat(item.unit_price || 0).toFixed(2)}
           </Text>
           <View style={styles.actionButtons}>
             <TouchableOpacity
@@ -475,6 +488,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
   },
   productInfo: {
     flex: 1,

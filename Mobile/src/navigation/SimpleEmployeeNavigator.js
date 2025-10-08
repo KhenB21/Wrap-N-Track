@@ -6,8 +6,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 // Import Employee Screens
 import DashboardScreen from '../Screens/Employee/DashboardScreen';
 import InventoryListScreen from '../Screens/Employee/InventoryListScreen';
+import InventoryDetailScreen from '../Screens/Employee/InventoryDetailScreen';
+import AddProductScreen from '../Screens/Employee/AddProductScreen';
+import EditProductScreen from '../Screens/Employee/EditProductScreen';
 import OrderListScreen from '../Screens/Employee/OrderListScreen';
+import OrderDetailScreen from '../Screens/Employee/OrderDetailScreen';
 import CustomerListScreen from '../Screens/Employee/CustomerListScreen';
+import CustomerDetailScreen from '../Screens/Employee/CustomerDetailScreen';
 import ReportsHomeScreen from '../Screens/Employee/ReportsHomeScreen';
 import SettingsScreen from '../Screens/Employee/SettingsScreen';
 
@@ -19,6 +24,9 @@ function InventoryStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="InventoryList" component={InventoryListScreen} />
+      <Stack.Screen name="InventoryDetail" component={InventoryDetailScreen} />
+      <Stack.Screen name="AddProduct" component={AddProductScreen} />
+      <Stack.Screen name="EditProduct" component={EditProductScreen} />
     </Stack.Navigator>
   );
 }
@@ -27,6 +35,7 @@ function OrdersStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="OrderList" component={OrderListScreen} />
+      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
     </Stack.Navigator>
   );
 }
@@ -35,6 +44,7 @@ function CustomersStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="CustomerList" component={CustomerListScreen} />
+      <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
     </Stack.Navigator>
   );
 }

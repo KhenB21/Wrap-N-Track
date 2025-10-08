@@ -3,6 +3,7 @@
     "name": "Wrap N Track",
     "slug": "wrapntrack",
     "version": "1.0.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./src/Images/Logo/pensee-logo-only.png",
     "userInterfaceStyle": "light",

@@ -5,18 +5,32 @@ import {
   ScrollView,
   StyleSheet,
   Dimensions,
-  TouchableOpacity
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card, Button, Chip } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
+import { useDashboard } from '../../Context/DashboardContext';
+import { orderAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
 export default function SalesReportScreen({ navigation }) {
   const theme = useTheme();
+  const { dashboardData, formatCurrency, formatNumber } = useDashboard();
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [loading, setLoading] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [salesData, setSalesData] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    averageOrderValue: 0,
+    growthRate: 0,
+    topProducts: [],
+    recentOrders: []
+  });
 
   const periods = [
     { key: 'week', label: 'This Week' },
@@ -25,25 +39,69 @@ export default function SalesReportScreen({ navigation }) {
     { key: 'year', label: 'This Year' }
   ];
 
-  // Mock data - replace with actual API call
-  const salesData = {
-    totalRevenue: 125000,
-    totalOrders: 45,
-    averageOrderValue: 2777.78,
-    growthRate: 12.5,
-    topProducts: [
-      { name: 'Wedding Gift Box', revenue: 25000, orders: 15 },
-      { name: 'Corporate Package', revenue: 18000, orders: 12 },
-      { name: 'Bespoke Wrapping', revenue: 15000, orders: 8 }
-    ],
-    recentOrders: [
-      { id: 'ORD-001', customer: 'John Doe', amount: 2500, date: '2024-01-20' },
-      { id: 'ORD-002', customer: 'Jane Smith', amount: 1800, date: '2024-01-19' },
-      { id: 'ORD-003', customer: 'Mike Johnson', amount: 3200, date: '2024-01-18' }
-    ]
+  useEffect(() => {
+    fetchSalesData();
+  }, [selectedPeriod]);
+
+  const fetchSalesData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch orders from API
+      const ordersResponse = await orderAPI.getUserOrders();
+      let ordersData = [];
+      
+      if (ordersResponse && Array.isArray(ordersResponse)) {
+        ordersData = ordersResponse;
+      } else if (ordersResponse && ordersResponse.orders) {
+        ordersData = ordersResponse.orders;
+      }
+      
+      setOrders(ordersData);
+      
+      // Calculate sales metrics from orders
+      const totalRevenue = ordersData.reduce((sum, order) => sum + (parseFloat(order.total_cost) || 0), 0);
+      const totalOrders = ordersData.length;
+      const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+      
+      // Get recent orders (last 5)
+      const recentOrders = ordersData
+        .sort((a, b) => new Date(b.order_date) - new Date(a.order_date))
+        .slice(0, 5)
+        .map(order => ({
+          id: order.order_id,
+          customer: order.name || order.customer_name || 'Unknown',
+          amount: parseFloat(order.total_cost) || 0,
+          date: order.order_date
+        }));
+      
+      // Use top selling products from dashboard data
+      const topProducts = (dashboardData.topSellingProducts || []).slice(0, 3).map(product => ({
+        name: product.name || product.product_name,
+        revenue: (product.revenue || product.total_revenue || 0),
+        orders: (product.units_sold || product.total_orders || 0)
+      }));
+      
+      setSalesData({
+        totalRevenue,
+        totalOrders,
+        averageOrderValue,
+        growthRate: 12.5, // Can be calculated if we have historical data
+        topProducts: topProducts.length > 0 ? topProducts : [],
+        recentOrders
+      });
+    } catch (error) {
+      console.error('Error fetching sales data:', error);
+      Alert.alert('Error', 'Failed to fetch sales data');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const formatCurrency = (amount) => {
+  const formatCurrencyLocal = (amount) => {
+    if (formatCurrency) {
+      return formatCurrency(amount);
+    }
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
       currency: 'PHP',
@@ -99,7 +157,7 @@ export default function SalesReportScreen({ navigation }) {
               </Text>
             </View>
             <Text style={[styles.productRevenue, { color: theme.colors.onSurface }]}>
-              {formatCurrency(product.revenue)}
+              {formatCurrencyLocal(product.revenue)}
             </Text>
           </View>
         ))}
@@ -127,13 +185,23 @@ export default function SalesReportScreen({ navigation }) {
               </Text>
             </View>
             <Text style={[styles.orderAmount, { color: theme.colors.onSurface }]}>
-              {formatCurrency(order.amount)}
+              {formatCurrencyLocal(order.amount)}
             </Text>
           </View>
         ))}
       </Card.Content>
     </Card>
   );
+
+  if (loading && salesData.totalOrders === 0) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background }]}>        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles.loadingText, { color: theme.colors.onBackground }]}>
+          Loading sales data...
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -175,7 +243,7 @@ export default function SalesReportScreen({ navigation }) {
           <View style={styles.metricsGrid}>
             {renderMetricCard(
               'Total Revenue',
-              formatCurrency(salesData.totalRevenue),
+              formatCurrencyLocal(salesData.totalRevenue),
               'currency-usd',
               '#4CAF50',
               `+${salesData.growthRate}% from last period`
@@ -189,7 +257,7 @@ export default function SalesReportScreen({ navigation }) {
             )}
             {renderMetricCard(
               'Average Order Value',
-              formatCurrency(salesData.averageOrderValue),
+              formatCurrencyLocal(salesData.averageOrderValue),
               'chart-line',
               '#FF9800',
               'Per order'
@@ -247,6 +315,14 @@ export default function SalesReportScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    marginTop: 16,
   },
   scrollView: {
     flex: 1,
