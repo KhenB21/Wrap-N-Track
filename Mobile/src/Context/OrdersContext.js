@@ -92,24 +92,41 @@ export const OrdersProvider = ({ children }) => {
       dispatch({ type: ORDERS_ACTIONS.SET_LOADING, payload: true });
       const response = await orderAPI.getUserOrders();
       
-      if (response.success && response.orders) {
-        dispatch({ type: ORDERS_ACTIONS.SET_ORDERS, payload: response.orders });
-      } else {
-        dispatch({ type: ORDERS_ACTIONS.SET_ORDERS, payload: response || [] });
+      // Backend returns array directly from /api/orders
+      let orders = [];
+      if (Array.isArray(response)) {
+        orders = response;
+      } else if (response && response.orders && Array.isArray(response.orders)) {
+        orders = response.orders;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        orders = response.data;
       }
+      
+      // Transform orders to ensure proper structure
+      orders = orders.map(order => ({
+        ...order,
+        order_id: order.order_id,
+        customer_name: order.name || order.customer_name || 'Unknown',
+        total_cost: parseFloat(order.total_cost || 0),
+        order_date: order.order_date,
+        status: order.status || 'Pending'
+      }));
+      
+      dispatch({ type: ORDERS_ACTIONS.SET_ORDERS, payload: orders });
     } catch (error) {
       console.error('Error loading orders:', error);
       dispatch({ 
-        type: ORDERS_ACTIONS.SET_ERROR, 
+        type: ORDERS_ACTIONS.SET_ERROR,
         payload: error.message || 'Failed to load orders' 
       });
     }
   }, []);
 
-  // Load orders on mount
-  useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
+  // Don't load orders on mount - only load after authentication
+  // This prevents network errors from blocking app initialization
+  // useEffect(() => {
+  //   loadOrders();
+  // }, [loadOrders]);
 
   // Get order by ID
   const getOrder = async (orderId) => {

@@ -170,10 +170,11 @@ export function CartProvider({ children }) {
     }
   }, []);
 
-  // Load cart items on mount
-  useEffect(() => {
-    loadCartItems();
-  }, [loadCartItems]);
+  // Don't load cart on mount - only load after authentication
+  // This prevents network errors from blocking app initialization
+  // useEffect(() => {
+  //   loadCartItems();
+  // }, [loadCartItems]);
 
   // Add item to cart
   const addToCart = async (item) => {

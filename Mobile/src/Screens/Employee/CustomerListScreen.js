@@ -9,12 +9,14 @@ import {
   Alert,
   Modal,
   Dimensions,
-  TextInput
+  TextInput,
+  ActivityIndicator
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Avatar } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import { customerAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -46,7 +48,6 @@ export default function CustomerListScreen() {
   const [selectedCustomers, setSelectedCustomers] = useState(new Set());
   const [showFilters, setShowFilters] = useState(false);
 
-  // Mock data - replace with actual API call
   useEffect(() => {
     fetchCustomers();
   }, []);
@@ -54,47 +55,43 @@ export default function CustomerListScreen() {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      // Mock data - replace with actual API call
-      const mockCustomers = [
-        {
-          customer_id: '1',
-          name: 'John Doe',
-          email_address: 'john.doe@email.com',
-          phone_number: '+63 912 345 6789',
-          status: 'active',
-          created_at: '2024-01-15T10:30:00Z',
-          profile_picture_data: null,
-          total_orders: 5,
-          total_spent: 15000
-        },
-        {
-          customer_id: '2',
-          name: 'Jane Smith',
-          email_address: 'jane.smith@email.com',
-          phone_number: '+63 917 654 3210',
-          status: 'active',
-          created_at: '2024-01-20T14:45:00Z',
-          profile_picture_data: null,
-          total_orders: 3,
-          total_spent: 8500
-        },
-        {
-          customer_id: '3',
-          name: 'Mike Johnson',
-          email_address: 'mike.johnson@email.com',
-          phone_number: '+63 918 765 4321',
-          status: 'inactive',
-          created_at: '2024-01-10T09:15:00Z',
-          profile_picture_data: null,
-          total_orders: 1,
-          total_spent: 2500
-        }
-      ];
-      setCustomers(mockCustomers);
-      setFilteredCustomers(mockCustomers);
+      const response = await customerAPI.getCustomers();
+      
+      // Handle different response structures
+      let customersData = [];
+      if (response && Array.isArray(response)) {
+        customersData = response;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        customersData = response.data;
+      } else if (response && response.customers && Array.isArray(response.customers)) {
+        customersData = response.customers;
+      } else if (response && response.success && response.customers) {
+        customersData = response.customers;
+      }
+      
+      // Transform data to ensure proper structure
+      const transformedCustomers = customersData.map(customer => ({
+        customer_id: customer.customer_id || customer.id || '',
+        name: customer.name || 'Unknown',
+        email_address: customer.email_address || customer.email || '',
+        phone_number: customer.phone_number || customer.phone || '',
+        account_status: customer.account_status || customer.status || 'active',
+        status: (customer.account_status || customer.status || 'active').toLowerCase(),
+        created_at: customer.created_at || customer.createdAt || new Date().toISOString(),
+        profile_picture_data: customer.profile_picture_data || null,
+        total_orders: customer.total_orders || 0,
+        total_spent: customer.total_spent || 0,
+        address: customer.address || ''
+      }));
+      
+      setCustomers(transformedCustomers);
+      setFilteredCustomers(transformedCustomers);
     } catch (error) {
       console.error('Error fetching customers:', error);
-      Alert.alert('Error', 'Failed to fetch customers');
+      Alert.alert('Error', error.response?.data?.message || 'Failed to fetch customers. Please try again.');
+      // Set empty array on error so UI doesn't break
+      setCustomers([]);
+      setFilteredCustomers([]);
     } finally {
       setLoading(false);
     }
@@ -547,6 +544,16 @@ export default function CustomerListScreen() {
     );
   };
 
+  if (loading && customers.length === 0) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background }]}>        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles.loadingText, { color: theme.colors.onBackground }]}>
+          Loading customers...
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
@@ -662,6 +669,14 @@ export default function CustomerListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    marginTop: 16,
   },
   header: {
     flexDirection: 'row',

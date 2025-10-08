@@ -127,46 +127,50 @@ export const DashboardProvider = ({ children }) => {
       
       const response = await dashboardAPI.getDashboardData(targetMonth, targetYear);
       
-      // Handle both direct data response and success wrapper
-      if (response.success !== false) {
-        const data = response.data || response;
-        
-        // Transform the API response to match our expected structure
-        const transformedData = {
-          inventory: {
-            totalProducts: 0, // Will be fetched separately
-            totalUnits: 0,
-            lowStockProducts: 0,
-            replenishmentPending: 0
-          },
-          salesOverview: {
-            totalRevenue: data.salesOverview?.total_revenue || 0,
-            totalOrders: data.salesOverview?.total_orders || 0,
-            totalUnitsSold: data.salesOverview?.total_units_sold || 0,
-            totalCustomers: data.salesOverview?.total_customers || 0
-          },
-          salesActivity: data.salesActivity || {
-            toBePack: 0,
-            toBeShipped: 0,
-            outForDelivery: 0
-          },
-          topSellingProducts: data.topSellingProducts || [],
-          recentActivity: data.recentActivity || []
-        };
-        
-        dispatch({ 
-          type: DASHBOARD_ACTIONS.SET_DASHBOARD_DATA, 
-          payload: transformedData 
-        });
-        
-        // Also fetch inventory data
-        fetchInventoryData();
-      } else {
-        dispatch({ 
-          type: DASHBOARD_ACTIONS.SET_ERROR, 
-          payload: response.message || 'Failed to fetch dashboard data' 
-        });
+      // Backend returns {success: true, data: {...}} structure
+      let data = response;
+      
+      // If response has data property, use that
+      if (response.data) {
+        data = response.data;
       }
+      
+      // Transform the API response to match our expected structure
+      const transformedData = {
+        inventory: {
+          totalProducts: 0, // Will be fetched separately
+          totalUnits: 0,
+          lowStockProducts: 0,
+          replenishmentPending: 0
+        },
+        salesOverview: {
+          totalRevenue: parseFloat(data.salesOverview?.total_revenue || 0),
+          totalOrders: parseInt(data.salesOverview?.total_orders || 0),
+          totalUnitsSold: parseInt(data.salesOverview?.total_units_sold || 0),
+          totalCustomers: parseInt(data.salesOverview?.total_customers || 0)
+        },
+        salesActivity: {
+          toBePack: parseInt(data.salesActivity?.toBePack || 0),
+          toBeShipped: parseInt(data.salesActivity?.toBeShipped || 0),
+          outForDelivery: parseInt(data.salesActivity?.outForDelivery || 0)
+        },
+        topSellingProducts: (data.topSellingProducts || []).map(p => ({
+          sku: p.sku,
+          name: p.name,
+          category: p.category,
+          units_sold: parseInt(p.units_sold || 0),
+          sales_value: parseFloat(p.sales_value || 0)
+        })),
+        recentActivity: data.recentActivity || []
+      };
+      
+      dispatch({ 
+        type: DASHBOARD_ACTIONS.SET_DASHBOARD_DATA, 
+        payload: transformedData 
+      });
+      
+      // Also fetch inventory data
+      fetchInventoryData();
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       
@@ -217,13 +221,35 @@ export const DashboardProvider = ({ children }) => {
         inventory = response;
       } else if (response && response.data && Array.isArray(response.data)) {
         inventory = response.data;
-      } else if (response && response.success !== false && response.data) {
-        inventory = response.data;
+      } else if (response && response.inventory && Array.isArray(response.inventory)) {
+        inventory = response.inventory;
       }
       
+      console.log('Inventory data for dashboard:', inventory.length, 'items');
+      
       const totalProducts = inventory.length || 0;
-      const lowStockProducts = inventory.filter(item => (item.stock_quantity || item.quantity || 0) <= 10).length || 0;
-      const totalUnits = inventory.reduce((sum, item) => sum + (item.stock_quantity || item.quantity || 0), 0);
+      // Low stock threshold: 300 or less
+      const lowStockProducts = inventory.filter(item => {
+        const qty = parseInt(item.quantity || 0);
+        return qty > 0 && qty <= 300;
+      }).length || 0;
+      
+      // Out of stock (need replenishment)
+      const replenishmentPending = inventory.filter(item => {
+        const qty = parseInt(item.quantity || 0);
+        return qty <= 0;
+      }).length || 0;
+      
+      const totalUnits = inventory.reduce((sum, item) => {
+        return sum + parseInt(item.quantity || 0);
+      }, 0);
+      
+      console.log('Dashboard inventory metrics:', {
+        totalProducts,
+        totalUnits,
+        lowStockProducts,
+        replenishmentPending
+      });
       
       // Update inventory data in dashboard
       dispatch({ 
@@ -232,7 +258,7 @@ export const DashboardProvider = ({ children }) => {
           totalProducts,
           totalUnits,
           lowStockProducts,
-          replenishmentPending: 0 // Could be calculated based on low stock
+          replenishmentPending
         }
       });
     } catch (error) {
