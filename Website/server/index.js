@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const WebSocket = require('ws');
 const http = require('http');
+const helmet = require('helmet');
 // Load environment variables - prioritize .env for production, .env.local for development
 const envLocal = path.join(__dirname, '..', '.env.local');
 const envProd = path.join(__dirname, '..', '.env');
@@ -44,9 +45,38 @@ const requireReadOnly = require('./middleware/requireReadOnly');
 
 
 const app = express();
+// Security hardening: trust proxy (for HTTPS behind load balancer) and hide X-Powered-By
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
+
 // Dynamic port selection: use platform-provided PORT (e.g. DigitalOcean) or fallback to 3001 locally
 const port = process.env.PORT || 3001;
 const portSource = process.env.PORT ? 'env:PORT' : 'default:3001';
+
+// Apply Helmet with safe defaults. HSTS only in production environments.
+const helmetOptions = {
+  contentSecurityPolicy: false, // we'll define a custom CSP below
+  crossOriginEmbedderPolicy: false, // avoid breaking third-party embeds by default
+  hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false
+};
+app.use(helmet(helmetOptions));
+
+// Additional explicit policies
+app.use(helmet.referrerPolicy({ policy: 'same-origin' }));
+app.use(helmet.frameguard({ action: 'sameorigin' }));
+app.use(helmet.noSniff());
+
+// Modern Permissions-Policy header (restrict powerful features by default)
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', [
+    'camera=()',
+    'microphone=()',
+    'geolocation=()',
+    'payment=()',
+    'usb=()'
+  ].join(', '));
+  next();
+});
 
 // Immediate DB connectivity test (task requirement)
 pool.connect(async (err, client, release) => {
@@ -219,6 +249,24 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Content Security Policy — tuned for compatibility while blocking risky sources
+app.use(helmet.contentSecurityPolicy({
+  useDefaults: true,
+  directives: {
+    defaultSrc: ["'self'"],
+    baseUri: ["'self'"],
+    objectSrc: ["'none'"],
+    frameAncestors: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https:'],
+    styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+    imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+    fontSrc: ["'self'", 'data:', 'https:'],
+    connectSrc: ["'self'", 'https:', 'wss:'],
+    formAction: ["'self'"],
+    upgradeInsecureRequests: []
+  }
+}));
 
 // Echo CORS headers and handle preflight
 app.use((req, res, next) => {
