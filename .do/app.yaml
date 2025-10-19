@@ -45,8 +45,8 @@ static_sites:
 - name: web
   source_dir: Website/client
   github:
-    repo: your-username/Wrap-N-Track
-    branch: main
+    repo: KhenB21/Wrap-N-Track
+    branch: DEPLOYED2
   build_command: npm install && npm run build
   output_dir: build
   catchall_document: index.html
@@ -54,11 +54,13 @@ static_sites:
   - key: NODE_ENV
     value: production
   - key: REACT_APP_API_URL
-    value: https://wrapntracwebservice-2g22j.ondigitalocean.app
+    value: https://staticwrapntrack-b3akc.ondigitalocean.app/wrap-n-track-website-server
+
   - key: REACT_APP_WS_URL
-    value: wss://wrapntracwebservice-2g22j.ondigitalocean.app
+    value: https://staticwrapntrack-b3akc.ondigitalocean.app/wrap-n-track-website-server
+
   routes:
-  - path: /
+  - path: /*
     headers:
     - name: Strict-Transport-Security
       value: max-age=31536000; includeSubDomains; preload
