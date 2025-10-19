@@ -1,80 +1,18 @@
-name: wrap-n-track
-services:
-- name: api
-  source_dir: Website/server
-  github:
-    repo: your-username/Wrap-N-Track
-    branch: main
-  run_command: npm start
-  environment_slug: node-js
-  instance_count: 1
-  instance_size_slug: basic-xxs
-  http_port: 8080
-  health_check:
-    http_path: /
-    initial_delay_seconds: 10
-    period_seconds: 10
-    timeout_seconds: 5
-    success_threshold: 1
-    failure_threshold: 3
-  envs:
-  - key: NODE_ENV
-    value: production
-  - key: PORT
-    value: "8080"
-  - key: DB_USER
-    value: doadmin
-  - key: DB_HOST
-    value: wrapntrackdb-do-user-22907915-0.d.db.ondigitalocean.com
-  - key: DB_NAME
-    value: defaultdb
-  - key: DB_PASSWORD
-    value: AVNS_lnACZxZsFPk_l9_ZmF8
-  - key: DB_PORT
-    value: "25060"
-  - key: DB_SSL
-    value: "true"
-  - key: EMAIL_USER
-    value: marckhennethbolima@gmail.com
-  - key: EMAIL_PASSWORD
-    value: pibm swva qtrz vmod
-  - key: JWT_SECRET
-    value: 917d905af041889478c9a3b0d0c7a4f7af9848504d45a36ca73d6caad0f173e3
-
+name: wrap-n-track-website-client
+region: sgp1
 static_sites:
-- name: web
-  source_dir: Website/client
-  github:
-    repo: KhenB21/Wrap-N-Track
-    branch: DEPLOYED2
-  build_command: npm install && npm run build
-  output_dir: build
-  catchall_document: index.html
-  envs:
-  - key: NODE_ENV
-    value: production
-  - key: REACT_APP_API_URL
-    value: https://staticwrapntrack-b3akc.ondigitalocean.app/wrap-n-track-website-server
-
-  - key: REACT_APP_WS_URL
-    value: https://staticwrapntrack-b3akc.ondigitalocean.app/wrap-n-track-website-server
-
-  routes:
-  - path: /*
-    headers:
-    - name: Strict-Transport-Security
-      value: max-age=31536000; includeSubDomains; preload
-    - name: X-Frame-Options
-      value: DENY
-    - name: X-Content-Type-Options
-      value: nosniff
-    - name: Referrer-Policy
-      value: strict-origin-when-cross-origin
-    - name: Permissions-Policy
-      value: accelerometer=(); ambient-light-sensor=(); autoplay=(); battery=(); camera=(); clipboard-read=(); clipboard-write=(); display-capture=(); encrypted-media=(); fullscreen=(); geolocation=(); gyroscope=(); magnetometer=(); microphone=(); midi=(); payment=(); picture-in-picture=(); publickey-credentials-get=(); sync-xhr=(); usb=(); vr=(); xr-spatial-tracking=()
-    - name: Cross-Origin-Opener-Policy
-      value: same-origin
-    - name: X-Permitted-Cross-Domain-Policies
-      value: none
-    - name: Content-Security-Policy
-      value: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https: wss:; form-action 'self'; upgrade-insecure-requests; block-all-mixed-content
+  - name: website
+    github:
+      repo: KhenB21/Wrap-N-Track
+      branch: DEPLOYED2
+    source_dir: Website/client
+    routes:
+      - path: /
+        preserve_path_prefix: true
+        response_headers:
+          Strict-Transport-Security: "max-age=63072000; includeSubDomains; preload"
+          Content-Security-Policy: "default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:"
+          X-Frame-Options: "SAMEORIGIN"
+          X-Content-Type-Options: "nosniff"
+          Referrer-Policy: "strict-origin-when-cross-origin"
+          Permissions-Policy: "geolocation=(), microphone=(), camera=()"
