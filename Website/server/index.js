@@ -63,18 +63,37 @@ const helmetOptions = {
 app.use(helmet(helmetOptions));
 
 // Additional explicit policies
-app.use(helmet.referrerPolicy({ policy: 'same-origin' }));
-app.use(helmet.frameguard({ action: 'sameorigin' }));
+app.use(helmet.referrerPolicy({ policy: 'strict-origin-when-cross-origin' }));
+app.use(helmet.frameguard({ action: 'deny' }));
 app.use(helmet.noSniff());
+app.use(helmet.crossOriginOpenerPolicy({ policy: 'same-origin' }));
+app.use(helmet.permittedCrossDomainPolicies({ policy: 'none' }));
 
 // Modern Permissions-Policy header (restrict powerful features by default)
 app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', [
+    'accelerometer=()',
+    'ambient-light-sensor=()',
+    'autoplay=()',
+    'battery=()',
     'camera=()',
-    'microphone=()',
+    'clipboard-read=()',
+    'clipboard-write=()',
+    'display-capture=()',
+    'encrypted-media=()',
+    'fullscreen=()',
     'geolocation=()',
+    'gyroscope=()',
+    'magnetometer=()',
+    'microphone=()',
+    'midi=()',
     'payment=()',
-    'usb=()'
+    'picture-in-picture=()',
+    'publickey-credentials-get=()',
+    'sync-xhr=()',
+    'usb=()',
+    'vr=()',
+    'xr-spatial-tracking=()'
   ].join(', '));
   next();
 });
@@ -258,14 +277,15 @@ app.use(helmet.contentSecurityPolicy({
     defaultSrc: ["'self'"],
     baseUri: ["'self'"],
     objectSrc: ["'none'"],
-    frameAncestors: ["'self'"],
-    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https:'],
+    frameAncestors: ["'none'"],
+    scriptSrc: ["'self'", 'https:'],
     styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
     imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
     fontSrc: ["'self'", 'data:', 'https:'],
     connectSrc: ["'self'", 'https:', 'wss:'],
     formAction: ["'self'"],
-    upgradeInsecureRequests: []
+    upgradeInsecureRequests: [],
+    blockAllMixedContent: []
   }
 }));
 
