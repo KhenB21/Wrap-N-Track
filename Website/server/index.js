@@ -53,11 +53,12 @@ app.disable('x-powered-by');
 const port = process.env.PORT || 3001;
 const portSource = process.env.PORT ? 'env:PORT' : 'default:3001';
 
-// Apply Helmet with safe defaults. HSTS only in production environments.
+// Apply Helmet with safe defaults. Enable HSTS in all non-development environments.
+const isDev = process.env.NODE_ENV === 'development';
 const helmetOptions = {
   contentSecurityPolicy: false, // we'll define a custom CSP below
   crossOriginEmbedderPolicy: false, // avoid breaking third-party embeds by default
-  hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false
+  hsts: !isDev ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false
 };
 app.use(helmet(helmetOptions));
 

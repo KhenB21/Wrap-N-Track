@@ -6,11 +6,12 @@ const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
-// Core Helmet protections; HSTS only in production to avoid local HTTPS issues
+// Core Helmet protections; Enable HSTS in all non-development environments to cover hosts without NODE_ENV=production
+const isDev = process.env.NODE_ENV === 'development';
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
-  hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false
+  hsts: !isDev ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false
 }));
 app.use(helmet.referrerPolicy({ policy: 'same-origin' }));
 app.use(helmet.frameguard({ action: 'sameorigin' }));
