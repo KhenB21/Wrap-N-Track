@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 import { useState, useEffect } from "react";
-import api from '../../api';
+import api from "../../api";
 
 import { useNavigate } from "react-router-dom";
 import "./ResetPassword.css";
@@ -36,7 +36,7 @@ function ResetPassword() {
       uppercase: /[A-Z]/.test(password),
       lowercase: /[a-z]/.test(password),
       number: /[0-9]/.test(password),
-      symbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+      symbol: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password),
     };
     setPasswordRequirements(requirements);
     return Object.values(requirements).every(Boolean);
@@ -60,7 +60,9 @@ function ResetPassword() {
     setLoading(true);
     try {
       if (!code) {
-        setError("Verification code is missing. Please restart the reset process.");
+        setError(
+          "Verification code is missing. Please restart the reset process.",
+        );
         setLoading(false);
         return;
       }
@@ -74,7 +76,7 @@ function ResetPassword() {
       setShowSuccessModal(true);
       setMessage("Password reset successful! Redirecting...");
       console.log("Success modal triggered, redirecting in 3 seconds...");
-      
+
       // Clean up and redirect after 3 seconds
       setTimeout(() => {
         localStorage.removeItem("reset_email");
@@ -125,19 +127,39 @@ function ResetPassword() {
               <div className="password-requirements">
                 <p>Password must contain:</p>
                 <ul>
-                  <li className={passwordRequirements.length ? "valid" : "invalid"}>
+                  <li
+                    className={
+                      passwordRequirements.length ? "valid" : "invalid"
+                    }
+                  >
                     At least 8 characters
                   </li>
-                  <li className={passwordRequirements.uppercase ? "valid" : "invalid"}>
+                  <li
+                    className={
+                      passwordRequirements.uppercase ? "valid" : "invalid"
+                    }
+                  >
                     At least 1 uppercase letter
                   </li>
-                  <li className={passwordRequirements.lowercase ? "valid" : "invalid"}>
+                  <li
+                    className={
+                      passwordRequirements.lowercase ? "valid" : "invalid"
+                    }
+                  >
                     At least 1 lowercase letter
                   </li>
-                  <li className={passwordRequirements.number ? "valid" : "invalid"}>
+                  <li
+                    className={
+                      passwordRequirements.number ? "valid" : "invalid"
+                    }
+                  >
                     At least 1 number
                   </li>
-                  <li className={passwordRequirements.symbol ? "valid" : "invalid"}>
+                  <li
+                    className={
+                      passwordRequirements.symbol ? "valid" : "invalid"
+                    }
+                  >
                     At least 1 symbol
                   </li>
                 </ul>
@@ -153,11 +175,7 @@ function ResetPassword() {
                 required
               />
             </div>
-            <button
-              type="submit"
-              className="submit-button"
-              disabled={loading}
-            >
+            <button type="submit" className="submit-button" disabled={loading}>
               {loading ? "Resetting..." : "Reset Password"}
             </button>
           </form>

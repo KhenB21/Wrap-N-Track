@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+/* eslint-disable no-undef */
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./EmailVerify.css";
-import config from "../../config";
-import api from '../../api';
+import api from "../../api";
 
 function EmailVerify() {
   const [code, setCode] = useState("");
@@ -20,7 +20,7 @@ function EmailVerify() {
       setEmail(storedUser.email);
     } else {
       // If no user info, redirect to login/register
-  navigate("/login-employee-pensee");
+      navigate("/login-employee-pensee");
     }
   }, [navigate]);
 
@@ -35,9 +35,8 @@ function EmailVerify() {
 
       const res = await api.post(`/api/auth/verify`, { email, code });
 
-
       setMessage(res.data.message || "Email successfully verified.");
-  setTimeout(() => navigate("/login-employee-pensee"), 2000);
+      setTimeout(() => navigate("/login-employee-pensee"), 2000);
     } catch (err) {
       setError(err.response?.data?.message || "Verification failed.");
     } finally {
@@ -53,7 +52,6 @@ function EmailVerify() {
     const token = localStorage.getItem("token");
 
     try {
-
       const res = await api.post(
         `/api/auth/resend-code`,
 
@@ -62,7 +60,7 @@ function EmailVerify() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       setMessage(res.data.message || "Verification code resent.");
@@ -114,7 +112,11 @@ function EmailVerify() {
             </button>
           </form>
 
-          <button onClick={handleResend} className="resend-button" disabled={resending}>
+          <button
+            onClick={handleResend}
+            className="resend-button"
+            disabled={resending}
+          >
             {resending ? "Resending..." : "Resend Code"}
           </button>
         </div>
