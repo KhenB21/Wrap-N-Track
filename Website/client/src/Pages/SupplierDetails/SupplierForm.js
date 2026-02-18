@@ -45,7 +45,6 @@ const AddSupplierDialog = ({ open, onClose, onAdd }) => {
 
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState({});
-  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const validatePhone = (phone) => /^(\+63|0)[\d\s-]{10,}$/.test(phone);
@@ -106,12 +105,11 @@ const AddSupplierDialog = ({ open, onClose, onAdd }) => {
   };
 
   const handleSubmit = () => {
-    setSubmitAttempted(true);
     if (validateForm()) {
       const newSupplier = {
         id: `SPUP-${String(Math.floor(Math.random() * 100000)).padStart(
           5,
-          "0"
+          "0",
         )}`,
         fullName: formData.supplierName,
         contactPerson: formData.supplierName,
@@ -129,7 +127,6 @@ const AddSupplierDialog = ({ open, onClose, onAdd }) => {
       };
       onAdd(newSupplier);
       setFormData(initialFormData);
-      setSubmitAttempted(false);
       onClose();
     }
   };
@@ -344,12 +341,12 @@ const SupplierForm = () => {
     setSelectedSuppliers((prev) =>
       prev.includes(supplierId)
         ? prev.filter((id) => id !== supplierId)
-        : [...prev, supplierId]
+        : [...prev, supplierId],
     );
   };
   const handleDeleteSelected = () => {
     setSuppliers((prev) =>
-      prev.filter((supplier) => !selectedSuppliers.includes(supplier.id))
+      prev.filter((supplier) => !selectedSuppliers.includes(supplier.id)),
     );
     setSelectedSuppliers([]);
   };

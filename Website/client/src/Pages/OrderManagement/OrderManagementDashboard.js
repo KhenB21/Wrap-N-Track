@@ -1,58 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../Context/AuthContext';
-import TopBar from '../../Components/TopBar';
-import withEmployeeAuth from '../../Components/withEmployeeAuth';
-import './OrderManagementDashboard.css';
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../Context/AuthContext";
+import TopBar from "../../Components/TopBar";
+import withEmployeeAuth from "../../Components/withEmployeeAuth";
+import "./OrderManagementDashboard.css";
 
 function OrderManagementDashboard() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [filters, setFilters] = useState({
-    status: 'all',
-    customer_name: '',
-    date_from: '',
-    date_to: ''
+    status: "all",
+    customer_name: "",
+    date_from: "",
+    date_to: "",
   });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
     total: 0,
-    pages: 0
+    pages: 0,
   });
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusUpdate, setStatusUpdate] = useState({
-    newStatus: '',
-    notes: '',
-    confirmationText: '',
-    paymentMethod: ''
+    newStatus: "",
+    notes: "",
+    confirmationText: "",
+    paymentMethod: "",
   });
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [stats, setStats] = useState({});
 
   // Redirect if not authenticated or not employee
   useEffect(() => {
-    if (!isAuthenticated || user?.source !== 'employee') {
-      navigate('/login-employee-pensee');
+    if (!isAuthenticated || user?.source !== "employee") {
+      navigate("/login-employee-pensee");
     }
   }, [isAuthenticated, user, navigate]);
 
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      const queryParams = new URLSearchParams({
+        page: pagination.page,
+        limit: pagination.limit,
+        ...filters,
+      });
+
+      const response = await fetch(
+        `/api/order-management/orders?${queryParams}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setOrders(data.orders || []);
+        setPagination(data.pagination || pagination);
+        setError("");
+      } else {
+        setError("Failed to fetch orders");
+      }
+    } catch (err) {
+      console.error("Error fetching orders:", err);
+      setError("Failed to fetch orders");
+    } finally {
+      setLoading(false);
+    }
+  }, [pagination, filters]);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await fetch("/api/order-management/dashboard-stats", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data.stats || {});
+      }
+    } catch (err) {
+      console.error("Error fetching stats:", err);
+    }
+  }, []);
+
   // Fetch orders and stats
   useEffect(() => {
-    if (isAuthenticated && user?.source === 'employee') {
+    if (isAuthenticated && user?.source === "employee") {
       fetchOrders();
       fetchStats();
     }
-  }, [isAuthenticated, user, filters, pagination.page]);
+  }, [isAuthenticated, user, fetchOrders, fetchStats]);
 
   // Real-time sync - refresh data every 30 seconds
   useEffect(() => {
-    if (isAuthenticated && user?.source === 'employee') {
+    if (isAuthenticated && user?.source === "employee") {
       const interval = setInterval(() => {
         fetchOrders();
         fetchStats();
@@ -60,79 +111,34 @@ function OrderManagementDashboard() {
 
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated, user]);
-
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const queryParams = new URLSearchParams({
-        page: pagination.page,
-        limit: pagination.limit,
-        ...filters
-      });
-
-      const response = await fetch(`/api/order-management/orders?${queryParams}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data.orders || []);
-        setPagination(data.pagination || pagination);
-        setError('');
-      } else {
-        setError('Failed to fetch orders');
-      }
-    } catch (err) {
-      console.error('Error fetching orders:', err);
-      setError('Failed to fetch orders');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const response = await fetch('/api/order-management/dashboard-stats', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.stats || {});
-      }
-    } catch (err) {
-      console.error('Error fetching stats:', err);
-    }
-  };
+  }, [isAuthenticated, user, fetchOrders, fetchStats]);
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   const handleOrderClick = async (order) => {
     try {
-      const response = await fetch(`/api/order-management/orders/${order.order_id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
+      const response = await fetch(
+        `/api/order-management/orders/${order.order_id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        },
+      );
+
       if (response.ok) {
         const data = await response.json();
         setSelectedOrder(data.order);
         setShowOrderDetails(true);
       } else {
-        alert('Failed to fetch order details');
+        alert("Failed to fetch order details");
       }
     } catch (err) {
-      console.error('Error fetching order details:', err);
-      alert('Failed to fetch order details');
+      console.error("Error fetching order details:", err);
+      alert("Failed to fetch order details");
     }
   };
 
@@ -140,9 +146,9 @@ function OrderManagementDashboard() {
     setSelectedOrder(order);
     setStatusUpdate({
       newStatus: order.status,
-      notes: '',
-      confirmationText: '',
-      paymentMethod: order.payment_method || ''
+      notes: "",
+      confirmationText: "",
+      paymentMethod: order.payment_method || "",
     });
     setShowStatusModal(true);
   };
@@ -151,34 +157,44 @@ function OrderManagementDashboard() {
     if (!selectedOrder || !statusUpdate.newStatus) return;
 
     // Check if marking as completed and require typing confirmation
-    if (statusUpdate.newStatus === 'Completed') {
-      if (statusUpdate.confirmationText !== 'I love Pensee') {
-        alert('To mark this order as completed, please type "I love Pensee" in the confirmation field.');
+    if (statusUpdate.newStatus === "Completed") {
+      if (statusUpdate.confirmationText !== "I love Pensee") {
+        alert(
+          'To mark this order as completed, please type "I love Pensee" in the confirmation field.',
+        );
         return;
       }
     }
 
     try {
       setUpdatingStatus(true);
-      const response = await fetch(`/api/order-management/orders/${selectedOrder.order_id}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      const response = await fetch(
+        `/api/order-management/orders/${selectedOrder.order_id}/status`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            status: statusUpdate.newStatus,
+            notes: statusUpdate.notes,
+            payment_method: statusUpdate.paymentMethod,
+          }),
         },
-        body: JSON.stringify({
-          status: statusUpdate.newStatus,
-          notes: statusUpdate.notes,
-          payment_method: statusUpdate.paymentMethod
-        })
-      });
-      
+      );
+
       if (response.ok) {
-        const data = await response.json();
-        alert('Order status updated successfully');
+        await response.json();
+        alert("Order status updated successfully");
         setShowStatusModal(false);
         setSelectedOrder(null);
-        setStatusUpdate({ newStatus: '', notes: '', confirmationText: '', paymentMethod: '' });
+        setStatusUpdate({
+          newStatus: "",
+          notes: "",
+          confirmationText: "",
+          paymentMethod: "",
+        });
         fetchOrders();
         fetchStats();
       } else {
@@ -186,8 +202,8 @@ function OrderManagementDashboard() {
         alert(`Failed to update status: ${errorData.message}`);
       }
     } catch (err) {
-      console.error('Error updating status:', err);
-      alert('Failed to update order status');
+      console.error("Error updating status:", err);
+      alert("Failed to update order status");
     } finally {
       setUpdatingStatus(false);
     }
@@ -195,71 +211,71 @@ function OrderManagementDashboard() {
 
   const getStatusColor = (status) => {
     const statusColors = {
-      'Order Placed': '#17a2b8',
-      'Order Paid': '#28a745',
-      'To Be Packed': '#ffc107',
-      'Order Shipped Out': '#007bff',
-      'Ready for Delivery': '#6f42c1',
-      'Order Received': '#20c997',
-      'Completed': '#28a745',
-      'Cancelled': '#dc3545'
+      "Order Placed": "#17a2b8",
+      "Order Paid": "#28a745",
+      "To Be Packed": "#ffc107",
+      "Order Shipped Out": "#007bff",
+      "Ready for Delivery": "#6f42c1",
+      "Order Received": "#20c997",
+      Completed: "#28a745",
+      Cancelled: "#dc3545",
     };
-    return statusColors[status] || '#6c757d';
+    return statusColors[status] || "#6c757d";
   };
 
   const getStatusIcon = (status) => {
     const statusIcons = {
-      'Order Placed': '📋',
-      'Order Paid': '💳',
-      'To Be Packed': '📦',
-      'Order Shipped Out': '🚚',
-      'Ready for Delivery': '🚛',
-      'Order Received': '✅',
-      'Completed': '🎉',
-      'Cancelled': '❌'
+      "Order Placed": "📋",
+      "Order Paid": "💳",
+      "To Be Packed": "📦",
+      "Order Shipped Out": "🚚",
+      "Ready for Delivery": "🚛",
+      "Order Received": "✅",
+      Completed: "🎉",
+      Cancelled: "❌",
     };
-    return statusIcons[status] || '❓';
+    return statusIcons[status] || "❓";
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP'
+    return new Intl.NumberFormat("en-PH", {
+      style: "currency",
+      currency: "PHP",
     }).format(price);
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-PH', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
   const getNextStatus = (currentStatus) => {
     const statusFlow = {
-      'Pending': ['Order Paid', 'Cancelled'],
-      'Order Placed': ['Order Paid', 'Cancelled'],
-      'Order Paid': ['To Be Packed', 'Cancelled'],
-      'To Be Packed': ['Order Shipped Out', 'Cancelled'],
-      'Order Shipped Out': ['Ready for Delivery', 'Cancelled'],
-      'Ready for Delivery': ['Order Received', 'Cancelled'],
-      'Order Received': ['Completed', 'Cancelled'],
-      'Completed': [],
-      'Cancelled': []
+      Pending: ["Order Paid", "Cancelled"],
+      "Order Placed": ["Order Paid", "Cancelled"],
+      "Order Paid": ["To Be Packed", "Cancelled"],
+      "To Be Packed": ["Order Shipped Out", "Cancelled"],
+      "Order Shipped Out": ["Ready for Delivery", "Cancelled"],
+      "Ready for Delivery": ["Order Received", "Cancelled"],
+      "Order Received": ["Completed", "Cancelled"],
+      Completed: [],
+      Cancelled: [],
     };
     return statusFlow[currentStatus] || [];
   };
 
-  if (!isAuthenticated || user?.source !== 'employee') {
+  if (!isAuthenticated || user?.source !== "employee") {
     return null;
   }
 
   return (
     <div className="order-management-dashboard">
       <TopBar searchPlaceholder="Search orders..." />
-      
+
       <div className="dashboard-container">
         <div className="dashboard-header">
           <h1>Order Management Dashboard</h1>
@@ -319,7 +335,7 @@ function OrderManagementDashboard() {
               <label>Status:</label>
               <select
                 value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
+                onChange={(e) => handleFilterChange("status", e.target.value)}
               >
                 <option value="all">All Orders</option>
                 <option value="Order Placed">Order Placed</option>
@@ -338,7 +354,9 @@ function OrderManagementDashboard() {
                 type="text"
                 placeholder="Search by customer name..."
                 value={filters.customer_name}
-                onChange={(e) => handleFilterChange('customer_name', e.target.value)}
+                onChange={(e) =>
+                  handleFilterChange("customer_name", e.target.value)
+                }
               />
             </div>
             <div className="filter-group">
@@ -346,7 +364,9 @@ function OrderManagementDashboard() {
               <input
                 type="date"
                 value={filters.date_from}
-                onChange={(e) => handleFilterChange('date_from', e.target.value)}
+                onChange={(e) =>
+                  handleFilterChange("date_from", e.target.value)
+                }
               />
             </div>
             <div className="filter-group">
@@ -354,7 +374,7 @@ function OrderManagementDashboard() {
               <input
                 type="date"
                 value={filters.date_to}
-                onChange={(e) => handleFilterChange('date_to', e.target.value)}
+                onChange={(e) => handleFilterChange("date_to", e.target.value)}
               />
             </div>
           </div>
@@ -364,12 +384,12 @@ function OrderManagementDashboard() {
         <div className="orders-section">
           <div className="section-header">
             <h2>Orders ({pagination.total})</h2>
-            <button 
+            <button
               onClick={fetchOrders}
               className="refresh-btn"
               disabled={loading}
             >
-              {loading ? 'Refreshing...' : 'Refresh'}
+              {loading ? "Refreshing..." : "Refresh"}
             </button>
           </div>
 
@@ -411,24 +431,30 @@ function OrderManagementDashboard() {
                     <tr key={order.order_id}>
                       <td className="order-id">{order.order_id}</td>
                       <td className="customer-name">{order.customer_name}</td>
-                      <td className="order-date">{formatDate(order.order_date)}</td>
+                      <td className="order-date">
+                        {formatDate(order.order_date)}
+                      </td>
                       <td className="order-status">
-                        <span 
+                        <span
                           className="status-badge"
-                          style={{ backgroundColor: getStatusColor(order.status) }}
+                          style={{
+                            backgroundColor: getStatusColor(order.status),
+                          }}
                         >
                           {getStatusIcon(order.status)} {order.status}
                         </span>
                       </td>
-                      <td className="order-total">{formatPrice(order.total_cost)}</td>
+                      <td className="order-total">
+                        {formatPrice(order.total_cost)}
+                      </td>
                       <td className="order-actions">
-                        <button 
+                        <button
                           onClick={() => handleOrderClick(order)}
                           className="view-btn"
                         >
                           View
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleStatusUpdate(order)}
                           className="update-btn"
                         >
@@ -445,8 +471,10 @@ function OrderManagementDashboard() {
           {/* Pagination */}
           {pagination.pages > 1 && (
             <div className="pagination">
-              <button 
-                onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+              <button
+                onClick={() =>
+                  setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
+                }
                 disabled={pagination.page === 1}
                 className="pagination-btn"
               >
@@ -455,8 +483,10 @@ function OrderManagementDashboard() {
               <span className="pagination-info">
                 Page {pagination.page} of {pagination.pages}
               </span>
-              <button 
-                onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+              <button
+                onClick={() =>
+                  setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+                }
                 disabled={pagination.page === pagination.pages}
                 className="pagination-btn"
               >
@@ -472,7 +502,7 @@ function OrderManagementDashboard() {
             <div className="order-details-modal">
               <div className="modal-header">
                 <h2>Order Details - {selectedOrder.order_id}</h2>
-                <button 
+                <button
                   onClick={() => setShowOrderDetails(false)}
                   className="close-btn"
                 >
@@ -490,11 +520,12 @@ function OrderManagementDashboard() {
                     </div>
                     <div className="info-item">
                       <label>Status:</label>
-                      <span 
+                      <span
                         className="status-text"
                         style={{ color: getStatusColor(selectedOrder.status) }}
                       >
-                        {getStatusIcon(selectedOrder.status)} {selectedOrder.status}
+                        {getStatusIcon(selectedOrder.status)}{" "}
+                        {selectedOrder.status}
                       </span>
                     </div>
                     <div className="info-item">
@@ -519,35 +550,44 @@ function OrderManagementDashboard() {
                 <div className="shipping-info-section">
                   <h3>Shipping Information</h3>
                   <div className="shipping-address">
-                    <p><strong>Ship to:</strong> {selectedOrder.shipped_to}</p>
-                    <p><strong>Address:</strong> {selectedOrder.shipping_address}</p>
-                    <p><strong>Phone:</strong> {selectedOrder.telephone}</p>
-                    <p><strong>Email:</strong> {selectedOrder.email_address}</p>
+                    <p>
+                      <strong>Ship to:</strong> {selectedOrder.shipped_to}
+                    </p>
+                    <p>
+                      <strong>Address:</strong> {selectedOrder.shipping_address}
+                    </p>
+                    <p>
+                      <strong>Phone:</strong> {selectedOrder.telephone}
+                    </p>
+                    <p>
+                      <strong>Email:</strong> {selectedOrder.email_address}
+                    </p>
                   </div>
                 </div>
 
-                {selectedOrder.products && selectedOrder.products.length > 0 && (
-                  <div className="products-section">
-                    <h3>Order Items</h3>
-                    <div className="products-list">
-                      {selectedOrder.products.map((product, index) => (
-                        <div key={index} className="product-item">
-                          <div className="product-info">
-                            <h4>{product.product_name}</h4>
-                            <p>SKU: {product.sku}</p>
-                            <p>{product.description}</p>
+                {selectedOrder.products &&
+                  selectedOrder.products.length > 0 && (
+                    <div className="products-section">
+                      <h3>Order Items</h3>
+                      <div className="products-list">
+                        {selectedOrder.products.map((product, index) => (
+                          <div key={index} className="product-item">
+                            <div className="product-info">
+                              <h4>{product.product_name}</h4>
+                              <p>SKU: {product.sku}</p>
+                              <p>{product.description}</p>
+                            </div>
+                            <div className="product-quantity">
+                              <span>Qty: {product.quantity}</span>
+                            </div>
+                            <div className="product-price">
+                              <span>{formatPrice(product.total_price)}</span>
+                            </div>
                           </div>
-                          <div className="product-quantity">
-                            <span>Qty: {product.quantity}</span>
-                          </div>
-                          <div className="product-price">
-                            <span>{formatPrice(product.total_price)}</span>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {selectedOrder.remarks && (
                   <div className="remarks-section">
@@ -566,7 +606,7 @@ function OrderManagementDashboard() {
             <div className="status-modal">
               <div className="modal-header">
                 <h2>Update Order Status</h2>
-                <button 
+                <button
                   onClick={() => setShowStatusModal(false)}
                   className="close-btn"
                 >
@@ -576,7 +616,9 @@ function OrderManagementDashboard() {
 
               <div className="modal-content">
                 <div className="current-status">
-                  <p><strong>Current Status:</strong> {selectedOrder.status}</p>
+                  <p>
+                    <strong>Current Status:</strong> {selectedOrder.status}
+                  </p>
                 </div>
 
                 <div className="form-group">
@@ -584,11 +626,18 @@ function OrderManagementDashboard() {
                   <select
                     id="newStatus"
                     value={statusUpdate.newStatus}
-                    onChange={(e) => setStatusUpdate(prev => ({ ...prev, newStatus: e.target.value }))}
+                    onChange={(e) =>
+                      setStatusUpdate((prev) => ({
+                        ...prev,
+                        newStatus: e.target.value,
+                      }))
+                    }
                   >
                     <option value="">Select new status</option>
-                    {getNextStatus(selectedOrder.status).map(status => (
-                      <option key={status} value={status}>{status}</option>
+                    {getNextStatus(selectedOrder.status).map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -598,25 +647,37 @@ function OrderManagementDashboard() {
                   <textarea
                     id="notes"
                     value={statusUpdate.notes}
-                    onChange={(e) => setStatusUpdate(prev => ({ ...prev, notes: e.target.value }))}
+                    onChange={(e) =>
+                      setStatusUpdate((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
+                    }
                     placeholder="Add any notes about this status change..."
                     rows="3"
                   />
                 </div>
 
-                {(statusUpdate.newStatus === 'Pending' || statusUpdate.newStatus === 'Order Paid' || statusUpdate.newStatus === 'To Be Packed') && (
+                {(statusUpdate.newStatus === "Pending" ||
+                  statusUpdate.newStatus === "Order Paid" ||
+                  statusUpdate.newStatus === "To Be Packed") && (
                   <div className="form-group">
                     <label htmlFor="paymentMethod">Payment Method:</label>
                     <select
                       id="paymentMethod"
                       value={statusUpdate.paymentMethod}
-                      onChange={(e) => setStatusUpdate(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                      onChange={(e) =>
+                        setStatusUpdate((prev) => ({
+                          ...prev,
+                          paymentMethod: e.target.value,
+                        }))
+                      }
                       style={{
-                        width: '100%',
-                        padding: '10px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        fontSize: '14px'
+                        width: "100%",
+                        padding: "10px",
+                        border: "1px solid #ddd",
+                        borderRadius: "4px",
+                        fontSize: "14px",
                       }}
                     >
                       <option value="">Select payment method</option>
@@ -629,23 +690,29 @@ function OrderManagementDashboard() {
                   </div>
                 )}
 
-                {statusUpdate.newStatus === 'Completed' && (
+                {statusUpdate.newStatus === "Completed" && (
                   <div className="form-group">
                     <label htmlFor="confirmationText">
-                      Confirmation Required: Type "I love Pensee" to complete this order
+                      Confirmation Required: Type "I love Pensee" to complete
+                      this order
                     </label>
                     <input
                       type="text"
                       id="confirmationText"
                       value={statusUpdate.confirmationText}
-                      onChange={(e) => setStatusUpdate(prev => ({ ...prev, confirmationText: e.target.value }))}
+                      onChange={(e) =>
+                        setStatusUpdate((prev) => ({
+                          ...prev,
+                          confirmationText: e.target.value,
+                        }))
+                      }
                       placeholder="Type: I love Pensee"
                       style={{
-                        width: '100%',
-                        padding: '10px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        fontSize: '14px'
+                        width: "100%",
+                        padding: "10px",
+                        border: "1px solid #ddd",
+                        borderRadius: "4px",
+                        fontSize: "14px",
                       }}
                     />
                   </div>
@@ -653,24 +720,28 @@ function OrderManagementDashboard() {
               </div>
 
               <div className="modal-actions">
-                <button 
+                <button
                   onClick={() => setShowStatusModal(false)}
                   className="cancel-btn"
                   disabled={updatingStatus}
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={updateOrderStatus}
                   className="update-status-btn"
                   disabled={
-                    updatingStatus || 
-                    !statusUpdate.newStatus || 
-                    (statusUpdate.newStatus === 'Completed' && statusUpdate.confirmationText !== 'I love Pensee') ||
-                    ((statusUpdate.newStatus === 'Pending' || statusUpdate.newStatus === 'Order Paid' || statusUpdate.newStatus === 'To Be Packed') && !statusUpdate.paymentMethod)
+                    updatingStatus ||
+                    !statusUpdate.newStatus ||
+                    (statusUpdate.newStatus === "Completed" &&
+                      statusUpdate.confirmationText !== "I love Pensee") ||
+                    ((statusUpdate.newStatus === "Pending" ||
+                      statusUpdate.newStatus === "Order Paid" ||
+                      statusUpdate.newStatus === "To Be Packed") &&
+                      !statusUpdate.paymentMethod)
                   }
                 >
-                  {updatingStatus ? 'Updating...' : 'Update Status'}
+                  {updatingStatus ? "Updating..." : "Update Status"}
                 </button>
               </div>
             </div>
