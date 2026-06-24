@@ -210,25 +210,25 @@ function Dashboard() {
             <div className="dashboard-card card-red" onClick={handleTotalProductsClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Total Products</div>
               <div className="card-value">
-                {loading ? "..." : totalProducts}
+                {loading ? <span className="skeleton-value"></span> : totalProducts}
               </div>
             </div>
             <div className="dashboard-card card-orange" onClick={handleTotalUnitsClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Total Product Units</div>
               <div className="card-value">
-                {loading ? "..." : totalProductUnits.toLocaleString()}
+                {loading ? <span className="skeleton-value skeleton-wide"></span> : totalProductUnits.toLocaleString()}
               </div>
             </div>
             <div className="dashboard-card card-green" onClick={handleLowStockClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Low in Stock</div>
               <div className="card-value card-low">
-                {loading ? "..." : lowStockProducts}
+                {loading ? <span className="skeleton-value"></span> : lowStockProducts}
               </div>
             </div>
             <div className="dashboard-card card-blue" onClick={handleReplenishmentClick} style={{ cursor: 'pointer' }}>
               <div className="card-title">Replenishment Pending</div>
               <div className="card-value">
-                {loading ? "..." : inventory.filter(item => Number(item.quantity || 0) <= 0).length}
+                {loading ? <span className="skeleton-value"></span> : inventory.filter(item => Number(item.quantity || 0) <= 0).length}
               </div>
             </div>
           </div>
@@ -245,25 +245,25 @@ function Dashboard() {
             <div className="dashboard-card">
               <div className="card-title">Total Revenue</div>
               <div className="card-value">
-                {loadingAnalytics ? "..." : `₱${(dashboardData?.salesOverview?.total_revenue || 0).toLocaleString()}`}
+                {loadingAnalytics ? <span className="skeleton-value skeleton-wide"></span> : `₱${(dashboardData?.salesOverview?.total_revenue || 0).toLocaleString()}`}
               </div>
             </div>
             <div className="dashboard-card">
               <div className="card-title">Total Orders</div>
               <div className="card-value">
-                {loadingAnalytics ? "..." : (dashboardData?.salesOverview?.total_orders || 0).toLocaleString()}
+                {loadingAnalytics ? <span className="skeleton-value"></span> : (dashboardData?.salesOverview?.total_orders || 0).toLocaleString()}
               </div>
             </div>
             <div className="dashboard-card">
               <div className="card-title">Total Units Sold</div>
               <div className="card-value">
-                {loadingAnalytics ? "..." : (dashboardData?.salesOverview?.total_units_sold || 0).toLocaleString()}
+                {loadingAnalytics ? <span className="skeleton-value"></span> : (dashboardData?.salesOverview?.total_units_sold || 0).toLocaleString()}
               </div>
             </div>
             <div className="dashboard-card">
               <div className="card-title">Total Customers</div>
               <div className="card-value">
-                {loadingAnalytics ? "..." : (dashboardData?.salesOverview?.total_customers || 0).toLocaleString()}
+                {loadingAnalytics ? <span className="skeleton-value"></span> : (dashboardData?.salesOverview?.total_customers || 0).toLocaleString()}
               </div>
             </div>
           </div>
@@ -277,21 +277,21 @@ function Dashboard() {
               <div className="activity-card activity-red">
                 <div>To be Packed</div>
                 <div className="activity-value">
-                  {loadingAnalytics ? '...' : (dashboardData?.salesActivity?.toBePack || 0)}
+                  {loadingAnalytics ? <span className="skeleton-value skeleton-narrow"></span> : (dashboardData?.salesActivity?.toBePack || 0)}
                 </div>
                 <span className="activity-icon">📦</span>
               </div>
               <div className="activity-card activity-orange">
                 <div>To be Shipped</div>
                 <div className="activity-value">
-                  {loadingAnalytics ? '...' : (dashboardData?.salesActivity?.toBeShipped || 0)}
+                  {loadingAnalytics ? <span className="skeleton-value skeleton-narrow"></span> : (dashboardData?.salesActivity?.toBeShipped || 0)}
                 </div>
                 <span className="activity-icon">🛒</span>
               </div>
               <div className="activity-card activity-green">
                 <div>Out for Delivery</div>
                 <div className="activity-value">
-                  {loadingAnalytics ? '...' : (dashboardData?.salesActivity?.outForDelivery || 0)}
+                  {loadingAnalytics ? <span className="skeleton-value skeleton-narrow"></span> : (dashboardData?.salesActivity?.outForDelivery || 0)}
                 </div>
                 <span className="activity-icon">🚚</span>
               </div>

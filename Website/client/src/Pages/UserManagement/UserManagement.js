@@ -144,23 +144,7 @@ const UserManagement = () => {
     setConfirmation({ open: false, message: '' });
   };
 
-  if (loading) {
-    return (
-      <div className="dashboard-container">
-        <Sidebar />
-        <div className="dashboard-main">
-          <TopBar />
-          <div className="user-management-container">
-            <h1>Account Management</h1>
-            <div className="loading-container">
-              <div className="loading-spinner"></div>
-              <p>Loading users...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+
 
   if (error) {
     return (
@@ -190,7 +174,7 @@ const UserManagement = () => {
             <button className="register-user-btn" onClick={() => navigate('/register')}>Register Account</button>
           </div>
           
-          {users.length === 0 ? (
+          {(!loading && users.length === 0) ? (
             <div className="no-users-message">No users found. Click "Register Account" to add a new user.</div>
           ) : (
             <div className="users-table-container">
@@ -207,30 +191,44 @@ const UserManagement = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
-                    <tr key={user.user_id}>
-                      <td>
-                        <img
-                          src={user.profile_picture_data ? `data:image/jpeg;base64,${user.profile_picture_data}` : '/placeholder-profile.png'}
-                          alt={user.name}
-                          className="user-table-profile-pic"
-                        />
-                      </td>
-                      <td>{user.name}</td>
-                      <td>{user.user_id}</td>
-                      <td>{user.email}</td>
-                      <td style={{ textTransform: 'capitalize' }}>{user.role.replace(/_/g, ' ')}</td>
-                      <td>{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
-                      <td>
-                        <button 
-                          onClick={() => handleCardClick(user)} 
-                          className="edit-user-btn-table action-btn"
-                        >
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {loading ? (
+                    Array.from({ length: 4 }).map((_, idx) => (
+                      <tr key={idx} style={{ pointerEvents: 'none' }}>
+                        <td><div className="skeleton-shimmer skeleton-avatar" style={{ width: '32px', height: '32px' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '120px', height: '16px' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '60px', height: '16px' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '160px', height: '16px' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '100px', height: '16px' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '90px', height: '16px' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '50px', height: '16px' }} /></td>
+                      </tr>
+                    ))
+                  ) : (
+                    users.map((user) => (
+                      <tr key={user.user_id}>
+                        <td>
+                          <img
+                            src={user.profile_picture_data ? `data:image/jpeg;base64,${user.profile_picture_data}` : '/placeholder-profile.png'}
+                            alt={user.name}
+                            className="user-table-profile-pic"
+                          />
+                        </td>
+                        <td>{user.name}</td>
+                        <td>{user.user_id}</td>
+                        <td>{user.email}</td>
+                        <td style={{ textTransform: 'capitalize' }}>{user.role.replace(/_/g, ' ')}</td>
+                        <td>{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
+                        <td>
+                          <button 
+                            onClick={() => handleCardClick(user)} 
+                            className="edit-user-btn-table action-btn"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

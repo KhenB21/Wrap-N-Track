@@ -453,3 +453,50 @@ body.dark .activity-time {
   /* Add margin below the Inventory Overview title */
   margin-bottom: 16px; /* You can adjust this value as needed */
 }
+
+/* Skeleton Loading Pulsing Effect */
+.skeleton-value {
+  display: inline-block;
+  height: 24px;
+  width: 60px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite ease-in-out;
+  border-radius: 6px;
+  vertical-align: middle;
+}
+
+.skeleton-value.skeleton-wide {
+  width: 105px;
+}
+
+.skeleton-value.skeleton-narrow {
+  width: 42px;
+  height: 20px;
+}
+
+.activity-card .skeleton-value {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.15) 25%, rgba(255, 255, 255, 0.3) 50%, rgba(255, 255, 255, 0.15) 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Dark Mode Overrides for Skeleton Loader */
+body.dark .skeleton-value {
+  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+  background-size: 200% 100%;
+}
+
+body.dark .activity-card .skeleton-value {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 25%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0.1) 75%);
+  background-size: 200% 100%;
+}
+

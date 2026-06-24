@@ -373,10 +373,32 @@ function OrderManagementDashboard() {
             </button>
           </div>
 
-          {loading && (
-            <div className="loading-container">
-              <div className="loading-spinner"></div>
-              <p>Loading orders...</p>
+          {loading && !error && orders.length === 0 && (
+            <div className="orders-table-container">
+              <table className="orders-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, idx) => (
+                    <tr key={idx} style={{ pointerEvents: 'none' }}>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '130px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '150px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '100px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer" style={{ width: '120px', height: '24px', borderRadius: '12px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer" style={{ width: '100px', height: '24px', borderRadius: '4px' }} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -393,7 +415,7 @@ function OrderManagementDashboard() {
             </div>
           )}
 
-          {!loading && !error && orders.length > 0 && (
+          {!error && orders.length > 0 && (
             <div className="orders-table-container">
               <table className="orders-table">
                 <thead>
@@ -407,36 +429,49 @@ function OrderManagementDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map((order) => (
-                    <tr key={order.order_id}>
-                      <td className="order-id">{order.order_id}</td>
-                      <td className="customer-name">{order.customer_name}</td>
-                      <td className="order-date">{formatDate(order.order_date)}</td>
-                      <td className="order-status">
-                        <span 
-                          className="status-badge"
-                          style={{ backgroundColor: getStatusColor(order.status) }}
-                        >
-                          {getStatusIcon(order.status)} {order.status}
-                        </span>
-                      </td>
-                      <td className="order-total">{formatPrice(order.total_cost)}</td>
-                      <td className="order-actions">
-                        <button 
-                          onClick={() => handleOrderClick(order)}
-                          className="view-btn"
-                        >
-                          View
-                        </button>
-                        <button 
-                          onClick={() => handleStatusUpdate(order)}
-                          className="update-btn"
-                        >
-                          Update
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {loading ? (
+                    Array.from({ length: 6 }).map((_, idx) => (
+                      <tr key={idx} style={{ pointerEvents: 'none' }}>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '130px', height: '16px' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '150px', height: '16px' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '100px', height: '16px' }} /></td>
+                        <td><div className="skeleton-shimmer" style={{ width: '120px', height: '24px', borderRadius: '12px' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px' }} /></td>
+                        <td><div className="skeleton-shimmer" style={{ width: '100px', height: '24px', borderRadius: '4px' }} /></td>
+                      </tr>
+                    ))
+                  ) : (
+                    orders.map((order) => (
+                      <tr key={order.order_id}>
+                        <td className="order-id">{order.order_id}</td>
+                        <td className="customer-name">{order.customer_name}</td>
+                        <td className="order-date">{formatDate(order.order_date)}</td>
+                        <td className="order-status">
+                          <span 
+                            className="status-badge"
+                            style={{ backgroundColor: getStatusColor(order.status) }}
+                          >
+                            {getStatusIcon(order.status)} {order.status}
+                          </span>
+                        </td>
+                        <td className="order-total">{formatPrice(order.total_cost)}</td>
+                        <td className="order-actions">
+                          <button 
+                            onClick={() => handleOrderClick(order)}
+                            className="view-btn"
+                          >
+                            View
+                          </button>
+                          <button 
+                            onClick={() => handleStatusUpdate(order)}
+                            className="update-btn"
+                          >
+                            Update
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

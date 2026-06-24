@@ -184,20 +184,7 @@ export default function Customers() {
     selected: selectedCustomers.size
   };
 
-  if (loading) {
-    return (
-      <div className="dashboard-container">
-        <Sidebar />
-        <div className="dashboard-main">
-          <TopBar />
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
-            <p>Loading customers...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="dashboard-container">
@@ -233,28 +220,28 @@ export default function Customers() {
             <div className="stat-card">
               <div className="stat-icon total">📊</div>
               <div className="stat-content">
-                <div className="stat-number">{stats.total}</div>
+                <div className="stat-number">{loading ? <div className="skeleton-shimmer" style={{ width: '40px', height: '24px', borderRadius: '4px' }} /> : stats.total}</div>
                 <div className="stat-label">Total Customers</div>
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-icon active">✅</div>
               <div className="stat-content">
-                <div className="stat-number">{stats.active}</div>
+                <div className="stat-number">{loading ? <div className="skeleton-shimmer" style={{ width: '40px', height: '24px', borderRadius: '4px' }} /> : stats.active}</div>
                 <div className="stat-label">Active</div>
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-icon inactive">⏸️</div>
               <div className="stat-content">
-                <div className="stat-number">{stats.inactive}</div>
+                <div className="stat-number">{loading ? <div className="skeleton-shimmer" style={{ width: '40px', height: '24px', borderRadius: '4px' }} /> : stats.inactive}</div>
                 <div className="stat-label">Inactive</div>
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-icon selected">🎯</div>
               <div className="stat-content">
-                <div className="stat-number">{stats.selected}</div>
+                <div className="stat-number">{loading ? <div className="skeleton-shimmer" style={{ width: '40px', height: '24px', borderRadius: '4px' }} /> : stats.selected}</div>
                 <div className="stat-label">Selected</div>
               </div>
             </div>
@@ -343,7 +330,70 @@ export default function Customers() {
               </div>
             )}
 
-            {filteredCustomers.length === 0 ? (
+            {loading ? (
+              <>
+                {viewMode === 'grid' ? (
+                  <div className="customers-grid">
+                    {Array.from({ length: 8 }).map((_, idx) => (
+                      <div className="skeleton-card" key={idx}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div className="skeleton-shimmer skeleton-avatar" style={{ width: '40px', height: '40px' }} />
+                          <div style={{ flex: 1 }}>
+                            <div className="skeleton-shimmer skeleton-text" style={{ width: '70%', height: '16px' }} />
+                            <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
+                          </div>
+                        </div>
+                        <div className="skeleton-shimmer skeleton-text" style={{ width: '90%', height: '14px', marginTop: '8px' }} />
+                        <div className="skeleton-shimmer skeleton-text" style={{ width: '60%', height: '14px' }} />
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                          <div className="skeleton-shimmer" style={{ width: '60px', height: '24px', borderRadius: '12px' }} />
+                          <div className="skeleton-shimmer" style={{ width: '40px', height: '24px', borderRadius: '4px', marginLeft: 'auto' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="customers-table-container">
+                    <table className="customers-table">
+                      <thead>
+                        <tr>
+                          <th>
+                            <input type="checkbox" disabled />
+                          </th>
+                          <th>Name</th>
+                          <th>Email</th>
+                          <th>Phone</th>
+                          <th>Status</th>
+                          <th>Created</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from({ length: 8 }).map((_, idx) => (
+                          <tr key={idx} style={{ pointerEvents: 'none' }}>
+                            <td><div className="skeleton-shimmer" style={{ width: '16px', height: '16px', borderRadius: '2px' }} /></td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div className="skeleton-shimmer skeleton-avatar" style={{ width: '32px', height: '32px' }} />
+                                <div style={{ flex: 1 }}>
+                                  <div className="skeleton-shimmer skeleton-text" style={{ width: '100px', height: '16px' }} />
+                                  <div className="skeleton-shimmer skeleton-text" style={{ width: '60px', height: '12px' }} />
+                                </div>
+                              </div>
+                            </td>
+                            <td><div className="skeleton-shimmer skeleton-text" style={{ width: '140px', height: '16px' }} /></td>
+                            <td><div className="skeleton-shimmer skeleton-text" style={{ width: '100px', height: '16px' }} /></td>
+                            <td><div className="skeleton-shimmer" style={{ width: '60px', height: '20px', borderRadius: '10px' }} /></td>
+                            <td><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px' }} /></td>
+                            <td><div className="skeleton-shimmer skeleton-text" style={{ width: '60px', height: '16px' }} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            ) : filteredCustomers.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">👥</div>
                 <h3>No customers found</h3>

@@ -184,104 +184,111 @@ export default function Suppliers() {
             </div>
           </div>
 
-          {loading ? (
-            <div className="loading-container">
-              <div className="loading-spinner"></div>
-              <p>Loading suppliers...</p>
-            </div>
-          ) : (
-            <>
-              <div className="suppliers-table-container">
-                <table className="suppliers-table">
-                  <thead>
-                    <tr>
-                      <th>Supplier ID</th>
-                      <th>Supplier Name</th>
-                      <th>Contact Person</th>
-                      <th>Phone Number</th>
-                      <th>Email Address</th>
-                      <th>Company Address</th>
-                      <th>Type of Supplies</th>
-                      <th>Reliability Score</th>
-                      <th>Actions</th>
+          <div className="suppliers-table-container">
+            <table className="suppliers-table">
+              <thead>
+                <tr>
+                  <th>Supplier ID</th>
+                  <th>Supplier Name</th>
+                  <th>Contact Person</th>
+                  <th>Phone Number</th>
+                  <th>Email Address</th>
+                  <th>Company Address</th>
+                  <th>Type of Supplies</th>
+                  <th>Reliability Score</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, idx) => (
+                    <tr key={idx} style={{ pointerEvents: 'none' }}>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '120px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '90px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '140px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '180px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '100px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '60px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px' }} /></td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {currentSuppliers.map(supplier => (
-                      <tr key={supplier.supplier_id}>
-                        <td>#{supplier.supplier_id}</td>
-                        <td className="supplier-name">{supplier.name}</td>
-                        <td>{supplier.contact_person || 'N/A'}</td>
-                        <td>{supplier.cellphone || supplier.telephone || 'N/A'}</td>
-                        <td className="supplier-email">{supplier.email_address || 'N/A'}</td>
-                        <td className="supplier-address">{formatAddress(supplier)}</td>
-                        <td>{supplier.description || 'N/A'}</td>
-                        <td>{getReliabilityBadge(supplier.reliability_score)}</td>
-                        <td>
-                          <div className="action-buttons">
-                            <button 
-                              className="action-btn edit-btn" 
-                              onClick={() => handleEditSupplier(supplier)}
-                              title="Edit Supplier"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                              </svg>
-                            </button>
-                            <button 
-                              className="action-btn delete-btn" 
-                              onClick={() => handleDeleteSupplier(supplier.supplier_id)}
-                              title="Delete Supplier"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                              </svg>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {currentSuppliers.length === 0 && (
-                  <div className="no-suppliers">
-                    <p>No suppliers found</p>
-                  </div>
+                  ))
+                ) : (
+                  currentSuppliers.map(supplier => (
+                    <tr key={supplier.supplier_id}>
+                      <td>#{supplier.supplier_id}</td>
+                      <td className="supplier-name">{supplier.name}</td>
+                      <td>{supplier.contact_person || 'N/A'}</td>
+                      <td>{supplier.cellphone || supplier.telephone || 'N/A'}</td>
+                      <td className="supplier-email">{supplier.email_address || 'N/A'}</td>
+                      <td className="supplier-address">{formatAddress(supplier)}</td>
+                      <td>{supplier.description || 'N/A'}</td>
+                      <td>{getReliabilityBadge(supplier.reliability_score)}</td>
+                      <td>
+                        <div className="action-buttons">
+                          <button 
+                            className="action-btn edit-btn" 
+                            onClick={() => handleEditSupplier(supplier)}
+                            title="Edit Supplier"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                            </svg>
+                          </button>
+                          <button 
+                            className="action-btn delete-btn" 
+                            onClick={() => handleDeleteSupplier(supplier.supplier_id)}
+                            title="Delete Supplier"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
-              </div>
+              </tbody>
+            </table>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="pagination">
-                  <button 
-                    onClick={() => paginate(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="pagination-btn"
-                  >
-                    Previous
-                  </button>
-                  
-                  {[...Array(totalPages)].map((_, index) => (
-                    <button
-                      key={index + 1}
-                      onClick={() => paginate(index + 1)}
-                      className={`pagination-btn ${currentPage === index + 1 ? 'active' : ''}`}
-                    >
-                      {index + 1}
-                    </button>
-                  ))}
-                  
-                  <button 
-                    onClick={() => paginate(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="pagination-btn"
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
-            </>
+            {!loading && currentSuppliers.length === 0 && (
+              <div className="no-suppliers">
+                <p>No suppliers found</p>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button 
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="pagination-btn"
+              >
+                Previous
+              </button>
+              
+              {[...Array(totalPages)].map((_, index) => (
+                <button
+                  key={index + 1}
+                  onClick={() => paginate(index + 1)}
+                  className={`pagination-btn ${currentPage === index + 1 ? 'active' : ''}`}
+                >
+                  {index + 1}
+                </button>
+              ))}
+              
+              <button 
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="pagination-btn"
+              >
+                Next
+              </button>
+            </div>
           )}
         </div>
 

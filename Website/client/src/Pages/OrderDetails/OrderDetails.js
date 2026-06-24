@@ -642,25 +642,39 @@ export default function OrderDetails() {
               <span style={styles.orderCount}>{pendingOrders.length}</span>
             </div>
             <div style={styles.orderList}>
-              {pendingOrders.map(order => (
-                <div 
-                  key={order.order_id} 
-                  style={styles.orderCard}
-                  onClick={() => setSelectedOrderId(order.order_id)}
-                >
-                  <div style={styles.orderName}>{order.name}</div>
-                  <div style={styles.orderInfo}>
-                    <span>{order.order_id}</span>
-                    <span>
-                      ₱{
-                        (order.total_cost && Number(order.total_cost) > 0)
-                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      }
-                    </span>
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} style={{ ...styles.orderCard, pointerEvents: 'none' }}>
+                    <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', marginBottom: '8px' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                      <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
+                      <div className="skeleton-shimmer skeleton-text" style={{ width: '30%', height: '12px' }} />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : pendingOrders.length === 0 ? (
+                <div style={{ color: '#999', textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
+              ) : (
+                pendingOrders.map(order => (
+                  <div 
+                    key={order.order_id} 
+                    style={styles.orderCard}
+                    onClick={() => setSelectedOrderId(order.order_id)}
+                  >
+                    <div style={styles.orderName}>{order.name}</div>
+                    <div style={styles.orderInfo}>
+                      <span>{order.order_id}</span>
+                      <span>
+                        ₱{
+                          (order.total_cost && Number(order.total_cost) > 0)
+                            ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        }
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -671,25 +685,39 @@ export default function OrderDetails() {
               <span style={styles.orderCount}>{toBePackOrders.length}</span>
             </div>
             <div style={styles.orderList}>
-              {toBePackOrders.map(order => (
-                <div 
-                  key={order.order_id} 
-                  style={styles.orderCard}
-                  onClick={() => setSelectedOrderId(order.order_id)}
-                >
-                  <div style={styles.orderName}>{order.name}</div>
-                  <div style={styles.orderInfo}>
-                    <span>{order.order_id}</span>
-                    <span>
-                      ₱{
-                        (order.total_cost && Number(order.total_cost) > 0)
-                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      }
-                    </span>
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} style={{ ...styles.orderCard, pointerEvents: 'none' }}>
+                    <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', marginBottom: '8px' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                      <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
+                      <div className="skeleton-shimmer skeleton-text" style={{ width: '30%', height: '12px' }} />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : toBePackOrders.length === 0 ? (
+                <div style={{ color: '#999', textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
+              ) : (
+                toBePackOrders.map(order => (
+                  <div 
+                    key={order.order_id} 
+                    style={styles.orderCard}
+                    onClick={() => setSelectedOrderId(order.order_id)}
+                  >
+                    <div style={styles.orderName}>{order.name}</div>
+                    <div style={styles.orderInfo}>
+                      <span>{order.order_id}</span>
+                      <span>
+                        ₱{
+                          (order.total_cost && Number(order.total_cost) > 0)
+                            ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        }
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -700,25 +728,39 @@ export default function OrderDetails() {
               <span style={styles.orderCount}>{readyToDeliverOrders.length}</span>
             </div>
             <div style={styles.orderList}>
-              {readyToDeliverOrders.map(order => (
-                <div 
-                  key={order.order_id} 
-                  style={styles.orderCard}
-                  onClick={() => setSelectedOrderId(order.order_id)}
-                >
-                  <div style={styles.orderName}>{order.name}</div>
-                  <div style={styles.orderInfo}>
-                    <span>{order.order_id}</span>
-                    <span>
-                      ₱{
-                        (order.total_cost && Number(order.total_cost) > 0)
-                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      }
-                    </span>
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} style={{ ...styles.orderCard, pointerEvents: 'none' }}>
+                    <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', marginBottom: '8px' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                      <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
+                      <div className="skeleton-shimmer skeleton-text" style={{ width: '30%', height: '12px' }} />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : readyToDeliverOrders.length === 0 ? (
+                <div style={{ color: '#999', textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
+              ) : (
+                readyToDeliverOrders.map(order => (
+                  <div 
+                    key={order.order_id} 
+                    style={styles.orderCard}
+                    onClick={() => setSelectedOrderId(order.order_id)}
+                  >
+                    <div style={styles.orderName}>{order.name}</div>
+                    <div style={styles.orderInfo}>
+                      <span>{order.order_id}</span>
+                      <span>
+                        ₱{
+                          (order.total_cost && Number(order.total_cost) > 0)
+                            ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        }
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

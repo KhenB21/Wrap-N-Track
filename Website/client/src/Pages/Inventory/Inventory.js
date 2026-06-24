@@ -266,32 +266,49 @@ function Inventory() {
               <button onClick={exportToExcel} className="export-btn excel-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '8px' }}><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-2 14h-2v-2h2v2zm0-4h-2v-2h2v2zm-4-2h2v2H8v-2zm0 4h2v2H8v-2zm-1.9-6.95l1.45-1.45 1.05 1.05 2.85-2.85 1.45 1.45-4.3 4.3-2.5-2.5zM13 9V3.5L18.5 9H13z"/></svg>Export as Excel</button>
             </div>
           </div>
-          {loading ? (
-            <div className="loading-container">Loading...</div>
-          ) : (
-            <div className="inventory-table-container">
-              <div className="inventory-table-wrapper">
-                <table className="inventory-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '60px', textAlign: 'center' }}>Image</th>
-                    <th style={{ width: '100px' }}>SKU</th>
-                    <th style={{ width: '120px' }}>Name</th>
-                    <th style={{ width: '140px' }}>Description</th>
-                    <th style={{ width: '80px', textAlign: 'right' }}>Unit Price</th>
-                    <th style={{ width: '100px' }}>Category</th>
-                    <th style={{ width: '120px' }}>Supplier</th>
-                    <th style={{ width: '100px', textAlign: 'center' }}>Expiration</th>
-                    <th style={{ width: '120px', textAlign: 'center' }}>Last Updated</th>
-                    <th style={{ width: '60px', textAlign: 'center' }}>UOM</th>
-                    <th style={{ width: '80px', textAlign: 'center' }}>In Stocks</th>
-                    <th style={{ width: '70px', textAlign: 'center' }}>Ordered</th>
-                    <th style={{ width: '70px', textAlign: 'center' }}>Delivered</th>
-                    <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProducts.map(product => (
+          <div className="inventory-table-container">
+            <div className="inventory-table-wrapper">
+              <table className="inventory-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '60px', textAlign: 'center' }}>Image</th>
+                  <th style={{ width: '100px' }}>SKU</th>
+                  <th style={{ width: '120px' }}>Name</th>
+                  <th style={{ width: '140px' }}>Description</th>
+                  <th style={{ width: '80px', textAlign: 'right' }}>Unit Price</th>
+                  <th style={{ width: '100px' }}>Category</th>
+                  <th style={{ width: '120px' }}>Supplier</th>
+                  <th style={{ width: '100px', textAlign: 'center' }}>Expiration</th>
+                  <th style={{ width: '120px', textAlign: 'center' }}>Last Updated</th>
+                  <th style={{ width: '60px', textAlign: 'center' }}>UOM</th>
+                  <th style={{ width: '80px', textAlign: 'center' }}>In Stocks</th>
+                  <th style={{ width: '70px', textAlign: 'center' }}>Ordered</th>
+                  <th style={{ width: '70px', textAlign: 'center' }}>Delivered</th>
+                  <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, idx) => (
+                    <tr key={idx} style={{ pointerEvents: 'none' }}>
+                      <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer" style={{ width: '30px', height: '30px', borderRadius: '4px', display: 'inline-block' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '100px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '120px', height: '16px' }} /></td>
+                      <td style={{ textAlign: 'right' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '50px', height: '16px', marginLeft: 'auto' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px' }} /></td>
+                      <td><div className="skeleton-shimmer skeleton-text" style={{ width: '90px', height: '16px' }} /></td>
+                      <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '70px', height: '16px', margin: '0 auto' }} /></td>
+                      <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '100px', height: '16px', margin: '0 auto' }} /></td>
+                      <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px', margin: '0 auto' }} /></td>
+                      <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '50px', height: '16px', margin: '0 auto' }} /></td>
+                      <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px', margin: '0 auto' }} /></td>
+                      <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px', margin: '0 auto' }} /></td>
+                      <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px', margin: '0 auto' }} /></td>
+                    </tr>
+                  ))
+                ) : (
+                  filteredProducts.map(product => (
                     <tr 
                       key={product.sku} 
                       style={{ cursor: 'pointer' }} 
@@ -395,12 +412,12 @@ function Inventory() {
                         </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-          )}
+        </div>
           {showModal && (
             <AddProductModal 
               onClose={() => setShowModal(false)} 

@@ -51,7 +51,22 @@ const ArchivedOrders = () => {
                         </button>
                     </div>
                     {isLoading ? (
-                        <p>Loading archived orders...</p>
+                        <div className="archived-orders-list">
+                            {Array.from({ length: 4 }).map((_, idx) => (
+                                <div key={idx} className="archived-order-card" style={{ pointerEvents: 'none' }}>
+                                    <div className="order-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div className="skeleton-shimmer skeleton-text" style={{ width: '120px', height: '18px', margin: 0 }} />
+                                        <div className="skeleton-shimmer" style={{ width: '70px', height: '18px', borderRadius: '10px' }} />
+                                    </div>
+                                    <div className="order-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                                        <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '14px' }} />
+                                        <div className="skeleton-shimmer skeleton-text" style={{ width: '90%', height: '14px' }} />
+                                        <div className="skeleton-shimmer skeleton-text" style={{ width: '60%', height: '14px' }} />
+                                        <div className="skeleton-shimmer skeleton-text" style={{ width: '70%', height: '14px' }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     ) : error ? (
                         <p className="error-message">{error}</p>
                     ) : (
