@@ -344,55 +344,66 @@ const AccountManagement = () => {
       {/* Add User Modal */}
       {showAddModal && (
         <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h3>Add New User</h3>
+          <div className="modal-content account-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="account-modal-header">
+              <div>
+                <p className="modal-eyebrow">Account Management</p>
+                <h3>Add New User</h3>
+                <p className="modal-subtitle">Create a new employee account with the correct role and access.</p>
+              </div>
               <button className="close-btn" onClick={() => setShowAddModal(false)}>×</button>
             </div>
-            <form onSubmit={handleAddUser} className="modal-form">
-              <div className="form-group">
-                <label>Full Name *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  required
-                />
+            <form onSubmit={handleAddUser} className="account-modal-form">
+              <div className="form-section">
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Full Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      placeholder="Enter full name"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Email *</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      placeholder="name@company.com"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Password *</label>
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({...formData, password: e.target.value})}
+                      placeholder="Create a secure password"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Role *</label>
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData({...formData, role: e.target.value})}
+                      required
+                    >
+                      <option value="">Select Role</option>
+                      {roles.map(role => (
+                        <option key={role.value} value={role.value}>
+                          {role.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
-              <div className="form-group">
-                <label>Email *</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Password *</label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Role *</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({...formData, role: e.target.value})}
-                  required
-                >
-                  <option value="">Select Role</option>
-                  {roles.map(role => (
-                    <option key={role.value} value={role.value}>
-                      {role.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-actions">
+              <div className="form-actions account-modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>
                   Cancel
                 </button>
@@ -408,59 +419,66 @@ const AccountManagement = () => {
       {/* Edit User Modal */}
       {showEditModal && selectedUser && (
         <div className="modal-overlay">
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-content account-modal-content" onClick={e => e.stopPropagation()}>
             <button className="close-btn" onClick={() => setShowEditModal(false)}>&times;</button>
-            <h3 style={{ textAlign: 'center', fontWeight: 700, marginBottom: '1.5rem', fontSize: '1.5rem', color: '#1f2937' }}>
-              EDIT USER
-            </h3>
-            <form onSubmit={handleEditUser} className="add-product-form">
-              <div className="form-group">
-                <label>Full Name *
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    required
-                  />
-                </label>
+            <div className="account-modal-header account-modal-header--compact">
+              <div>
+                <p className="modal-eyebrow">Account Management</p>
+                <h3>Edit User</h3>
+                <p className="modal-subtitle">Update the account profile and role without changing the password.</p>
               </div>
-              <div className="form-group">
-                <label>Email *
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    required
-                  />
-                </label>
+            </div>
+            <form onSubmit={handleEditUser} className="account-modal-form">
+              <div className="form-section">
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Full Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      placeholder="Enter full name"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Email *</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      placeholder="name@company.com"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Role *</label>
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData({...formData, role: e.target.value})}
+                      required
+                    >
+                      <option value="">Select Role</option>
+                      {roles.map(role => (
+                        <option key={role.value} value={role.value}>
+                          {role.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group form-group--checkbox">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_active}
+                        onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
+                      />
+                      <span>Account active</span>
+                    </label>
+                  </div>
+                </div>
               </div>
-              <div className="form-group">
-                <label>Role *
-                  <select
-                    value={formData.role}
-                    onChange={(e) => setFormData({...formData, role: e.target.value})}
-                    required
-                  >
-                    <option value="">Select Role</option>
-                    {roles.map(role => (
-                      <option key={role.value} value={role.value}>
-                        {role.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <div className="form-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={formData.is_active}
-                    onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
-                  />
-                  Active
-                </label>
-              </div>
-              <div className="form-actions">
+              <div className="form-actions account-modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowEditModal(false)}>
                   Cancel
                 </button>

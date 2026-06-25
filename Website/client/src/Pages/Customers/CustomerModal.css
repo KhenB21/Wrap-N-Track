@@ -346,3 +346,133 @@
     background: #6b7280;
   }
 }
+
+/* Modern admin palette overrides */
+.modal-overlay {
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(10px);
+}
+
+.modal-content {
+  max-width: 760px;
+  border: 1px solid rgba(219, 227, 238, 0.9);
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 70%);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-title-section h2,
+.section-title {
+  color: var(--text);
+}
+
+.modal-subtitle,
+.character-count {
+  color: var(--text-muted);
+}
+
+.modal-close {
+  color: var(--text-soft);
+  background: var(--surface-muted);
+}
+
+.modal-close:hover {
+  background: #e2e8f0;
+}
+
+.customer-form {
+  padding: 1.5rem 1.75rem 1.75rem;
+}
+
+.form-section {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.section-title {
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom-color: var(--brand);
+}
+
+.form-row {
+  gap: 1rem;
+}
+
+.form-group label {
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.form-input,
+.form-textarea,
+.form-select,
+.customer-form input,
+.customer-form textarea,
+.customer-form select {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus,
+.customer-form input:focus,
+.customer-form textarea:focus,
+.customer-form select:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+.customer-form input.error,
+.customer-form textarea.error,
+.customer-form select.error {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.08);
+}
+
+.btn-save {
+  background: linear-gradient(135deg, var(--brand), var(--brand-deep));
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22);
+}
+
+.btn-save:hover:not(:disabled) {
+  box-shadow: 0 16px 34px rgba(37, 99, 235, 0.26);
+}
+
+.btn-cancel {
+  background: #e2e8f0;
+  color: var(--text-soft);
+}
+
+.btn-cancel:hover {
+  background: #cbd5e1;
+}
+
+.error-message {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+@media (max-width: 640px) {
+  .customer-form {
+    padding: 1.25rem;
+  }
+
+  .form-section {
+    padding: 1rem;
+  }
+}

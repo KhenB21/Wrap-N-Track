@@ -587,3 +587,151 @@
     min-width: 600px;
   }
 }
+
+/* Modern admin palette overrides */
+.customers-page {
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 32%),
+    radial-gradient(circle at top right, rgba(29, 78, 216, 0.05), transparent 28%),
+    var(--app-bg);
+  color: var(--text);
+}
+
+.customers-header {
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 55%, #f8fafc 100%);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.page-title,
+.stat-number,
+.empty-state h3,
+.customer-name,
+.customers-table th,
+.pagination-number,
+.pagination-btn {
+  color: var(--text);
+}
+
+.page-subtitle,
+.stat-label,
+.empty-state p,
+.customer-id,
+.created-date,
+.search-icon,
+.retry-btn {
+  color: var(--text-muted);
+}
+
+.stat-card,
+.customers-table-container,
+.empty-state,
+.skeleton-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-icon.total,
+.stat-icon.selected,
+.btn-primary,
+.pagination-number.active,
+.view-btn.active,
+.customer-avatar {
+  background: linear-gradient(135deg, var(--brand), var(--brand-deep));
+  color: white;
+}
+
+.stat-icon.active {
+  background: linear-gradient(135deg, var(--success), #059669);
+}
+
+.stat-icon.inactive {
+  background: linear-gradient(135deg, var(--warning), #d97706);
+}
+
+.search-input,
+.filter-select,
+.sort-select,
+.sort-order-btn,
+.view-toggle,
+.pagination-btn,
+.pagination-number {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.search-input:focus,
+.filter-select:focus,
+.sort-select:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.btn-primary:hover,
+.pagination-number.active:hover,
+.view-btn.active:hover {
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.customers-table th {
+  background: #f8fafc;
+  border-bottom-color: var(--border);
+}
+
+.customers-table td,
+.customers-table tr {
+  border-bottom-color: #eef2f7;
+}
+
+.customers-table tr:hover {
+  background: #f8fbff;
+}
+
+.action-btn {
+  background: var(--surface-muted);
+  color: var(--text-soft);
+}
+
+.action-btn.edit:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.action-btn.delete:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-badge.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-badge.inactive {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.pagination-btn:hover:not(:disabled),
+.pagination-number:hover,
+.sort-order-btn:hover,
+.view-btn:hover:not(.active) {
+  border-color: var(--brand);
+  background: #f1f7ff;
+}
+
+.loading-container,
+.empty-state {
+  border-radius: 18px;
+}
+
+.customers-grid {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
