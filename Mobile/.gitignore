@@ -1,1 +1,60 @@
+# dependencies
 node_modules/
+
+# Expo
+.expo/
+.expo-shared/
+web-build/
+
+# React Native
+*.keystore
+*.jks
+
+# Metro
+.metro-health-check*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+*.apk
+*.aab
+
+# iOS
+ios/build/
+ios/Pods/
+ios/*.xcworkspace
+
+# Generated native projects (if using Expo Prebuild)
+android/
+ios/
+
+# TypeScript
+*.tsbuildinfo
+
+# IDEs
+.vscode/
+.idea/
+
+# Misc
+coverage/
+dist/
+tmp/
