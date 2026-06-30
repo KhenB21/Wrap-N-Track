@@ -77,6 +77,9 @@ function CustomerTabNavigator() {
             case 'Profile':
               iconName = focused ? 'account' : 'account-outline';
               break;
+            case 'Settings':
+              iconName = focused ? 'cog' : 'cog-outline';
+              break;
             default:
               iconName = 'circle';
           }
@@ -94,6 +97,7 @@ function CustomerTabNavigator() {
       <Tab.Screen name="Cart" component={MyCartScreen} />
       <Tab.Screen name="Orders" component={OrderHistoryScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
 }

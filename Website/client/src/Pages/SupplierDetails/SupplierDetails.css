@@ -738,3 +738,242 @@
     margin: 0;
   }
 } 
+
+/* Modern admin palette overrides */
+.suppliers-page {
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 32%),
+    var(--app-bg);
+}
+
+.suppliers-header {
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 55%, #f8fafc 100%);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-content,
+.stats-grid,
+.suppliers-controls,
+.suppliers-content {
+  max-width: 1280px;
+}
+
+.page-title,
+.stat-number,
+.empty-state h3,
+.supplier-name,
+.supplier-card .status-badge,
+.section-title,
+.modal-title,
+.modal-header h2 {
+  color: var(--text);
+}
+
+.page-subtitle,
+.stat-label,
+.supplier-id,
+.date-added,
+.empty-state p,
+.info-text,
+.error-message,
+.modal-subtitle {
+  color: var(--text-muted);
+}
+
+.stat-card,
+.supplier-card,
+.empty-state,
+.supplier-table-wrapper,
+.modal-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-icon.total,
+.stat-icon.selected,
+.btn-primary,
+.add-btn,
+.btn-save,
+.supplier-avatar {
+  background: linear-gradient(135deg, var(--brand), var(--brand-deep));
+  color: #fff;
+}
+
+.stat-icon.active {
+  background: linear-gradient(135deg, var(--success), #059669);
+}
+
+.stat-icon.inactive {
+  background: linear-gradient(135deg, var(--warning), #d97706);
+}
+
+.search-input,
+.filter-select,
+.sort-select,
+.sort-order-btn,
+.view-toggle,
+.pagination-btn,
+.pagination-number,
+.form-group input,
+.form-group textarea,
+.add-supplier-dialog input,
+.add-supplier-dialog textarea,
+.add-supplier-dialog select {
+  border-color: var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.search-input:focus,
+.filter-select:focus,
+.sort-select:focus,
+.form-group input:focus,
+.form-group textarea:focus,
+.add-supplier-dialog input:focus,
+.add-supplier-dialog textarea:focus,
+.add-supplier-dialog select:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+.btn-primary:hover,
+.add-btn:hover,
+.btn-save:hover,
+.pagination-number.active:hover {
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.supplier-card:hover,
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.supplier-card.selected {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.supplier-card::before {
+  background: linear-gradient(90deg, var(--brand), var(--brand-deep));
+}
+
+.suppliers-grid {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.modal-overlay,
+.add-supplier-dialog-backdrop {
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(10px);
+}
+
+.modal-content,
+.add-supplier-dialog {
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(219, 227, 238, 0.9);
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-header,
+.add-supplier-dialog-header {
+  padding: 1.5rem 1.75rem;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 80%);
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-close,
+.close-btn {
+  color: var(--text-soft);
+  background: var(--surface-muted);
+}
+
+.modal-close:hover,
+.close-btn:hover {
+  background: #e2e8f0;
+}
+
+.compact-form,
+.add-supplier-dialog form {
+  padding: 1.5rem 1.75rem 1.75rem;
+}
+
+.form-section {
+  margin-bottom: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+}
+
+.section-title {
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom-color: var(--brand);
+}
+
+.form-row {
+  gap: 1rem;
+}
+
+.form-group label {
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.form-group input[type="tel"] {
+  letter-spacing: 0.02em;
+  font-family: inherit;
+}
+
+.form-actions,
+.dialog-actions {
+  border-top: 1px solid var(--border);
+  padding-top: 1.25rem;
+}
+
+.btn-cancel {
+  background: #e2e8f0;
+  color: var(--text-soft);
+}
+
+.btn-cancel:hover {
+  background: #cbd5e1;
+}
+
+.error-message,
+.error-text {
+  color: #b91c1c;
+}
+
+.error-message {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+@media (max-width: 768px) {
+  .suppliers-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-content,
+  .add-supplier-dialog {
+    width: calc(100vw - 1.5rem);
+    margin: 0.75rem;
+  }
+
+  .compact-form,
+  .add-supplier-dialog form,
+  .modal-header,
+  .add-supplier-dialog-header {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}

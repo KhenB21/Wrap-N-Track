@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -151,7 +151,7 @@ export default function LoginScreen({ navigation }) {
         </TouchableOpacity>
         <View style={styles.signupRow}>
           <Text style={styles.signupText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
+          <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
             <Text style={styles.signupLink}>Sign Up.</Text>
           </TouchableOpacity>
         </View>
@@ -299,3 +299,4 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 });
+

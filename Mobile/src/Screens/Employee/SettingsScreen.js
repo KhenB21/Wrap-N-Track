@@ -110,7 +110,7 @@ export default function SettingsScreen({ navigation }) {
           right={() => (
             <Switch
               value={darkMode}
-              onValueChange={toggleDarkMode}
+              onValueChange={setDarkMode}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={darkMode ? '#f5dd4b' : '#f4f3f4'}
             />
