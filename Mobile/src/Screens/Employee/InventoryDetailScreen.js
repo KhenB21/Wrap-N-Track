@@ -363,7 +363,6 @@ const styles = StyleSheet.create({
   },
   productCategory: {
     fontSize: 14,
-    color: theme.colors.onSurfaceVariant,
   },
   stockInfo: {
     alignItems: 'flex-end',

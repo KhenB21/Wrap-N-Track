@@ -244,6 +244,11 @@ const allowedOrigins = (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split
   'https://wrapntracwebservice-2g22j.ondigitalocean.app',
   // Development local React
   'http://localhost:3000',
+  // Expo mobile web dev server (web, Android emulator, iOS simulator)
+  'http://localhost:8081',
+  'http://localhost:19006',
+  'http://10.0.2.2:8081',
+  'http://10.0.2.2:19006',
   // Legacy fallbacks (remove when no longer needed)
   'https://wrap-n-track-b6z5.vercel.app',
   'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app'
@@ -265,7 +270,7 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400
+  maxAge: 0
 };
 
 app.use(cors(corsOptions));
