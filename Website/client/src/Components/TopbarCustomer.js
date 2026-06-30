@@ -148,8 +148,8 @@ export default function TopbarCustomer() {
                 REGISTER
               </Link>
               <button
-                className={`topbar-customer-link${location.pathname === '/customer-login' ? ' active' : ''}`}
-                style={{ background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
+                type="button"
+                className={`topbar-customer-link button-link${location.pathname === '/customer-login' ? ' active' : ''}`}
                 onClick={() => navigate('/customer-login')}
               >
                 LOG IN
@@ -252,9 +252,9 @@ export default function TopbarCustomer() {
                 My Purchase
               </Link>
               <button
+                type="button"
                 className="topbar-customer-link logout-btn"
                 onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
-                style={{ background: 'none', border: 'none', padding: '0.5rem 0', margin: 0, cursor: 'pointer', width: '100%', textAlign: 'left' }}
               >
                 Logout
               </button>

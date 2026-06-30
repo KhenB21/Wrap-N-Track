@@ -8,6 +8,98 @@ import EmployeeStatusBanner from '../../Components/EmployeeStatusBanner';
 import { useAuth } from '../../Context/AuthContext';
 import "./CustomerPOV.css";
 import api from '../../api';
+import {
+  LuWine,
+  LuUtensilsCrossed,
+  LuChefHat,
+  LuSofa,
+  LuSparkles,
+  LuShirt,
+  LuBriefcase,
+  LuPackageOpen,
+  LuGift,
+  LuLayers,
+  LuHeart,
+  LuPenLine,
+  LuSend,
+  LuClipboardList,
+  LuLightbulb,
+  LuArrowRight,
+  LuClock,
+  LuPackage,
+  LuEye,
+  LuMapPin,
+  LuPalette,
+  LuMessageSquare,
+  LuPlus,
+} from 'react-icons/lu';
+
+const ONBOARDING_JOURNEY = [
+  {
+    step: 1,
+    title: 'Choose Your Packaging',
+    description:
+      'Select from our curated collection of elegant boxes, bags, and wrapping options. Mix and match to create the perfect presentation for your gifts.',
+    icon: LuGift,
+  },
+  {
+    step: 2,
+    title: 'Choose the Contents',
+    description:
+      'Fill your gift boxes with premium items from our catalog including beverages, gourmet food, kitchenware, home decor, beauty products, and more. You can select multiple items per category or use your own products.',
+    icon: LuLayers,
+  },
+  {
+    step: 3,
+    title: 'Make it Personal',
+    description:
+      'Add personalized touches like custom tags, ribbons, cards, and special decorations. Make each gift box unique and memorable for your special day.',
+    icon: LuPenLine,
+  },
+  {
+    step: 4,
+    title: 'Finalize Your Order & Submit',
+    description:
+      "Review your selections, specify your wedding date, delivery date, and quantity. Add any special requests and submit your order. We'll take care of the rest!",
+    icon: LuSend,
+  },
+];
+
+const ONBOARDING_GUIDELINES = [
+  { title: 'Multiple Selections', description: 'You can select multiple items in each category to create variety', icon: LuLayers },
+  { title: 'Custom Products', description: 'Want to use your own items? Check the "I want to use my own products" option', icon: LuPackage },
+  { title: 'Lead Time', description: 'Please order at least 2-3 weeks before your wedding date for best results', icon: LuClock },
+  { title: 'Minimum Order', description: 'We recommend a minimum of 10 gift boxes for wedding events', icon: LuGift },
+  { title: 'Review Before Submit', description: 'You can go back and edit any step before final submission', icon: LuEye },
+  { title: 'Order Tracking', description: 'Once submitted, you can track your order status in the "My Orders" section', icon: LuMapPin },
+];
+
+const ONBOARDING_TIPS = [
+  { text: "Consider your guests' preferences when selecting items (dietary restrictions, allergies, etc.)", icon: LuHeart },
+  { text: 'Mix practical items with luxury treats for a balanced gift box', icon: LuSparkles },
+  { text: 'Coordinate packaging colors with your wedding theme', icon: LuPalette },
+  { text: 'Add a personal thank you note or card for a special touch', icon: LuMessageSquare },
+  { text: 'Order a few extra boxes for last-minute additions to your guest list', icon: LuPlus },
+];
+
+const ORDER_PROCESS_STEPS = [
+  { id: 0, title: 'Wedding', description: 'Select from our curated wedding styles' },
+  { id: 1, number: 1, title: 'Choose Your Packaging', description: 'Want to curate your own boxes? Start here!' },
+  { id: 2, number: 2, title: 'Choose the Contents' },
+  { id: 3, number: 3, title: 'Make it Personal', description: 'Add your personal touch' },
+  { id: 4, number: 4, title: 'Finalize Your Order & Submit!' },
+];
+
+const CONTENT_CATEGORIES = [
+  { id: 1, label: 'Beverage', icon: LuWine },
+  { id: 2, label: 'Food', icon: LuUtensilsCrossed },
+  { id: 3, label: 'Kitchenware', icon: LuChefHat },
+  { id: 4, label: 'Home Decor', icon: LuSofa },
+  { id: 5, label: 'Face and Body', icon: LuSparkles },
+  { id: 6, label: 'Clothing and Accessories', icon: LuShirt, compact: true },
+  { id: 7, label: 'Leather Products and Desk Essentials', icon: LuBriefcase, compact: true },
+  { id: 8, label: 'Others', icon: LuPackageOpen },
+];
 
 const styles = {
   container: {
@@ -1496,393 +1588,196 @@ export default function OrderProcess() {
         </p>
       </div>
 
-      <div style={{padding: "0px 100px 100px 100px"}}>
-        <div style={{display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%", backgroundColor: "#696a8f", borderRadius: "12px", padding: "20px"}}>
-          {/* Steps */}
-          <div style={styles.steps}>
-            <div 
-              style={{
-                ...styles.step,
-                backgroundColor: currentStep === 0 ? '#696a8f' : '#f0f0f0',
-                color: currentStep === 0 ? '#fff' : '#2c3e50',
-                border: "1px solid #f0f0f0",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-              onClick={() => handleStepClick(0)}
-            >
-              <h3 style={{
-                ...styles.stepTitle,
-                color: currentStep === 0 ? '#fff' : '#2c3e50'
-              }}>Wedding</h3>
-              <p style={{
-                ...styles.stepDescription,
-                color: currentStep === 0 ? '#fff' : '#6c757d'
-              }}>Select from our curated wedding styles</p>
+      <div className="order-process-wrapper">
+        <div className="order-stepper-shell">
+          <nav className="order-stepper" aria-label="Order process steps">
+            <div className="order-stepper__card">
+              <div className="order-stepper__accent" aria-hidden="true" />
+              <div className="order-stepper__track">
+                <div className="order-stepper__timeline" aria-hidden="true">
+                  <div
+                    className="order-stepper__timeline-fill"
+                    style={{
+                      width: currentStep >= 1
+                        ? `${((currentStep - 1) / 3) * 100}%`
+                        : '0%',
+                    }}
+                  />
+                </div>
+
+                {ORDER_PROCESS_STEPS.map((step, index) => {
+                  const isActive = currentStep === step.id;
+                  const isCompleted = currentStep > step.id;
+
+                  return (
+                    <React.Fragment key={step.id}>
+                      {index > 0 && (
+                        <div className="order-stepper__divider" aria-hidden="true" />
+                      )}
+                      <button
+                        type="button"
+                        className={[
+                          'order-stepper__milestone',
+                          step.number == null ? 'order-stepper__milestone--intro' : '',
+                          isActive ? 'order-stepper__milestone--active' : '',
+                          isCompleted ? 'order-stepper__milestone--completed' : '',
+                        ].filter(Boolean).join(' ')}
+                        onClick={() => handleStepClick(step.id)}
+                        aria-current={isActive ? 'step' : undefined}
+                      >
+                        {step.number != null ? (
+                          <span className="order-stepper__badge" aria-hidden="true">
+                            {step.number}
+                          </span>
+                        ) : (
+                          <span className="order-stepper__ornament" aria-hidden="true" />
+                        )}
+                        <h3 className="order-stepper__title">{step.title}</h3>
+                        {step.description && (
+                          <p className="order-stepper__description">{step.description}</p>
+                        )}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
             </div>
-            <div 
-              style={{
-                ...styles.step,
-                backgroundColor: currentStep === 1 ? '#696a8f' : '#f0f0f0',
-                color: currentStep === 1 ? '#fff' : '#2c3e50',
-                border: "1px solid #f0f0f0",
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-              onClick={() => handleStepClick(1)}
-            >
-              <div style={{
-                ...styles.stepNumber,
-                background: currentStep === 1 ? '#fff' : '#696a8f',
-                color: currentStep === 1 ? '#696a8f' : '#fff'
-              }}>1</div>
-              <h3 style={{
-                ...styles.stepTitle,
-                color: currentStep === 1 ? '#fff' : '#2c3e50'
-              }}>Choose Your Packaging</h3>
-              <p style={{
-                ...styles.stepDescription,
-                color: currentStep === 1 ? '#fff' : '#6c757d'
-              }}>Want to curate your own boxes? Start here!</p>
-            </div>
-            <div 
-              style={{
-                ...styles.step,
-                backgroundColor: currentStep === 2 ? '#696a8f' : '#f0f0f0',
-                color: currentStep === 2 ? '#fff' : '#2c3e50',
-                border: "1px solid #f0f0f0",
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-              onClick={() => handleStepClick(2)}
-            >
-              <div style={{
-                ...styles.stepNumber,
-                background: currentStep === 2 ? '#fff' : '#696a8f',
-                color: currentStep === 2 ? '#696a8f' : '#fff'
-              }}>2</div>
-              <h3 style={{
-                ...styles.stepTitle,
-                color: currentStep === 2 ? '#fff' : '#2c3e50'
-              }}>Choose the Contents</h3>
-            </div>
-            <div 
-              style={{
-                ...styles.step,
-                backgroundColor: currentStep === 3 ? '#696a8f' : '#f0f0f0',
-                color: currentStep === 3 ? '#fff' : '#2c3e50',
-                border: "1px solid #f0f0f0",
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-              onClick={() => handleStepClick(3)}
-            >
-              <div style={{
-                ...styles.stepNumber,
-                background: currentStep === 3 ? '#fff' : '#696a8f',
-                color: currentStep === 3 ? '#696a8f' : '#fff'
-              }}>3</div>
-              <h3 style={{
-                ...styles.stepTitle,
-                color: currentStep === 3 ? '#fff' : '#2c3e50'
-              }}>Make it Personal</h3>
-              <p style={{
-                ...styles.stepDescription,
-                color: currentStep === 3 ? '#fff' : '#6c757d'
-              }}>Add your personal touch</p>
-            </div>
-            <div 
-              style={{
-                ...styles.step,
-                backgroundColor: currentStep === 4 ? '#696a8f' : '#f0f0f0',
-                color: currentStep === 4 ? '#fff' : '#2c3e50',
-                border: "1px solid #f0f0f0",
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-              onClick={() => handleStepClick(4)}
-            >
-              <div style={{
-                ...styles.stepNumber,
-                background: currentStep === 4 ? '#fff' : '#696a8f',
-                color: currentStep === 4 ? '#696a8f' : '#fff'
-              }}>4</div>
-              <h3 style={{
-                ...styles.stepTitle,
-                color: currentStep === 4 ? '#fff' : '#2c3e50'
-              }}>Finalize Your Order & Submit!</h3>
-            </div>
-          </div>
+          </nav>
 
           {/* Step Forms */}
           {currentStep === 0 && (
-            <div style={{...styles.form, width: "100%", padding: "40px"}}>
-              <div style={{display: "flex", flexDirection: "column", gap: "30px"}}>
-                
-                {/* Welcome Section */}
-                <div style={{textAlign: "center", marginBottom: "20px"}}>
-                  <h2 style={{
-                    fontSize: "2rem",
-                    color: "#2c3e50",
-                    marginBottom: "10px",
-                    fontFamily: "'Cormorant Garamond', serif"
-                  }}>
-                    Welcome to Wrap N' Track Custom Gift Box Creator! 🎁
-                  </h2>
-                  <p style={{
-                    fontSize: "1.1rem",
-                    color: "#4a4a6a",
-                    lineHeight: "1.6"
-                  }}>
-                    Create personalized wedding gift boxes in just 4 simple steps
-                  </p>
+            <div className="onboarding">
+              <div className="onboarding__hero">
+                <div className="onboarding__hero-glow onboarding__hero-glow--left" aria-hidden="true" />
+                <div className="onboarding__hero-glow onboarding__hero-glow--right" aria-hidden="true" />
+                <div className="onboarding__hero-badge" aria-hidden="true">
+                  <LuGift className="onboarding__hero-badge-icon" />
                 </div>
+                <span className="onboarding__eyebrow">Curated for your celebration</span>
+                <h2 className="onboarding__title">
+                  Welcome to Wrap N&apos; Track Custom Gift Box Creator!
+                </h2>
+                <p className="onboarding__subtitle">
+                  Create personalized wedding gift boxes in just 4 simple steps
+                </p>
+                <div className="onboarding__hero-divider" aria-hidden="true">
+                  <span className="onboarding__hero-divider-line" />
+                  <span className="onboarding__hero-divider-gem" />
+                  <span className="onboarding__hero-divider-line" />
+                </div>
+              </div>
 
-                {/* How It Works Section */}
-                <div style={{
-                  background: "#f8f9fa",
-                  borderRadius: "12px",
-                  padding: "30px",
-                  border: "2px solid #e0e0e0"
-                }}>
-                  <h3 style={{
-                    fontSize: "1.5rem",
-                    color: "#2c3e50",
-                    marginBottom: "20px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px"
-                  }}>
-                    📋 How It Works
-                  </h3>
-                  
-                  <div style={{display: "flex", flexDirection: "column", gap: "20px"}}>
-                    {/* Step 1 */}
-                    <div style={{
-                      display: "flex",
-                      gap: "15px",
-                      alignItems: "flex-start",
-                      padding: "15px",
-                      background: "#ffffff",
-                      borderRadius: "8px",
-                      borderLeft: "4px solid #696a8f"
-                    }}>
-                      <div style={{
-                        minWidth: "40px",
-                        height: "40px",
-                        borderRadius: "50%",
-                        background: "#696a8f",
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "bold",
-                        fontSize: "1.2rem"
-                      }}>1</div>
-                      <div>
-                        <h4 style={{color: "#2c3e50", marginBottom: "8px", fontSize: "1.1rem"}}>
-                          Choose Your Packaging
-                        </h4>
-                        <p style={{color: "#5a5a6a", lineHeight: "1.5", margin: 0}}>
-                          Select from our curated collection of elegant boxes, bags, and wrapping options. 
-                          Mix and match to create the perfect presentation for your gifts.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Step 2 */}
-                    <div style={{
-                      display: "flex",
-                      gap: "15px",
-                      alignItems: "flex-start",
-                      padding: "15px",
-                      background: "#ffffff",
-                      borderRadius: "8px",
-                      borderLeft: "4px solid #696a8f"
-                    }}>
-                      <div style={{
-                        minWidth: "40px",
-                        height: "40px",
-                        borderRadius: "50%",
-                        background: "#696a8f",
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "bold",
-                        fontSize: "1.2rem"
-                      }}>2</div>
-                      <div>
-                        <h4 style={{color: "#2c3e50", marginBottom: "8px", fontSize: "1.1rem"}}>
-                          Choose the Contents
-                        </h4>
-                        <p style={{color: "#5a5a6a", lineHeight: "1.5", margin: 0}}>
-                          Fill your gift boxes with premium items from our catalog including beverages, 
-                          gourmet food, kitchenware, home decor, beauty products, and more. You can select 
-                          multiple items per category or use your own products.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Step 3 */}
-                    <div style={{
-                      display: "flex",
-                      gap: "15px",
-                      alignItems: "flex-start",
-                      padding: "15px",
-                      background: "#ffffff",
-                      borderRadius: "8px",
-                      borderLeft: "4px solid #696a8f"
-                    }}>
-                      <div style={{
-                        minWidth: "40px",
-                        height: "40px",
-                        borderRadius: "50%",
-                        background: "#696a8f",
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "bold",
-                        fontSize: "1.2rem"
-                      }}>3</div>
-                      <div>
-                        <h4 style={{color: "#2c3e50", marginBottom: "8px", fontSize: "1.1rem"}}>
-                          Make it Personal
-                        </h4>
-                        <p style={{color: "#5a5a6a", lineHeight: "1.5", margin: 0}}>
-                          Add personalized touches like custom tags, ribbons, cards, and special decorations. 
-                          Make each gift box unique and memorable for your special day.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Step 4 */}
-                    <div style={{
-                      display: "flex",
-                      gap: "15px",
-                      alignItems: "flex-start",
-                      padding: "15px",
-                      background: "#ffffff",
-                      borderRadius: "8px",
-                      borderLeft: "4px solid #696a8f"
-                    }}>
-                      <div style={{
-                        minWidth: "40px",
-                        height: "40px",
-                        borderRadius: "50%",
-                        background: "#696a8f",
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "bold",
-                        fontSize: "1.2rem"
-                      }}>4</div>
-                      <div>
-                        <h4 style={{color: "#2c3e50", marginBottom: "8px", fontSize: "1.1rem"}}>
-                          Finalize Your Order & Submit
-                        </h4>
-                        <p style={{color: "#5a5a6a", lineHeight: "1.5", margin: 0}}>
-                          Review your selections, specify your wedding date, delivery date, and quantity. 
-                          Add any special requests and submit your order. We'll take care of the rest!
-                        </p>
-                      </div>
-                    </div>
+              <section className="onboarding__journey" aria-labelledby="onboarding-journey-title">
+                <header className="onboarding__section-header">
+                  <div className="onboarding__section-icon-wrap">
+                    <LuClipboardList className="onboarding__section-icon" aria-hidden="true" />
                   </div>
-                </div>
+                  <div>
+                    <h3 id="onboarding-journey-title" className="onboarding__section-title">
+                      How It Works
+                    </h3>
+                    <p className="onboarding__section-lead">
+                      Your step-by-step journey from vision to beautifully wrapped gifts
+                    </p>
+                  </div>
+                </header>
 
-                {/* Important Guidelines */}
-                <div style={{
-                  background: "#d4edda",
-                  borderRadius: "12px",
-                  padding: "25px",
-                  border: "2px solid #28a745"
-                }}>
-                  <h3 style={{
-                    fontSize: "1.3rem",
-                    color: "#155724",
-                    marginBottom: "15px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px"
-                  }}>
-                    ✨ Important Guidelines
-                  </h3>
-                  <ul style={{
-                    color: "#155724",
-                    lineHeight: "1.8",
-                    paddingLeft: "20px",
-                    margin: 0
-                  }}>
-                    <li><strong>Multiple Selections:</strong> You can select multiple items in each category to create variety</li>
-                    <li><strong>Custom Products:</strong> Want to use your own items? Check the "I want to use my own products" option</li>
-                    <li><strong>Lead Time:</strong> Please order at least 2-3 weeks before your wedding date for best results</li>
-                    <li><strong>Minimum Order:</strong> We recommend a minimum of 10 gift boxes for wedding events</li>
-                    <li><strong>Review Before Submit:</strong> You can go back and edit any step before final submission</li>
-                    <li><strong>Order Tracking:</strong> Once submitted, you can track your order status in the "My Orders" section</li>
+                <div className="onboarding__timeline">
+                  <div className="onboarding__timeline-rail" aria-hidden="true">
+                    <div className="onboarding__timeline-rail-fill" />
+                  </div>
+
+                  {ONBOARDING_JOURNEY.map((item, index) => {
+                    const Icon = item.icon;
+                    return (
+                      <article
+                        key={item.step}
+                        className="onboarding__milestone"
+                        style={{ '--milestone-index': index }}
+                      >
+                        <div className="onboarding__milestone-node" aria-hidden="true">
+                          <span className="onboarding__milestone-number">{item.step}</span>
+                        </div>
+                        <div className="onboarding__milestone-card">
+                          <div className="onboarding__milestone-card-accent" aria-hidden="true" />
+                          <div className="onboarding__milestone-icon-wrap">
+                            <Icon className="onboarding__milestone-icon" aria-hidden="true" />
+                          </div>
+                          <div className="onboarding__milestone-content">
+                            <h4 className="onboarding__milestone-title">{item.title}</h4>
+                            <p className="onboarding__milestone-text">{item.description}</p>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <div className="onboarding__insights">
+                <section className="onboarding__panel onboarding__panel--guidelines" aria-labelledby="onboarding-guidelines-title">
+                  <header className="onboarding__panel-header">
+                    <div className="onboarding__panel-icon-wrap onboarding__panel-icon-wrap--guidelines">
+                      <LuSparkles className="onboarding__panel-icon" aria-hidden="true" />
+                    </div>
+                    <h3 id="onboarding-guidelines-title" className="onboarding__panel-title">
+                      Important Guidelines
+                    </h3>
+                  </header>
+                  <ul className="onboarding__panel-list">
+                    {ONBOARDING_GUIDELINES.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <li key={item.title} className="onboarding__panel-item">
+                          <span className="onboarding__panel-item-icon-wrap">
+                            <Icon className="onboarding__panel-item-icon" aria-hidden="true" />
+                          </span>
+                          <span className="onboarding__panel-item-text">
+                            <strong>{item.title}:</strong> {item.description}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
-                </div>
+                </section>
 
-                {/* Tips Section */}
-                <div style={{
-                  background: "#fff3cd",
-                  borderRadius: "12px",
-                  padding: "25px",
-                  border: "2px solid #ffc107"
-                }}>
-                  <h3 style={{
-                    fontSize: "1.3rem",
-                    color: "#856404",
-                    marginBottom: "15px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px"
-                  }}>
-                    💡 Pro Tips
-                  </h3>
-                  <ul style={{
-                    color: "#856404",
-                    lineHeight: "1.8",
-                    paddingLeft: "20px",
-                    margin: 0
-                  }}>
-                    <li>Consider your guests' preferences when selecting items (dietary restrictions, allergies, etc.)</li>
-                    <li>Mix practical items with luxury treats for a balanced gift box</li>
-                    <li>Coordinate packaging colors with your wedding theme</li>
-                    <li>Add a personal thank you note or card for a special touch</li>
-                    <li>Order a few extra boxes for last-minute additions to your guest list</li>
+                <section className="onboarding__panel onboarding__panel--tips" aria-labelledby="onboarding-tips-title">
+                  <header className="onboarding__panel-header">
+                    <div className="onboarding__panel-icon-wrap onboarding__panel-icon-wrap--tips">
+                      <LuLightbulb className="onboarding__panel-icon" aria-hidden="true" />
+                    </div>
+                    <h3 id="onboarding-tips-title" className="onboarding__panel-title">
+                      Pro Tips
+                    </h3>
+                  </header>
+                  <ul className="onboarding__panel-list">
+                    {ONBOARDING_TIPS.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <li key={item.text} className="onboarding__panel-item">
+                          <span className="onboarding__panel-item-icon-wrap onboarding__panel-item-icon-wrap--tips">
+                            <Icon className="onboarding__panel-item-icon" aria-hidden="true" />
+                          </span>
+                          <span className="onboarding__panel-item-text">{item.text}</span>
+                        </li>
+                      );
+                    })}
                   </ul>
-                </div>
+                </section>
+              </div>
 
-                {/* Get Started Button */}
-                <div style={{textAlign: "center", marginTop: "20px"}}>
-                  <button 
-                    onClick={() => setCurrentStep(1)}
-                    style={{
-                      ...styles.button,
-                      fontSize: "1.2rem",
-                      padding: "15px 40px",
-                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                      boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
-                      transition: "all 0.3s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.transform = "translateY(-2px)";
-                      e.target.style.boxShadow = "0 6px 20px rgba(102, 126, 234, 0.6)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.transform = "translateY(0)";
-                      e.target.style.boxShadow = "0 4px 15px rgba(102, 126, 234, 0.4)";
-                    }}
-                  >
-                    Get Started - Choose Your Packaging →
-                  </button>
-                </div>
+              <div className="onboarding__cta">
+                <p className="onboarding__cta-lead">Ready to begin crafting something unforgettable?</p>
+                <button
+                  type="button"
+                  className="onboarding__cta-button"
+                  onClick={() => setCurrentStep(1)}
+                >
+                  <span className="onboarding__cta-label">Get Started — Choose Your Packaging</span>
+                  <span className="onboarding__cta-arrow" aria-hidden="true">
+                    <LuArrowRight className="onboarding__cta-icon" />
+                  </span>
+                </button>
               </div>
             </div>
           )}
@@ -2030,181 +1925,43 @@ export default function OrderProcess() {
               )}
 
               {/* Content Categories */}
-              <div style={styles.steps}>
-                <div 
-                  style={{
-                    ...styles.step,
-                    backgroundColor: currentConCat === 1 ? '#696a8f' : '#f0f0f0',
-                    color: currentConCat === 1 ? '#fff' : '#2c3e50',
-                    border: "1px solid #f0f0f0",
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                  }}
-                  onClick={() => handleContentCategoryClick(1)}
-                >
-                  <div style={{
-                    background: currentConCat === 1 ? '#fff' : '#696a8f',
-                    color: currentConCat === 1 ? '#696a8f' : '#fff'
-                  }}></div>
-                  <p style={{
-                    ...styles.stepTitle,
-                    color: currentConCat === 1 ? '#fff' : '#2c3e50',
-                    fontSize: "14px",
-                  }}>Beverage</p>
+              <nav className="content-category-nav" aria-label="Product categories">
+                <div className="content-category-nav__card">
+                  <div className="content-category-nav__accent" aria-hidden="true" />
+                  <div className="content-category-nav__items">
+                    {CONTENT_CATEGORIES.map((category, index) => {
+                      const Icon = category.icon;
+                      const isActive = currentConCat === category.id;
+
+                      return (
+                        <React.Fragment key={category.id}>
+                          {index > 0 && (
+                            <div className="content-category-nav__divider" aria-hidden="true" />
+                          )}
+                          <button
+                            type="button"
+                            className={`content-category-nav__item${isActive ? ' content-category-nav__item--active' : ''}`}
+                            onClick={() => handleContentCategoryClick(category.id)}
+                            aria-current={isActive ? 'true' : undefined}
+                          >
+                            <span className="content-category-nav__icon-wrap">
+                              <Icon className="content-category-nav__icon" aria-hidden="true" />
+                            </span>
+                            <span
+                              className={`content-category-nav__label${category.compact ? ' content-category-nav__label--compact' : ''}`}
+                            >
+                              {category.label}
+                            </span>
+                            {isActive && (
+                              <span className="content-category-nav__indicator" aria-hidden="true" />
+                            )}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div 
-                  style={{
-                    ...styles.step,
-                    backgroundColor: currentConCat === 2 ? '#696a8f' : '#f0f0f0',
-                    color: currentConCat === 2 ? '#fff' : '#2c3e50',
-                    border: "1px solid #f0f0f0",
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onClick={() => handleContentCategoryClick(2)}
-                >
-                  <div style={{
-                    background: currentConCat === 2 ? '#fff' : '#696a8f',
-                    color: currentConCat === 2 ? '#696a8f' : '#fff'
-                  }}></div>
-                  <p style={{
-                    ...styles.stepTitle,
-                    color: currentConCat === 2 ? '#fff' : '#2c3e50',
-                    fontSize: "14px",
-                  }}>Food</p>
-                </div>
-                <div 
-                  style={{
-                    ...styles.step,
-                    backgroundColor: currentConCat === 3 ? '#696a8f' : '#f0f0f0',
-                    color: currentConCat === 3 ? '#fff' : '#2c3e50',
-                    border: "1px solid #f0f0f0",
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onClick={() => handleContentCategoryClick(3)}
-                >
-                  <div style={{
-                    background: currentConCat === 3 ? '#fff' : '#696a8f',
-                    color: currentConCat === 3 ? '#696a8f' : '#fff'
-                  }}></div>
-                  <p style={{
-                    ...styles.stepTitle,
-                    color: currentConCat === 3 ? '#fff' : '#2c3e50',
-                    fontSize: "14px",
-                  }}>Kitchenware</p>
-                </div>
-                <div 
-                  style={{
-                    ...styles.step,
-                    backgroundColor: currentConCat === 4 ? '#696a8f' : '#f0f0f0',
-                    color: currentConCat === 4 ? '#fff' : '#2c3e50',
-                    border: "1px solid #f0f0f0",
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onClick={() => handleContentCategoryClick(4)}
-                >
-                  <div style={{
-                    background: currentConCat === 4 ? '#fff' : '#696a8f',
-                    color: currentConCat === 4 ? '#696a8f' : '#fff'
-                  }}></div>
-                  <p style={{
-                    ...styles.stepTitle,
-                    color: currentConCat === 4 ? '#fff' : '#2c3e50',
-                    fontSize: "14px",
-                  }}>Home Decor</p>
-                </div>
-                <div 
-                  style={{
-                    ...styles.step,
-                    backgroundColor: currentConCat === 5 ? '#696a8f' : '#f0f0f0',
-                    color: currentConCat === 5 ? '#fff' : '#2c3e50',
-                    border: "1px solid #f0f0f0",
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onClick={() => handleContentCategoryClick(5)}
-                >
-                  <div style={{
-                    background: currentConCat === 5 ? '#fff' : '#696a8f',
-                    color: currentConCat === 5 ? '#696a8f' : '#fff'
-                  }}></div>
-                  <p style={{
-                    ...styles.stepTitle,
-                    color: currentConCat === 5 ? '#fff' : '#2c3e50',
-                    fontSize: "14px",
-                  }}>Face and Body</p>
-                </div>
-                <div 
-                  style={{
-                    ...styles.step,
-                    display: "flex",
-                    justifyContent: "center",
-                    backgroundColor: currentConCat === 6 ? '#696a8f' : '#f0f0f0',
-                    color: currentConCat === 6 ? '#fff' : '#2c3e50',
-                    border: "1px solid #f0f0f0",
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onClick={() => handleContentCategoryClick(6)}
-                >
-                  <div style={{
-                    background: currentConCat === 6 ? '#fff' : '#696a8f',
-                    color: currentConCat === 6 ? '#696a8f' : '#fff'
-                  }}></div>
-                  <p style={{
-                    ...styles.stepTitle,
-                    color: currentConCat === 6 ? '#fff' : '#2c3e50',
-                    fontSize: "12px",
-                  }}>Clothing and Accessories</p>
-                </div>
-                <div 
-                  style={{
-                    ...styles.step,
-                    display: "flex",
-                    justifyContent: "center",
-                    backgroundColor: currentConCat === 7 ? '#696a8f' : '#f0f0f0',
-                    color: currentConCat === 7 ? '#fff' : '#2c3e50',
-                    border: "1px solid #f0f0f0",
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onClick={() => handleContentCategoryClick(7)}
-                >
-                  <div style={{
-                    background: currentConCat === 7 ? '#fff' : '#696a8f',
-                    color: currentConCat === 7 ? '#696a8f' : '#fff'
-                  }}></div>
-                  <p style={{
-                    ...styles.stepTitle,
-                    color: currentConCat === 7 ? '#fff' : '#2c3e50',
-                    fontSize: "12px",
-                  }}>Leather Products and Desk Essentials</p>
-                </div>
-                <div 
-                  style={{
-                    ...styles.step,
-                    backgroundColor: currentConCat === 8 ? '#696a8f' : '#f0f0f0',
-                    color: currentConCat === 8 ? '#fff' : '#2c3e50',
-                    border: "1px solid #f0f0f0",
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onClick={() => handleContentCategoryClick(8)}
-                >
-                  <div style={{
-                    background: currentConCat === 8 ? '#fff' : '#696a8f',
-                    color: currentConCat === 8 ? '#696a8f' : '#fff'
-                  }}></div>
-                  <p style={{
-                    ...styles.stepTitle,
-                    color: currentConCat === 8 ? '#fff' : '#2c3e50',
-                    fontSize: "14px",
-                  }}>Others</p>
-                </div>
-                
-              </div>
+              </nav>
 
               <div style={{backgroundColor: "#2ECC71", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
                 <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>

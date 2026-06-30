@@ -16,7 +16,8 @@ html, body {
 .dashboard-container {
   display: flex;
   min-height: 100vh;
-  background: #f6f6f8;
+  background: var(--bg-secondary);
+  transition: background-color 0.3s ease;
 }
 
 .dashboard-main {
@@ -27,6 +28,8 @@ html, body {
   margin-left: 220px;
   width: calc(100% - 220px);
   max-width: none !important; /* Override any max-width constraints */
+  background: var(--bg-secondary);
+  transition: background-color 0.3s ease;
 }
 
 /* Ensure all admin pages use full width */
@@ -78,15 +81,15 @@ html, body {
 
 /* Dark mode support */
 body.dark {
-  background-color: #1a1a1a;
-  color: #ffffff;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 body.dark .dashboard-container {
-  background-color: #1a1a1a;
+  background-color: var(--bg-secondary);
 }
 
 body.dark .dashboard-main {
-  background-color: #1a1a1a;
-  color: #ffffff;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }

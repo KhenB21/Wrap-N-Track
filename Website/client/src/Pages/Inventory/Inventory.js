@@ -223,9 +223,9 @@ function Inventory() {
   };
 
   return (
-    <div className="dashboard-container" style={{ backgroundColor: '#ffffff', height: '100vh', overflow: 'hidden' }}>
+    <div className="dashboard-container">
       <Sidebar />
-      <div className="dashboard-main" style={{ marginLeft: '220px', width: 'calc(100% - 220px)', height: '100vh', backgroundColor: '#ffffff', overflow: 'hidden' }}>
+      <div className="dashboard-main">
         <TopBar
           lowStockProducts={Array.isArray(products) ? products.filter(item => Number(item.quantity || 0) < 300) : []}
           searchValue={searchTerm}

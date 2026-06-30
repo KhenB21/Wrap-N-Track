@@ -1,5 +1,5 @@
 .inventory-container {
-  background: #ffffff;
+  background: var(--bg-card);
   padding: 0;
   height: calc(100vh - 50px);
   display: flex;
@@ -8,6 +8,7 @@
   overflow: hidden;
   position: relative;
   min-height: 600px;
+  transition: background-color 0.3s ease;
 }
 
 .inventory-header {
@@ -69,15 +70,16 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-light);
   height: calc(100vh - 100px);
   min-height: 700px;
   margin-top: 50px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .inventory-table-wrapper {
@@ -92,33 +94,36 @@
 .inventory-table {
   width: 100%;
   border-collapse: collapse;
-  background: #fff;
+  background: var(--bg-card);
   table-layout: fixed;
   margin: 0;
   min-height: 400px;
+  transition: background-color 0.3s ease;
 }
 
 .inventory-table thead {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #ffffff;
-  border-bottom: 2px solid #e0e0e0;
+  background: var(--table-header-bg);
+  border-bottom: 2px solid var(--border-color);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .inventory-table thead th {
   position: sticky;
   top: 0;
   z-index: 11;
-  background: #ffffff;
+  background: var(--table-header-bg);
   padding: 20px 12px;
   font-weight: 700;
-  border-bottom: 2px solid #e0e0e0;
-  color: #333;
+  border-bottom: 2px solid var(--border-color);
+  color: var(--text-primary);
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 .inventory-table th, .inventory-table td {
@@ -136,26 +141,27 @@
 }
 
 .inventory-table th {
-  background: #f3f3f7;
-  color: #333;
+  background: var(--table-header-bg);
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 1.1rem;
   padding: 20px;
   text-align: center;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .inventory-table tr {
-  background: #fff;
+  background: var(--bg-card);
   transition: background-color 0.2s ease;
   height: 60px;
 }
 
 .inventory-table tr:nth-child(even) {
-  background: #fafafa;
+  background: var(--bg-tertiary);
 }
 
 .inventory-table tr:hover {
-  background: #e3f2fd;
+  background: var(--bg-tertiary);
   cursor: pointer;
 }
 
@@ -274,12 +280,14 @@
 /* Update the filter select styles */
 .inventory-filter-select {
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-border);
   border-radius: 4px;
   font-size: 14px;
   min-width: 200px;
-  background-color: white;
+  background-color: var(--input-bg);
+  color: var(--input-text);
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .inventory-filter-select:focus {

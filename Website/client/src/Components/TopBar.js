@@ -128,19 +128,7 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
             />
           ) : null}
           <div 
-            className="avatar-initials" 
-            style={{ 
-              display: getProfilePictureUrl() ? 'none' : 'flex',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              backgroundColor: '#007bff',
-              color: 'white',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px',
-              fontWeight: 'bold'
-            }}
+            className="avatar-initials"
           >
             {getInitials()}
           </div>
@@ -155,23 +143,15 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
       {showDropdown && (
         <div className="settings-dropdown">
           <button 
-            className="theme-btn"
+            className={`theme-btn ${theme === 'light' ? 'active' : ''}`}
             onClick={() => handleThemeChange('light')}
-            style={{ 
-              backgroundColor: theme === 'light' ? '#e6f0ff' : 'transparent',
-              color: theme === 'light' ? '#007bff' : '#666'
-            }}
           >
             <span role="img" aria-label="Light Mode">☀️</span>
             Light Mode
           </button>
           <button 
-            className="theme-btn"
+            className={`theme-btn ${theme === 'dark' ? 'active' : ''}`}
             onClick={() => handleThemeChange('dark')}
-            style={{ 
-              backgroundColor: theme === 'dark' ? '#2c2c2c' : 'transparent',
-              color: theme === 'dark' ? '#fff' : '#666'
-            }}
           >
             <span role="img" aria-label="Dark Mode">🌙</span>
             Dark Mode
