@@ -5,7 +5,9 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
-  Switch
+  Switch,
+  Platform,
+  PermissionsAndroid
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card, List, Button, Divider } from 'react-native-paper';
@@ -17,7 +19,7 @@ export default function SettingsScreen({ navigation }) {
   const { user, logout } = useAuth();
   const { darkMode, setDarkMode } = useTheme();
   
-  const [notifications, setNotifications] = useState(true);
+  const [locationEnabled, setLocationEnabled] = useState(false);
   const [autoSync, setAutoSync] = useState(true);
   const [biometric, setBiometric] = useState(false);
 
@@ -32,10 +34,6 @@ export default function SettingsScreen({ navigation }) {
           style: 'destructive',
           onPress: () => {
             logout();
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Auth' }],
-            });
           }
         }
       ]
@@ -43,7 +41,26 @@ export default function SettingsScreen({ navigation }) {
   };
 
   const handleChangePassword = () => {
-    Alert.alert('Change Password', 'Password change functionality would be implemented here');
+    navigation.navigate('ChangePassword');
+  };
+
+  const handleLocationToggle = async (enabled) => {
+    if (!enabled) {
+      setLocationEnabled(false);
+      return;
+    }
+    if (Platform.OS === 'android') {
+      const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+      if (result === PermissionsAndroid.RESULTS.GRANTED) {
+        setLocationEnabled(true);
+      } else {
+        setLocationEnabled(false);
+        Alert.alert('Location Disabled', 'Please allow location access in your mobile system settings.');
+      }
+      return;
+    }
+    Alert.alert('Location Permission', 'Please allow location access in your mobile system settings if prompted.');
+    setLocationEnabled(true);
   };
 
   const handleExportData = () => {
@@ -124,22 +141,8 @@ export default function SettingsScreen({ navigation }) {
     <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
       <Card.Content>
         <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-          Notifications
+          Data & Sync
         </Text>
-        
-        <List.Item
-          title="Push Notifications"
-          description="Receive notifications for orders and updates"
-          left={(props) => <List.Icon {...props} icon="bell" />}
-          right={() => (
-            <Switch
-              value={notifications}
-              onValueChange={setNotifications}
-              trackColor={{ false: '#767577', true: '#81b0ff' }}
-              thumbColor={notifications ? '#f5dd4b' : '#f4f3f4'}
-            />
-          )}
-        />
         
         <List.Item
           title="Auto Sync"
@@ -151,6 +154,20 @@ export default function SettingsScreen({ navigation }) {
               onValueChange={setAutoSync}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={autoSync ? '#f5dd4b' : '#f4f3f4'}
+            />
+          )}
+        />
+        
+        <List.Item
+          title="Location Services"
+          description="Allow app to access your location"
+          left={(props) => <List.Icon {...props} icon="map-marker" />}
+          right={() => (
+            <Switch
+              value={locationEnabled}
+              onValueChange={handleLocationToggle}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={locationEnabled ? '#f5dd4b' : '#f4f3f4'}
             />
           )}
         />

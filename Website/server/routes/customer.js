@@ -6,6 +6,7 @@ const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const { isValidRegion, isValidCity, isValidBarangay } = require('../data/philippineLocations');
 
 // Authentication middleware
 const verifyToken = (req, res, next) => {
@@ -39,6 +40,23 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+const ensureCustomerProfileColumns = async () => {
+  const columns = [
+    'ADD COLUMN IF NOT EXISTS address TEXT',
+    'ADD COLUMN IF NOT EXISTS house_street_number TEXT',
+    'ADD COLUMN IF NOT EXISTS region TEXT',
+    'ADD COLUMN IF NOT EXISTS region_code TEXT',
+    'ADD COLUMN IF NOT EXISTS city_code TEXT',
+    'ADD COLUMN IF NOT EXISTS barangay TEXT',
+    'ADD COLUMN IF NOT EXISTS barangay_code TEXT',
+    'ADD COLUMN IF NOT EXISTS postal_code TEXT',
+    'ADD COLUMN IF NOT EXISTS profile_picture_data BYTEA',
+  ];
+
+  for (const column of columns) {
+    await pool.query(`ALTER TABLE customer_details ${column}`);
+  }
+};
 
 // Get customer profile
 router.get('/profile', verifyToken, async (req, res) => {
@@ -47,6 +65,8 @@ router.get('/profile', verifyToken, async (req, res) => {
   console.log('[Customer/Profile] Fetching profile for customer_id:', customerId);
 
   try {
+    await ensureCustomerProfileColumns();
+
     // 2. Parameterized query (SQL injection safe) + base64 encode in SQL for clarity
     const sql = `
       SELECT 
@@ -56,6 +76,14 @@ router.get('/profile', verifyToken, async (req, res) => {
         email_address,
         phone_number,
         address,
+        house_street_number,
+        region,
+        region_code,
+        city,
+        city_code,
+        barangay,
+        barangay_code,
+        postal_code,
         is_verified,
         CASE WHEN profile_picture_data IS NOT NULL 
              THEN encode(profile_picture_data, 'base64')
@@ -86,6 +114,14 @@ router.get('/profile', verifyToken, async (req, res) => {
         email: row.email_address,
         phone_number: row.phone_number,
         address: row.address,
+        house_street_number: row.house_street_number,
+        region: row.region,
+        region_code: row.region_code,
+        city: row.city,
+        city_code: row.city_code,
+        barangay: row.barangay,
+        barangay_code: row.barangay_code,
+        postal_code: row.postal_code,
         is_verified: row.is_verified,
         profile_picture_base64: row.profile_picture_base64
       }
@@ -107,7 +143,21 @@ router.get('/profile', verifyToken, async (req, res) => {
 router.put('/profile', verifyToken, async (req, res) => {
   try {
     const customerId = req.user.customer_id;
-    const { name, username, email_address, phone_number, street, city, zipcode } = req.body;
+    const {
+      name,
+      username,
+      email_address,
+      phone_number,
+      house_street_number,
+      region,
+      region_code,
+      city,
+      city_code,
+      barangay,
+      barangay_code,
+      postal_code,
+      address,
+    } = req.body;
 
     // Validate required fields
     if (!name?.trim()) {
@@ -130,6 +180,50 @@ router.put('/profile', verifyToken, async (req, res) => {
         message: 'Email is required'
       });
     }
+
+    if (!/^\+639\d{9}$/.test(phone_number || '')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid Philippine mobile number'
+      });
+    }
+
+    if (!house_street_number?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'House / Street Number is required'
+      });
+    }
+
+    if (!isValidRegion(region_code, region)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please select a valid region'
+      });
+    }
+
+    if (!isValidCity(region_code, city_code, city)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please select a valid city'
+      });
+    }
+
+    if (!isValidBarangay(city_code, barangay_code, barangay)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please select a valid barangay'
+      });
+    }
+
+    if (!/^\d{4}$/.test(postal_code || '')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Postal code must be 4 digits'
+      });
+    }
+
+    await ensureCustomerProfileColumns();
 
     // Check if username is being changed and if it's already taken
     if (username) {
@@ -183,9 +277,40 @@ router.put('/profile', verifyToken, async (req, res) => {
       console.log('Verification code for new email:', verificationCode);
     }
 
+    const fullAddress = (address || [house_street_number.trim(), `Barangay ${barangay}`, city, region, postal_code].filter(Boolean).join(', ')).trim();
     const result = await pool.query(
-      'UPDATE customer_details SET name = $1, username = $2, email_address = $3, phone_number = $4, street = $5, city = $6, zipcode = $7 WHERE customer_id = $8 RETURNING *',
-      [name.trim(), username.trim(), email_address.trim(), phone_number, street || '', city || '', zipcode || '', customerId]
+      `UPDATE customer_details
+       SET name = $1,
+           username = $2,
+           email_address = $3,
+           phone_number = $4,
+           address = $5,
+           house_street_number = $6,
+           region = $7,
+           region_code = $8,
+           city = $9,
+           city_code = $10,
+           barangay = $11,
+           barangay_code = $12,
+           postal_code = $13
+       WHERE customer_id = $14
+       RETURNING *`,
+      [
+        name.trim(),
+        username.trim(),
+        email_address.trim(),
+        phone_number,
+        fullAddress,
+        house_street_number.trim(),
+        region,
+        region_code,
+        city,
+        city_code,
+        barangay,
+        barangay_code,
+        postal_code,
+        customerId
+      ]
     );
 
     if (result.rows.length === 0) {
@@ -198,21 +323,33 @@ router.put('/profile', verifyToken, async (req, res) => {
     const updatedCustomer = result.rows[0];
     res.json({
       success: true,
-      message: isEmailChanged ? 'Profile updated. Please verify your new email address.' : 'Profile updated successfully',
+      message: 'Profile updated successfully',
       customer: {
         customer_id: updatedCustomer.customer_id,
         name: updatedCustomer.name,
         username: updatedCustomer.username,
         email_address: updatedCustomer.email_address,
         phone_number: updatedCustomer.phone_number,
-        street: updatedCustomer.street,
+        address: updatedCustomer.address,
+        house_street_number: updatedCustomer.house_street_number,
+        region: updatedCustomer.region,
+        region_code: updatedCustomer.region_code,
         city: updatedCustomer.city,
-        zipcode: updatedCustomer.zipcode,
+        city_code: updatedCustomer.city_code,
+        barangay: updatedCustomer.barangay,
+        barangay_code: updatedCustomer.barangay_code,
+        postal_code: updatedCustomer.postal_code,
+        profile_picture_base64: updatedCustomer.profile_picture_data ? updatedCustomer.profile_picture_data.toString('base64') : null,
         is_verified: updatedCustomer.is_verified
       }
     });
   } catch (error) {
-    console.error('Error updating customer profile:', error);
+    console.error('Error updating customer profile:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: 'Failed to update profile'
@@ -224,6 +361,7 @@ router.put('/profile', verifyToken, async (req, res) => {
 router.post('/profile-picture', verifyToken, upload.single('profilePicture'), async (req, res) => {
   try {
     const customerId = req.user.customer_id;
+    await ensureCustomerProfileColumns();
     
     if (!req.file) {
       return res.status(400).json({
@@ -268,7 +406,12 @@ router.post('/profile-picture', verifyToken, upload.single('profilePicture'), as
       profile_picture_data: profilePictureData.toString('base64')
     });
   } catch (error) {
-    console.error('Error updating profile picture:', error);
+    console.error('Error updating profile picture:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: 'Failed to update profile picture'

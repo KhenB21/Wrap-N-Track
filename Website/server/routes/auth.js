@@ -386,6 +386,15 @@ router.post('/customer/login', async (req, res) => {
           name: customer.name,
           email: customer.email_address,
           phone_number: customer.phone_number,
+          address: customer.address,
+          house_street_number: customer.house_street_number,
+          region: customer.region,
+          region_code: customer.region_code,
+          city: customer.city,
+          city_code: customer.city_code,
+          barangay: customer.barangay,
+          barangay_code: customer.barangay_code,
+          postal_code: customer.postal_code,
           role: 'customer'
         }
       });
@@ -499,6 +508,51 @@ router.get('/customer/get-email/:username', async (req, res) => {
       success: false,
       message: 'Failed to get user email'
     });
+  }
+});
+
+
+// Change password from login/forgot-password flow using existing password
+router.post('/change-password-with-current', async (req, res) => {
+  const { username, currentPassword, newPassword } = req.body;
+
+  if (!username || !currentPassword || !newPassword) {
+    return res.status(400).json({ success: false, message: 'Username, existing password, and new password are required' });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ success: false, message: 'New password must be at least 8 characters long' });
+  }
+
+  try {
+    const customerResult = await pool.query('SELECT customer_id, password_hash FROM customer_details WHERE username = $1', [username]);
+    if (customerResult.rows.length > 0) {
+      const customer = customerResult.rows[0];
+      const validPassword = await bcrypt.compare(currentPassword, customer.password_hash);
+      if (!validPassword) {
+        return res.status(400).json({ success: false, message: 'Existing password is incorrect' });
+      }
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await pool.query('UPDATE customer_details SET password_hash = $1 WHERE customer_id = $2', [passwordHash, customer.customer_id]);
+      return res.json({ success: true, message: 'Password changed successfully' });
+    }
+
+    const employeeResult = await pool.query('SELECT user_id, password_hash FROM users WHERE name = $1', [username]);
+    if (employeeResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+
+    const employee = employeeResult.rows[0];
+    const validPassword = await bcrypt.compare(currentPassword, employee.password_hash);
+    if (!validPassword) {
+      return res.status(400).json({ success: false, message: 'Existing password is incorrect' });
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [passwordHash, employee.user_id]);
+    return res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change password with current error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to change password' });
   }
 });
 

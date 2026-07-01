@@ -15,6 +15,7 @@ import CustomerListScreen from '../Screens/Employee/CustomerListScreen';
 import CustomerDetailScreen from '../Screens/Employee/CustomerDetailScreen';
 import ReportsHomeScreen from '../Screens/Employee/ReportsHomeScreen';
 import SettingsScreen from '../Screens/Employee/SettingsScreen';
+import ChangePasswordScreen from '../Screens/ChangePasswordScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -53,6 +54,15 @@ function ReportsStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ReportsHome" component={ReportsHomeScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function SettingsStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="SettingsHome" component={SettingsScreen} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
     </Stack.Navigator>
   );
 }
@@ -139,7 +149,7 @@ export default function SimpleEmployeeNavigator() {
 
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsStack}
         options={{
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="cog" size={size} color={color} />

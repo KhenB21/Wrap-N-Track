@@ -55,16 +55,7 @@ export default function LoginScreen({ navigation }) {
     try {
       const result = await login(username.trim(), password);
       
-      if (result.success) {
-        // Navigate based on user type
-        if (result.userType === 'employee') {
-          // For employees, navigate to Dashboard
-          navigation.navigate("Dashboard");
-        } else if (result.userType === 'customer') {
-          // For customers, navigate to Home
-          navigation.navigate("Home");
-        }
-      } else {
+      if (!result.success) {
         Alert.alert("Login Failed", result.message || "Invalid credentials");
       }
     } catch (error) {
@@ -126,7 +117,7 @@ export default function LoginScreen({ navigation }) {
             />
             <Text style={styles.rememberMeText}>Remember me</Text>
           </TouchableOpacity>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
             <Text style={styles.forgotText}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>
@@ -299,4 +290,5 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 });
+
 

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../Context/AuthContext';
@@ -19,6 +19,8 @@ import CheckoutScreen from '../Screens/CheckoutScreen';
 import OrderTrackingScreen from '../Screens/OrderTrackingScreen';
 import OrderHistoryScreen from '../Screens/OrderHistoryScreen';
 import ProfileScreen from '../Screens/ProfileScreen';
+import ChangePasswordScreen from '../Screens/ChangePasswordScreen';
+import ForgotPasswordScreen from '../Screens/ForgotPasswordScreen';
 
 // Employee screens
 import DashboardScreen from '../Screens/DashboardScreen';
@@ -41,6 +43,19 @@ import OrderSummaryScreen from '../Screens/OrderSummaryScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+function CustomerSettingsStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="SettingsHome" component={SettingsScreen} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+    </Stack.Navigator>
+  );
+}
 
 // Customer Tab Navigator
 function CustomerTabNavigator() {
@@ -97,7 +112,7 @@ function CustomerTabNavigator() {
       <Tab.Screen name="Cart" component={MyCartScreen} />
       <Tab.Screen name="Orders" component={OrderHistoryScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Settings" component={CustomerSettingsStack} />
     </Tab.Navigator>
   );
 }
@@ -169,6 +184,7 @@ function MainStackNavigator() {
     >
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="SignUp" component={SignUpScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="ItemPreview" component={ItemPreviewScreen} />
       <Stack.Screen name="CreateGift" component={CreateGiftScreen} />
       <Stack.Screen name="DeliveryTracking" component={DeliveryTrackingScreen} />
@@ -179,6 +195,7 @@ function MainStackNavigator() {
       <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
       <Stack.Screen name="SupplierManagement" component={SupplierManagementScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
     </Stack.Navigator>
   );
 }
@@ -205,3 +222,5 @@ export default function AppNavigator() {
   // Show employee screens if employee (default)
   return <SimpleEmployeeNavigator />;
 }
+
+

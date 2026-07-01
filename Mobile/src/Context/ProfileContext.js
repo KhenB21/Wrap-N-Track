@@ -65,7 +65,7 @@ const profileReducer = (state, action) => {
 // Provider component
 export const ProfileProvider = ({ children }) => {
   const [state, dispatch] = useReducer(profileReducer, initialState);
-  const { user, userType, isAuthenticated } = useAuth();
+  const { user, userType, isAuthenticated, updateUser } = useAuth();
 
   // Load profile from user data
   const loadProfile = useCallback(() => {
@@ -89,6 +89,7 @@ export const ProfileProvider = ({ children }) => {
         
         if (response.success && response.customer) {
           dispatch({ type: PROFILE_ACTIONS.UPDATE_PROFILE, payload: response.customer });
+          await updateUser(response.customer);
           return { success: true, profile: response.customer };
         } else {
           dispatch({ type: PROFILE_ACTIONS.SET_ERROR, payload: response.message || 'Failed to update profile' });
@@ -97,6 +98,7 @@ export const ProfileProvider = ({ children }) => {
       } else {
         // For employees, just update local state for now
         dispatch({ type: PROFILE_ACTIONS.UPDATE_PROFILE, payload: profileData });
+        await updateUser(profileData);
         return { success: true, profile: { ...state.profile, ...profileData } };
       }
     } catch (error) {

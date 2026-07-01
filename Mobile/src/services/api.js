@@ -361,6 +361,33 @@ export const authAPI = {
       console.error('Error verifying token:', error);
       throw error;
     }
+  },
+  changeCustomerPassword: async (currentPassword, newPassword) => {
+    try {
+      const response = await api.put('/customer/change-password', { currentPassword, newPassword });
+      return response.data;
+    } catch (error) {
+      console.error('Error changing customer password:', error);
+      throw error;
+    }
+  },
+  changeEmployeePassword: async (currentPassword, newPassword) => {
+    try {
+      const response = await api.put('/user/change-password', { currentPassword, newPassword });
+      return response.data;
+    } catch (error) {
+      console.error('Error changing employee password:', error);
+      throw error;
+    }
+  },
+  changePasswordWithCurrent: async (username, currentPassword, newPassword) => {
+    try {
+      const response = await api.post('/auth/change-password-with-current', { username, currentPassword, newPassword });
+      return response.data;
+    } catch (error) {
+      console.error('Error changing password:', error);
+      throw error;
+    }
   }
 };
 
@@ -436,10 +463,29 @@ export const customerAPI = {
   },
   updateCustomer: async (customerId, data) => {
     try {
-      const response = await api.put(`/customers/${customerId}`, data);
+      const response = await api.put('/customer/profile', data);
       return response.data;
     } catch (error) {
       console.error('Error updating customer:', error);
+      throw error;
+    }
+  },
+  uploadProfilePicture: async (imageUri) => {
+    try {
+      const formData = new FormData();
+      const filename = imageUri.split('/').pop() || 'profile.jpg';
+      const extension = filename.split('.').pop() || 'jpg';
+      formData.append('profilePicture', {
+        uri: imageUri,
+        name: filename,
+        type: `image/${extension === 'jpg' ? 'jpeg' : extension}`,
+      });
+      const response = await api.post('/customer/profile-picture', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
       throw error;
     }
   }

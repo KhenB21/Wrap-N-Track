@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  Image,
+  Platform,
+  PermissionsAndroid,
 } from "react-native";
 import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -16,9 +19,9 @@ import { useAuth } from "../Context/AuthContext";
 export default function SettingsScreen({ navigation }) {
   const { darkMode, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(false);
+  const profileImageUri = user?.avatar || (user?.profile_picture_base64 ? `data:image/jpeg;base64,${user.profile_picture_base64}` : null);
 
   const handleLogout = () => {
     Alert.alert(
@@ -31,11 +34,29 @@ export default function SettingsScreen({ navigation }) {
           style: "destructive",
           onPress: () => {
             logout();
-            navigation.navigate("Login");
           }
         }
       ]
     );
+  };
+
+  const handleLocationToggle = async (enabled) => {
+    if (!enabled) {
+      setLocationEnabled(false);
+      return;
+    }
+    if (Platform.OS === "android") {
+      const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+      if (result === PermissionsAndroid.RESULTS.GRANTED) {
+        setLocationEnabled(true);
+      } else {
+        setLocationEnabled(false);
+        Alert.alert("Location Disabled", "Please allow location access in your mobile system settings.");
+      }
+      return;
+    }
+    Alert.alert("Location Permission", "Please allow location access in your mobile system settings if prompted.");
+    setLocationEnabled(true);
   };
 
   const handleClearCache = () => {
@@ -69,7 +90,6 @@ export default function SettingsScreen({ navigation }) {
             // In a real app, you would delete the account here
             Alert.alert("Account Deleted", "Your account has been deleted.");
             logout();
-            navigation.navigate("Login");
           }
         }
       ]
@@ -92,20 +112,6 @@ export default function SettingsScreen({ navigation }) {
       ]
     },
     {
-      title: "Notifications",
-      items: [
-        {
-          id: "notifications",
-          title: "Push Notifications",
-          subtitle: "Receive notifications for orders and updates",
-          type: "switch",
-          value: notificationsEnabled,
-          onPress: setNotificationsEnabled,
-          icon: "bell"
-        }
-      ]
-    },
-    {
       title: "Data & Sync",
       items: [
         {
@@ -123,7 +129,7 @@ export default function SettingsScreen({ navigation }) {
           subtitle: "Allow app to access your location",
           type: "switch",
           value: locationEnabled,
-          onPress: setLocationEnabled,
+          onPress: handleLocationToggle,
           icon: "map-marker"
         },
         {
@@ -300,18 +306,22 @@ export default function SettingsScreen({ navigation }) {
         <View style={[styles.profileSection, { backgroundColor: darkMode ? "#242526" : "#fff" }]}>
           <View style={styles.profileInfo}>
             <View style={[styles.profileAvatar, { backgroundColor: darkMode ? "#393A3B" : "#F5F4FA" }]}>
-              <MaterialCommunityIcons 
-                name="account" 
-                size={32} 
-                color={darkMode ? "#E4E6EB" : "#6B6593"} 
-              />
+              {profileImageUri ? (
+                <Image source={{ uri: profileImageUri }} style={styles.profileAvatarImage} />
+              ) : (
+                <MaterialCommunityIcons 
+                  name="account" 
+                  size={32} 
+                  color={darkMode ? "#E4E6EB" : "#6B6593"} 
+                />
+              )}
             </View>
             <View style={styles.profileDetails}>
               <Text style={[styles.profileName, { color: darkMode ? "#E4E6EB" : "#222" }]}>
                 {user?.name || "User"}
               </Text>
               <Text style={[styles.profileEmail, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-                {user?.email || "user@example.com"}
+                {user?.email || user?.email_address || "user@example.com"}
               </Text>
               <Text style={[styles.profileRole, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
                 {user?.role || "Customer"}
@@ -365,6 +375,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
+    overflow: 'hidden',
+  },
+  profileAvatarImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   profileDetails: {
     flex: 1,
