@@ -62,11 +62,11 @@ export default function CustomerHome() {
           <div className="pensee-hero-gradient-overlay"></div>
         </div>
         <div className="pensee-hero-overlay enhanced">
-          <div className="pensee-hero-badge">✨ Premium Gifting Experience</div>
+          <div className="pensee-hero-badge">Premium Gifting Experience</div>
           <h1 className="pensee-hero-title enhanced">Pensée Gifting Studio</h1>
           <p className="pensee-hero-subtitle enhanced">Curating thematic gift boxes for messages you want to send across</p>
           <div className="pensee-hero-actions">
-            <button className="pensee-cta-btn primary" onClick={scrollToFAQ}>
+            <button className="pensee-cta-btn primary" id = "get-in-touch-btn" onClick={openContactModal}>
               <span>GET IN TOUCH</span>
               <i className="arrow-icon">→</i>
             </button>
@@ -82,7 +82,6 @@ export default function CustomerHome() {
           <div className="pensee-highlight-text">
             <h2>PENSÉE <em>advocates for</em> THOUGHTFUL GIFTING</h2>
             <p>For us, a one-box-fits-all is a myth. We take you (the sender) and your recipient into account when designing gift boxes. We believe that gift-giving is extending a part of yourself and saying, "I thought about you while buying this."</p>
-            <a href="#contact" className="pensee-highlight-link">GET IN TOUCH →</a>
           </div>
           <div className="pensee-highlight-image">
             <img src="/Assets/Images/Advocate.png" alt="Thoughtful gifting" />
@@ -125,7 +124,7 @@ export default function CustomerHome() {
             <span className="pensee-step-title">Make it personal</span>
           </div>
         </div>
-        <button className="pensee-cta-btn pensee-cta-secondary" onClick={goToOrderPage}>Curate your own gift box here</button>
+        <button className="pensee-cta-btn pensee-cta-secondary" id="create-gift-btn" onClick={goToOrderPage}>Curate your own gift box here</button>
       </section>
 
       {/* Testimonials Section */}
@@ -157,10 +156,6 @@ export default function CustomerHome() {
           <li><b>What are your payment terms?</b> For single-box orders, payment must be settled in full. For bulk orders, 70% down payment prior to production; the remaining 30% before delivery.</li>
           <li><b>What are your modes of delivery?</b> We ship via LBC, Lalamove/Grab Express, or in-house delivery (Metro Manila).</li>
         </ul>
-        <div className="pensee-contact-cta">
-          <span>Still have questions?</span>
-          <button className="pensee-cta-btn" onClick={openContactModal}>Get in Touch</button>
-        </div>
       </section>
 
       {/* Contact Modal */}
@@ -196,7 +191,7 @@ export default function CustomerHome() {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="pensee-cta-btn" onClick={closeContactModal}>Close</button>
+              <button className="pensee-cta-btn" id= "close" onClick={closeContactModal}>Close</button>
             </div>
           </div>
         </div>
