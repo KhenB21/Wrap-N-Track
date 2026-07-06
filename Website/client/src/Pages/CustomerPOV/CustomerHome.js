@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import EmployeeStatusBanner from '../../Components/EmployeeStatusBanner';
+import ContactModal from '../../Components/Modal/ContactModal';
 import './CustomerPOV.css';
 
 export default function CustomerHome() {
   const [showContactModal, setShowContactModal] = useState(false);
+  const openContactModal = () => setShowContactModal(true);
+  const closeContactModal = () => setShowContactModal(false);
   const [isVisible, setIsVisible] = useState({});
   const navigate = useNavigate();
 
@@ -39,17 +42,12 @@ export default function CustomerHome() {
     }
   };
 
-  const openContactModal = () => {
-    setShowContactModal(true);
-  };
 
-  const closeContactModal = () => {
-    setShowContactModal(false);
-  };
 
   const goToOrderPage = () => {
     navigate('/order');
   };
+
 
   return (
     <div className="customerhome-container pensee-home">
@@ -158,44 +156,12 @@ export default function CustomerHome() {
         </ul>
       </section>
 
-      {/* Contact Modal */}
       {showContactModal && (
-        <div className="modal-overlay" onClick={closeContactModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Get in Touch</h2>
-              <button className="modal-close" onClick={closeContactModal}>&times;</button>
-            </div>
-            <div className="modal-body">
-              <div className="contact-info">
-                <h3>Contact Information</h3>
-                <div className="contact-item">
-                  <strong>Email:</strong>
-                  <p>hello@penseegifting.com</p>
-                </div>
-                <div className="contact-item">
-                  <strong>Phone:</strong>
-                  <p>+63 917 123 4567</p>
-                </div>
-                <div className="contact-item">
-                  <strong>Business Hours:</strong>
-                  <p>Monday - Friday: 9:00 AM - 6:00 PM<br />
-                  Saturday: 10:00 AM - 4:00 PM<br />
-                  Sunday: Closed</p>
-                </div>
-                <div className="contact-item">
-                  <strong>Address:</strong>
-                  <p>123 Gift Street, Makati City<br />
-                  Metro Manila, Philippines 1234</p>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="pensee-cta-btn" id= "close" onClick={closeContactModal}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
+    <ContactModal
+        isOpen={showContactModal}
+        onClose={closeContactModal}
+    />
+)}
     </div>
   );
 } 
