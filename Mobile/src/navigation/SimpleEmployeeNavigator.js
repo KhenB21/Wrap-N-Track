@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DashboardScreen from '../Screens/Employee/DashboardScreen';
 import InventoryListScreen from '../Screens/Employee/InventoryListScreen';
 import InventoryDetailScreen from '../Screens/Employee/InventoryDetailScreen';
+import InventoryScannerScreen from '../Screens/Employee/InventoryScannerScreen';
 import AddProductScreen from '../Screens/Employee/AddProductScreen';
 import EditProductScreen from '../Screens/Employee/EditProductScreen';
 import OrderListScreen from '../Screens/Employee/OrderListScreen';
@@ -31,6 +32,7 @@ function InventoryStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="InventoryList" component={InventoryListScreen} />
       <Stack.Screen name="InventoryDetail" component={InventoryDetailScreen} />
+      <Stack.Screen name="InventoryScanner" component={InventoryScannerScreen} />
       <Stack.Screen name="AddProduct" component={AddProductScreen} />
       <Stack.Screen name="EditProduct" component={EditProductScreen} />
     </Stack.Navigator>

@@ -6,6 +6,7 @@ import TopBar from '../../Components/TopBar';
 import './ProductDetails.css';
 import '../Inventory/Inventory.css';
 import api from '../../api';
+import * as bwipjs from 'bwip-js/browser';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -13,6 +14,9 @@ export default function ProductDetails() {
   const { sku } = useParams();
   const [products, setProducts] = useState([]);
   const [product, setProduct] = useState(null);
+  const [movements, setMovements] = useState([]);
+  const [stockForm, setStockForm] = useState({ type: 'STOCK_IN', quantity: '', reason: '' });
+  const [stockActionLoading, setStockActionLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -58,6 +62,18 @@ export default function ProductDetails() {
         const found = productsData.find(p => p && p.sku === sku);
         setProduct(found);
         setError(null);
+
+        if (found) {
+          try {
+            const movementsRes = await api.get(`/api/inventory/movements/${found.sku}`);
+            setMovements(movementsRes.data.movements || []);
+          } catch (movementErr) {
+            console.warn('Failed to load stock movements:', movementErr);
+            setMovements([]);
+          }
+        } else {
+          setMovements([]);
+        }
         
         console.log('Products loaded:', productsData.length);
         console.log('Looking for SKU:', sku);
@@ -96,12 +112,149 @@ export default function ProductDetails() {
   };
 
   // Helper function to get stock status
-  const getStockStatus = (quantity) => {
-    const qty = Number(quantity);
-    if (qty <= 50) return { status: 'Critical', color: '#ef4444', bgColor: '#fef2f2' };
-    if (qty <= 200) return { status: 'Low', color: '#f59e0b', bgColor: '#fffbeb' };
-    if (qty <= 500) return { status: 'Medium', color: '#3b82f6', bgColor: '#eff6ff' };
-    return { status: 'High', color: '#10b981', bgColor: '#f0fdf4' };
+  const getStockStatus = (itemOrQuantity, fallbackReorderLevel = 0) => {
+    const qty = typeof itemOrQuantity === 'object'
+      ? Number(itemOrQuantity?.quantity || 0)
+      : Number(itemOrQuantity || 0);
+    const reorderLevel = typeof itemOrQuantity === 'object'
+      ? Number(itemOrQuantity?.reorder_level || 0)
+      : Number(fallbackReorderLevel || 0);
+
+    if (qty <= 0) return { status: 'Out of Stock', color: '#ef4444', bgColor: '#fef2f2' };
+    if (qty <= reorderLevel) return { status: 'Low Stock', color: '#f59e0b', bgColor: '#fffbeb' };
+    return { status: 'In Stock', color: '#10b981', bgColor: '#f0fdf4' };
+  };
+
+  const encodeSvg = (svg) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  const escapeXml = (value = '') => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
+  const createBarcodeSvg = (value = '') => {
+    const safeValue = String(value || '');
+    try {
+      return encodeSvg(bwipjs.toSVG({
+        bcid: 'code128',
+        text: safeValue,
+        scale: 2,
+        height: 12,
+        includetext: true,
+        textxalign: 'center',
+        backgroundcolor: 'FFFFFF'
+      }));
+    } catch (err) {
+      console.warn('Failed to generate barcode:', err);
+      return encodeSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="240" height="92"><rect width="100%" height="100%" fill="#fff"/><text x="50%" y="48" text-anchor="middle" font-family="Arial" font-size="14" fill="#111827">${escapeXml(safeValue)}</text></svg>`);
+    }
+  };
+
+  const createQrSvg = (value = '') => {
+    const safeValue = String(value || '');
+    try {
+      return encodeSvg(bwipjs.toSVG({
+        bcid: 'qrcode',
+        text: safeValue,
+        scale: 4,
+        eclevel: 'M',
+        backgroundcolor: 'FFFFFF'
+      }));
+    } catch (err) {
+      console.warn('Failed to generate QR code:', err);
+      return encodeSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="126" height="126"><rect width="100%" height="100%" fill="#fff"/><text x="50%" y="64" text-anchor="middle" font-family="Arial" font-size="12" fill="#111827">${escapeXml(safeValue)}</text></svg>`);
+    }
+  };
+
+  const getLabelMarkup = () => {
+    const barcodeValue = product?.barcode_value || product?.sku || '';
+    const qrValue = product?.qr_value || product?.sku || '';
+    return `
+      <div class="print-label">
+        <h2>${escapeXml(product?.name || '')}</h2>
+        <p>${escapeXml(product?.sku || '')}</p>
+        <img class="print-barcode" src="${createBarcodeSvg(barcodeValue)}" alt="Barcode" />
+        <img class="print-qr" src="${createQrSvg(qrValue)}" alt="QR" />
+      </div>
+    `;
+  };
+
+  const handlePrintLabel = () => {
+    const printWindow = window.open('', '_blank', 'width=420,height=520');
+    if (!printWindow) {
+      toast.error('Please allow popups to print labels.');
+      return;
+    }
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${product?.sku || 'product'} label</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 24px; }
+            .print-label { width: 320px; border: 1px solid #d1d5db; padding: 18px; text-align: center; }
+            h2 { font-size: 18px; margin: 0 0 8px; }
+            p { margin: 0 0 14px; color: #374151; font-weight: 700; }
+            .print-barcode { width: 100%; max-width: 260px; display: block; margin: 0 auto 14px; }
+            .print-qr { width: 126px; height: 126px; display: block; margin: 0 auto; }
+          </style>
+        </head>
+        <body>${getLabelMarkup()}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
+  const handleDownloadLabel = () => {
+    const labelSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="360" height="430" viewBox="0 0 360 430">
+        <rect x="1" y="1" width="358" height="428" rx="10" fill="#ffffff" stroke="#d1d5db"/>
+        <text x="180" y="44" text-anchor="middle" font-family="Arial" font-size="20" font-weight="700" fill="#111827">${escapeXml(product?.name || '')}</text>
+        <text x="180" y="72" text-anchor="middle" font-family="Arial" font-size="14" font-weight="700" fill="#374151">${escapeXml(product?.sku || '')}</text>
+        <image x="45" y="96" width="270" height="115" href="${createBarcodeSvg(product?.barcode_value || product?.sku)}"/>
+        <image x="117" y="235" width="126" height="126" href="${createQrSvg(product?.qr_value || product?.sku)}"/>
+      </svg>
+    `;
+    const url = URL.createObjectURL(new Blob([labelSvg], { type: 'image/svg+xml' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${product?.sku || 'product'}-label.svg`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleStockAction = async (e) => {
+    e.preventDefault();
+    const quantity = Number(stockForm.quantity);
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      toast.error('Enter a positive whole-number quantity.');
+      return;
+    }
+
+    setStockActionLoading(true);
+    try {
+      const endpoint = stockForm.type === 'STOCK_OUT' ? '/api/inventory/stock-out' : '/api/inventory/add-stock';
+      await api.post(endpoint, {
+        sku: product.sku,
+        quantity,
+        reason: stockForm.reason
+      });
+      toast.success(stockForm.type === 'STOCK_OUT' ? 'Stock removed successfully.' : 'Stock added successfully.');
+      setStockForm({ type: 'STOCK_IN', quantity: '', reason: '' });
+      const [productRes, movementsRes] = await Promise.all([
+        api.get(`/api/inventory/${product.sku}`),
+        api.get(`/api/inventory/movements/${product.sku}`)
+      ]);
+      setProduct(productRes.data.item);
+      setProducts(prev => prev.map(item => item.sku === product.sku ? productRes.data.item : item));
+      setMovements(movementsRes.data.movements || []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save stock movement.');
+    } finally {
+      setStockActionLoading(false);
+    }
   };
 
   // Helper function to get category color
@@ -165,7 +318,7 @@ export default function ProductDetails() {
                     >
                       <div className="placeholder-icon">📦</div>
                     </div>
-                    <div className="stock-indicator" style={{ backgroundColor: getStockStatus(p.quantity).color }}></div>
+                    <div className="stock-indicator" style={{ backgroundColor: getStockStatus(p).color }}></div>
                   </div>
                   <div className="product-info">
                     <div className="product-name">{p.name}</div>
@@ -174,7 +327,7 @@ export default function ProductDetails() {
                     </div>
                     <div className="product-stock">
                       <span className="stock-label">Stock:</span>
-                      <span className="stock-value" style={{ color: getStockStatus(p.quantity).color }}>
+                      <span className="stock-value" style={{ color: getStockStatus(p).color }}>
                         {formatNumber(p.quantity)}
                       </span>
                     </div>
@@ -251,14 +404,14 @@ export default function ProductDetails() {
                         <div className="stat-icon">📦</div>
                         <div className="stat-content">
                           <div className="stat-label">Current Stock</div>
-                          <div className="stat-value" style={{ color: getStockStatus(product.quantity).color }}>
+                          <div className="stat-value" style={{ color: getStockStatus(product).color }}>
                             {formatNumber(product.quantity)} units
                           </div>
                           <div className="stat-status" style={{ 
-                            color: getStockStatus(product.quantity).color,
-                            backgroundColor: getStockStatus(product.quantity).bgColor
+                            color: getStockStatus(product).color,
+                            backgroundColor: getStockStatus(product).bgColor
                           }}>
-                            {getStockStatus(product.quantity).status} Stock
+                            {product.stock_status || getStockStatus(product).status}
                           </div>
                         </div>
                       </div>
@@ -296,8 +449,26 @@ export default function ProductDetails() {
                         <span className="detail-value">{product.sku}</span>
                       </div>
                       <div className="detail-row">
+                        <span className="detail-label">Barcode Value</span>
+                        <span className="detail-value">{product.barcode_value || product.sku}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="detail-label">QR Value</span>
+                        <span className="detail-value">{product.qr_value || product.sku}</span>
+                      </div>
+                      <div className="detail-row">
                         <span className="detail-label">Category</span>
                         <span className="detail-value">{product.category}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="detail-label">Created</span>
+                        <span className="detail-value">
+                          {product.created_at ? new Date(product.created_at).toLocaleDateString('en-PH', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          }) : 'N/A'}
+                        </span>
                       </div>
                       <div className="detail-row">
                         <span className="detail-label">Last Updated</span>
@@ -321,21 +492,25 @@ export default function ProductDetails() {
                     <div className="card-content">
                       <div className="detail-row">
                         <span className="detail-label">Current Stock</span>
-                        <span className="detail-value" style={{ color: getStockStatus(product.quantity).color }}>
+                        <span className="detail-value" style={{ color: getStockStatus(product).color }}>
                           {formatNumber(product.quantity)} units
                         </span>
                       </div>
                       <div className="detail-row">
+                        <span className="detail-label">Reorder Level</span>
+                        <span className="detail-value">{formatNumber(product.reorder_level || 0)} units</span>
+                      </div>
+                      <div className="detail-row">
                         <span className="detail-label">Stock Status</span>
                         <span className="detail-value" style={{ 
-                          color: getStockStatus(product.quantity).color,
-                          backgroundColor: getStockStatus(product.quantity).bgColor,
+                          color: getStockStatus(product).color,
+                          backgroundColor: getStockStatus(product).bgColor,
                           padding: '4px 12px',
                           borderRadius: '20px',
                           fontSize: '12px',
                           fontWeight: '600'
                         }}>
-                          {getStockStatus(product.quantity).status}
+                          {product.stock_status || getStockStatus(product).status}
                         </span>
                       </div>
                       <div className="detail-row">
@@ -364,6 +539,91 @@ export default function ProductDetails() {
                         <span className="detail-label">Stock Units</span>
                         <span className="detail-value">{formatNumber(product.quantity)}</span>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="details-card label-card">
+                    <div className="card-header">
+                      <h3>Product Label</h3>
+                    </div>
+                    <div className="card-content">
+                      <div className="label-preview">
+                        <div className="label-product-name">{product.name}</div>
+                        <div className="label-sku">{product.sku}</div>
+                        <img className="label-barcode" src={createBarcodeSvg(product.barcode_value || product.sku)} alt="Barcode preview" />
+                        <img className="label-qr" src={createQrSvg(product.qr_value || product.sku)} alt="QR preview" />
+                      </div>
+                      <div className="label-actions">
+                        <button type="button" className="label-action-btn" onClick={handlePrintLabel}>Print Label</button>
+                        <button type="button" className="label-action-btn secondary" onClick={handleDownloadLabel}>Download SVG</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="details-card stock-action-card">
+                    <div className="card-header">
+                      <h3>Stock Movement</h3>
+                    </div>
+                    <div className="card-content">
+                      <form className="stock-action-form" onSubmit={handleStockAction}>
+                        <label>
+                          Type
+                          <select
+                            value={stockForm.type}
+                            onChange={(e) => setStockForm(prev => ({ ...prev, type: e.target.value }))}
+                          >
+                            <option value="STOCK_IN">Stock In</option>
+                            <option value="STOCK_OUT">Stock Out</option>
+                          </select>
+                        </label>
+                        <label>
+                          Quantity
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={stockForm.quantity}
+                            onChange={(e) => setStockForm(prev => ({ ...prev, quantity: e.target.value }))}
+                            required
+                          />
+                        </label>
+                        <label className="stock-reason-field">
+                          Reason
+                          <input
+                            value={stockForm.reason}
+                            onChange={(e) => setStockForm(prev => ({ ...prev, reason: e.target.value }))}
+                            placeholder="Supplier delivery, order correction, damage, etc."
+                          />
+                        </label>
+                        <button type="submit" className="label-action-btn" disabled={stockActionLoading}>
+                          {stockActionLoading ? 'Saving...' : 'Save Movement'}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+
+                  <div className="details-card movements-card">
+                    <div className="card-header">
+                      <h3>Stock Logs</h3>
+                    </div>
+                    <div className="card-content movements-list">
+                      {movements.length === 0 ? (
+                        <div className="empty-movements">No stock movement logs yet.</div>
+                      ) : (
+                        movements.slice(0, 8).map((movement) => (
+                          <div className="movement-row" key={movement.id}>
+                            <div>
+                              <div className="movement-type">{movement.movement_type.replace(/_/g, ' ')}</div>
+                              <div className="movement-reason">{movement.reason || 'No reason provided'}</div>
+                            </div>
+                            <div className="movement-meta">
+                              <strong>{formatNumber(movement.quantity || 0)}</strong>
+                              <span>{movement.previous_quantity ?? '-'} -> {movement.new_quantity ?? '-'}</span>
+                              <small>{new Date(movement.created_at).toLocaleString('en-PH')}</small>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
 

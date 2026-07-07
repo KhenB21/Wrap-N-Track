@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import './AddProductModal.css';
-import api from '../../api';
 import Select from 'react-select';
 import SupplierDropdown from '../../Components/SupplierDropdown';
 import AddSupplierModal from '../../Components/AddSupplierModal';
@@ -140,22 +139,14 @@ const UOM_OPTIONS = [
 
 const UOMS_REQUIRING_CONVERSION = ['Dozen', 'Box', 'Bundle', 'Set', 'Kit'];
 
-// Function to generate a unique-like SKU (simple implementation)
-const generateUniqueSku = () => {
-  let digits = '';
-  for (let i = 0; i < 12; i++) {
-    digits += Math.floor(Math.random() * 10); // Generate a random digit (0-9)
-  }
-  return `BC${digits}`;
-};
-
 export default function AddProductModal({ onClose, onAdd, initialData = {}, isEdit = false, products = [], isAddStockMode = false }) {
   const [form, setForm] = useState({
-    sku: isEdit || isAddStockMode ? (initialData.sku || '') : generateUniqueSku(),
+    sku: isEdit || isAddStockMode ? (initialData.sku || '') : '',
     name: initialData.name || '',
     description: initialData.description || '',
     quantity: initialData.quantity || 0,
     unit_price: initialData.unit_price || 0,
+    reorder_level: initialData.reorder_level || 0,
     category: initialData.category || '',
     uom: initialData.uom || '',
     conversion_qty: initialData.conversion_qty || '',
@@ -181,11 +172,12 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
   useEffect(() => {
     if ((isEdit || isAddStockMode) && initialData && Object.keys(initialData).length > 0) { 
       setForm({
-        sku: initialData.sku || generateUniqueSku(),
+        sku: initialData.sku || '',
         name: initialData.name || '',
         description: initialData.description || '',
         quantity: initialData.quantity || 0,
         unit_price: initialData.unit_price || 0,
+        reorder_level: initialData.reorder_level || 0,
         category: initialData.category || '',
         uom: initialData.uom || '',
         conversion_qty: initialData.conversion_qty || '',
@@ -201,20 +193,6 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         setSelectedExistingProduct(initialData); 
       }
     }
-
-  const wsBase = process.env.REACT_APP_WS_URL || window.location.origin.replace(/^http/, 'ws');
-  const ws = new WebSocket(wsBase);
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'barcode_scanned') {
-        if (!selectedExistingProduct) { // Only update SKU if no existing product is selected
-          setForm(prev => ({ ...prev, sku: data.barcode }));
-        }
-      }
-    };
-    return () => {
-      ws.close();
-    };
   }, [isEdit, isAddStockMode, initialData]);
 
   useEffect(() => {
@@ -225,6 +203,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         description: initialData.description || '',
         quantity: initialData.quantity || 0,
         unit_price: initialData.unit_price || 0,
+        reorder_level: initialData.reorder_level || 0,
         category: initialData.category || '',
         uom: initialData.uom || '',
         conversion_qty: initialData.conversion_qty || '',
@@ -253,7 +232,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
 
     // Check for duplicate name
     const duplicateName = products.find(
-      product => product.name.toLowerCase() === form.name.toLowerCase() && 
+      product => (product.name || '').toLowerCase() === form.name.toLowerCase() && 
       product.sku !== form.sku // Check against the SKU in the form
     );
     if (duplicateName) {
@@ -261,12 +240,14 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     }
 
     // Check for duplicate description
-    const duplicateDescription = products.find(
-      product => product.description.toLowerCase() === form.description.toLowerCase() && 
-      product.sku !== form.sku // Check against the SKU in the form
-    );
-    if (duplicateDescription) {
-      newErrors.description = 'A product with this description already exists';
+    if ((form.description || '').trim()) {
+      const duplicateDescription = products.find(
+        product => (product.description || '').toLowerCase() === (form.description || '').toLowerCase() && 
+        product.sku !== form.sku // Check against the SKU in the form
+      );
+      if (duplicateDescription) {
+        newErrors.description = 'A product with this description already exists';
+      }
     }
 
     // Validate category
@@ -284,6 +265,10 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     // Validate unit price
     if (form.unit_price < 0) {
       newErrors.unit_price = 'Unit price cannot be negative';
+    }
+
+    if (Number(form.reorder_level) < 0) {
+      newErrors.reorder_level = 'Reorder level cannot be negative';
     }
 
     // Validate Conversion QTY if required
@@ -321,11 +306,12 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         if (selectedExistingProduct) { // If name is cleared, reset to "new product" mode
           setSelectedExistingProduct(null);
           setForm({ 
-            sku: generateUniqueSku(),
+            sku: '',
             name: '',
             description: '',
             quantity: 0,
             unit_price: 0,
+            reorder_level: 0,
             category: '',
             uom: '',
             conversion_qty: '',
@@ -354,6 +340,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       description: product.description || '',
       quantity: product.quantity || 0,
       unit_price: product.unit_price || 0,
+      reorder_level: product.reorder_level || 0,
       category: product.category || '',
       uom: product.uom || '',
       conversion_qty: product.conversion_qty || '',
@@ -431,34 +418,22 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         onAdd({
             sku: form.sku,
             quantity: quantityToAdd,
+            reason: form.stock_reason || '',
             isAddStock: true,
         });
         return;
     }
 
-    // Validation for unique SKU/Name if it's a new product (not selectedExistingProduct)
-    // or if SKU/Name is changed for an existing product.
+    // Validation for unique product names. SKU is generated by the server for new products.
     if (!selectedExistingProduct) { // Truly new product
-      const skuExists = products.some(p => p.sku === form.sku);
-      if (skuExists) {
-        setErrors(prev => ({ ...prev, sku: 'SKU already exists.' }));
-        return;
-      }
-      const nameExists = products.some(p => p.name.toLowerCase() === form.name.toLowerCase());
+      const nameExists = products.some(p => (p.name || '').toLowerCase() === form.name.toLowerCase());
       if (nameExists) {
         setErrors(prev => ({ ...prev, name: 'Product name already exists.' }));
         return;
       }
     } else { // Updating an existing product
-      if (form.sku !== selectedExistingProduct.sku) {
-        const skuExists = products.some(p => p.sku === form.sku && p.sku !== selectedExistingProduct.sku);
-        if (skuExists) {
-          setErrors(prev => ({ ...prev, sku: 'This new SKU already exists for another product.' }));
-          return;
-        }
-      }
       if (form.name.toLowerCase() !== selectedExistingProduct.name.toLowerCase()) {
-        const nameExists = products.some(p => p.name.toLowerCase() === form.name.toLowerCase() && p.sku !== selectedExistingProduct.sku);
+        const nameExists = products.some(p => (p.name || '').toLowerCase() === form.name.toLowerCase() && p.sku !== selectedExistingProduct.sku);
         if (nameExists) {
           setErrors(prev => ({ ...prev, name: 'This new name already exists for another product.' }));
           return;
@@ -469,11 +444,12 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     let dataToSend;
     if (image) { // If a new image is uploaded, use FormData
       dataToSend = new FormData();
-      dataToSend.append('sku', form.sku);
+      if (form.sku) dataToSend.append('sku', form.sku);
       dataToSend.append('name', form.name);
       dataToSend.append('description', form.description);
       dataToSend.append('quantity', String(Number(form.quantity))); // Ensure numeric conversion
       dataToSend.append('unit_price', String(Number(form.unit_price))); // Ensure numeric conversion
+      dataToSend.append('reorder_level', String(Number(form.reorder_level || 0)));
       dataToSend.append('category', categoryInput || form.category);
       dataToSend.append('supplier_id', form.supplier_id ?? '');
       // Send empty as '' which backend now maps to NULL; otherwise the exact value
@@ -486,12 +462,13 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       if (isEdit) dataToSend.append('isUpdate', 'true'); 
     } else { // No new image, send JSON
       dataToSend = {
-        sku: form.sku,
+        ...(form.sku ? { sku: form.sku } : {}),
         name: form.name,
         description: form.description,
         category: categoryInput || form.category,
         quantity: Number(form.quantity), // Ensure numeric
         unit_price: Number(form.unit_price), // Ensure numeric
+        reorder_level: Number(form.reorder_level || 0),
         supplier_id: form.supplier_id,
         uom: form.uom,
         conversion_qty: form.conversion_qty,
@@ -521,11 +498,11 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
           
           <div className="file-input-wrapper full-width" style={{ justifyContent: 'center', margin: '0 0 1rem 0' }}>
             {preview && <img src={preview} alt="Preview" style={{ width: '120px', height: '120px' }} />}
-            <input type="file" accept="image/*" onChange={handleImageChange} disabled={isAddStockMode || isEdit} />
+            <input type="file" accept="image/*" onChange={handleImageChange} disabled={isAddStockMode} />
           </div>
 
           <label>SKU
-            <input name="sku" value={form.sku} onChange={handleChange} required disabled={true} />
+            <input name="sku" value={form.sku || 'Auto-generated after saving'} onChange={handleChange} required={isEdit || isAddStockMode} disabled={true} />
           </label>
 
           <div className="product-name-input-container">
@@ -637,6 +614,14 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 />
                 {errors.quantity && <span className="error-message">{errors.quantity}</span>}
               </label>
+              <label className="full-width">Reason
+                <input
+                  name="stock_reason"
+                  value={form.stock_reason || ''}
+                  onChange={handleChange}
+                  placeholder="Example: supplier delivery, return, adjustment"
+                />
+              </label>
             </>
           ) : (
             <label>Quantity (Base Unit)
@@ -650,6 +635,21 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 disabled={isEdit}
               />
               {errors.quantity && <span className="error-message">{errors.quantity}</span>}
+            </label>
+          )}
+
+          {!isAddStockMode && (
+            <label>Reorder Level
+              <input 
+                name="reorder_level" 
+                type="number" 
+                value={form.reorder_level} 
+                onChange={handleChange}
+                min="0"
+                step="1"
+                className={errors.reorder_level ? 'error' : ''}
+              />
+              {errors.reorder_level && <span className="error-message">{errors.reorder_level}</span>}
             </label>
           )}
 

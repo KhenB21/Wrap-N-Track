@@ -125,7 +125,7 @@ const tryMultipleUrls = async (endpoint, urls) => {
 export const inventoryAPI = {
   getInventory: async () => {
     try {
-      const response = await api.get('/public/inventory');
+      const response = await api.get('/inventory');
       return response.data;
     } catch (error) {
       console.error('Error fetching inventory:', error);
@@ -134,10 +134,19 @@ export const inventoryAPI = {
   },
   getAllInventory: async () => {
     try {
-      const response = await api.get('/public/inventory');
+      const response = await api.get('/inventory');
       return response.data;
     } catch (error) {
       console.error('Error fetching inventory:', error);
+      throw error;
+    }
+  },
+  getInventoryItems: async () => {
+    try {
+      const response = await api.get('/inventory');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching inventory items:', error);
       throw error;
     }
   },
@@ -156,6 +165,25 @@ export const inventoryAPI = {
       return response.data;
     } catch (error) {
       console.error('Error fetching inventory item:', error);
+      throw error;
+    }
+  },
+  getInventoryItemById: async (id) => {
+    try {
+      const response = await api.get(`/inventory/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching inventory item by id:', error);
+      throw error;
+    }
+  },
+  scanInventoryCode: async (code) => {
+    try {
+      const encodedCode = encodeURIComponent(String(code || '').trim());
+      const response = await api.get(`/inventory/scan/${encodedCode}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error scanning inventory code:', error);
       throw error;
     }
   },
@@ -204,12 +232,30 @@ export const inventoryAPI = {
       throw error;
     }
   },
-  addStock: async (sku, quantity) => {
+  addStock: async (sku, quantity, reason = '') => {
     try {
-      const response = await api.post('/inventory/add-stock', { sku, quantity });
+      const response = await api.post('/inventory/add-stock', { sku, quantity, reason });
       return response.data;
     } catch (error) {
       console.error('Error adding stock:', error);
+      throw error;
+    }
+  },
+  stockIn: async (productId, quantity, reason = '') => {
+    try {
+      const response = await api.post('/inventory/add-stock', { sku: productId, quantity, reason });
+      return response.data;
+    } catch (error) {
+      console.error('Error adding stock:', error);
+      throw error;
+    }
+  },
+  stockOut: async (productId, quantity, reason = '') => {
+    try {
+      const response = await api.post('/inventory/stock-out', { sku: productId, quantity, reason });
+      return response.data;
+    } catch (error) {
+      console.error('Error removing stock:', error);
       throw error;
     }
   }

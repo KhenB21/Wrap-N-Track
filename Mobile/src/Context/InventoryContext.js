@@ -140,13 +140,11 @@ const inventoryReducer = (state, action) => {
       let filtered = [...state.inventory];
       
       if (filterType === 'low-stock') {
-        filtered = filtered.filter(item => item.quantity > 0 && item.quantity <= 300);
-      } else if (filterType === 'medium-stock') {
-        filtered = filtered.filter(item => item.quantity > 300 && item.quantity <= 800);
+        filtered = filtered.filter(item => Number(item.quantity || 0) > 0 && Number(item.quantity || 0) <= Number(item.reorder_level || 0));
       } else if (filterType === 'high-stock') {
-        filtered = filtered.filter(item => item.quantity > 800);
+        filtered = filtered.filter(item => Number(item.quantity || 0) > Number(item.reorder_level || 0));
       } else if (filterType === 'replenishment') {
-        filtered = filtered.filter(item => item.quantity <= 0);
+        filtered = filtered.filter(item => Number(item.quantity || 0) <= 0);
       }
       
       return {
@@ -194,6 +192,7 @@ export const InventoryProvider = ({ children }) => {
       inventory = inventory.map(item => ({
         ...item,
         quantity: parseInt(item.quantity || 0),
+        reorder_level: parseInt(item.reorder_level || 0),
         unit_price: parseFloat(item.unit_price || 0),
         ordered_quantity: parseInt(item.ordered_quantity || 0),
         // Ensure image data is properly formatted for base64 display
@@ -339,10 +338,10 @@ export const InventoryProvider = ({ children }) => {
   };
 
   // Add stock
-  const addStock = async (sku, quantity) => {
+  const addStock = async (sku, quantity, reason = '') => {
     try {
       dispatch({ type: INVENTORY_ACTIONS.SET_LOADING, payload: true });
-      await inventoryAPI.addStock(sku, quantity);
+      await inventoryAPI.addStock(sku, quantity, reason);
       // Refresh inventory
       await loadInventory();
     } catch (error) {
@@ -350,6 +349,21 @@ export const InventoryProvider = ({ children }) => {
       dispatch({ 
         type: INVENTORY_ACTIONS.SET_ERROR, 
         payload: error.message || 'Failed to add stock' 
+      });
+      throw error;
+    }
+  };
+
+  const stockOut = async (sku, quantity, reason = '') => {
+    try {
+      dispatch({ type: INVENTORY_ACTIONS.SET_LOADING, payload: true });
+      await inventoryAPI.stockOut(sku, quantity, reason);
+      await loadInventory();
+    } catch (error) {
+      console.error('Error removing stock:', error);
+      dispatch({ 
+        type: INVENTORY_ACTIONS.SET_ERROR, 
+        payload: error.message || 'Failed to remove stock' 
       });
       throw error;
     }
@@ -383,6 +397,7 @@ export const InventoryProvider = ({ children }) => {
     getTotalPrice,
     deleteProduct,
     addStock,
+    stockOut,
     clearError,
   };
 

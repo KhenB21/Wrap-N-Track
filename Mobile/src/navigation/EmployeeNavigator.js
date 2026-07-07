@@ -9,6 +9,7 @@ import CustomDrawerContent from '../Components/CustomDrawerContent';
 import DashboardScreen from '../Screens/Employee/DashboardScreen';
 import InventoryListScreen from '../Screens/Employee/InventoryListScreen';
 import InventoryDetailScreen from '../Screens/Employee/InventoryDetailScreen';
+import InventoryScannerScreen from '../Screens/Employee/InventoryScannerScreen';
 import AddProductScreen from '../Screens/Employee/AddProductScreen';
 import EditProductScreen from '../Screens/Employee/EditProductScreen';
 import OrderListScreen from '../Screens/Employee/OrderListScreen';
@@ -52,6 +53,11 @@ function InventoryStackNavigator() {
         name="InventoryDetail" 
         component={InventoryDetailScreen}
         options={{ title: 'Product Details' }}
+      />
+      <Stack.Screen 
+        name="InventoryScanner" 
+        component={InventoryScannerScreen}
+        options={{ headerShown: false, title: 'Scan Barcode / QR' }}
       />
       <Stack.Screen 
         name="AddProduct" 

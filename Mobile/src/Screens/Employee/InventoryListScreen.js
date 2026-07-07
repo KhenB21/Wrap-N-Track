@@ -16,6 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 // Removed Chip import - using custom implementation
 import { useTheme } from '../../Context/ThemeContext';
 import { useInventory } from '../../Context/InventoryContext';
+import { useAuth } from '../../Context/AuthContext';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
@@ -31,6 +32,7 @@ const CustomChip = ({ icon, children, style, iconColor = '#fff' }) => (
 export default function InventoryListScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
+  const { user, userType } = useAuth();
   const {
     inventory,
     filteredInventory,
@@ -48,6 +50,8 @@ export default function InventoryListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
+  const inventoryManagerRoles = ['operations_manager', 'sales_manager', 'admin', 'super_admin', 'director'];
+  const canManageInventory = userType === 'employee' && inventoryManagerRoles.includes(String(user?.role || '').toLowerCase());
 
   useEffect(() => {
     fetchInventory();
@@ -81,11 +85,12 @@ export default function InventoryListScreen() {
     setShowFilters(false);
   };
 
-  const getStockLevel = (quantity) => {
+  const getStockLevel = (item) => {
+    const quantity = Number(item?.quantity || 0);
+    const reorderLevel = Number(item?.reorder_level || 0);
     if (quantity <= 0) return { level: 'out', color: '#D32F2F', text: 'Out of Stock' };
-    if (quantity <= 300) return { level: 'low', color: '#F57C00', text: 'Low Stock' };
-    if (quantity <= 800) return { level: 'medium', color: '#FFC107', text: 'Medium Stock' };
-    return { level: 'high', color: '#4CAF50', text: 'High Stock' };
+    if (quantity <= reorderLevel) return { level: 'low', color: '#F57C00', text: 'Low Stock' };
+    return { level: 'high', color: '#4CAF50', text: 'In Stock' };
   };
 
   const handleItemPress = (item) => {
@@ -94,6 +99,10 @@ export default function InventoryListScreen() {
   };
 
   const handleAddStock = (item) => {
+    if (!canManageInventory) {
+      Alert.alert('Not Authorized', 'You are not authorized to access this feature');
+      return;
+    }
     navigation.push('EditProduct', {
       initialData: item,
       isAddStockMode: true
@@ -101,6 +110,10 @@ export default function InventoryListScreen() {
   };
 
   const handleEdit = (item) => {
+    if (!canManageInventory) {
+      Alert.alert('Not Authorized', 'You are not authorized to access this feature');
+      return;
+    }
     navigation.push('EditProduct', {
       initialData: item,
       isEdit: true
@@ -108,6 +121,10 @@ export default function InventoryListScreen() {
   };
 
   const handleArchive = (item) => {
+    if (!canManageInventory) {
+      Alert.alert('Not Authorized', 'You are not authorized to access this feature');
+      return;
+    }
     Alert.alert(
       'Archive Product',
       `Are you sure you want to archive "${item.name}"?`,
@@ -171,7 +188,7 @@ export default function InventoryListScreen() {
   };
 
   const renderProductItem = ({ item }) => {
-    const stockLevel = getStockLevel(item.quantity);
+    const stockLevel = getStockLevel(item);
     const isSelected = selectedItems.has(item.sku);
 
     return (
@@ -217,6 +234,9 @@ export default function InventoryListScreen() {
             <Text style={[styles.stockQuantity, { color: theme.colors.onSurface }]}>
               {item.quantity.toLocaleString()}
             </Text>
+            <Text style={[styles.stockUnit, { color: theme.colors.onSurfaceVariant }]}>
+              {item.uom || item.unit || 'units'}
+            </Text>
           </View>
         </View>
 
@@ -224,26 +244,28 @@ export default function InventoryListScreen() {
           <Text style={[styles.productPrice, { color: theme.colors.onSurface }]}>
             ₱{parseFloat(item.unit_price || 0).toFixed(2)}
           </Text>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
-              onPress={() => handleAddStock(item)}
-            >
-              <MaterialCommunityIcons name="plus" size={16} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
-              onPress={() => handleEdit(item)}
-            >
-              <MaterialCommunityIcons name="pencil" size={16} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#F44336' }]}
-              onPress={() => handleArchive(item)}
-            >
-              <MaterialCommunityIcons name="archive" size={16} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          {canManageInventory && (
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
+                onPress={() => handleAddStock(item)}
+              >
+                <MaterialCommunityIcons name="plus" size={16} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
+                onPress={() => handleEdit(item)}
+              >
+                <MaterialCommunityIcons name="pencil" size={16} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#F44336' }]}
+                onPress={() => handleArchive(item)}
+              >
+                <MaterialCommunityIcons name="archive" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -270,10 +292,9 @@ export default function InventoryListScreen() {
           <View style={styles.filterOptions}>
             {[
               { key: 'all', label: 'All Products', icon: 'package-variant' },
-              { key: 'low-stock', label: 'Low Stock (≤300)', icon: 'alert-circle' },
-              { key: 'medium-stock', label: 'Medium Stock (301-800)', icon: 'package-variant-closed' },
-              { key: 'high-stock', label: 'High Stock (>800)', icon: 'package-variant' },
-              { key: 'replenishment', label: 'Need Replenishment (0)', icon: 'alert' }
+              { key: 'low-stock', label: 'Low Stock', icon: 'alert-circle' },
+              { key: 'high-stock', label: 'In Stock', icon: 'package-variant' },
+              { key: 'replenishment', label: 'Out of Stock', icon: 'alert' }
             ].map((option) => (
               <TouchableOpacity
                 key={option.key}
@@ -339,6 +360,14 @@ export default function InventoryListScreen() {
         >
           <MaterialCommunityIcons name="filter" size={20} color="#fff" />
         </TouchableOpacity>
+        {canManageInventory && (
+          <TouchableOpacity
+            style={[styles.filterButton, { backgroundColor: '#2E7D32', marginLeft: 8 }]}
+            onPress={() => navigation.navigate('InventoryScanner')}
+          >
+            <MaterialCommunityIcons name="barcode-scan" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Selection Bar */}
@@ -376,7 +405,7 @@ export default function InventoryListScreen() {
           Total: {inventory.length}
         </CustomChip>
         <CustomChip icon="alert-circle" style={[styles.statChip, { backgroundColor: '#F57C00' }]}>
-          Low Stock: {inventory.filter(item => item.quantity <= 300).length}
+          Low Stock: {inventory.filter(item => Number(item.quantity || 0) > 0 && Number(item.quantity || 0) <= Number(item.reorder_level || 0)).length}
         </CustomChip>
         <CustomChip icon="alert" style={[styles.statChip, { backgroundColor: '#D32F2F' }]}>
           Out: {inventory.filter(item => item.quantity <= 0).length}
@@ -397,12 +426,14 @@ export default function InventoryListScreen() {
       />
 
       {/* Floating Action Button */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        onPress={() => navigation.navigate('AddProduct')}
-      >
-        <MaterialCommunityIcons name="plus" size={24} color="#fff" />
-      </TouchableOpacity>
+      {canManageInventory && (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          onPress={() => navigation.navigate('AddProduct')}
+        >
+          <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
 
       {/* Filter Modal */}
       {renderFilterModal()}
@@ -537,6 +568,10 @@ const styles = StyleSheet.create({
   stockQuantity: {
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  stockUnit: {
+    fontSize: 11,
+    marginTop: 2,
   },
   cardFooter: {
     flexDirection: 'row',

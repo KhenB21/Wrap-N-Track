@@ -8,13 +8,20 @@
     "userInterfaceStyle": "light",
     "plugins": [
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Wrap N Track to scan product barcode and QR labels."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./src/Images/Logo/pensee-logo-square.png",
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "assetBundlePatterns": [
       "**/*"
@@ -23,6 +30,9 @@
       "supportsTablet": true
     },
     "android": {
+      "permissions": [
+        "CAMERA"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./src/Images/Logo/pensee-logo-square.png",
         "backgroundColor": "#FFFFFF"

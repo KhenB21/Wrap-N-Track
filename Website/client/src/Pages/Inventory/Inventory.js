@@ -34,6 +34,14 @@ function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
+  const getStockStatus = (product) => {
+    const quantity = Number(product?.quantity || 0);
+    const reorderLevel = Number(product?.reorder_level || 0);
+    if (quantity <= 0) return { label: 'Out of Stock', className: 'low-stock-row', color: '#dc2626', background: '#fee2e2' };
+    if (quantity <= reorderLevel) return { label: 'Low Stock', className: 'low-stock-row', color: '#d97706', background: '#fef3c7' };
+    return { label: 'In Stock', className: 'high-stock-row', color: '#047857', background: '#d1fae5' };
+  };
+
   useEffect(() => {
     console.log('showModal changed:', showModal);
   }, [showModal]);
@@ -65,16 +73,13 @@ function Inventory() {
     }
     switch (filter) {
       case 'low-stock':
-        filtered = filtered.filter(item => Number(item.quantity || 0) <= 300);
-        break;
-      case 'medium-stock':
         filtered = filtered.filter(item => {
           const quantity = Number(item.quantity || 0);
-          return quantity > 300 && quantity <= 800;
+          return quantity > 0 && quantity <= Number(item.reorder_level || 0);
         });
         break;
       case 'high-stock':
-        filtered = filtered.filter(item => Number(item.quantity || 0) > 800);
+        filtered = filtered.filter(item => Number(item.quantity || 0) > Number(item.reorder_level || 0));
         break;
       case 'replenishment':
         filtered = filtered.filter(item => Number(item.quantity || 0) <= 0);
@@ -117,6 +122,7 @@ function Inventory() {
         const response = await api.post('/api/inventory/add-stock', {
           sku: formData.sku,
           quantity: formData.quantity, // Backend expects 'quantity', not 'quantityToAdd'
+          reason: formData.reason || '',
         });
         if (response.data.success) {
           setShowModal(false);
@@ -162,16 +168,16 @@ function Inventory() {
       try {
   await api.delete(`/api/inventory/${sku}`);
         await fetchProducts();
-        toast.success('Product archived (deleted) successfully!');
+        toast.success('Product archived successfully!');
       } catch (err) {
-        toast.error('Failed to archive (delete) product');
+        toast.error('Failed to archive product');
       }
     }
   };
 
   const exportToPDF = () => {
     const doc = new jsPDF({ orientation: 'landscape' });
-    const tableColumn = ["SKU", "Name", "Description", "Unit Price", "Category", "Expiration", "Last Updated", "UOM", "In Stocks", "Ordered", "Delivered"];
+    const tableColumn = ["SKU", "Name", "Description", "Unit Price", "Category", "Expiration", "Last Updated", "UOM", "In Stocks", "Reorder Level", "Stock Status", "Ordered", "Delivered"];
     const tableRows = [];
 
     filteredProducts.forEach(product => {
@@ -185,6 +191,8 @@ function Inventory() {
             new Date(product.last_updated).toLocaleString(),
             UOMS_REQUIRING_CONVERSION.includes(product.uom) && product.conversion_qty ? `${product.uom} (${product.conversion_qty})` : product.uom,
             product.quantity,
+            product.reorder_level || 0,
+            product.stock_status || getStockStatus(product).label,
             product.ordered_quantity || 0,
             product.delivered_quantity || 0
         ];
@@ -211,6 +219,8 @@ function Inventory() {
           'Last Updated': new Date(product.last_updated).toLocaleString(),
           UOM: UOMS_REQUIRING_CONVERSION.includes(product.uom) && product.conversion_qty ? `${product.uom} (${product.conversion_qty})` : product.uom,
           'In Stocks': product.quantity,
+          'Reorder Level': product.reorder_level || 0,
+          'Stock Status': product.stock_status || getStockStatus(product).label,
           Ordered: product.ordered_quantity || 0,
           Delivered: product.delivered_quantity || 0,
       }));
@@ -227,7 +237,7 @@ function Inventory() {
       <Sidebar />
       <div className="dashboard-main" style={{ marginLeft: '220px', width: 'calc(100% - 220px)', height: '100vh', backgroundColor: '#ffffff', overflow: 'hidden' }}>
         <TopBar
-          lowStockProducts={Array.isArray(products) ? products.filter(item => Number(item.quantity || 0) < 300) : []}
+          lowStockProducts={Array.isArray(products) ? products.filter(item => Number(item.quantity || 0) > 0 && Number(item.quantity || 0) <= Number(item.reorder_level || 0)) : []}
           searchValue={searchTerm}
           onSearchChange={e => setSearchTerm(e.target.value)}
         />
@@ -256,10 +266,9 @@ function Inventory() {
               className="inventory-filter-select"
             >
               <option value="all">All Products</option>
-              <option value="low-stock">Low Stock (≤300)</option>
-              <option value="medium-stock">Medium Stock (301-800)</option>
-              <option value="high-stock">High Stock (&gt;800)</option>
-              <option value="replenishment">Need Replenishment (0)</option>
+              <option value="low-stock">Low Stock</option>
+              <option value="high-stock">In Stock</option>
+              <option value="replenishment">Out of Stock</option>
             </select>
             <div className="export-buttons">
               <button onClick={exportToPDF} className="export-btn pdf-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '8px' }}><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM9.5 11.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V9h2v2.5c0 1.93-1.57 3.5-3.5 3.5S8 13.43 8 11.5V9h1.5v2.5zM13 9V3.5L18.5 9H13z"/></svg>Export as PDF</button>
@@ -282,6 +291,8 @@ function Inventory() {
                   <th style={{ width: '120px', textAlign: 'center' }}>Last Updated</th>
                   <th style={{ width: '60px', textAlign: 'center' }}>UOM</th>
                   <th style={{ width: '80px', textAlign: 'center' }}>In Stocks</th>
+                  <th style={{ width: '80px', textAlign: 'center' }}>Reorder</th>
+                  <th style={{ width: '100px', textAlign: 'center' }}>Status</th>
                   <th style={{ width: '70px', textAlign: 'center' }}>Ordered</th>
                   <th style={{ width: '70px', textAlign: 'center' }}>Delivered</th>
                   <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
@@ -302,6 +313,8 @@ function Inventory() {
                       <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '100px', height: '16px', margin: '0 auto' }} /></td>
                       <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px', margin: '0 auto' }} /></td>
                       <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '50px', height: '16px', margin: '0 auto' }} /></td>
+                      <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '50px', height: '16px', margin: '0 auto' }} /></td>
+                      <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '70px', height: '16px', margin: '0 auto' }} /></td>
                       <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px', margin: '0 auto' }} /></td>
                       <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px', margin: '0 auto' }} /></td>
                       <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px', margin: '0 auto' }} /></td>
@@ -313,11 +326,7 @@ function Inventory() {
                       key={product.sku} 
                       style={{ cursor: 'pointer' }} 
                       onClick={e => handleRowClick(product.sku)}
-                      className={
-                        Number(product.quantity || 0) <= 300 ? 'low-stock-row' :
-                        Number(product.quantity || 0) > 800 ? 'high-stock-row' :
-                        'medium-stock-row'
-                      }
+                      className={getStockStatus(product).className}
                     >
                       <td>
                         {product.image_data ? (
@@ -381,6 +390,20 @@ function Inventory() {
                             return qty.toLocaleString();
                           })()}
                         </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>{Number(product.reorder_level || 0).toLocaleString()}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '6px 10px',
+                          borderRadius: '999px',
+                          fontWeight: 700,
+                          fontSize: '12px',
+                          color: getStockStatus(product).color,
+                          backgroundColor: getStockStatus(product).background
+                        }}>
+                          {product.stock_status || getStockStatus(product).label}
+                        </span>
                       </td>
                       <td style={{ textAlign: 'center' }}>{Number(product.ordered_quantity || 0).toLocaleString()}</td>
                       <td style={{ textAlign: 'center' }}>{Number(product.delivered_quantity || 0).toLocaleString()}</td>

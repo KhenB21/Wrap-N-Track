@@ -808,3 +808,163 @@
   opacity: 1;
   transform: translate(2px, -2px);
 }
+
+.label-card,
+.stock-action-card,
+.movements-card {
+  border-left: 4px solid #667eea;
+}
+
+.label-preview {
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto 18px;
+  padding: 18px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.label-product-name {
+  color: #111827;
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.label-sku {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.label-barcode {
+  width: 100%;
+  max-width: 230px;
+  height: 92px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 12px;
+}
+
+.label-qr {
+  width: 126px;
+  height: 126px;
+  display: block;
+  margin: 0 auto;
+}
+
+.label-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.label-action-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: #667eea;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.label-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.28);
+}
+
+.label-action-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.label-action-btn.secondary {
+  background: #374151;
+}
+
+.stock-action-form {
+  display: grid;
+  gap: 14px;
+}
+
+.stock-action-form label {
+  display: grid;
+  gap: 6px;
+  color: #4a5568;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stock-action-form input,
+.stock-action-form select {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+  background: #ffffff;
+}
+
+.stock-reason-field {
+  grid-column: 1 / -1;
+}
+
+.movements-list {
+  display: grid;
+  gap: 12px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.empty-movements {
+  color: #718096;
+  font-weight: 600;
+  text-align: center;
+  padding: 18px 0;
+}
+
+.movement-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.movement-type {
+  color: #111827;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.movement-reason {
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.movement-meta {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  color: #374151;
+  min-width: 120px;
+}
+
+.movement-meta span,
+.movement-meta small {
+  color: #6b7280;
+  font-size: 11px;
+}

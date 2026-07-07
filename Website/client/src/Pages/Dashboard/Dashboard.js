@@ -175,8 +175,16 @@ function Dashboard() {
     0
   );
   const lowStockProducts = safeInventory.filter(
-    (item) => Number(item.quantity || 0) <= 300
+    (item) => Number(item.quantity || 0) > 0 && Number(item.quantity || 0) <= Number(item.reorder_level || 0)
   ).length;
+  const outOfStockProducts = safeInventory.filter(
+    (item) => Number(item.quantity || 0) <= 0
+  ).length;
+  const recentlyUpdatedItems = safeInventory.filter((item) => {
+    const updated = new Date(item.updated_at || item.last_updated);
+    if (Number.isNaN(updated.getTime())) return false;
+    return Date.now() - updated.getTime() <= 7 * 24 * 60 * 60 * 1000;
+  }).length;
 
   // Helper to classify order status into dashboard buckets
   const classifyStatus = (status) => {
@@ -201,7 +209,7 @@ function Dashboard() {
       <Sidebar />
       <div className="dashboard-main">
         <TopBar 
-          lowStockProducts={inventory.filter(item => Number(item.quantity || 0) <= 300)}
+          lowStockProducts={inventory.filter(item => Number(item.quantity || 0) > 0 && Number(item.quantity || 0) <= Number(item.reorder_level || 0))}
         />
         {/* Inventory Overview */}
         <div className="dashboard-content">
@@ -226,9 +234,15 @@ function Dashboard() {
               </div>
             </div>
             <div className="dashboard-card card-blue" onClick={handleReplenishmentClick} style={{ cursor: 'pointer' }}>
-              <div className="card-title">Replenishment Pending</div>
+              <div className="card-title">Out of Stock</div>
               <div className="card-value">
-                {loading ? <span className="skeleton-value"></span> : inventory.filter(item => Number(item.quantity || 0) <= 0).length}
+                {loading ? <span className="skeleton-value"></span> : outOfStockProducts}
+              </div>
+            </div>
+            <div className="dashboard-card card-orange" onClick={handleTotalProductsClick} style={{ cursor: 'pointer' }}>
+              <div className="card-title">Recently Updated</div>
+              <div className="card-value">
+                {loading ? <span className="skeleton-value"></span> : recentlyUpdatedItems}
               </div>
             </div>
           </div>
