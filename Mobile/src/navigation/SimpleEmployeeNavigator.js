@@ -11,8 +11,13 @@ import AddProductScreen from '../Screens/Employee/AddProductScreen';
 import EditProductScreen from '../Screens/Employee/EditProductScreen';
 import OrderListScreen from '../Screens/Employee/OrderListScreen';
 import OrderDetailScreen from '../Screens/Employee/OrderDetailScreen';
+import OrderStatusUpdateScreen from '../Screens/Employee/OrderStatusUpdateScreen';
 import CustomerListScreen from '../Screens/Employee/CustomerListScreen';
 import CustomerDetailScreen from '../Screens/Employee/CustomerDetailScreen';
+import AddEditCustomerScreen from '../Screens/Employee/AddEditCustomerScreen';
+import SupplierListScreen from '../Screens/Employee/SupplierListScreen';
+import SupplierDetailScreen from '../Screens/Employee/SupplierDetailScreen';
+import AddEditSupplierScreen from '../Screens/Employee/AddEditSupplierScreen';
 import ReportsHomeScreen from '../Screens/Employee/ReportsHomeScreen';
 import SettingsScreen from '../Screens/Employee/SettingsScreen';
 import ChangePasswordScreen from '../Screens/ChangePasswordScreen';
@@ -37,6 +42,7 @@ function OrdersStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="OrderList" component={OrderListScreen} />
       <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+      <Stack.Screen name="OrderStatusUpdate" component={OrderStatusUpdateScreen} />
     </Stack.Navigator>
   );
 }
@@ -46,6 +52,17 @@ function CustomersStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="CustomerList" component={CustomerListScreen} />
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
+      <Stack.Screen name="AddEditCustomer" component={AddEditCustomerScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function SuppliersStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="SupplierList" component={SupplierListScreen} />
+      <Stack.Screen name="SupplierDetail" component={SupplierDetailScreen} />
+      <Stack.Screen name="AddEditSupplier" component={AddEditSupplierScreen} />
     </Stack.Navigator>
   );
 }
@@ -133,6 +150,17 @@ export default function SimpleEmployeeNavigator() {
             <MaterialCommunityIcons name="account-group" size={size} color={color} />
           ),
           tabBarLabel: 'Customers',
+        }}
+      />
+
+      <Tab.Screen
+        name="Suppliers"
+        component={SuppliersStack}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="truck-delivery" size={size} color={color} />
+          ),
+          tabBarLabel: 'Suppliers',
         }}
       />
 

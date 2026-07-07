@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, Chip, Divider } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
+import { useInventory } from '../../Context/InventoryContext';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +21,7 @@ export default function InventoryDetailScreen({ navigation }) {
   const theme = useTheme();
   const route = useRoute();
   const { product } = route.params;
+  const { deleteProduct } = useInventory();
 
   const [loading, setLoading] = useState(false);
 
@@ -65,9 +67,14 @@ export default function InventoryDetailScreen({ navigation }) {
         {
           text: 'Archive',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Success', 'Product archived successfully');
-            navigation.goBack();
+          onPress: async () => {
+            try {
+              await deleteProduct(product.sku);
+              Alert.alert('Success', 'Product archived successfully');
+              navigation.goBack();
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to archive product');
+            }
           }
         }
       ]

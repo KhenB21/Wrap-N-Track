@@ -16,7 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 // Removed Chip import - using custom implementation
 import { useTheme } from '../../Context/ThemeContext';
 import { useInventory } from '../../Context/InventoryContext';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -41,6 +41,7 @@ export default function InventoryListScreen() {
     fetchInventory,
     searchProducts,
     filterProducts,
+    deleteProduct,
     clearError
   } = useInventory();
 
@@ -51,6 +52,12 @@ export default function InventoryListScreen() {
   useEffect(() => {
     fetchInventory();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchInventory();
+    }, [fetchInventory])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -109,9 +116,13 @@ export default function InventoryListScreen() {
         { 
           text: 'Archive', 
           style: 'destructive',
-          onPress: () => {
-            // Implement archive functionality
-            Alert.alert('Success', 'Product archived successfully');
+          onPress: async () => {
+            try {
+              await deleteProduct(item.sku);
+              Alert.alert('Success', 'Product archived successfully');
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to archive product');
+            }
           }
         }
       ]

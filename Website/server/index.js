@@ -366,6 +366,8 @@ app.get('/api/public/inventory', async (req, res) => {
         order_products op ON i.sku = op.sku
       LEFT JOIN 
         orders o ON op.order_id = o.order_id
+      WHERE
+        i.is_active = true
       GROUP BY 
         i.sku, i.name, i.description, i.quantity, i.unit_price, i.category, i.last_updated, i.uom, i.conversion_qty, i.expiration, i.image_data
       ORDER BY 

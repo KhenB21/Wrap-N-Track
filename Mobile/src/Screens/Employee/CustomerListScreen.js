@@ -178,9 +178,14 @@ export default function CustomerListScreen() {
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            // Implement delete functionality
-            Alert.alert('Success', 'Customer deleted successfully');
+          onPress: async () => {
+            try {
+              await customerAPI.deleteCustomer(customer.customer_id);
+              Alert.alert('Success', 'Customer deleted successfully');
+              await fetchCustomers();
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to delete customer');
+            }
           }
         }
       ]

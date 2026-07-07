@@ -206,7 +206,7 @@ export const inventoryAPI = {
   },
   addStock: async (sku, quantity) => {
     try {
-      const response = await api.put(`/inventory/${sku}/add-stock`, { quantity });
+      const response = await api.post('/inventory/add-stock', { sku, quantity });
       return response.data;
     } catch (error) {
       console.error('Error adding stock:', error);
@@ -300,9 +300,13 @@ export const orderAPI = {
       throw error;
     }
   },
-  updateOrderStatus: async (orderId, status) => {
+  updateOrderStatus: async (orderId, status, extra = {}) => {
     try {
-      const response = await api.put(`/orders/${orderId}`, { status });
+      const response = await api.put(`/order-management/orders/${orderId}/status`, {
+        status,
+        notes: extra.notes,
+        payment_method: extra.payment_method,
+      });
       return response.data;
     } catch (error) {
       console.error('Error updating order status:', error);
@@ -461,6 +465,33 @@ export const customerAPI = {
       throw error;
     }
   },
+  addCustomer: async (data) => {
+    try {
+      const response = await api.post('/customers', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error adding customer:', error);
+      throw error;
+    }
+  },
+  updateManagedCustomer: async (customerId, data) => {
+    try {
+      const response = await api.put(`/customers/${customerId}`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating managed customer:', error);
+      throw error;
+    }
+  },
+  deleteCustomer: async (customerId) => {
+    try {
+      const response = await api.delete(`/customers/${customerId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      throw error;
+    }
+  },
   updateCustomer: async (customerId, data) => {
     try {
       const response = await api.put('/customer/profile', data);
@@ -525,6 +556,15 @@ export const supplierAPI = {
       return response.data;
     } catch (error) {
       console.error('Error updating supplier:', error);
+      throw error;
+    }
+  },
+  deleteSupplier: async (supplierId) => {
+    try {
+      const response = await api.delete(`/suppliers/${supplierId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting supplier:', error);
       throw error;
     }
   }

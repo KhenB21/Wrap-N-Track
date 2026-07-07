@@ -16,6 +16,7 @@ const INVENTORY_ACTIONS = {
   SET_CATEGORY_FILTER: 'SET_CATEGORY_FILTER',
   SET_SEARCH_QUERY: 'SET_SEARCH_QUERY',
   SET_FILTER: 'SET_FILTER',
+  REMOVE_INVENTORY_ITEM: 'REMOVE_INVENTORY_ITEM',
 };
 
 // Initial state
@@ -152,6 +153,16 @@ const inventoryReducer = (state, action) => {
         ...state,
         filter: filterType,
         filteredInventory: filtered,
+      };
+
+    case INVENTORY_ACTIONS.REMOVE_INVENTORY_ITEM:
+      const archivedSku = action.payload;
+      return {
+        ...state,
+        inventory: state.inventory.filter(item => item.sku !== archivedSku),
+        filteredInventory: state.filteredInventory.filter(item => item.sku !== archivedSku),
+        selectedProducts: state.selectedProducts.filter(item => item.sku !== archivedSku),
+        loading: false,
       };
 
     default:
@@ -312,13 +323,16 @@ export const InventoryProvider = ({ children }) => {
     try {
       dispatch({ type: INVENTORY_ACTIONS.SET_LOADING, payload: true });
       await inventoryAPI.deleteProduct(sku);
-      // Remove from local state
-      dispatch({ type: INVENTORY_ACTIONS.REMOVE_PRODUCT, payload: sku });
+      dispatch({ type: INVENTORY_ACTIONS.REMOVE_INVENTORY_ITEM, payload: sku });
     } catch (error) {
       console.error('Error deleting product:', error);
+      if (error.response?.status === 404) {
+        dispatch({ type: INVENTORY_ACTIONS.REMOVE_INVENTORY_ITEM, payload: sku });
+        return;
+      }
       dispatch({ 
         type: INVENTORY_ACTIONS.SET_ERROR, 
-        payload: error.message || 'Failed to delete product' 
+        payload: error.message || 'Failed to archive product' 
       });
       throw error;
     }

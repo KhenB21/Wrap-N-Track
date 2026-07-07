@@ -512,30 +512,58 @@ router.put('/:sku', async (req, res) => {
 // DELETE /api/inventory/:sku - Delete inventory item
 router.delete('/:sku', async (req, res) => {
   const { sku } = req.params;
+  const client = await pool.connect();
 
   try {
-    // Check if item exists and is active
-    const existingItem = await pool.query('SELECT sku FROM inventory_items WHERE sku = $1 AND is_active = true', [sku]);
+    await client.query('BEGIN');
+    const existingItem = await client.query('SELECT sku, name, is_active FROM inventory_items WHERE sku = $1', [sku]);
     if (existingItem.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({
         success: false,
-        message: 'Item not found or already deleted'
+        message: 'Item not found'
       });
     }
 
-    // Soft delete item (set is_active to false)
-    await pool.query('UPDATE inventory_items SET is_active = false, last_updated = NOW() WHERE sku = $1', [sku]);
+    const item = existingItem.rows[0];
+    if (!item.is_active) {
+      await client.query('COMMIT');
+      return res.json({
+        success: true,
+        alreadyArchived: true,
+        message: 'Item is already archived'
+      });
+    }
+
+    await client.query('UPDATE inventory_items SET is_active = false, last_updated = NOW() WHERE sku = $1', [sku]);
+    await client.query(`CREATE TABLE IF NOT EXISTS public.available_inventory (
+      category TEXT NOT NULL,
+      sku TEXT NOT NULL REFERENCES public.inventory_items(sku) ON DELETE CASCADE,
+      created_by UUID NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (category, sku)
+    )`);
+    await client.query('DELETE FROM public.available_inventory WHERE sku = $1', [sku]);
+    await client.query('COMMIT');
 
     return res.json({
       success: true,
-      message: 'Item deleted successfully'
+      archived: true,
+      message: 'Item archived successfully',
+      product: {
+        sku: item.sku,
+        name: item.name
+      }
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error deleting inventory item:', { sku, error: error.message, stack: error.stack });
     return res.status(500).json({
       success: false,
-      message: 'Failed to delete item'
+      message: 'Failed to archive item'
     });
+  } finally {
+    client.release();
   }
 });
 

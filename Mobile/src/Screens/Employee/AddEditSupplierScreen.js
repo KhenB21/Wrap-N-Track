@@ -11,11 +11,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, RadioButton } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
+import { supplierAPI } from '../../services/api';
 
 export default function AddEditSupplierScreen({ navigation }) {
   const theme = useTheme();
   const route = useRoute();
-  const { supplier, mode = 'add' } = route.params;
+  const { supplier, mode = 'add' } = route.params || {};
 
   const [formData, setFormData] = useState({
     name: supplier?.name || '',
@@ -97,13 +98,17 @@ export default function AddEditSupplierScreen({ navigation }) {
 
     try {
       setLoading(true);
-      // Implement API call to add/edit supplier
+      if (isEditMode) {
+        await supplierAPI.updateSupplier(supplier.supplier_id, formData);
+      } else {
+        await supplierAPI.addSupplier(formData);
+      }
       const action = isEditMode ? 'Supplier updated' : 'Supplier added';
       Alert.alert('Success', `${action} successfully`, [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
-      Alert.alert('Error', `Failed to ${isEditMode ? 'update' : 'add'} supplier`);
+      Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || `Failed to ${isEditMode ? 'update' : 'add'} supplier`);
     } finally {
       setLoading(false);
     }

@@ -3,6 +3,7 @@ const router = express.Router();
 // Central pool
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 // Middleware to verify JWT token
@@ -55,10 +56,28 @@ router.post('/', async (req, res) => {
   }
 
   try {
+    const baseUsername = String(email_address)
+      .split('@')[0]
+      .replace(/[^a-zA-Z0-9_]/g, '_')
+      .slice(0, 20) || `customer_${Date.now()}`;
+    let username = baseUsername;
+    let suffix = 1;
+
+    while (true) {
+      const usernameCheck = await pool.query(
+        'SELECT customer_id FROM customer_details WHERE username = $1',
+        [username]
+      );
+      if (usernameCheck.rows.length === 0) break;
+      username = `${baseUsername.slice(0, 16)}_${suffix}`;
+      suffix += 1;
+    }
+
+    const passwordHash = await bcrypt.hash(`Temp${Date.now()}!`, 10);
     const result = await pool.query(
-      `INSERT INTO customer_details (name, phone_number, email_address, address) 
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [name, phone_number, email_address, address || null]
+      `INSERT INTO customer_details (username, name, phone_number, email_address, address, password_hash, is_verified) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [username, name, phone_number, email_address, address || null, passwordHash, true]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -153,6 +172,27 @@ router.get('/email/:email', async (req, res) => {
       success: false,
       message: 'Failed to fetch customer details'
     });
+  }
+});
+
+// Get customer by ID
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM customer_details WHERE customer_id = $1',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching customer:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

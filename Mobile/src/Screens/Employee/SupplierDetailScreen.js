@@ -12,6 +12,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, Chip, Divider } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
+import { supplierAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -33,27 +34,12 @@ export default function SupplierDetailScreen({ navigation }) {
   const fetchSupplierDetails = async () => {
     try {
       setLoading(true);
-      // Mock data - replace with actual API call
-      const mockProducts = [
-        {
-          sku: 'PKG-001',
-          name: 'Gift Box Small',
-          category: 'Packaging',
-          quantity: 100,
-          unit_price: 25.00
-        },
-        {
-          sku: 'PKG-002',
-          name: 'Ribbon Red',
-          category: 'Gift Wrapping',
-          quantity: 50,
-          unit_price: 15.00
-        }
-      ];
-      setProducts(mockProducts);
+      const latestSupplier = await supplierAPI.getSupplier(initialSupplier.supplier_id);
+      setSupplier(latestSupplier);
+      setProducts(latestSupplier.products || []);
     } catch (error) {
       console.error('Error fetching supplier details:', error);
-      Alert.alert('Error', 'Failed to fetch supplier details');
+      Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to fetch supplier details');
     } finally {
       setLoading(false);
     }
@@ -75,9 +61,14 @@ export default function SupplierDetailScreen({ navigation }) {
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Success', 'Supplier deleted successfully');
-            navigation.goBack();
+          onPress: async () => {
+            try {
+              await supplierAPI.deleteSupplier(supplier.supplier_id);
+              Alert.alert('Success', 'Supplier deleted successfully');
+              navigation.goBack();
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to delete supplier');
+            }
           }
         }
       ]

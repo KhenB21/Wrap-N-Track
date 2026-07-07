@@ -12,6 +12,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, Chip, Avatar, Divider } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
+import { customerAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -33,25 +34,12 @@ export default function CustomerDetailScreen({ navigation }) {
   const fetchCustomerDetails = async () => {
     try {
       setLoading(true);
-      // Mock data - replace with actual API call
-      const mockOrders = [
-        {
-          order_id: 'ORD-001',
-          order_date: '2024-01-15T10:30:00Z',
-          status: 'Completed',
-          total_cost: 5000
-        },
-        {
-          order_id: 'ORD-002',
-          order_date: '2024-01-20T14:45:00Z',
-          status: 'Order Shipped Out',
-          total_cost: 3500
-        }
-      ];
-      setOrders(mockOrders);
+      const latestCustomer = await customerAPI.getCustomer(initialCustomer.customer_id);
+      setCustomer(latestCustomer);
+      setOrders(latestCustomer.orders || []);
     } catch (error) {
       console.error('Error fetching customer details:', error);
-      Alert.alert('Error', 'Failed to fetch customer details');
+      Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to fetch customer details');
     } finally {
       setLoading(false);
     }
@@ -73,9 +61,14 @@ export default function CustomerDetailScreen({ navigation }) {
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Success', 'Customer deleted successfully');
-            navigation.goBack();
+          onPress: async () => {
+            try {
+              await customerAPI.deleteCustomer(customer.customer_id);
+              Alert.alert('Success', 'Customer deleted successfully');
+              navigation.goBack();
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to delete customer');
+            }
           }
         }
       ]

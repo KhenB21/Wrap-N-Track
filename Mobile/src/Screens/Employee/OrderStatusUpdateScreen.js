@@ -11,6 +11,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, RadioButton } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
+import { orderAPI } from '../../services/api';
 
 export default function OrderStatusUpdateScreen({ navigation }) {
   const theme = useTheme();
@@ -64,12 +65,15 @@ export default function OrderStatusUpdateScreen({ navigation }) {
 
     try {
       setLoading(true);
-      // Implement API call to update order status
+      await orderAPI.updateOrderStatus(order.order_id, selectedStatus, {
+        payment_method: paymentMethod,
+        notes,
+      });
       Alert.alert('Success', 'Order status updated successfully', [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
-      Alert.alert('Error', 'Failed to update order status');
+      Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to update order status');
     } finally {
       setLoading(false);
     }

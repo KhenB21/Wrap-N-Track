@@ -11,11 +11,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, RadioButton } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
+import { customerAPI } from '../../services/api';
 
 export default function AddEditCustomerScreen({ navigation }) {
   const theme = useTheme();
   const route = useRoute();
-  const { customer, mode = 'add' } = route.params;
+  const { customer, mode = 'add' } = route.params || {};
 
   const [formData, setFormData] = useState({
     name: customer?.name || '',
@@ -65,13 +66,17 @@ export default function AddEditCustomerScreen({ navigation }) {
 
     try {
       setLoading(true);
-      // Implement API call to add/edit customer
+      if (isEditMode) {
+        await customerAPI.updateManagedCustomer(customer.customer_id, formData);
+      } else {
+        await customerAPI.addCustomer(formData);
+      }
       const action = isEditMode ? 'Customer updated' : 'Customer added';
       Alert.alert('Success', `${action} successfully`, [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
-      Alert.alert('Error', `Failed to ${isEditMode ? 'update' : 'add'} customer`);
+      Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || `Failed to ${isEditMode ? 'update' : 'add'} customer`);
     } finally {
       setLoading(false);
     }
