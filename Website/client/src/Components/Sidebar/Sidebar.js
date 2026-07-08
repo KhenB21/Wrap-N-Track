@@ -18,10 +18,10 @@ const Sidebar = () => {
   // Define permissions for each role
   const rolePermissions = {
     super_admin: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
+      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
     },
     admin: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
+      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
     },
     director: {
       dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
@@ -33,7 +33,7 @@ const Sidebar = () => {
       dashboard: true, inventory: true, orders: false, reports: true, customers: false, suppliers: false, orderHistory: false, accountManagement: false,
     },
     sales_manager: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
     },
     assistant_sales: {
       dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: false, orderHistory: false, accountManagement: false,
@@ -43,10 +43,10 @@ const Sidebar = () => {
       readOnly: true, // Mark as read-only
     },
     operations_manager: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
     },
     social_media_manager: {
-      dashboard: true, inventory: false, orders: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: false, orders: true, deliveryTracking: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false,
     },
     default: {
       dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
@@ -93,6 +93,22 @@ const Sidebar = () => {
               <Link to="/orders">
                 <span className="icon">💰</span>
                 <span className="text">Orders</span>
+              </Link>
+            </li>
+          )}
+          {permissions.invoices && (
+            <li>
+              <Link to="/invoices">
+                <span className="icon">INV</span>
+                <span className="text">Invoices</span>
+              </Link>
+            </li>
+          )}
+          {permissions.deliveryTracking && (
+            <li>
+              <Link to="/delivery-tracking">
+                <span className="icon">DEL</span>
+                <span className="text">Delivery Tracking</span>
               </Link>
             </li>
           )}

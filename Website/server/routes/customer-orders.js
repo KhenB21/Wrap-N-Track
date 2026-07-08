@@ -2,9 +2,19 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const verifyJwt = require('../middleware/verifyJwt');
+const { ensureDeliverySchema, TRACKING_UNAVAILABLE_MESSAGE } = require('../services/deliveryService');
 
 // Apply authentication middleware to all routes
 router.use(verifyJwt());
+router.use(async (_req, res, next) => {
+  try {
+    await ensureDeliverySchema(pool);
+    next();
+  } catch (error) {
+    console.error('Error preparing customer delivery schema:', error);
+    res.status(500).json({ success: false, message: 'Failed to prepare delivery information' });
+  }
+});
 
 // GET /api/customer-orders/orders - Get customer's orders
 router.get('/orders', async (req, res) => {
@@ -72,6 +82,20 @@ router.get('/orders', async (req, res) => {
         o.order_shipped_at,
         o.order_received_at,
         o.status_updated_at,
+        COALESCE(o.delivery_status, 'Pending') AS delivery_status,
+        o.delivery_method,
+        o.delivery_type,
+        o.courier_name,
+        o.tracking_number,
+        o.tracking_link_available,
+        o.tracking_link,
+        COALESCE(o.tracking_unavailable_message, $2) AS tracking_unavailable_message,
+        o.proof_image_url,
+        o.proof_uploaded_at,
+        o.delivery_remarks,
+        o.sent_at,
+        o.picked_up_at,
+        o.delivered_at,
         COALESCE(
           json_agg(
             json_build_object(
@@ -89,7 +113,7 @@ router.get('/orders', async (req, res) => {
       LEFT JOIN inventory_items i ON op.sku = i.sku
       WHERE o.customer_id = $1
       GROUP BY o.order_id
-    `, [customerId]);
+    `, [customerId, TRACKING_UNAVAILABLE_MESSAGE]);
 
     // Fetch completed/cancelled orders from order_history table with products
     // Include orders that match customer_id OR have matching email/name for this customer
@@ -115,6 +139,20 @@ router.get('/orders', async (req, res) => {
         oh.archived_at as order_shipped_at,
         oh.archived_at as order_received_at,
         oh.archived_at as status_updated_at,
+        NULL::varchar AS delivery_status,
+        NULL::varchar AS delivery_method,
+        NULL::varchar AS delivery_type,
+        NULL::varchar AS courier_name,
+        NULL::varchar AS tracking_number,
+        NULL::boolean AS tracking_link_available,
+        NULL::text AS tracking_link,
+        NULL::text AS tracking_unavailable_message,
+        NULL::text AS proof_image_url,
+        NULL::timestamptz AS proof_uploaded_at,
+        NULL::text AS delivery_remarks,
+        NULL::timestamptz AS sent_at,
+        NULL::timestamptz AS picked_up_at,
+        NULL::timestamptz AS delivered_at,
         COALESCE(
           json_agg(
             json_build_object(
@@ -216,21 +254,25 @@ router.get('/orders/:orderId', async (req, res) => {
       orderResult = await pool.query(`
         SELECT 
           o.*,
+          COALESCE(o.delivery_status, 'Pending') AS delivery_status,
+          COALESCE(o.tracking_unavailable_message, $3) AS tracking_unavailable_message,
           u.name as updated_by_name
         FROM orders o
         LEFT JOIN users u ON o.status_updated_by = u.user_id
         WHERE o.order_id = $1 AND o.customer_id = $2
-      `, [orderId, customerId]);
+      `, [orderId, customerId, TRACKING_UNAVAILABLE_MESSAGE]);
     } else {
       // Employee access - any order
       orderResult = await pool.query(`
         SELECT 
           o.*,
+          COALESCE(o.delivery_status, 'Pending') AS delivery_status,
+          COALESCE(o.tracking_unavailable_message, $2) AS tracking_unavailable_message,
           u.name as updated_by_name
         FROM orders o
         LEFT JOIN users u ON o.status_updated_by = u.user_id
         WHERE o.order_id = $1
-      `, [orderId]);
+      `, [orderId, TRACKING_UNAVAILABLE_MESSAGE]);
     }
 
     let isArchived = false;
@@ -322,6 +364,13 @@ router.get('/orders/:orderId', async (req, res) => {
       ORDER BY osh.updated_at ASC
     `, [orderId]);
 
+    const deliveryHistoryResult = await pool.query(`
+      SELECT status, remarks, delivery_method, courier_name, tracking_number, tracking_link, proof_image_url, created_at
+      FROM delivery_status_history
+      WHERE order_id = $1
+      ORDER BY created_at ASC
+    `, [orderId]);
+
     // Determine current tracking stage for customer view
     const order = orderResult.rows[0];
     const trackingStage = getCustomerTrackingStage(order.status);
@@ -332,6 +381,23 @@ router.get('/orders/:orderId', async (req, res) => {
         ...order,
         products: productsResult.rows,
         statusHistory: historyResult.rows,
+        deliveryHistory: deliveryHistoryResult.rows,
+        delivery: isArchived ? null : {
+          delivery_status: order.delivery_status,
+          delivery_method: order.delivery_method,
+          delivery_type: order.delivery_type,
+          courier_name: order.courier_name,
+          tracking_number: order.tracking_number,
+          tracking_link_available: order.tracking_link_available,
+          tracking_link: order.tracking_link,
+          tracking_unavailable_message: order.tracking_unavailable_message || TRACKING_UNAVAILABLE_MESSAGE,
+          proof_image_url: order.proof_image_url,
+          proof_uploaded_at: order.proof_uploaded_at,
+          sent_at: order.sent_at,
+          picked_up_at: order.picked_up_at,
+          delivered_at: order.delivered_at,
+          delivery_remarks: order.delivery_remarks
+        },
         trackingStage
       }
     });

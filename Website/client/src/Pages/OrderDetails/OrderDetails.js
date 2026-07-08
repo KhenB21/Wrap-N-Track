@@ -9,6 +9,7 @@ import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../api';
 import PortalModal from '../../Components/Modal/PortalModal';
+import OrderInvoiceSection from '../Invoices/OrderInvoiceSection';
 
 // Add these styles at the top of the file
 const styles = {
@@ -328,6 +329,8 @@ export default function OrderDetails() {
   const [updatingProducts, setUpdatingProducts] = useState(false);
   const [archivingOrder, setArchivingOrder] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderChallenge, setOrderChallenge] = useState(null);
+  const [orderChallengeInput, setOrderChallengeInput] = useState('');
   const [customerDetails, setCustomerDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -612,6 +615,31 @@ export default function OrderDetails() {
   }, [selectedOrderId, pendingOrders, toBePackOrders, readyToDeliverOrders, enRouteOrders, completedOrders]);
 
   const isToBePacked = selectedOrder && normalizeStatus(selectedOrder.status) === normalizeStatus('To Be Packed');
+
+  const openOrderChallenge = (config) => {
+    setOrderChallengeInput('');
+    setOrderChallenge(config);
+  };
+
+  const closeOrderChallenge = () => {
+    setOrderChallenge(null);
+    setOrderChallengeInput('');
+  };
+
+  const confirmOrderChallenge = async () => {
+    if (!orderChallenge) return;
+    if (orderChallengeInput.trim().toUpperCase() !== orderChallenge.challengeText) {
+      alert(`Please type ${orderChallenge.challengeText} to continue.`);
+      return;
+    }
+
+    try {
+      await orderChallenge.onConfirm();
+      closeOrderChallenge();
+    } catch (error) {
+      console.error('Order challenge action failed:', error);
+    }
+  };
 
 
   return (
@@ -1324,7 +1352,8 @@ export default function OrderDetails() {
                   )}
                 </div>
               )}
-              
+              <OrderInvoiceSection order={selectedOrder} />
+
               {/* Action Buttons */}
               <div style={{display:'flex',gap:18,marginTop:8, justifyContent:'center', alignItems:'center'}}>
                 <button 
@@ -1419,30 +1448,37 @@ export default function OrderDetails() {
                       return;
                     }
 
-                    if (window.confirm(confirmMessage)) {
-                      setLoading(true);
-                      try {
-                        const encodedOrderId = encodeURIComponent(orderIdToUse);
-                        console.log(`Attempting to update order ${orderIdToUse} (encoded: ${encodedOrderId}) to status ${newStatus} with payload:`, payload);
-                        const response = await api.put(
-                          `/api/orders/${encodedOrderId}`,
-                          payload
-                        );
-                        if (response.data) {
-                          alert(`Order ${selectedOrder.order_id} status updated to ${newStatus}.`);
-                          fetchOrders(); // Refresh all orders from the backend
-                          setSelectedOrderId(null); // Close modal
-                        } else {
-                          console.error("Update successful but no data returned", response);
-                          alert("Order status updated, but an issue occurred fetching new data. Please refresh.");
+                    openOrderChallenge({
+                      title: newStatus === 'To Be Packed' ? 'Confirm Order' : 'Confirm Delivery',
+                      message: confirmMessage,
+                      challengeText: 'CONFIRM',
+                      orderId: orderIdToUse,
+                      nextStatus: newStatus,
+                      onConfirm: async () => {
+                        setLoading(true);
+                        try {
+                          const encodedOrderId = encodeURIComponent(orderIdToUse);
+                          console.log(`Attempting to update order ${orderIdToUse} (encoded: ${encodedOrderId}) to status ${newStatus} with payload:`, payload);
+                          const response = await api.put(
+                            `/api/orders/${encodedOrderId}`,
+                            payload
+                          );
+                          if (response.data) {
+                            alert(`Order ${selectedOrder.order_id} status updated to ${newStatus}.`);
+                            fetchOrders(); // Refresh all orders from the backend
+                            setSelectedOrderId(null); // Close modal
+                          } else {
+                            console.error("Update successful but no data returned", response);
+                            alert("Order status updated, but an issue occurred fetching new data. Please refresh.");
+                          }
+                        } catch (error) {
+                          console.error(`Failed to update order status to ${newStatus}:`, error.response || error);
+                          alert(`Failed to update order status. ${error.response?.data?.error || error.message}`);
+                        } finally {
+                          setLoading(false);
                         }
-                      } catch (error) {
-                        console.error(`Failed to update order status to ${newStatus}:`, error.response || error);
-                        alert(`Failed to update order status. ${error.response?.data?.error || error.message}`);
-                      } finally {
-                        setLoading(false);
                       }
-                    }
+                    });
                   }}>
                   {normalizeStatus(selectedOrder.status) === normalizeStatus('To Be Packed') ? 'Confirm Delivery' : 'Confirm Order'}
                 </button>
@@ -1534,6 +1570,81 @@ export default function OrderDetails() {
             </div>
           )}
         )()}
+        {orderChallenge && (
+          <div
+            className="modal-backdrop"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(15, 23, 42, 0.56)',
+              zIndex: 4000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 20
+            }}
+          >
+            <div
+              style={{
+                width: 'min(520px, 96vw)',
+                background: '#fff',
+                borderRadius: 10,
+                boxShadow: '0 20px 70px rgba(15,23,42,0.25)',
+                overflow: 'hidden'
+              }}
+            >
+              <div style={{ padding: '22px 24px', borderBottom: '1px solid #e5e7eb' }}>
+                <h2 style={{ margin: 0, color: '#2c3e50', fontSize: 24 }}>{orderChallenge.title}</h2>
+                <p style={{ margin: '8px 0 0', color: '#64748b', lineHeight: 1.45 }}>{orderChallenge.message}</p>
+              </div>
+              <div style={{ padding: 24 }}>
+                <div style={{ marginBottom: 12, color: '#334155', fontWeight: 700 }}>
+                  Type <span style={{ color: '#111827' }}>{orderChallenge.challengeText}</span> to continue.
+                </div>
+                <input
+                  value={orderChallengeInput}
+                  onChange={(e) => setOrderChallengeInput(e.target.value)}
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 6,
+                    padding: '11px 12px',
+                    fontSize: 16
+                  }}
+                  placeholder={orderChallenge.challengeText}
+                />
+                <div style={{ marginTop: 12, color: '#64748b', fontSize: 13 }}>
+                  Order ID: {orderChallenge.orderId} | New status: {orderChallenge.nextStatus}
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '0 24px 22px' }}>
+                <button
+                  style={{ ...styles.button, ...styles.secondaryButton }}
+                  onClick={closeOrderChallenge}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  style={{
+                    ...styles.button,
+                    background: orderChallengeInput.trim().toUpperCase() === orderChallenge.challengeText ? '#1f9d55' : '#94a3b8',
+                    color: '#fff'
+                  }}
+                  onClick={confirmOrderChallenge}
+                  disabled={loading || orderChallengeInput.trim().toUpperCase() !== orderChallenge.challengeText}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

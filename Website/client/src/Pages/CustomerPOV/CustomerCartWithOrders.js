@@ -142,6 +142,29 @@ export default function CustomerOrders() {
     }
   };
 
+  const resolveAssetUrl = (url) => {
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) return url;
+    return `${api.defaults.baseURL}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
+  const hasDeliveryInfo = (order) => Boolean(
+    order.delivery_status ||
+    order.delivery_method ||
+    order.courier_name ||
+    order.tracking_number ||
+    order.tracking_link ||
+    order.proof_image_url ||
+    order.delivery_remarks
+  );
+
+  const getTrackingUnavailableMessage = (order) => {
+    if (!order) return '';
+    if (order.tracking_link_available && order.tracking_link) return '';
+    if (order.delivery_type === 'PICKUP' || order.delivery_method === 'Customer Pick-up') return '';
+    return order.tracking_unavailable_message || 'Delivery tracking link is not available. Please contact pensee@gmail.com.';
+  };
+
   // Toggle order expansion
   const toggleOrderExpansion = (orderId) => {
     const newExpanded = new Set(expandedOrders);
@@ -292,6 +315,49 @@ export default function CustomerOrders() {
                           </div>
                         </div>
                         
+                        {hasDeliveryInfo(order) && (
+                          <div className="customer-delivery-info">
+                            <h4>Delivery Information</h4>
+                            <div className="delivery-info-grid">
+                              <div className="delivery-info-item">
+                                <span className="label">Delivery Status:</span>
+                                <span className="value">{order.delivery_status || 'Pending'}</span>
+                              </div>
+                              <div className="delivery-info-item">
+                                <span className="label">Delivery Mode:</span>
+                                <span className="value">{order.delivery_method || 'Not set yet'}</span>
+                              </div>
+                              <div className="delivery-info-item">
+                                <span className="label">Courier / Rider:</span>
+                                <span className="value">{order.courier_name || '-'}</span>
+                              </div>
+                              <div className="delivery-info-item">
+                                <span className="label">Tracking Number:</span>
+                                <span className="value">{order.tracking_number || '-'}</span>
+                              </div>
+                            </div>
+
+                            {order.tracking_link_available && order.tracking_link ? (
+                              <a className="track-delivery-btn" href={order.tracking_link} target="_blank" rel="noreferrer">
+                                Track Delivery
+                              </a>
+                            ) : getTrackingUnavailableMessage(order) ? (
+                              <p className="tracking-unavailable-message">{getTrackingUnavailableMessage(order)}</p>
+                            ) : null}
+
+                            {order.proof_image_url && (
+                              <div className="delivery-proof-preview">
+                                <span className="label">Proof of Delivery / Sending:</span>
+                                <img src={resolveAssetUrl(order.proof_image_url)} alt="Proof of delivery" />
+                              </div>
+                            )}
+
+                            {order.delivery_remarks && (
+                              <p className="delivery-remarks"><strong>Remarks:</strong> {order.delivery_remarks}</p>
+                            )}
+                          </div>
+                        )}
+
                         <div className="order-products">
                           <h4>Ordered Products</h4>
                           {console.log(`Order ${order.order_id} products:`, order.products)}

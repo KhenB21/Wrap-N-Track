@@ -50,6 +50,7 @@ export default function SupplierDetails() {
   const [supplierProducts, setSupplierProducts] = useState([]);
   const [editForm, setEditForm] = useState({
     name: '',
+    contact_person: '',
     email_address: '',
     telephone: '',
     cellphone: '',
@@ -83,28 +84,14 @@ export default function SupplierDetails() {
   const [orderToDelete, setOrderToDelete] = useState(null);
 
   // Phone number formatting and validation functions
-  const formatPhoneNumber = (value) => {
-    // Remove all non-numeric characters
-    const phoneNumber = value.replace(/\D/g, '');
-    
-    // Format for Philippine phone numbers
-    if (phoneNumber.length === 0) return '';
-    if (phoneNumber.length <= 3) return phoneNumber;
-    if (phoneNumber.length <= 6) return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
-    if (phoneNumber.length <= 10) return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6)}`;
-    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
-  };
-
   const validatePhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return true; // Optional field
-    const cleanNumber = phoneNumber.replace(/\D/g, '');
-    // Philippine phone numbers: 10-11 digits (landline: 10, mobile: 11)
-    return cleanNumber.length >= 10 && cleanNumber.length <= 11;
+    const cleanNumber = phoneNumber.replace(/[^\d+]/g, '');
+    return /^09\d{9}$/.test(cleanNumber) || /^\+639\d{9}$/.test(cleanNumber) || /^639\d{9}$/.test(cleanNumber) || /^\d{7,10}$/.test(cleanNumber);
   };
 
   const handlePhoneChange = (field, value) => {
-    const formatted = formatPhoneNumber(value);
-    setEditForm({...editForm, [field]: formatted});
+    setEditForm({...editForm, [field]: value});
   };
 
   const fetchSupplierProducts = useCallback(async (supplierId) => {
@@ -215,6 +202,7 @@ export default function SupplierDetails() {
     setIsAdding(true);
     setEditForm({
       name: '',
+      contact_person: '',
       email_address: '',
       telephone: '',
       cellphone: '',
@@ -482,6 +470,10 @@ export default function SupplierDetails() {
       setError('Name is required');
       return false;
     }
+    if (!editForm.contact_person.trim()) {
+      setError('Contact person is required');
+      return false;
+    }
     if (!editForm.email_address.trim()) {
       setError('Email is required');
       return false;
@@ -494,8 +486,16 @@ export default function SupplierDetails() {
       setError('Invalid telephone number format. Please use Philippine format: (XXX) XXX-XXXX');
       return false;
     }
+    if (!editForm.cellphone.trim()) {
+      setError('Cellphone is required');
+      return false;
+    }
     if (editForm.cellphone && !validatePhoneNumber(editForm.cellphone)) {
-      setError('Invalid cellphone number format. Please use Philippine format: (XXX) XXX-XXXX');
+      setError('Invalid cellphone number format. Please use Philippine format: 09171234567 or +639171234567');
+      return false;
+    }
+    if (editForm.description && editForm.description.length > 500) {
+      setError('Description must be 500 characters or fewer');
       return false;
     }
     if (!editForm.province.trim()) {
@@ -543,6 +543,7 @@ export default function SupplierDetails() {
       setIsAdding(false);
       setEditForm({
         name: '',
+        contact_person: '',
         email_address: '',
         telephone: '',
         cellphone: '',
@@ -564,9 +565,10 @@ export default function SupplierDetails() {
     setSelectedSupplier(supplier);
     setEditForm({
       name: supplier.name,
+      contact_person: supplier.contact_person || '',
       email_address: supplier.email_address,
-      telephone: supplier.telephone ? formatPhoneNumber(supplier.telephone) : '',
-      cellphone: supplier.cellphone ? formatPhoneNumber(supplier.cellphone) : '',
+      telephone: supplier.telephone || '',
+      cellphone: supplier.cellphone || '',
       description: supplier.description || '',
       province: supplier.province || '',
       city_municipality: supplier.city_municipality || '',
@@ -632,6 +634,7 @@ export default function SupplierDetails() {
     setIsEditing(false);
     setEditForm({
       name: '',
+      contact_person: '',
       email_address: '',
       telephone: '',
       cellphone: '',
@@ -712,6 +715,16 @@ export default function SupplierDetails() {
             />
           </div>
           <div className="form-group">
+            <label>Contact Person *</label>
+            <input
+              type="text"
+              value={editForm.contact_person}
+              onChange={(e) => setEditForm({...editForm, contact_person: e.target.value})}
+              placeholder="Primary contact person"
+              required
+            />
+          </div>
+          <div className="form-group">
             <label>Email *</label>
             <input
               type="email"
@@ -734,13 +747,14 @@ export default function SupplierDetails() {
             />
           </div>
           <div className="form-group">
-            <label>Cellphone</label>
+            <label>Cellphone *</label>
             <input
               type="tel"
               value={editForm.cellphone}
               onChange={(e) => handlePhoneChange('cellphone', e.target.value)}
-              placeholder="(XXX) XXX-XXXX"
-              maxLength="15"
+              placeholder="09171234567 or +639171234567"
+              maxLength="20"
+              required
             />
           </div>
         </div>
@@ -751,6 +765,7 @@ export default function SupplierDetails() {
             onChange={(e) => setEditForm({...editForm, description: e.target.value})}
             placeholder="Brief description (optional)"
             rows="2"
+            maxLength="500"
           />
         </div>
       </div>

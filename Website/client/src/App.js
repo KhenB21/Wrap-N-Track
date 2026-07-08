@@ -9,6 +9,8 @@ import SupplierDetails from "./Pages/SupplierDetails/SupplierDetails";
 import SupplierForm from "./Pages/SupplierDetails/SupplierForm";
 import UserDetails from "./Pages/UserDetails/UserDetails";
 import Inventory from "./Pages/Inventory/Inventory";
+import Invoices from "./Pages/Invoices/Invoices";
+import DeliveryTracking from "./Pages/DeliveryTracking/DeliveryTracking";
 import UserManagement from "./Pages/UserManagement/UserManagement";
 import AccountManagement from "./Pages/AccountManagement/AccountManagement";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
@@ -76,6 +78,8 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/user-details" element={<UserDetails />} />
         <Route path="/inventory" element={<Inventory />} />
+        <Route path="/invoices" element={<Invoices />} />
+        <Route path="/delivery-tracking" element={<DeliveryTracking />} />
         <Route path="/archive-products" element={<ArchiveProducts />} />
         <Route path="/reports/inventory" element={<InventoryReport />} />
         <Route path="/reports/sales" element={<SalesReport />} />

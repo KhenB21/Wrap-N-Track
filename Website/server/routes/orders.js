@@ -2,6 +2,7 @@ const express = require('express');
 // Use centralized pooled connection
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
+const { initializeDeliveryForReadyOrder } = require('../services/deliveryService');
 require('dotenv').config();
 
 const router = express.Router();
@@ -502,6 +503,10 @@ router.put('/:order_id', async (req, res) => {
     // Determine final status after update (either provided or existing)
     const finalStatus = status !== undefined ? status : existingOrder.status;
     const finalNorm = normalize(finalStatus);
+
+    if (finalNorm === 'readyfordelivery' || finalNorm === 'readyfordeliver') {
+      await initializeDeliveryForReadyOrder(client, order_id, req.user?.user_id || null, 'Order marked as Ready for Delivery');
+    }
 
     // If Completed/Cancelled, archive immediately (move to order_history)
     if (['completed','cancelled'].includes(finalNorm)) {

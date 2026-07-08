@@ -1,16 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 
 const rolePermissions = {
-  super_admin: { inventory: true, suppliers: true, accountManagement: true, reports: true, readOnly: false },
-  admin: { inventory: true, suppliers: true, accountManagement: true, reports: true, readOnly: false },
+  super_admin: { inventory: true, invoices: true, deliveryTracking: true, suppliers: true, accountManagement: true, reports: true, readOnly: false },
+  admin: { inventory: true, invoices: true, deliveryTracking: true, suppliers: true, accountManagement: true, reports: true, readOnly: false },
   director: { inventory: true, suppliers: true, accountManagement: true, reports: true, readOnly: false },
   business_developer: { inventory: false, suppliers: false, accountManagement: false, reports: true, readOnly: false },
   creatives: { inventory: true, suppliers: false, accountManagement: false, reports: true, readOnly: false },
-  sales_manager: { inventory: true, suppliers: true, accountManagement: false, reports: true, readOnly: false },
+  sales_manager: { inventory: true, invoices: true, deliveryTracking: true, suppliers: true, accountManagement: false, reports: true, readOnly: false },
   assistant_sales: { inventory: true, suppliers: false, accountManagement: false, reports: true, readOnly: false },
   packer: { inventory: true, suppliers: false, accountManagement: false, reports: true, readOnly: true },
-  operations_manager: { inventory: true, suppliers: true, accountManagement: false, reports: true, readOnly: false },
-  social_media_manager: { inventory: false, suppliers: false, accountManagement: false, reports: true, readOnly: false },
+  operations_manager: { inventory: true, invoices: true, deliveryTracking: true, suppliers: true, accountManagement: false, reports: true, readOnly: false },
+  social_media_manager: { inventory: false, deliveryTracking: true, suppliers: false, accountManagement: false, reports: true, readOnly: false },
   default: { inventory: true, suppliers: true, accountManagement: false, reports: true, readOnly: false },
 };
 

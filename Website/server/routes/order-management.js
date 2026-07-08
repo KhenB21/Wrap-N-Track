@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const verifyJwt = require('../middleware/verifyJwt');
 const requireRole = require('../middleware/requireRole');
+const { initializeDeliveryForReadyOrder } = require('../services/deliveryService');
 
 // Apply authentication middleware to all routes
 router.use(verifyJwt());
@@ -110,7 +111,7 @@ router.get('/orders', requireRole(['admin', 'sales_manager', 'assistant_sales', 
 });
 
 // PUT /api/order-management/orders/:orderId/status - Update order status
-router.put('/orders/:orderId/status', requireRole(['admin', 'sales_manager', 'assistant_sales', 'packer']), async (req, res) => {
+router.put('/orders/:orderId/status', requireRole(['admin', 'super_admin', 'operations_manager', 'sales_manager', 'social_media_manager', 'assistant_sales', 'packer']), async (req, res) => {
   try {
     const { orderId } = req.params;
     const { status, notes, payment_method } = req.body;
@@ -171,6 +172,10 @@ router.put('/orders/:orderId/status', requireRole(['admin', 'sales_manager', 'as
         [payment_method, paymentType, orderId]
       );
       console.log(`Payment method update result: ${updateResult.rowCount} rows affected`);
+    }
+
+    if (status === 'Ready for Delivery') {
+      await initializeDeliveryForReadyOrder(pool, orderId, updatedBy, notes);
     }
 
     // Check if the order should be archived (after status update)

@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 // Centralized pool import
 const pool = require('../config/db');
+const verifyJwt = require('../middleware/verifyJwt');
+const requireRole = require('../middleware/requireRole');
+
+const STAFF_SUPPLIER_ORDER_ROLES = ['operations_manager', 'sales_manager', 'super_admin', 'admin', 'director'];
+const SUPPLIER_ORDER_STATUSES = ['Waiting', 'Pending', 'Ordered', 'In Transit', 'Received', 'Cancelled'];
+
+router.use(verifyJwt());
+router.use(requireRole(STAFF_SUPPLIER_ORDER_ROLES));
 
 // Get all supplier orders
 router.get('/', async (req, res) => {
@@ -41,6 +49,9 @@ router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
     const { supplier_id, status, order_date, expected_delivery, remarks, items } = req.body;
+    if (!SUPPLIER_ORDER_STATUSES.includes(status)) {
+      return res.status(400).json({ message: 'Invalid supplier delivery status' });
+    }
     
     console.log('Creating order with items:', JSON.stringify(items, null, 2));
 
@@ -109,6 +120,10 @@ router.put('/:orderId', async (req, res) => {
     remarks,
     items
   } = req.body;
+
+  if (!SUPPLIER_ORDER_STATUSES.includes(status)) {
+    return res.status(400).json({ message: 'Invalid supplier delivery status' });
+  }
 
   const client = await pool.connect();
   try {

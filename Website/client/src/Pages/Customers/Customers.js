@@ -52,8 +52,10 @@ export default function Customers() {
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(customer =>
-        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.email_address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (customer.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (customer.email_address || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (customer.telephone && customer.telephone.includes(searchTerm)) ||
+        (customer.cellphone && customer.cellphone.includes(searchTerm)) ||
         (customer.phone_number && customer.phone_number.includes(searchTerm))
       );
     }
@@ -145,7 +147,7 @@ export default function Customers() {
       setShowModal(false);
     } catch (err) {
       console.error('Error saving customer:', err);
-      toast.error('Failed to save customer');
+      toast.error(err.response?.data?.error || 'Failed to save customer');
     }
   };
 
@@ -456,8 +458,8 @@ export default function Customers() {
                             </td>
                             <td>
                               <div className="customer-info">
-                                <div className="customer-avatar">
-                                  {customer.name.charAt(0).toUpperCase()}
+      <div className="customer-avatar">
+                                  {(customer.name || '?').charAt(0).toUpperCase()}
                                 </div>
                                 <div className="customer-details">
                                   <div className="customer-name">{customer.name}</div>
@@ -466,7 +468,10 @@ export default function Customers() {
                               </div>
                             </td>
                             <td>{customer.email_address}</td>
-                            <td>{customer.phone_number || 'N/A'}</td>
+                            <td>
+                              <div>{customer.cellphone || customer.phone_number || 'N/A'}</div>
+                              {customer.telephone && <small>Tel: {customer.telephone}</small>}
+                            </td>
                             <td>
                               <span className={`status-badge ${customer.status || 'active'}`}>
                                 {customer.status || 'Active'}

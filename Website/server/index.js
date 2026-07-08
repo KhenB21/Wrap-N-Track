@@ -26,6 +26,8 @@ const ordersRouter = require('./routes/orders');
 const supplierOrdersRouter = require('./routes/supplier-orders');
 const notificationsRouter = require('./routes/notifications');
 const inventoryRouter = require('./routes/inventory');
+const invoicesRouter = require('./routes/invoices');
+const deliveriesRouter = require('./routes/deliveries');
 const availableInventoryRouter = require('./routes/available-inventory');
 const inventoryReportsRouter = require('./routes/inventory-reports');
 const salesReportsRouter = require('./routes/sales-reports');
@@ -321,6 +323,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/customers', customersRouter);
@@ -335,6 +338,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/customer', customerRoutes);
 // Temporarily disable authentication for testing
 app.use('/api/inventory', inventoryRouter);
+app.use('/api', invoicesRouter);
+app.use('/api/deliveries', deliveriesRouter);
 // Available inventory is public for customers to view products in order page
 app.use('/api/available-inventory', availableInventoryRouter);
 app.use('/api/inventory-reports', verifyJwt, requireReadOnly(), inventoryReportsRouter);

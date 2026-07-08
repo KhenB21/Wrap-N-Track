@@ -5,7 +5,8 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
   const [formData, setFormData] = useState({
     name: '',
     email_address: '',
-    phone_number: '',
+    telephone: '',
+    cellphone: '',
     address: '',
     status: 'active'
   });
@@ -18,7 +19,8 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
       setFormData({
         name: customer.name || '',
         email_address: customer.email_address || '',
-        phone_number: customer.phone_number || '',
+        telephone: customer.telephone || '',
+        cellphone: customer.cellphone || customer.phone_number || '',
         address: customer.address || '',
         status: customer.status || 'active'
       });
@@ -27,7 +29,8 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
       setFormData({
         name: '',
         email_address: '',
-        phone_number: '',
+        telephone: '',
+        cellphone: '',
         address: '',
         status: 'active'
       });
@@ -55,19 +58,19 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
       newErrors.email_address = 'Please enter a valid email address';
     }
 
-    // Phone validation
-    if (!formData.phone_number.trim()) {
-      newErrors.phone_number = 'Phone number is required';
-    } else {
-      const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,}$/;
-      const cleanPhone = formData.phone_number.replace(/[\s\-\(\)]/g, '');
-      if (!phoneRegex.test(formData.phone_number) || cleanPhone.length < 10) {
-        newErrors.phone_number = 'Please enter a valid phone number (minimum 10 digits)';
-      }
+    if (!formData.cellphone.trim()) {
+      newErrors.cellphone = 'Cellphone is required';
+    } else if (!/^(\+639|639|09)\d{9}$/.test(formData.cellphone.replace(/[^\d+]/g, ''))) {
+      newErrors.cellphone = 'Use a valid PH mobile number, e.g. 09171234567 or +639171234567';
     }
 
-    // Address validation (optional but if provided, should be valid)
-    if (formData.address && formData.address.length > 500) {
+    if (formData.telephone && formData.telephone.replace(/\D/g, '').length < 7) {
+      newErrors.telephone = 'Telephone number is too short';
+    }
+
+    if (!formData.address.trim()) {
+      newErrors.address = 'Shipping address is required';
+    } else if (formData.address.length > 500) {
       newErrors.address = 'Address must be less than 500 characters';
     }
 
@@ -103,33 +106,18 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
     }
   };
 
-  const formatPhoneNumber = (value) => {
-    // Remove all non-digit characters
-    const phoneNumber = value.replace(/\D/g, '');
-    
-    // Format as (XXX) XXX-XXXX for US numbers
-    if (phoneNumber.length <= 3) {
-      return phoneNumber;
-    } else if (phoneNumber.length <= 6) {
-      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
-    } else {
-      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
-    }
-  };
-
-  const handlePhoneChange = (e) => {
-    const formatted = formatPhoneNumber(e.target.value);
+  const handlePhoneChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
-      phone_number: formatted
+      [field]: value
     }));
     
     setIsDirty(true);
     
-    if (errors.phone_number) {
+    if (errors[field]) {
       setErrors(prev => ({
         ...prev,
-        phone_number: ''
+        [field]: ''
       }));
     }
   };
@@ -224,18 +212,34 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
               </div>
 
               <div className="form-group">
-                <label htmlFor="phone_number">Phone Number *</label>
+                <label htmlFor="cellphone">Cellphone *</label>
                 <input
                   type="tel"
-                  id="phone_number"
-                  name="phone_number"
-                  value={formData.phone_number}
-                  onChange={handlePhoneChange}
-                  className={errors.phone_number ? 'error' : ''}
-                  placeholder="(555) 123-4567"
-                  maxLength="14"
+                  id="cellphone"
+                  name="cellphone"
+                  value={formData.cellphone}
+                  onChange={(e) => handlePhoneChange('cellphone', e.target.value)}
+                  className={errors.cellphone ? 'error' : ''}
+                  placeholder="09171234567 or +639171234567"
+                  maxLength="20"
                 />
-                {errors.phone_number && <span className="error-message">{errors.phone_number}</span>}
+                {errors.cellphone && <span className="error-message">{errors.cellphone}</span>}
+              </div>
+            </div>
+            <div className="form-row single">
+              <div className="form-group">
+                <label htmlFor="telephone">Telephone</label>
+                <input
+                  type="tel"
+                  id="telephone"
+                  name="telephone"
+                  value={formData.telephone}
+                  onChange={(e) => handlePhoneChange('telephone', e.target.value)}
+                  className={errors.telephone ? 'error' : ''}
+                  placeholder="Landline or office telephone"
+                  maxLength="20"
+                />
+                {errors.telephone && <span className="error-message">{errors.telephone}</span>}
               </div>
             </div>
           </div>
@@ -246,14 +250,14 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
             
             <div className="form-row single">
               <div className="form-group">
-                <label htmlFor="address">Address</label>
+                <label htmlFor="address">Shipping Address *</label>
                 <textarea
                   id="address"
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
                   className={errors.address ? 'error' : ''}
-                  placeholder="Enter full address (optional)"
+                  placeholder="Enter shipping address"
                   rows="4"
                   maxLength="500"
                 />

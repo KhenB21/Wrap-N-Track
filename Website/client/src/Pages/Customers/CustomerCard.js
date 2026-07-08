@@ -64,7 +64,7 @@ export default function CustomerCard({
 
       <div className="card-content">
         <div className="customer-avatar">
-          {customer.name.charAt(0).toUpperCase()}
+          {(customer.name || '?').charAt(0).toUpperCase()}
         </div>
         
         <div className="customer-info">
@@ -78,13 +78,27 @@ export default function CustomerCard({
             <span className="detail-text">{customer.email_address}</span>
           </div>
           
-          {customer.phone_number && (
+          {(customer.cellphone || customer.phone_number) && (
             <div className="detail-item">
               <span className="detail-icon">📞</span>
-              <span className="detail-text">{customer.phone_number}</span>
+              <span className="detail-text">{customer.cellphone || customer.phone_number}</span>
             </div>
           )}
           
+          {customer.telephone && (
+            <div className="detail-item">
+              <span className="detail-icon">TEL</span>
+              <span className="detail-text">{customer.telephone}</span>
+            </div>
+          )}
+
+          {Number(customer.order_count || 0) > 0 && (
+            <div className="detail-item">
+              <span className="detail-icon">ORD</span>
+              <span className="detail-text">{customer.order_count} orders - Latest: {customer.latest_order_status || 'N/A'}</span>
+            </div>
+          )}
+
           {customer.address && (
             <div className="detail-item">
               <span className="detail-icon">📍</span>
