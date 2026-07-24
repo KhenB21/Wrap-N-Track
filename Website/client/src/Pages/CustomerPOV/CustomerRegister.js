@@ -245,7 +245,7 @@ function CustomerRegister() {
     <div className="customer-register-container">
       <TopbarCustomer />
       <div className="customer-register-card">
-        <h2>Create Your Account</h2>
+        <h2 className="customer-Register-Label">Create Your Account</h2>
         <p className="register-subtitle">Join Pensée Gifting Studio and start curating thoughtful gifts</p>
         {error && <div className="error-message">{error}</div>}
         {verificationSent && (

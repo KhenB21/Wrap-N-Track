@@ -1,4 +1,7 @@
 /* Customer Registration Container */
+.customer-Register-Label{
+  color: #8a8aaf !important;
+}
 .customer-register-container {
   display: flex;
   flex-direction: column;
@@ -13,7 +16,7 @@
 
 /* Registration Card */
 .customer-register-card {
-  background: #fff;
+  background: #f8f9fa;
   padding: 48px 56px;
   border-radius: 16px;
   box-shadow: 0 4px 24px rgba(108, 99, 255, 0.08);
