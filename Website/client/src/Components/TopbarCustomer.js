@@ -98,7 +98,12 @@ export default function TopbarCustomer() {
             <Link
               key={link.label}
               to={link.path}
-              className={`topbar-customer-link${location.pathname === link.path ? ' active' : ''}`}
+              className={`topbar-customer-link${
+                location.pathname === link.path ||
+                (location.pathname === '/' && link.path === '/customer-home')
+                  ? ' active'
+                  : ''
+              }`}
             >
               {link.label}
             </Link>
@@ -120,7 +125,10 @@ export default function TopbarCustomer() {
             <Link
               key={link.label}
               to={link.path}
-              className={`topbar-customer-link${location.pathname === link.path ? ' active' : ''}`}
+              className={`topbar-customer-link${  location.pathname === link.path ||
+              (location.pathname === '/' && link.path === '/customer-home')
+              ? ' active'
+              : ''}`}
             >
               {link.label}
             </Link>
@@ -200,7 +208,10 @@ export default function TopbarCustomer() {
             <Link
               key={link.label}
               to={link.path}
-              className={`topbar-customer-link${location.pathname === link.path ? ' active' : ''}`}
+              className={`topbar-customer-link${  location.pathname === link.path ||
+              (location.pathname === '/' && link.path === '/customer-home')
+                ? ' active'
+                : ''}`}
               onClick={() => setMobileMenuOpen(false)}
             >
               {link.label}
