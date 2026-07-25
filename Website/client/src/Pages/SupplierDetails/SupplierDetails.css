@@ -160,7 +160,7 @@
   left: 1rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   font-size: 1.1rem;
 }
 
@@ -446,7 +446,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--border, #f3f4f6);
 }
 
 .status-badge {
@@ -595,7 +595,7 @@
 }
 
 .form-group input[type="tel"]:focus {
-  border-color: #10b981;
+  border-color: var(--success, #10b981);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
@@ -752,6 +752,10 @@
   border-bottom: 1px solid var(--border);
 }
 
+body.dark .suppliers-header {
+  background: linear-gradient(135deg, #202020 0%, #1a1a1a 55%, #202020 100%);
+}
+
 .header-content,
 .stats-grid,
 .suppliers-controls,
@@ -869,7 +873,7 @@
 
 .modal-overlay,
 .add-supplier-dialog-backdrop {
-  background: rgba(15, 23, 42, 0.58);
+  background: var(--overlay, rgba(15, 23, 42, 0.58));
   backdrop-filter: blur(10px);
 }
 
@@ -877,7 +881,7 @@
 .add-supplier-dialog {
   border-radius: 24px;
   overflow: hidden;
-  border: 1px solid rgba(219, 227, 238, 0.9);
+  border: 1px solid var(--border, rgba(219, 227, 238, 0.9));
   box-shadow: var(--shadow-lg);
 }
 
@@ -888,6 +892,11 @@
   border-bottom: 1px solid var(--border);
 }
 
+body.dark .modal-header,
+body.dark .add-supplier-dialog-header {
+  background: linear-gradient(135deg, #202020 0%, #242424 80%);
+}
+
 .modal-close,
 .close-btn {
   color: var(--text-soft);
@@ -896,7 +905,7 @@
 
 .modal-close:hover,
 .close-btn:hover {
-  background: #e2e8f0;
+  background: var(--hover, #e2e8f0);
 }
 
 .compact-form,
@@ -910,6 +919,10 @@
   border: 1px solid var(--border);
   border-radius: 18px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+}
+
+body.dark .form-section {
+  background: linear-gradient(180deg, #202020 0%, #242424 100%);
 }
 
 .section-title {
@@ -940,12 +953,12 @@
 }
 
 .btn-cancel {
-  background: #e2e8f0;
+  background: var(--surface-muted, #e2e8f0);
   color: var(--text-soft);
 }
 
 .btn-cancel:hover {
-  background: #cbd5e1;
+  background: var(--hover, #cbd5e1);
 }
 
 .error-message,
@@ -956,6 +969,16 @@
 .error-message {
   background: #fef2f2;
   border-color: #fecaca;
+}
+
+body.dark .error-message,
+body.dark .error-text {
+  color: #ff8080;
+}
+
+body.dark .error-message {
+  background: #3a1f1f;
+  border-color: #6b2b2b;
 }
 
 @media (max-width: 768px) {
@@ -976,4 +999,28 @@
     padding-left: 1.25rem;
     padding-right: 1.25rem;
   }
+}
+
+/* Dark mode: accent colors that don't map to a semantic variable */
+body.dark .edit-btn {
+  background-color: #1e3a5f;
+  color: #7cc4fa;
+}
+
+body.dark .edit-btn:hover {
+  background-color: #254a75;
+}
+
+body.dark .delete-btn {
+  background-color: #3a1f1f;
+  color: #ff8a8a;
+}
+
+body.dark .delete-btn:hover {
+  background-color: #4a2626;
+}
+
+body.dark .status-badge.active {
+  background-color: #143d2b;
+  color: #4ade80;
 }

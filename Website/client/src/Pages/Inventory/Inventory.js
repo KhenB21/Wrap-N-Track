@@ -32,14 +32,81 @@ function Inventory() {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState("");
+  const [reorderInsights, setReorderInsights] = useState({});
   const navigate = useNavigate();
 
+  // Legacy fallback used only until the reorder-insights fetch resolves (or if it fails) —
+  // the authoritative status now comes from GET /api/inventory-reports/replenishment-suggestions,
+  // which implements the approved hybrid reorder formula (available stock vs. dynamic/threshold
+  // reorder point) instead of this raw on-hand-vs-reorder_level comparison.
   const getStockStatus = (product) => {
     const quantity = Number(product?.quantity || 0);
     const reorderLevel = Number(product?.reorder_level || 0);
     if (quantity <= 0) return { label: 'Out of Stock', className: 'low-stock-row', color: '#dc2626', background: '#fee2e2' };
     if (quantity <= reorderLevel) return { label: 'Low Stock', className: 'low-stock-row', color: '#d97706', background: '#fef3c7' };
     return { label: 'In Stock', className: 'high-stock-row', color: '#047857', background: '#d1fae5' };
+  };
+
+  const REORDER_STATUS_STYLE = {
+    'Out of Stock': { icon: '⛔', color: '#dc2626', background: '#fee2e2', rowClass: 'low-stock-row' },
+    'Reorder Recommended': { icon: '⚠️', color: '#d97706', background: '#fef3c7', rowClass: 'low-stock-row' },
+    'Approaching Reorder Point': { icon: '🔶', color: '#b45309', background: '#fffbeb', rowClass: '' },
+    'Healthy': { icon: '✅', color: '#047857', background: '#d1fae5', rowClass: 'high-stock-row' }
+  };
+
+  // Merges the live reorder-formula result for this SKU (if loaded) with a stock-status
+  // fallback derived from raw quantity, so the table renders sensibly even before/without
+  // the reorder-insights fetch completing.
+  const getReorderInfo = (product) => {
+    const insight = reorderInsights[product.sku];
+    if (insight) {
+      const style = REORDER_STATUS_STYLE[insight.reorder_status] || REORDER_STATUS_STYLE.Healthy;
+      return {
+        label: insight.reorder_status,
+        ...style,
+        availableStock: Number(insight.available_stock),
+        reservedStock: Number(insight.reserved_stock),
+        reorderPoint: Number(insight.reorder_point),
+        averageDailyUsage: Number(insight.average_daily_usage),
+        leadTimeDays: Number(insight.lead_time_days),
+        safetyStock: Number(insight.safety_stock),
+        suggestedReorderQuantity: Number(insight.suggested_reorder_quantity),
+        formulaSource: insight.formula_source,
+        daysOfSupply: insight.days_of_supply,
+        lastCalculatedAt: insight.last_calculated_at
+      };
+    }
+    const fallback = getStockStatus(product);
+    return {
+      label: fallback.label === 'Low Stock' ? 'Reorder Recommended' : fallback.label,
+      icon: REORDER_STATUS_STYLE[fallback.label === 'Low Stock' ? 'Reorder Recommended' : fallback.label]?.icon || '•',
+      color: fallback.color,
+      background: fallback.background,
+      rowClass: fallback.className,
+      availableStock: Number(product.quantity || 0),
+      reservedStock: null,
+      reorderPoint: Number(product.reorder_level || 0),
+      averageDailyUsage: null,
+      leadTimeDays: null,
+      safetyStock: null,
+      suggestedReorderQuantity: null,
+      formulaSource: null,
+      daysOfSupply: null,
+      lastCalculatedAt: null
+    };
+  };
+
+  const fetchReorderInsights = async () => {
+    try {
+      const res = await api.get('/api/inventory-reports/replenishment-suggestions');
+      const rows = res.data?.data || [];
+      const map = {};
+      rows.forEach((row) => { map[row.sku] = row; });
+      setReorderInsights(map);
+    } catch (err) {
+      // Non-fatal: the table still works off the legacy quantity-vs-reorder_level fallback.
+      console.error('Error fetching reorder insights:', err);
+    }
   };
 
   useEffect(() => {
@@ -73,22 +140,23 @@ function Inventory() {
     }
     switch (filter) {
       case 'low-stock':
+        // "Reorder Recommended" or "Approaching Reorder Point" per the reorder formula
         filtered = filtered.filter(item => {
-          const quantity = Number(item.quantity || 0);
-          return quantity > 0 && quantity <= Number(item.reorder_level || 0);
+          const status = getReorderInfo(item).label;
+          return status === 'Reorder Recommended' || status === 'Approaching Reorder Point';
         });
         break;
       case 'high-stock':
-        filtered = filtered.filter(item => Number(item.quantity || 0) > Number(item.reorder_level || 0));
+        filtered = filtered.filter(item => getReorderInfo(item).label === 'Healthy');
         break;
       case 'replenishment':
-        filtered = filtered.filter(item => Number(item.quantity || 0) <= 0);
+        filtered = filtered.filter(item => getReorderInfo(item).label === 'Out of Stock');
         break;
       default:
         break;
     }
     setFilteredProducts(filtered);
-  }, [searchTerm, filter, products]);
+  }, [searchTerm, filter, products, reorderInsights]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -112,6 +180,7 @@ function Inventory() {
 
   useEffect(() => {
     fetchProducts();
+    fetchReorderInsights();
   }, []);
 
 
@@ -127,6 +196,7 @@ function Inventory() {
         if (response.data.success) {
           setShowModal(false);
           await fetchProducts();
+        await fetchReorderInsights();
           toast.success('Stock added successfully!');
         }
       } catch (err) {
@@ -148,6 +218,7 @@ function Inventory() {
       if (response.data.success) {
         setShowModal(false);
         await fetchProducts();
+        await fetchReorderInsights();
         const successMessage = formData.isUpdate ? 'Product updated successfully!' : 'Product added successfully!';
         toast.success(successMessage);
       }
@@ -168,6 +239,7 @@ function Inventory() {
       try {
   await api.delete(`/api/inventory/${sku}`);
         await fetchProducts();
+        await fetchReorderInsights();
         toast.success('Product archived successfully!');
       } catch (err) {
         toast.error('Failed to archive product');
@@ -266,8 +338,8 @@ function Inventory() {
               className="inventory-filter-select"
             >
               <option value="all">All Products</option>
-              <option value="low-stock">Low Stock</option>
-              <option value="high-stock">In Stock</option>
+              <option value="low-stock">Reorder Recommended / Approaching</option>
+              <option value="high-stock">Healthy</option>
               <option value="replenishment">Out of Stock</option>
             </select>
             <div className="export-buttons">
@@ -291,8 +363,9 @@ function Inventory() {
                   <th style={{ width: '120px', textAlign: 'center' }}>Last Updated</th>
                   <th style={{ width: '60px', textAlign: 'center' }}>UOM</th>
                   <th style={{ width: '80px', textAlign: 'center' }}>In Stocks</th>
-                  <th style={{ width: '80px', textAlign: 'center' }}>Reorder</th>
-                  <th style={{ width: '100px', textAlign: 'center' }}>Status</th>
+                  <th style={{ width: '80px', textAlign: 'center' }}>Available</th>
+                  <th style={{ width: '90px', textAlign: 'center' }}>Reorder Point</th>
+                  <th style={{ width: '150px', textAlign: 'center' }}>Reorder Status</th>
                   <th style={{ width: '70px', textAlign: 'center' }}>Ordered</th>
                   <th style={{ width: '70px', textAlign: 'center' }}>Delivered</th>
                   <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
@@ -314,6 +387,7 @@ function Inventory() {
                       <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px', margin: '0 auto' }} /></td>
                       <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '50px', height: '16px', margin: '0 auto' }} /></td>
                       <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '50px', height: '16px', margin: '0 auto' }} /></td>
+                      <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer" style={{ width: '90px', height: '20px', borderRadius: '10px', margin: '0 auto' }} /></td>
                       <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '70px', height: '16px', margin: '0 auto' }} /></td>
                       <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px', margin: '0 auto' }} /></td>
                       <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px', margin: '0 auto' }} /></td>
@@ -326,7 +400,7 @@ function Inventory() {
                       key={product.sku} 
                       style={{ cursor: 'pointer' }} 
                       onClick={e => handleRowClick(product.sku)}
-                      className={getStockStatus(product).className}
+                      className={getReorderInfo(product).rowClass}
                     >
                       <td>
                         {product.image_data ? (
@@ -391,20 +465,45 @@ function Inventory() {
                           })()}
                         </div>
                       </td>
-                      <td style={{ textAlign: 'center' }}>{Number(product.reorder_level || 0).toLocaleString()}</td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '6px 10px',
-                          borderRadius: '999px',
-                          fontWeight: 700,
-                          fontSize: '12px',
-                          color: getStockStatus(product).color,
-                          backgroundColor: getStockStatus(product).background
-                        }}>
-                          {product.stock_status || getStockStatus(product).label}
-                        </span>
-                      </td>
+                      {(() => {
+                        const reorderInfo = getReorderInfo(product);
+                        const tooltipLines = [
+                          `Available stock: ${reorderInfo.availableStock ?? '—'}${reorderInfo.reservedStock ? ` (reserved: ${reorderInfo.reservedStock})` : ''}`,
+                          `Reorder point: ${reorderInfo.reorderPoint ?? '—'}`,
+                          reorderInfo.averageDailyUsage != null ? `Avg daily usage: ${reorderInfo.averageDailyUsage}` : null,
+                          reorderInfo.leadTimeDays != null ? `Lead time: ${reorderInfo.leadTimeDays} day(s)` : null,
+                          reorderInfo.safetyStock != null ? `Safety stock: ${reorderInfo.safetyStock}` : null,
+                          reorderInfo.suggestedReorderQuantity != null ? `Suggested reorder qty: ${reorderInfo.suggestedReorderQuantity}` : null,
+                          reorderInfo.formulaSource ? `Formula source: ${reorderInfo.formulaSource.replace(/_/g, ' ')}` : null,
+                          reorderInfo.lastCalculatedAt ? `Last calculated: ${new Date(reorderInfo.lastCalculatedAt).toLocaleString()}` : null
+                        ].filter(Boolean).join('\n');
+                        return (
+                          <>
+                            <td style={{ textAlign: 'center' }} title={tooltipLines}>
+                              {reorderInfo.availableStock != null ? reorderInfo.availableStock.toLocaleString() : '—'}
+                            </td>
+                            <td style={{ textAlign: 'center' }} title={tooltipLines}>
+                              {reorderInfo.reorderPoint != null ? reorderInfo.reorderPoint.toLocaleString() : '—'}
+                            </td>
+                            <td style={{ textAlign: 'center' }} title={tooltipLines}>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '6px 10px',
+                                borderRadius: '999px',
+                                fontWeight: 700,
+                                fontSize: '12px',
+                                color: reorderInfo.color,
+                                backgroundColor: reorderInfo.background
+                              }}>
+                                <span aria-hidden="true">{reorderInfo.icon}</span>
+                                {reorderInfo.label}
+                              </span>
+                            </td>
+                          </>
+                        );
+                      })()}
                       <td style={{ textAlign: 'center' }}>{Number(product.ordered_quantity || 0).toLocaleString()}</td>
                       <td style={{ textAlign: 'center' }}>{Number(product.delivered_quantity || 0).toLocaleString()}</td>
                       <td style={{ textAlign: 'center' }}>

@@ -6,30 +6,29 @@ const multer = require('multer');
 const pool = require('../config/db');
 const verifyJwt = require('../middleware/verifyJwt');
 const requireRole = require('../middleware/requireRole');
+const {
+  uploadPaymentProof,
+  deletePaymentProof,
+  getPaymentProofBuffer,
+  MAX_BYTES,
+} = require('../services/paymentProofStorage');
 
 const router = express.Router();
-const proofUploadDir = path.join(__dirname, '..', 'uploads', 'invoice-proofs');
-fs.mkdirSync(proofUploadDir, { recursive: true });
 
 const proofUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, proofUploadDir),
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname || '').toLowerCase();
-      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
-    },
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_BYTES },
   fileFilter: (req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowed.includes(file.mimetype)) {
-      return cb(new Error('Proof of payment must be a JPG, PNG, WebP, or PDF file'));
+      return cb(new Error('Proof of payment must be a JPG, PNG, or WebP image'));
     }
     cb(null, true);
   },
 });
 
 const STAFF_INVOICE_ROLES = ['operations_manager', 'sales_manager', 'super_admin', 'admin'];
+const PAID_STATUSES = ['PAID'];
 const ACTIVE_STATUSES = ['DRAFT', 'ISSUED', 'UNPAID', 'PAID'];
 const INVOICE_TYPES = {
   DOWN_PAYMENT: { code: 'DP', title: 'DOWN PAYMENT INVOICE' },
@@ -43,6 +42,38 @@ const toMoney = (value) => {
   const amount = Number(String(value ?? '').replace(/,/g, ''));
   return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : 0;
 };
+
+function getInvoiceAmount(invoice, amountDueOverride = null) {
+  if (!invoice) return 0;
+  if (invoice.invoice_type === 'DOWN_PAYMENT') {
+    return toMoney(invoice.down_payment_amount);
+  }
+  const remainingInvoiceAmount = Math.max(0, toMoney(toMoney(invoice.total_order_amount) - toMoney(invoice.down_payment_amount)));
+  return Math.max(
+    toMoney(invoice.amount_paid),
+    toMoney(amountDueOverride ?? invoice.amount_due),
+    toMoney(invoice.remaining_balance_amount),
+    remainingInvoiceAmount
+  );
+}
+
+function getEffectiveAmountPaid(invoice, invoiceAmountOverride = null) {
+  const storedAmountPaid = toMoney(invoice?.amount_paid);
+  if (!invoice || invoice.status !== 'PAID' || storedAmountPaid > 0) {
+    return storedAmountPaid;
+  }
+  return getInvoiceAmount(invoice, invoiceAmountOverride);
+}
+
+function getDisplayRemainingBalance(invoice, summary) {
+  if (!invoice) return 0;
+  if (invoice.status === 'CANCELLED') return 0;
+  if (invoice.invoice_type === 'DOWN_PAYMENT' && invoice.status !== 'PAID') {
+    const total = summary?.orderGrandTotal ?? toMoney(invoice.total_order_amount);
+    return Math.max(0, toMoney(total - toMoney(invoice.down_payment_amount)));
+  }
+  return summary?.remainingBalance ?? toMoney(invoice.remaining_balance_amount);
+}
 
 const formatMoney = (value) => `PHP ${toMoney(value).toLocaleString('en-PH', {
   minimumFractionDigits: 2,
@@ -79,8 +110,13 @@ async function ensureInvoiceSchema() {
       payment_reference VARCHAR(150),
       payment_notes TEXT,
       payment_proof_path TEXT,
+      payment_proof_storage_provider VARCHAR(40),
+      payment_proof_storage_path TEXT,
       payment_proof_original_name TEXT,
       payment_proof_mime_type VARCHAR(100),
+      payment_proof_file_size INTEGER,
+      payment_proof_uploaded_at TIMESTAMPTZ,
+      payment_proof_uploaded_by INTEGER,
       issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       due_date DATE,
       paid_at TIMESTAMPTZ,
@@ -102,8 +138,13 @@ async function ensureInvoiceSchema() {
       ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(150),
       ADD COLUMN IF NOT EXISTS payment_notes TEXT,
       ADD COLUMN IF NOT EXISTS payment_proof_path TEXT,
+      ADD COLUMN IF NOT EXISTS payment_proof_storage_provider VARCHAR(40),
+      ADD COLUMN IF NOT EXISTS payment_proof_storage_path TEXT,
       ADD COLUMN IF NOT EXISTS payment_proof_original_name TEXT,
       ADD COLUMN IF NOT EXISTS payment_proof_mime_type VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS payment_proof_file_size INTEGER,
+      ADD COLUMN IF NOT EXISTS payment_proof_uploaded_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS payment_proof_uploaded_by INTEGER,
       ADD COLUMN IF NOT EXISTS due_date DATE,
       ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS created_by INTEGER,
@@ -120,6 +161,24 @@ async function ensureInvoiceSchema() {
   await pool.query('CREATE INDEX IF NOT EXISTS idx_invoices_order_id ON invoices(order_id);');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_invoices_type ON invoices(invoice_type);');
+  await pool.query(`
+    ALTER TABLE orders
+      ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) NOT NULL DEFAULT 'Unpaid',
+      ADD COLUMN IF NOT EXISTS total_verified_payments NUMERIC(12,2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS remaining_balance NUMERIC(12,2) NOT NULL DEFAULT 0;
+  `);
+  await pool.query('UPDATE orders SET order_quantity = 0 WHERE order_quantity IS NULL;');
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'orders_order_quantity_non_negative'
+      ) THEN
+        ALTER TABLE orders
+          ADD CONSTRAINT orders_order_quantity_non_negative CHECK (order_quantity IS NULL OR order_quantity >= 0);
+      END IF;
+    END $$;
+  `);
 
   schemaReady = true;
 }
@@ -139,13 +198,13 @@ function staffOnly(req, res, next) {
   return requireRole(STAFF_INVOICE_ROLES)(req, res, next);
 }
 
-async function getOrderWithItems(orderId) {
-  const activeOrder = await pool.query('SELECT *, false as archived FROM orders WHERE order_id = $1', [orderId]);
+async function getOrderWithItems(orderId, db = pool) {
+  const activeOrder = await db.query('SELECT *, false as archived FROM orders WHERE order_id = $1', [orderId]);
   let order = activeOrder.rows[0];
   let itemsResult;
 
   if (order) {
-    itemsResult = await pool.query(`
+    itemsResult = await db.query(`
       SELECT
         op.sku,
         op.quantity,
@@ -159,10 +218,10 @@ async function getOrderWithItems(orderId) {
       ORDER BY op.line_id NULLS LAST, op.sku
     `, [orderId]);
   } else {
-    const historyOrder = await pool.query('SELECT *, true as archived FROM order_history WHERE order_id = $1', [orderId]);
+    const historyOrder = await db.query('SELECT *, true as archived FROM order_history WHERE order_id = $1', [orderId]);
     order = historyOrder.rows[0];
     if (!order) return null;
-    itemsResult = await pool.query(`
+    itemsResult = await db.query(`
       SELECT
         ohp.sku,
         ohp.quantity,
@@ -195,6 +254,7 @@ async function getOrderWithItems(orderId) {
     delivery_fee: 0,
     additional_fee: Math.max(0, toMoney(totalOrderAmount - subtotal)),
     total_order_amount: totalOrderAmount,
+    total_boxes: Number(order.order_quantity || 0),
     items,
   };
 }
@@ -212,16 +272,26 @@ async function getInvoiceWithDetails(invoiceId) {
   if (!invoice) return null;
 
   const order = await getOrderWithItems(invoice.order_id);
+  const paymentSummary = await calculatePaymentSummary(invoice.order_id);
+  const currentRemainingBalance = getDisplayRemainingBalance(invoice, paymentSummary);
+  const computedAmountDue = ['PAID', 'CANCELLED'].includes(invoice.status)
+    ? 0
+    : invoice.invoice_type === 'REMAINING_BALANCE'
+      ? currentRemainingBalance
+      : toMoney(invoice.amount_due);
   return {
     ...invoice,
     subtotal: toMoney(invoice.subtotal),
     delivery_fee: toMoney(invoice.delivery_fee),
     additional_fee: toMoney(invoice.additional_fee),
-    total_order_amount: toMoney(invoice.total_order_amount),
+    total_order_amount: paymentSummary?.orderGrandTotal ?? toMoney(invoice.total_order_amount),
     down_payment_amount: toMoney(invoice.down_payment_amount),
-    remaining_balance_amount: toMoney(invoice.remaining_balance_amount),
-    amount_due: toMoney(invoice.amount_due),
-    amount_paid: toMoney(invoice.amount_paid),
+    remaining_balance_amount: currentRemainingBalance,
+    amount_due: computedAmountDue,
+    invoice_amount: getInvoiceAmount(invoice, computedAmountDue),
+    amount_paid: getEffectiveAmountPaid(invoice, computedAmountDue),
+    total_verified_payments: paymentSummary?.totalVerifiedPayments ?? 0,
+    payment_status: paymentSummary?.paymentStatus || null,
     order,
   };
 }
@@ -262,6 +332,106 @@ async function getActiveInvoice(orderId, invoiceType, client = pool) {
   return result.rows[0] || null;
 }
 
+async function calculatePaymentSummary(orderId, client = pool) {
+  const order = await getOrderWithItems(orderId, client);
+  if (!order) return null;
+  const paidResult = await client.query(`
+    SELECT COALESCE(SUM(
+      CASE
+        WHEN amount_paid > 0 THEN amount_paid
+        WHEN invoice_type = 'DOWN_PAYMENT' THEN down_payment_amount
+        WHEN invoice_type = 'REMAINING_BALANCE' THEN GREATEST(total_order_amount - down_payment_amount, 0)
+        ELSE 0
+      END
+    ), 0) AS total_paid
+    FROM invoices
+    WHERE order_id = $1
+      AND status = ANY($2::varchar[])
+      AND status <> 'CANCELLED'
+  `, [orderId, PAID_STATUSES]);
+  const orderGrandTotal = toMoney(order.total_order_amount);
+  const totalVerifiedPayments = toMoney(paidResult.rows[0]?.total_paid);
+  const remainingBalance = Math.max(0, toMoney(orderGrandTotal - totalVerifiedPayments));
+  const paymentStatus = orderGrandTotal > 0 && remainingBalance === 0
+    ? 'Fully Paid'
+    : totalVerifiedPayments > 0
+      ? 'Partially Paid'
+      : 'Unpaid';
+  return { order, orderGrandTotal, totalVerifiedPayments, remainingBalance, paymentStatus };
+}
+
+async function syncOrderPaymentSummary(orderId, client = pool) {
+  const summary = await calculatePaymentSummary(orderId, client);
+  if (!summary) return null;
+
+  await client.query(`
+    UPDATE orders
+    SET total_verified_payments = $1,
+        remaining_balance = $2,
+        payment_status = $3
+    WHERE order_id = $4
+  `, [
+    summary.totalVerifiedPayments,
+    summary.remainingBalance,
+    summary.paymentStatus,
+    orderId,
+  ]);
+
+  await client.query(`
+    UPDATE invoices
+    SET total_order_amount = $1,
+        remaining_balance_amount = CASE
+          WHEN invoice_type = 'DOWN_PAYMENT' AND status <> 'PAID' THEN GREATEST($1::numeric - down_payment_amount, 0::numeric)
+          ELSE $2
+        END,
+        amount_due = CASE
+          WHEN status = 'PAID' THEN 0
+          WHEN invoice_type = 'REMAINING_BALANCE' THEN $2
+          WHEN invoice_type = 'DOWN_PAYMENT' THEN down_payment_amount
+          ELSE amount_due
+        END,
+        amount_paid = CASE
+          WHEN status = 'PAID' AND COALESCE(amount_paid, 0) <= 0 AND invoice_type = 'DOWN_PAYMENT' THEN down_payment_amount
+          WHEN status = 'PAID' AND COALESCE(amount_paid, 0) <= 0 AND invoice_type = 'REMAINING_BALANCE' THEN GREATEST(total_order_amount - down_payment_amount, 0)
+          ELSE amount_paid
+        END,
+        updated_at = NOW()
+    WHERE order_id = $3
+      AND status <> 'CANCELLED'
+  `, [
+    summary.orderGrandTotal,
+    summary.remainingBalance,
+    orderId,
+  ]);
+
+  return summary;
+}
+
+function decorateInvoiceRow(invoice, summary) {
+  if (!invoice) return invoice;
+  const currentRemainingBalance = getDisplayRemainingBalance(invoice, summary);
+  const computedAmountDue = ['PAID', 'CANCELLED'].includes(invoice.status)
+    ? 0
+    : invoice.invoice_type === 'REMAINING_BALANCE'
+      ? currentRemainingBalance
+      : toMoney(invoice.amount_due);
+
+  return {
+    ...invoice,
+    subtotal: toMoney(invoice.subtotal),
+    delivery_fee: toMoney(invoice.delivery_fee),
+    additional_fee: toMoney(invoice.additional_fee),
+    total_order_amount: summary?.orderGrandTotal ?? toMoney(invoice.total_order_amount),
+    down_payment_amount: toMoney(invoice.down_payment_amount),
+    remaining_balance_amount: currentRemainingBalance,
+    amount_due: computedAmountDue,
+    invoice_amount: getInvoiceAmount(invoice, computedAmountDue),
+    amount_paid: getEffectiveAmountPaid(invoice, computedAmountDue),
+    total_verified_payments: summary?.totalVerifiedPayments ?? 0,
+    payment_status: summary?.paymentStatus || null,
+  };
+}
+
 async function createInvoice(req, res, invoiceType) {
   const { orderId } = req.params;
   const body = req.body || {};
@@ -273,17 +443,28 @@ async function createInvoice(req, res, invoiceType) {
 
     const existing = await getActiveInvoice(orderId, invoiceType, client);
     if (existing) {
+      const summary = await syncOrderPaymentSummary(orderId, client);
       await client.query('COMMIT');
-      return res.status(200).json({ success: true, invoice: existing, existing: true });
+      return res.status(200).json({
+        success: true,
+        invoice: decorateInvoiceRow(existing, summary),
+        payment_summary: summary && {
+          total_verified_payments: summary.totalVerifiedPayments,
+          remaining_balance: summary.remainingBalance,
+          payment_status: summary.paymentStatus,
+        },
+        existing: true,
+      });
     }
 
-    const order = await getOrderWithItems(orderId);
+    const paymentSummary = await calculatePaymentSummary(orderId, client);
+    const order = paymentSummary?.order;
     if (!order) {
       await client.query('ROLLBACK');
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    const totalOrderAmount = toMoney(order.total_order_amount);
+    const totalOrderAmount = paymentSummary.orderGrandTotal;
     if (totalOrderAmount <= 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, message: 'Order total is required before generating an invoice' });
@@ -301,21 +482,22 @@ async function createInvoice(req, res, invoiceType) {
       amountDue = downPaymentAmount;
     } else {
       const paidDownPaymentResult = await client.query(`
-        SELECT
-          COALESCE(SUM(amount_paid), 0) AS paid,
-          COALESCE(SUM(down_payment_amount), 0) AS expected_down_payment
+        SELECT COALESCE(SUM(amount_paid), 0) AS paid
         FROM invoices
-        WHERE order_id = $1 AND invoice_type = 'DOWN_PAYMENT' AND status = 'PAID'
-      `, [orderId]);
-      if (toMoney(paidDownPaymentResult.rows[0]?.paid) <= 0) {
+        WHERE order_id = $1
+          AND invoice_type = 'DOWN_PAYMENT'
+          AND status = ANY($2::varchar[])
+      `, [orderId, PAID_STATUSES]);
+      const paidDownPayment = toMoney(paidDownPaymentResult.rows[0]?.paid);
+      if (paidDownPayment <= 0) {
         await client.query('ROLLBACK');
         return res.status(400).json({
           success: false,
           message: 'Down payment invoice must be paid before generating the remaining balance invoice',
         });
       }
-      downPaymentAmount = toMoney(paidDownPaymentResult.rows[0]?.expected_down_payment || totalOrderAmount * DOWN_PAYMENT_RATE);
-      remainingBalanceAmount = Math.max(0, toMoney(totalOrderAmount - downPaymentAmount));
+      downPaymentAmount = paidDownPayment;
+      remainingBalanceAmount = paymentSummary.remainingBalance;
       amountDue = remainingBalanceAmount;
       if (amountDue === 0) status = 'PAID';
     }
@@ -352,13 +534,33 @@ async function createInvoice(req, res, invoiceType) {
       createdBy,
     ]);
 
+    const syncedSummary = await syncOrderPaymentSummary(orderId, client);
     await client.query('COMMIT');
-    res.status(201).json({ success: true, invoice: result.rows[0], existing: false });
+    res.status(201).json({
+      success: true,
+      invoice: decorateInvoiceRow(result.rows[0], syncedSummary),
+      payment_summary: syncedSummary && {
+        total_verified_payments: syncedSummary.totalVerifiedPayments,
+        remaining_balance: syncedSummary.remainingBalance,
+        payment_status: syncedSummary.paymentStatus,
+      },
+      existing: false,
+    });
   } catch (error) {
     await client.query('ROLLBACK');
     if (error.code === '23505') {
       const existing = await getActiveInvoice(orderId, invoiceType);
-      return res.status(200).json({ success: true, invoice: existing, existing: true });
+      const summary = await syncOrderPaymentSummary(orderId);
+      return res.status(200).json({
+        success: true,
+        invoice: decorateInvoiceRow(existing, summary),
+        payment_summary: summary && {
+          total_verified_payments: summary.totalVerifiedPayments,
+          remaining_balance: summary.remainingBalance,
+          payment_status: summary.paymentStatus,
+        },
+        existing: true,
+      });
     }
     console.error('Error creating invoice:', error);
     res.status(500).json({ success: false, message: 'Failed to generate invoice' });
@@ -417,7 +619,11 @@ router.get('/invoices', staffOnly, async (req, res) => {
       LIMIT 200
     `, params);
 
-    res.json({ success: true, invoices: result.rows });
+    const invoices = await Promise.all(result.rows.map(async (invoice) => (
+      decorateInvoiceRow(invoice, await calculatePaymentSummary(invoice.order_id))
+    )));
+
+    res.json({ success: true, invoices });
   } catch (error) {
     console.error('Error fetching invoices:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch invoices' });
@@ -443,7 +649,13 @@ router.get('/orders/:orderId/invoices', staffOnly, async (req, res) => {
       WHERE order_id = $1
       ORDER BY issued_at DESC, id DESC
     `, [req.params.orderId]);
-    res.json({ success: true, invoices: result.rows });
+    const summary = await syncOrderPaymentSummary(req.params.orderId);
+    const invoices = result.rows.map((invoice) => decorateInvoiceRow(invoice, summary));
+    res.json({ success: true, invoices, payment_summary: summary && {
+      total_verified_payments: summary.totalVerifiedPayments,
+      remaining_balance: summary.remainingBalance,
+      payment_status: summary.paymentStatus,
+    } });
   } catch (error) {
     console.error('Error fetching order invoices:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch order invoices' });
@@ -459,13 +671,15 @@ router.post('/orders/:orderId/invoices/remaining-balance', staffOnly, (req, res)
 });
 
 router.patch('/invoices/:id/status', staffOnly, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { status } = req.body || {};
     if (!['DRAFT', 'ISSUED', 'UNPAID', 'CANCELLED'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status update' });
     }
 
-    const result = await pool.query(`
+    await client.query('BEGIN');
+    const result = await client.query(`
       UPDATE invoices
       SET status = $1::varchar,
           cancelled_at = CASE WHEN $1::varchar = 'CANCELLED' THEN NOW() ELSE cancelled_at END,
@@ -475,15 +689,29 @@ router.patch('/invoices/:id/status', staffOnly, async (req, res) => {
       RETURNING *
     `, [status, req.user?.user_id || null, req.params.id]);
 
-    if (!result.rows.length) return res.status(404).json({ success: false, message: 'Invoice not found' });
-    res.json({ success: true, invoice: result.rows[0] });
+    if (!result.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+    const summary = await syncOrderPaymentSummary(result.rows[0].order_id, client);
+    await client.query('COMMIT');
+    res.json({ success: true, invoice: decorateInvoiceRow(result.rows[0], summary), payment_summary: summary && {
+      total_verified_payments: summary.totalVerifiedPayments,
+      remaining_balance: summary.remainingBalance,
+      payment_status: summary.paymentStatus,
+    } });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error updating invoice status:', error);
     res.status(500).json({ success: false, message: 'Failed to update invoice status' });
+  } finally {
+    client.release();
   }
 });
 
 router.patch('/invoices/:id/mark-paid', staffOnly, proofUpload.single('payment_proof'), async (req, res) => {
+  const client = await pool.connect();
+  let uploadedProof = null;
   try {
     const {
       amount_paid,
@@ -492,21 +720,44 @@ router.patch('/invoices/:id/mark-paid', staffOnly, proofUpload.single('payment_p
       payment_reference,
       payment_notes,
     } = req.body || {};
+
     const invoice = await getInvoiceWithDetails(req.params.id);
     if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
     if (invoice.status === 'CANCELLED') {
       return res.status(400).json({ success: false, message: 'Cancelled invoices cannot be marked as paid' });
     }
-
     const amountPaid = toMoney(amount_paid);
-    if (invoice.amount_due > 0 && amountPaid < invoice.amount_due) {
-      return res.status(400).json({ success: false, message: 'Amount paid must be at least the amount due' });
+    const requiredPaymentAmount = toMoney(invoice.invoice_amount || invoice.amount_due);
+    if (requiredPaymentAmount > 0 && amountPaid < requiredPaymentAmount) {
+      return res.status(400).json({ success: false, message: 'Amount paid must be at least the invoice amount' });
     }
-    if (invoice.amount_due > 0 && !payment_method) {
+    if (requiredPaymentAmount > 0 && !payment_method) {
       return res.status(400).json({ success: false, message: 'Payment method is required' });
     }
 
-    const result = await pool.query(`
+    if (req.file) {
+      uploadedProof = await uploadPaymentProof({
+        invoiceId: req.params.id,
+        file: req.file,
+        uploadedBy: req.user?.user_id || req.user?.customer_id || null,
+      });
+    }
+
+    await client.query('BEGIN');
+    const previousResult = await client.query(`
+      SELECT payment_proof_storage_provider, payment_proof_storage_path
+      FROM invoices
+      WHERE id = $1
+      FOR UPDATE
+    `, [req.params.id]);
+    if (!previousResult.rows.length) {
+      await client.query('ROLLBACK');
+      if (uploadedProof) await deletePaymentProof(uploadedProof.provider, uploadedProof.storagePath);
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+    const previousProof = previousResult.rows[0];
+
+    const result = await client.query(`
       UPDATE invoices
       SET status = 'PAID',
           amount_paid = $1,
@@ -519,8 +770,13 @@ router.patch('/invoices/:id/mark-paid', staffOnly, proofUpload.single('payment_p
           payment_proof_path = COALESCE($7, payment_proof_path),
           payment_proof_original_name = COALESCE($8, payment_proof_original_name),
           payment_proof_mime_type = COALESCE($9, payment_proof_mime_type),
+          payment_proof_storage_provider = COALESCE($10, payment_proof_storage_provider),
+          payment_proof_storage_path = COALESCE($11, payment_proof_storage_path),
+          payment_proof_file_size = COALESCE($12, payment_proof_file_size),
+          payment_proof_uploaded_at = COALESCE($13, payment_proof_uploaded_at),
+          payment_proof_uploaded_by = COALESCE($14, payment_proof_uploaded_by),
           updated_at = NOW()
-      WHERE id = $10
+      WHERE id = $15
       RETURNING *
     `, [
       amountPaid,
@@ -529,33 +785,92 @@ router.patch('/invoices/:id/mark-paid', staffOnly, proofUpload.single('payment_p
       payment_notes || null,
       req.user?.user_id || null,
       payment_provider || null,
-      req.file ? path.join('uploads', 'invoice-proofs', req.file.filename).replace(/\\/g, '/') : null,
-      req.file?.originalname || null,
-      req.file?.mimetype || null,
+      uploadedProof?.storagePath || null,
+      uploadedProof?.originalName || null,
+      uploadedProof?.mimeType || null,
+      uploadedProof?.provider || null,
+      uploadedProof?.storagePath || null,
+      uploadedProof?.fileSize || null,
+      uploadedProof ? new Date() : null,
+      req.user?.user_id || null,
       req.params.id,
     ]);
 
-    res.json({ success: true, invoice: result.rows[0] });
+    const summary = await syncOrderPaymentSummary(result.rows[0].order_id, client);
+    await client.query('COMMIT');
+
+    if (
+      uploadedProof
+      && previousProof.payment_proof_storage_path
+      && previousProof.payment_proof_storage_path !== uploadedProof.storagePath
+    ) {
+      deletePaymentProof(previousProof.payment_proof_storage_provider, previousProof.payment_proof_storage_path)
+        .catch((deleteError) => console.warn('Failed to delete replaced payment proof:', deleteError.message));
+    }
+
+    res.json({ success: true, invoice: decorateInvoiceRow(result.rows[0], summary), payment_summary: summary && {
+      total_verified_payments: summary.totalVerifiedPayments,
+      remaining_balance: summary.remainingBalance,
+      payment_status: summary.paymentStatus,
+    } });
   } catch (error) {
+    await client.query('ROLLBACK');
+    if (uploadedProof) {
+      await deletePaymentProof(uploadedProof.provider, uploadedProof.storagePath)
+        .catch((deleteError) => console.warn('Failed to delete orphaned payment proof:', deleteError.message));
+    }
     console.error('Error marking invoice paid:', error);
     res.status(500).json({ success: false, message: 'Failed to mark invoice as paid' });
+  } finally {
+    client.release();
   }
 });
 
-router.get('/invoices/:id/payment-proof', staffOnly, async (req, res) => {
+router.get('/invoices/:id/payment-proof', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT payment_proof_path, payment_proof_original_name FROM invoices WHERE id = $1',
+      `SELECT
+         id,
+         customer_id,
+         payment_proof_path,
+         payment_proof_original_name,
+         payment_proof_mime_type,
+         payment_proof_storage_provider,
+         payment_proof_storage_path
+       FROM invoices
+       WHERE id = $1`,
       [req.params.id]
     );
     const proof = result.rows[0];
-    if (!proof?.payment_proof_path) {
+    if (!proof) {
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+    const isStaff = req.user?.role && STAFF_INVOICE_ROLES.includes(req.user.role);
+    const isOwner = req.user?.customer_id && Number(req.user.customer_id) === Number(proof.customer_id);
+    if (!isStaff && !isOwner) {
+      return res.status(403).json({ success: false, message: 'Forbidden: proof access denied' });
+    }
+    if (!proof.payment_proof_storage_path && !proof.payment_proof_path) {
       return res.status(404).json({ success: false, message: 'Payment proof not found' });
     }
 
+    if (proof.payment_proof_storage_path) {
+      const file = await getPaymentProofBuffer(
+        proof.payment_proof_storage_provider,
+        proof.payment_proof_storage_path
+      );
+      res.setHeader('Content-Type', proof.payment_proof_mime_type || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `inline; filename="${proof.payment_proof_original_name || path.basename(proof.payment_proof_storage_path)}"`);
+      return res.send(file);
+    }
+
+    const legacyUploadDir = path.resolve(__dirname, '..', 'uploads', 'invoice-proofs');
     const absolutePath = path.resolve(__dirname, '..', proof.payment_proof_path);
-    if (!absolutePath.startsWith(path.resolve(proofUploadDir))) {
+    if (!absolutePath.startsWith(legacyUploadDir)) {
       return res.status(400).json({ success: false, message: 'Invalid proof file path' });
+    }
+    if (!fs.existsSync(absolutePath)) {
+      return res.status(404).json({ success: false, message: 'Legacy payment proof file not found' });
     }
     res.download(absolutePath, proof.payment_proof_original_name || path.basename(absolutePath));
   } catch (error) {
@@ -642,13 +957,17 @@ function drawInvoicePdf(doc, invoice) {
     ['Delivery Fee', invoice.delivery_fee],
     ['Additional Fee', invoice.additional_fee],
     ['Total Order Amount', invoice.total_order_amount],
+    [invoice.invoice_type === 'DOWN_PAYMENT' ? 'Down Payment Invoice' : 'Remaining Balance Invoice', invoice.invoice_amount],
+    ['Total Verified Payments', invoice.total_verified_payments],
     ['Down Payment', invoice.down_payment_amount],
     ['Remaining Balance', invoice.remaining_balance_amount],
-    ['Amount Due', invoice.amount_due],
     ['Amount Paid', invoice.amount_paid],
   ];
   for (const [label, value] of summaryRows) {
-    doc.font(label === 'Amount Due' ? 'Helvetica-Bold' : 'Helvetica').fontSize(9).fillColor('#111');
+    const isHighlight = label === 'Remaining Balance';
+    doc.font(isHighlight ? 'Helvetica-Bold' : 'Helvetica')
+      .fontSize(isHighlight ? 10 : 9)
+      .fillColor(isHighlight ? '#991b1b' : '#111');
     doc.text(label, summaryX, y, { width: 115 });
     doc.text(formatMoney(value), 445, y, { width: 90, align: 'right' });
     y += 16;

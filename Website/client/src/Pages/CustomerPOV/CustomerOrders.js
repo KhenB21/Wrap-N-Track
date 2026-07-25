@@ -363,7 +363,7 @@ export default function CustomerOrders() {
                       </div>
                       <div>
                         <label>Total Boxes:</label>
-                        <span>{selectedOrder.total_boxes || selectedOrder.products?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) || 0}</span>
+                        <span>{selectedOrder.total_boxes ?? selectedOrder.order_quantity ?? 0}</span>
                       </div>
                       <div>
                         <label>Expected Delivery:</label>
@@ -372,7 +372,7 @@ export default function CustomerOrders() {
                     </div>
 
                     {selectedOrder.delivery.tracking_link_available && selectedOrder.delivery.tracking_link ? (
-                      <a className="customer-track-btn" href={selectedOrder.delivery.tracking_link} target="_blank" rel="noreferrer">
+                      <a className="customer-track-btn" href={selectedOrder.delivery.tracking_link} target="_blank" rel="noopener noreferrer">
                         Track Delivery
                       </a>
                     ) : getDeliveryMessage(selectedOrder.delivery) ? (

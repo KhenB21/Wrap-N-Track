@@ -5,7 +5,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--overlay, rgba(0, 0, 0, 0.5));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14,9 +14,9 @@
 }
 
 .modal-content {
-  background: white;
+  background: var(--surface, white);
   border-radius: 16px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-lg, 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04));
   width: 90%;
   max-width: 800px;
   max-height: 90vh;
@@ -40,11 +40,11 @@
   align-items: center;
   justify-content: space-between;
   padding: 24px 32px 16px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border, #e2e8f0);
   margin-bottom: 24px;
   position: sticky;
   top: 0;
-  background: white;
+  background: var(--surface, white);
   z-index: 1;
 }
 
@@ -52,14 +52,14 @@
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text, #1e293b);
 }
 
 .modal-close {
   background: none;
   border: none;
   font-size: 24px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
@@ -67,8 +67,8 @@
 }
 
 .modal-close:hover {
-  background-color: #f1f5f9;
-  color: #334155;
+  background-color: var(--hover, #f1f5f9);
+  color: var(--text, #334155);
 }
 
 .supplier-form {
@@ -78,7 +78,7 @@
 .form-section {
   margin-bottom: 32px;
   padding-bottom: 24px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border, #f1f5f9);
 }
 
 .form-section:last-of-type {
@@ -90,7 +90,7 @@
   margin: 0 0 20px 0;
   font-size: 1.1rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-soft, #374151);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -100,7 +100,7 @@
   content: '';
   width: 3px;
   height: 16px;
-  background-color: #4361ee;
+  background-color: var(--brand, #4361ee);
   border-radius: 2px;
 }
 
@@ -118,7 +118,7 @@
 
 .form-group label {
   font-weight: 500;
-  color: #374151;
+  color: var(--text-soft, #374151);
   margin-bottom: 8px;
   font-size: 14px;
 }
@@ -127,25 +127,31 @@
 .form-group select,
 .form-group textarea {
   padding: 12px 16px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--input-border, #d1d5db);
   border-radius: 8px;
   font-size: 14px;
   transition: all 0.2s ease;
-  background-color: white;
+  background-color: var(--input-background, white);
+  color: var(--input-text, #1f2937);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--input-placeholder, #9ca3af);
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #4361ee;
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+  border-color: var(--brand, #4361ee);
+  box-shadow: 0 0 0 3px var(--focus-ring, rgba(67, 97, 238, 0.1));
 }
 
 .form-group input.error,
 .form-group select.error,
 .form-group textarea.error {
-  border-color: #ef4444;
+  border-color: var(--danger, #ef4444);
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
@@ -155,7 +161,7 @@
 }
 
 .error-message {
-  color: #ef4444;
+  color: var(--danger, #ef4444);
   font-size: 12px;
   margin-top: 4px;
   display: block;
@@ -167,10 +173,10 @@
   justify-content: flex-end;
   margin-top: 32px;
   padding-top: 24px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border, #e2e8f0);
   position: sticky;
   bottom: 0;
-  background: white;
+  background: var(--surface, white);
   z-index: 1;
 }
 
@@ -187,23 +193,23 @@
 }
 
 .btn-cancel {
-  background-color: #f8fafc;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
+  background-color: var(--surface-muted, #f8fafc);
+  color: var(--text-muted, #64748b);
+  border: 1px solid var(--border, #e2e8f0);
 }
 
 .btn-cancel:hover {
-  background-color: #f1f5f9;
-  color: #475569;
+  background-color: var(--hover, #f1f5f9);
+  color: var(--text-soft, #475569);
 }
 
 .btn-save {
-  background-color: #4361ee;
+  background-color: var(--brand, #4361ee);
   color: white;
 }
 
 .btn-save:hover:not(:disabled) {
-  background-color: #3a56d4;
+  background-color: var(--brand-dark, #3a56d4);
   transform: translateY(-1px);
 }
 
@@ -245,7 +251,7 @@
 .form-group label:has(+ select[required])::after,
 .form-group label:has(+ textarea[required])::after {
   content: ' *';
-  color: #ef4444;
+  color: var(--danger, #ef4444);
 }
 
 /* Responsive Design */

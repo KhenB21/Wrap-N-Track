@@ -15,10 +15,15 @@
 }
 
 .modal-content {
-  background: white;
+  background: var(--surface, white);
   border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  max-width: 500px;
+  box-shadow: var(--shadow-lg, 0 20px 60px rgba(0, 0, 0, 0.3));
+  border: 1px solid var(--border, rgba(219, 227, 238, 0.9));
+  /* Deliberately wide enough for the two-column form rows plus the
+     Account Information / Ongoing Orders / Order History sections —
+     previously conflicted with a second, later `max-width: 760px` rule
+     in this same file; that duplicate has been removed. */
+  max-width: 860px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
@@ -74,13 +79,13 @@
 .form-label {
   display: block;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-soft, #374151);
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
 }
 
 .required {
-  color: #dc2626;
+  color: var(--danger, #dc2626);
 }
 
 .form-input,
@@ -175,8 +180,8 @@
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
-  border-top: 1px solid #f3f4f6;
-  background: #f8fafc;
+  border-top: 1px solid var(--border, #f3f4f6);
+  background: var(--surface-muted, #f8fafc);
   border-radius: 0 0 16px 16px;
 }
 
@@ -259,7 +264,7 @@
 .form-group.success .form-input,
 .form-group.success .form-textarea,
 .form-group.success .form-select {
-  border-color: #10b981;
+  border-color: var(--success, #10b981);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
@@ -349,14 +354,8 @@
 
 /* Modern admin palette overrides */
 .modal-overlay {
-  background: rgba(15, 23, 42, 0.58);
+  background: var(--overlay, rgba(15, 23, 42, 0.58));
   backdrop-filter: blur(10px);
-}
-
-.modal-content {
-  max-width: 760px;
-  border: 1px solid rgba(219, 227, 238, 0.9);
-  box-shadow: var(--shadow-lg);
 }
 
 .modal-header {
@@ -433,7 +432,7 @@
 .customer-form textarea:focus,
 .customer-form select:focus {
   border-color: var(--brand);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 4px var(--focus-ring, rgba(59, 130, 246, 0.12));
 }
 
 .customer-form input.error,
@@ -475,4 +474,155 @@
   .form-section {
     padding: 1rem;
   }
+}
+
+/* Dark mode overrides */
+body.dark .modal-header {
+  background: linear-gradient(135deg, #1e293b 0%, #242424 70%);
+  border-bottom-color: var(--border);
+}
+
+body.dark .modal-close:hover {
+  background: #3a3a3a;
+}
+
+body.dark .form-section {
+  background: linear-gradient(180deg, #242424 0%, #202020 100%);
+  border-color: var(--border);
+}
+
+body.dark .status-label {
+  background: #2a2a2a;
+  border-color: #4a4a4a;
+  color: #e0e0e0;
+}
+
+body.dark .status-option input[type="radio"]:checked + .status-label {
+  border-color: #7fa8ff;
+  background: #1e3a5f;
+  color: #9dc0ff;
+}
+
+body.dark .status-option:hover .status-label {
+  border-color: #5a5a5a;
+}
+
+body.dark .loading-overlay {
+  background: rgba(26, 26, 26, 0.85);
+}
+
+body.dark .loading-spinner {
+  border: 3px solid #3a3a3a;
+  border-top: 3px solid #7fa8ff;
+}
+
+body.dark .btn-cancel {
+  background: #3a3a3a;
+  color: #e0e0e0;
+}
+
+body.dark .btn-cancel:hover {
+  background: #4a4a4a;
+}
+
+body.dark .error-message {
+  background: #3a1f1f;
+  border-color: #6b2b2b;
+  color: #ff8080;
+}
+
+/* Account Information / Ongoing Orders / Order History (read-only sections) */
+.readonly-section {
+  background: var(--surface-muted);
+}
+
+.account-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.account-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.account-info-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.account-info-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.order-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.order-mini-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+
+.order-mini-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.order-mini-id {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.order-mini-date {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.order-mini-status {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--surface-muted);
+  color: var(--text-soft);
+}
+
+.order-mini-total {
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.order-mini-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0;
+}
+
+.order-mini-error {
+  color: var(--danger);
+}
+
+body.dark .order-mini-row {
+  background: var(--surface-elevated);
 }

@@ -173,7 +173,7 @@ router.get('/', async (req, res) => {
         o.expected_delivery,
         o.status::text AS order_status,
         o.total_cost,
-        COALESCE(items.total_boxes, o.order_quantity, 0) AS total_boxes,
+        COALESCE(o.order_quantity, 0) AS total_boxes,
         COALESCE(o.delivery_status, 'Pending') AS delivery_status,
         o.delivery_method,
         o.delivery_mode_id,
@@ -193,11 +193,6 @@ router.get('/', async (req, res) => {
         u.name AS delivery_updated_by_name
       FROM orders o
       LEFT JOIN users u ON o.delivery_updated_by = u.user_id
-      LEFT JOIN LATERAL (
-        SELECT COALESCE(SUM(op.quantity), 0)::int AS total_boxes
-        FROM order_products op
-        WHERE op.order_id = o.order_id
-      ) items ON true
       WHERE ${clauses.join(' AND ')}
       ORDER BY o.expected_delivery ASC NULLS LAST, o.order_date DESC NULLS LAST
       LIMIT 300
@@ -217,12 +212,11 @@ router.get('/:orderId', async (req, res) => {
         o.*,
         o.status::text AS order_status,
         COALESCE(items.products, '[]'::json) AS products,
-        COALESCE(items.total_boxes, o.order_quantity, 0) AS total_boxes,
+        COALESCE(o.order_quantity, 0) AS total_boxes,
         COALESCE(o.tracking_unavailable_message, $2) AS tracking_unavailable_message
       FROM orders o
       LEFT JOIN LATERAL (
         SELECT
-          COALESCE(SUM(op.quantity), 0)::int AS total_boxes,
           COALESCE(json_agg(json_build_object(
             'sku', op.sku,
             'name', i.name,

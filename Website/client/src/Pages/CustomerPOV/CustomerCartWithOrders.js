@@ -307,7 +307,11 @@ export default function CustomerOrders() {
                           </div>
                           <div className="summary-item">
                             <span className="label">Payment:</span>
-                            <span className="value">{order.payment_method}</span>
+                            <span className="value">{order.payment_status || order.payment_method}</span>
+                          </div>
+                          <div className="summary-item">
+                            <span className="label">Remaining Balance:</span>
+                            <span className="value">PHP {Number(order.remaining_balance || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                           <div className="summary-item">
                             <span className="label">Expected Delivery:</span>
@@ -335,10 +339,14 @@ export default function CustomerOrders() {
                                 <span className="label">Tracking Number:</span>
                                 <span className="value">{order.tracking_number || '-'}</span>
                               </div>
+                              <div className="delivery-info-item">
+                                <span className="label">Total Boxes:</span>
+                                <span className="value">{order.total_boxes ?? order.order_quantity ?? 0}</span>
+                              </div>
                             </div>
 
                             {order.tracking_link_available && order.tracking_link ? (
-                              <a className="track-delivery-btn" href={order.tracking_link} target="_blank" rel="noreferrer">
+                              <a className="track-delivery-btn" href={order.tracking_link} target="_blank" rel="noopener noreferrer">
                                 Track Delivery
                               </a>
                             ) : getTrackingUnavailableMessage(order) ? (

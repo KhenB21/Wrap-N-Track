@@ -592,4 +592,109 @@
   pointer-events: none;
   filter: blur(1px);
   transition: opacity 0.2s, filter 0.2s;
-} 
+}
+
+/* ============ Dark mode ============ */
+body.dark .order-action-bar {
+  background: var(--surface-muted);
+  box-shadow: none;
+}
+body.dark .btn-edit, body.dark .btn-delete, body.dark .btn-create, body.dark .btn-cancel {
+  background: var(--surface-elevated);
+  color: var(--text);
+  border-color: var(--border);
+}
+body.dark .btn-cancel:hover { background: var(--hover); }
+body.dark .btn-delete { color: #ff8a80; border-color: #ff8a80; }
+body.dark .btn-delete:hover { background: rgba(255,138,128,0.12); }
+body.dark .selected-count { color: var(--text-muted); }
+
+body.dark .order-filters select,
+body.dark .order-filters input[type="text"] {
+  background: var(--input-background);
+  color: var(--input-text);
+  border-color: var(--input-border);
+}
+
+body.dark .order-list,
+body.dark .order-details-panel,
+body.dark .info-section,
+body.dark .wedding-details,
+body.dark .custom-details {
+  background: var(--surface-elevated);
+  box-shadow: none;
+  border: 1px solid var(--border);
+}
+body.dark .order-list-title {
+  color: var(--brand);
+  border-bottom-color: var(--border);
+}
+body.dark .order-list-item { border-bottom-color: var(--border); }
+body.dark .order-list-item.selected,
+body.dark .order-list-item:hover { background: var(--hover); }
+body.dark .order-code, body.dark .order-details-code { color: var(--text-muted); }
+body.dark .order-status { background: var(--surface-muted); color: var(--brand); }
+
+body.dark .order-details-panel h2,
+body.dark .order-details-panel .section-title,
+body.dark .order-details-title { color: var(--text); }
+body.dark .order-details-panel hr { border-top-color: var(--border); }
+body.dark .order-details-panel .details-label { color: var(--text-muted); }
+body.dark .order-details-panel .details-value { color: var(--text); }
+body.dark .icon-btn { background: var(--surface-muted); color: var(--text); }
+body.dark .icon-btn:hover { background: var(--hover); }
+
+body.dark .modal-input {
+  background: var(--input-background);
+  color: var(--input-text);
+  border-color: var(--input-border);
+}
+body.dark .modal-input:focus {
+  background: var(--surface-elevated);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+body.dark .modal label { color: var(--text); }
+body.dark .modal-backdrop { background: var(--overlay); }
+body.dark .modal {
+  background: var(--surface-elevated);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+body.dark .modal h2 { color: var(--text); }
+
+body.dark .modal .product-item { border-color: var(--border); background: var(--surface-muted); }
+body.dark .modal .product-name { color: var(--text); }
+body.dark .modal .product-price { color: var(--text-muted); }
+body.dark .modal .product-quantity {
+  background: var(--input-background);
+  color: var(--input-text);
+  border-color: var(--input-border);
+}
+
+body.dark .info-section h3 { color: var(--text); border-bottom-color: var(--border); }
+body.dark .info-section h4 { color: var(--text-soft); }
+body.dark .info-section p { color: var(--text-muted); }
+body.dark .info-section strong { color: var(--text); }
+body.dark .personalization-details { background: var(--surface-muted); }
+body.dark .personalization-details strong { color: var(--text); }
+body.dark .order-item { background: var(--surface-muted); }
+body.dark .item-details h4 { color: var(--text); }
+body.dark .item-details p { color: var(--text-muted); }
+body.dark .wedding-details h3, body.dark .custom-details h3 {
+  color: var(--text);
+  border-bottom-color: var(--border);
+}
+body.dark .wedding-details p, body.dark .custom-details p { color: var(--text-muted); }
+body.dark .custom-details li { border-bottom-color: var(--border); }
+
+/* Status badges keep distinct hues on dark backgrounds instead of collapsing to grey */
+body.dark .status-badge.pending { background-color: #4a3c00; color: #ffd666; }
+body.dark .status-badge.processing { background-color: #05325c; color: #7ec1ff; }
+body.dark .status-badge.completed { background-color: #123d22; color: #6fdb94; }
+body.dark .status-badge.cancelled { background-color: #4a1414; color: #ff9c9c; }
+body.dark .order-details-panel .status-to-be-pack { background: #4a3c00; color: #ffd666; }
+body.dark .order-details-panel .status-ready-to-ship { background: #0d3d38; color: #66d9c4; }
+body.dark .order-details-panel .status-completed { background: #123d22; color: #6fdb94; }
+body.dark .order-details-panel .status-invoice { background: #4a1414; color: #ff9c9c; }
+body.dark .order-details-panel .status-cancelled { background: var(--surface-muted); color: var(--text-muted); }

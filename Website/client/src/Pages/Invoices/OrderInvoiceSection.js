@@ -14,6 +14,10 @@ const labelForType = (type) => (
   type === 'DOWN_PAYMENT' ? 'Down Payment Invoice' : 'Remaining Balance Invoice'
 );
 
+const invoiceAmountLabel = (invoice) => (
+  invoice?.invoice_type === 'DOWN_PAYMENT' ? 'Down Payment Invoice' : 'Remaining Balance Invoice'
+);
+
 function StatusBadge({ status }) {
   return <span className={`invoice-status ${status || ''}`}>{status || 'UNPAID'}</span>;
 }
@@ -158,7 +162,10 @@ export default function OrderInvoiceSection({ order }) {
               <div>
                 <div className="invoice-number">{invoice.invoice_number}</div>
                 <div>{labelForType(invoice.invoice_type)}</div>
-                <div>Amount Due: <strong>{peso(invoice.amount_due)}</strong></div>
+                <div>{invoiceAmountLabel(invoice)}: <strong>{peso(invoice.invoice_amount)}</strong></div>
+                <div className="invoice-balance-cell">Remaining Balance: <strong>{peso(invoice.remaining_balance_amount)}</strong></div>
+                <div>Amount Paid: <strong>{peso(invoice.amount_paid)}</strong></div>
+                <div>Payment Status: <strong>{invoice.payment_status || '-'}</strong></div>
               </div>
               <StatusBadge status={invoice.status} />
             </div>

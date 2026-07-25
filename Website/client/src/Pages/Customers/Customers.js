@@ -366,6 +366,8 @@ export default function Customers() {
                           <th>Email</th>
                           <th>Phone</th>
                           <th>Status</th>
+                          <th>Orders</th>
+                          <th>Last Order</th>
                           <th>Created</th>
                           <th>Actions</th>
                         </tr>
@@ -386,6 +388,8 @@ export default function Customers() {
                             <td><div className="skeleton-shimmer skeleton-text" style={{ width: '140px', height: '16px' }} /></td>
                             <td><div className="skeleton-shimmer skeleton-text" style={{ width: '100px', height: '16px' }} /></td>
                             <td><div className="skeleton-shimmer" style={{ width: '60px', height: '20px', borderRadius: '10px' }} /></td>
+                            <td><div className="skeleton-shimmer skeleton-text" style={{ width: '50px', height: '16px' }} /></td>
+                            <td><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px' }} /></td>
                             <td><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px' }} /></td>
                             <td><div className="skeleton-shimmer skeleton-text" style={{ width: '60px', height: '16px' }} /></td>
                           </tr>
@@ -442,6 +446,8 @@ export default function Customers() {
                           <th>Email</th>
                           <th>Phone</th>
                           <th>Status</th>
+                          <th>Orders</th>
+                          <th>Last Order</th>
                           <th>Created</th>
                           <th>Actions</th>
                         </tr>
@@ -478,7 +484,19 @@ export default function Customers() {
                               </span>
                             </td>
                             <td>
-                              {customer.created_at 
+                              <div>{Number(customer.order_count || 0)}</div>
+                              {Number(customer.order_count || 0) > 0 && (
+                                <small>{customer.latest_order_status || 'N/A'}</small>
+                              )}
+                            </td>
+                            <td>
+                              {customer.latest_order_date
+                                ? new Date(customer.latest_order_date).toLocaleDateString()
+                                : '—'
+                              }
+                            </td>
+                            <td>
+                              {customer.created_at
                                 ? new Date(customer.created_at).toLocaleDateString()
                                 : 'N/A'
                               }

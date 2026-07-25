@@ -38,6 +38,10 @@ function StatusBadge({ status }) {
   return <span className={`invoice-status ${status || ''}`}>{status || 'UNPAID'}</span>;
 }
 
+const invoiceAmountLabel = (invoice) => (
+  invoice?.invoice_type === 'DOWN_PAYMENT' ? 'Down Payment Invoice' : 'Remaining Balance Invoice'
+);
+
 function InvoicePreviewModal({ invoice, onClose, onMarkPaid, onCancel }) {
   if (!invoice) return null;
 
@@ -58,10 +62,13 @@ function InvoicePreviewModal({ invoice, onClose, onMarkPaid, onCancel }) {
             <div><span>Customer</span><strong>{invoice.customer_name || 'Customer'}</strong></div>
             <div><span>Customer Email</span><strong>{invoice.customer_email || '-'}</strong></div>
             <div><span>Total Order Amount</span><strong>{peso(invoice.total_order_amount)}</strong></div>
-            <div><span>Amount Due</span><strong>{peso(invoice.amount_due)}</strong></div>
+            <div><span>{invoiceAmountLabel(invoice)}</span><strong>{peso(invoice.invoice_amount)}</strong></div>
+            <div><span>Total Verified Payments</span><strong>{peso(invoice.total_verified_payments)}</strong></div>
+            <div className="invoice-balance-highlight"><span>Remaining Balance</span><strong>{peso(invoice.remaining_balance_amount)}</strong></div>
+            <div><span>Payment Status</span><strong>{invoice.payment_status || '-'}</strong></div>
             <div><span>Amount Paid</span><strong>{peso(invoice.amount_paid)}</strong></div>
             <div><span>Issued Date</span><strong>{formatDate(invoice.issued_at)}</strong></div>
-            <div><span>Due Date</span><strong>{formatDate(invoice.due_date)}</strong></div>
+            {/* <div><span>Due Date</span><strong>{formatDate(invoice.due_date)}</strong></div> */}
             <div><span>Paid Date</span><strong>{formatDate(invoice.paid_at)}</strong></div>
             <div><span>Payment Method</span><strong>{invoice.payment_method || '-'}</strong></div>
             <div><span>Bank / E-Wallet</span><strong>{invoice.payment_provider || '-'}</strong></div>
@@ -187,7 +194,8 @@ function Invoices() {
                   <th>Order Number</th>
                   <th>Customer</th>
                   <th>Total Order</th>
-                  <th>Amount Due</th>
+                  <th>Invoice Amount</th>
+                  <th>Remaining Balance</th>
                   <th>Amount Paid</th>
                   <th>Status</th>
                   <th>Issued</th>
@@ -203,7 +211,8 @@ function Invoices() {
                     <td>{invoice.order_id}</td>
                     <td>{invoice.customer_name || 'Customer'}</td>
                     <td>{peso(invoice.total_order_amount)}</td>
-                    <td>{peso(invoice.amount_due)}</td>
+                    <td>{peso(invoice.invoice_amount)}</td>
+                    <td className="invoice-balance-cell">{peso(invoice.remaining_balance_amount)}</td>
                     <td>{peso(invoice.amount_paid)}</td>
                     <td><StatusBadge status={invoice.status} /></td>
                     <td>{formatDate(invoice.issued_at)}</td>
@@ -222,7 +231,7 @@ function Invoices() {
                 ))}
                 {!invoices.length && (
                   <tr>
-                    <td colSpan="11">{loading ? 'Loading invoices...' : 'No invoices found.'}</td>
+                    <td colSpan="12">{loading ? 'Loading invoices...' : 'No invoices found.'}</td>
                   </tr>
                 )}
               </tbody>

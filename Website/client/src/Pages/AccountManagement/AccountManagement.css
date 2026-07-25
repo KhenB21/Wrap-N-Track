@@ -87,6 +87,11 @@
   transition: border-color 0.2s;
 }
 
+.search-input::placeholder,
+.filter-select::placeholder {
+  color: var(--input-placeholder, #94a3b8);
+}
+
 .search-input:focus,
 .filter-select:focus {
   outline: none;
@@ -118,13 +123,13 @@
   text-align: left;
   font-weight: 600;
   color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border, #e5e7eb);
   font-size: 0.875rem;
 }
 
 .users-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border, #f3f4f6);
   font-size: 0.875rem;
   color: #4b5563;
 }
@@ -263,7 +268,7 @@
   align-items: center;
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border, #e5e7eb);
 }
 
 .modal-header h3 {
@@ -271,7 +276,7 @@
   font-weight: 700;
   margin-bottom: 1.5rem;
   font-size: 1.5rem;
-  color: #1f2937;
+  color: var(--text, #1f2937);
   width: 100%;
 }
 
@@ -281,6 +286,7 @@
   right: 16px;
   background: none;
   border: none;
+  color: var(--text, #1f2937);
   font-size: 1.5rem;
   cursor: pointer;
 }
@@ -296,7 +302,7 @@
   display: flex;
   flex-direction: column;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-soft, #374151);
   gap: 0.5rem;
   align-items: flex-start;
   text-align: left;
@@ -307,12 +313,18 @@
 
 .add-product-form input {
   padding: 0.875rem 1rem;
-  border: 1.5px solid #d1d5db;
+  border: 1.5px solid var(--input-border, #d1d5db);
   border-radius: 8px;
   font-size: 1rem;
-  background: #fff;
+  background: var(--input-background, #fff);
+  color: var(--input-text, #1f2937);
   transition: all 0.2s ease;
   font-weight: 400;
+}
+
+.add-product-form input::placeholder,
+.add-product-form select::placeholder {
+  color: var(--input-placeholder, #94a3b8);
 }
 
 .add-product-form input:focus {
@@ -323,10 +335,11 @@
 
 .add-product-form select {
   padding: 0.875rem 1rem;
-  border: 1.5px solid #d1d5db;
+  border: 1.5px solid var(--input-border, #d1d5db);
   border-radius: 8px;
   font-size: 1rem;
-  background: #fff;
+  background: var(--input-background, #fff);
+  color: var(--input-text, #1f2937);
   transition: all 0.2s ease;
   font-weight: 400;
 }
@@ -348,7 +361,7 @@
   justify-content: flex-end;
   margin-top: 1.5rem;
   padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border, #e5e7eb);
   grid-column: 1 / -1;
 }
 
@@ -516,7 +529,7 @@
 }
 
 .users-table th {
-  background: #f8fafc;
+  background: var(--surface-muted, #f8fafc);
   color: var(--text-soft);
 }
 
@@ -525,7 +538,7 @@
 }
 
 .users-table tbody tr:hover {
-  background: #f8fbff;
+  background: var(--hover, #f8fbff);
 }
 
 .status-badge.active {
@@ -544,12 +557,12 @@
 }
 
 .btn-secondary {
-  background: #e2e8f0;
+  background: var(--surface-muted, #e2e8f0);
   color: var(--text-soft);
 }
 
 .btn-secondary:hover {
-  background: #cbd5e1;
+  background: var(--border-strong, #cbd5e1);
 }
 
 .btn-warning {
@@ -565,7 +578,7 @@
 }
 
 .modal-overlay {
-  background: rgba(15, 23, 42, 0.58);
+  background: var(--overlay, rgba(15, 23, 42, 0.58));
   backdrop-filter: blur(10px);
 }
 
@@ -583,7 +596,7 @@
   align-items: flex-start;
   gap: 1rem;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 80%);
+  background: linear-gradient(135deg, var(--brand-soft) 0%, var(--surface) 80%);
 }
 
 .account-modal-header h3 {
@@ -644,7 +657,7 @@
   padding: 0.9rem 1rem;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: #f8fbff;
+  background: var(--surface-muted, #f8fbff);
   color: var(--text);
   font-weight: 600;
 }
@@ -669,7 +682,7 @@
 }
 
 .account-modal-content .close-btn:hover {
-  background: #e2e8f0;
+  background: var(--hover, #e2e8f0);
 }
 
 @media (max-width: 768px) {
@@ -691,4 +704,45 @@
   .filters-row {
     flex-direction: column;
   }
+}
+
+/* Dark mode overrides */
+body.dark .access-denied {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+body.dark .status-badge.active {
+  background: rgba(52, 211, 153, 0.16);
+  color: #34d399;
+}
+
+body.dark .status-badge.inactive {
+  background: rgba(248, 113, 113, 0.16);
+  color: #f87171;
+}
+
+body.dark .status-badge.archived {
+  background: rgba(255, 255, 255, 0.08);
+  color: #b0b0b0;
+}
+
+body.dark .filters-section {
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
+}
+
+body.dark .search-input:focus,
+body.dark .filter-select:focus,
+body.dark .modal-content input:focus,
+body.dark .modal-content select:focus {
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+body.dark .notification.success {
+  background: #059669;
+}
+
+body.dark .notification.error {
+  background: #dc2626;
 }

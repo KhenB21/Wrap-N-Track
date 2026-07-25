@@ -6,7 +6,11 @@ const verifyJwt = require('../middleware/verifyJwt');
 const requireRole = require('../middleware/requireRole');
 
 const router = express.Router();
-const STAFF_SUPPLIER_ROLES = ['operations_manager', 'sales_manager', 'super_admin', 'admin', 'director'];
+// Matches Customer Management's staff access level (see routes/customers.js) so any
+// employee who can manage customers can also manage suppliers. 'operations_manager'
+// and 'super_admin' were dropped: they are not valid values under the users_role_check
+// DB constraint, so they could never match a real account.
+const STAFF_SUPPLIER_ROLES = ['admin', 'director', 'sales_manager', 'business_developer', 'assistant_sales'];
 
 let supplierSchemaReady = false;
 let supplierOrdersTableExists = null;

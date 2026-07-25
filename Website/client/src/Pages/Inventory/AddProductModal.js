@@ -484,299 +484,312 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     onAdd(dataToSend);
   };
 
-  return (
-    <>
-      {!showAddSupplierModal && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-          <button className="close-btn" onClick={onClose}>&times;</button>
-          <h3 style={{ textAlign: 'center', fontWeight: 700, marginBottom: '1.5rem', fontSize: '1.5rem', color: '#1f2937' }}>
-            {isAddStockMode ? 'ADD STOCK' : (selectedExistingProduct || (isEdit && initialData.sku) ? 'EDIT PRODUCT DETAILS' : 'ADD PRODUCT')}
-          </h3>
-        <form onSubmit={handleSubmit} className="add-product-form" encType="multipart/form-data">
-          <div className="section-title">Basic Information</div>
-          
-          <div className="file-input-wrapper full-width" style={{ justifyContent: 'center', margin: '0 0 1rem 0' }}>
-            {preview && <img src={preview} alt="Preview" style={{ width: '120px', height: '120px' }} />}
-            <input type="file" accept="image/*" onChange={handleImageChange} disabled={isAddStockMode} />
-          </div>
-
-          <label>SKU
-            <input name="sku" value={form.sku || 'Auto-generated after saving'} onChange={handleChange} required={isEdit || isAddStockMode} disabled={true} />
-          </label>
-
-          <div className="product-name-input-container">
-            <label htmlFor="name">Product Name</label>
-            <input 
-              id="name"
-              name="name" 
-              value={form.name} 
-              onChange={handleChange} 
-              required 
-              className={errors.name ? 'error' : ''}
-              autoComplete="off"
-              disabled={isAddStockMode}
-            />
-            {showProductNameSuggestions && productNameSuggestions.length > 0 && !isAddStockMode && !isEdit && (
-              <div className="product-name-suggestions">
-                {productNameSuggestions.map((product, index) => (
-                  <div
-                    key={index}
-                    className="suggestion-item"
-                    onClick={() => handleProductNameSelect(product)}
-                  >
-                    {product.image_data && (
-                      <img 
-                        src={`data:image/jpeg;base64,${product.image_data}`} 
-                        alt={product.name} 
-                        className="suggestion-item-image"
-                      />
-                    )}
-                    <span className="suggestion-item-text">{product.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {errors.name && <span className="error-message">{errors.name}</span>}
-          </div>
-
-          <label>Category
-            <div className="category-input-container">
-              <input 
-                name="category" 
-                value={categoryInput}
-                onChange={handleCategoryChange}
-                className={errors.category ? 'error' : ''}
-                placeholder="Select or type a category"
-                disabled={isAddStockMode}
-              />
-              {showSuggestions && filteredCategories.length > 0 && !isAddStockMode && !isEdit && (
-                <div className="category-suggestions">
-                  {filteredCategories.map((category, index) => (
-                    <div
-                      key={index}
-                      className="suggestion-item"
-                      onClick={() => handleCategorySelect(category)}
-                    >
-                      {category}
-                    </div>
-                  ))}
-                </div>
-              )}
+  // Add Stock is a narrow, high-frequency action (received a delivery, correcting a
+  // count) — it only ever needs the current stock and how much to add. Routing it
+  // through the full product-editing form (image upload, description, supplier, UOM,
+  // pricing, expirable date — all disabled/irrelevant here) was the main source of
+  // clutter and unnecessary scrolling, so it gets its own minimal layout instead.
+  if (isAddStockMode) {
+    return (
+      <div className="modal-overlay">
+        <div className="modal-content stock-modal" onClick={e => e.stopPropagation()}>
+          <button className="close-btn" onClick={onClose} aria-label="Close">&times;</button>
+          <div className="modal-header">
+            <span className="modal-header-icon" aria-hidden="true">📦</span>
+            <div>
+              <h3>Add Stock</h3>
+              <p className="modal-subtitle">Record newly received or adjusted inventory</p>
             </div>
-            {errors.category && <span className="error-message">{errors.category}</span>}
-          </label>
+          </div>
 
-          <label className="full-width">Description
-            <input 
-              name="description" 
-              value={form.description} 
-              onChange={handleChange}
-              className={errors.description ? 'error' : ''}
-              disabled={isAddStockMode}
-            />
-            {errors.description && <span className="error-message">{errors.description}</span>}
-          </label>
+          <div className="stock-product-summary">
+            {preview ? (
+              <img src={preview} alt={form.name} className="stock-product-thumb" />
+            ) : (
+              <div className="stock-product-thumb placeholder" aria-hidden="true">📦</div>
+            )}
+            <div className="stock-product-info">
+              <div className="stock-product-name">{form.name || 'Product'}</div>
+              <div className="stock-product-meta">{form.sku}{form.category ? ` · ${form.category}` : ''}</div>
+            </div>
+          </div>
 
-          <label className="full-width">Supplier
-            <SupplierDropdown
-              value={selectedSupplier}
-              onChange={handleSupplierChange}
-              onAddNewSupplier={handleAddNewSupplier}
-              disabled={isAddStockMode}
-              placeholder="Select a supplier..."
-              error={!!errors.supplier}
-            />
-            {errors.supplier && <span className="error-message">{errors.supplier}</span>}
-          </label>
-
-          <div className="section-title">Inventory & Pricing</div>
-
-          {isAddStockMode ? (
-            <>
+          <form onSubmit={handleSubmit} className="stock-form">
+            <div className="stock-form-row">
               <label>Current Stock
-                <input 
-                  type="number" 
-                  value={form.quantity} 
-                  disabled={true}
-                  style={{ background: '#f9fafb' }}
-                />
+                <input type="number" value={form.quantity} disabled />
               </label>
-              <label>Quantity to Add
-                <input 
-                  name="quantityToAdd" 
-                  type="number" 
-                  value={quantityToAdd} 
-                  onChange={e => setQuantityToAdd(e.target.value)} 
+              <label>Quantity to Add *
+                <input
+                  name="quantityToAdd"
+                  type="number"
+                  value={quantityToAdd}
+                  onChange={e => setQuantityToAdd(e.target.value)}
                   required
+                  autoFocus
                   className={errors.quantity ? 'error' : ''}
                   min="1"
                 />
                 {errors.quantity && <span className="error-message">{errors.quantity}</span>}
               </label>
-              <label className="full-width">Reason
-                <input
-                  name="stock_reason"
-                  value={form.stock_reason || ''}
-                  onChange={handleChange}
-                  placeholder="Example: supplier delivery, return, adjustment"
-                />
-              </label>
-            </>
-          ) : (
-            <label>Quantity (Base Unit)
-              <input 
-                name="quantity" 
-                type="number" 
-                value={form.quantity} 
-                onChange={handleChange} 
-                required
-                className={errors.quantity ? 'error' : ''}
-                disabled={isEdit}
-              />
-              {errors.quantity && <span className="error-message">{errors.quantity}</span>}
-            </label>
-          )}
-
-          {!isAddStockMode && (
-            <label>Reorder Level
-              <input 
-                name="reorder_level" 
-                type="number" 
-                value={form.reorder_level} 
-                onChange={handleChange}
-                min="0"
-                step="1"
-                className={errors.reorder_level ? 'error' : ''}
-              />
-              {errors.reorder_level && <span className="error-message">{errors.reorder_level}</span>}
-            </label>
-          )}
-
-          <label>Unit of Measure
-            <div style={{ minHeight: 40 }}>
-              <Select
-                name="uom"
-                value={UOM_OPTIONS.find(option => option.value === form.uom) || null}
-                onChange={option => {
-                  const newUom = option ? option.value : '';
-                  setForm(prev => ({
-                    ...prev,
-                    uom: newUom,
-                    conversion_qty: UOMS_REQUIRING_CONVERSION.includes(newUom) ? prev.conversion_qty : ''
-                  }));
-                }}
-                options={UOM_OPTIONS}
-                classNamePrefix={errors.uom ? 'error react-select' : 'react-select'}
-                placeholder="Select UoM"
-                isClearable
-                isDisabled={isAddStockMode}
-                styles={{
-                  control: (base, state) => ({
-                    ...base,
-                    borderColor: errors.uom ? '#ef4444' : state.isFocused ? '#4361ee' : '#d1d5db',
-                    boxShadow: state.isFocused ? '0 0 0 3px rgba(67, 97, 238, 0.1)' : 'none',
-                    minHeight: 40,
-                    fontSize: '1rem',
-                    background: '#fff',
-                    borderWidth: '1.5px',
-                  }),
-                  menu: base => ({
-                    ...base,
-                    zIndex: 9999,
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 8,
-                  }),
-                  option: (base, state) => ({
-                    ...base,
-                    backgroundColor: state.isSelected
-                      ? '#4361ee'
-                      : state.isFocused
-                      ? '#f0f4ff'
-                      : '#fff',
-                    color: state.isSelected ? '#fff' : '#374151',
-                    fontSize: '1rem',
-                    padding: '10px 16px',
-                  }),
-                }}
-              />
             </div>
-            {errors.uom && <span className="error-message">{errors.uom}</span>}
-          </label>
-
-          {UOMS_REQUIRING_CONVERSION.includes(form.uom) && (
-            <label className="full-width">Units per UOM
-              <input
-                name="conversion_qty"
-                type="number"
-                min="1"
-                step="1"
-                value={form.conversion_qty}
-                onChange={handleChange}
-                required
-                placeholder={`How many units in one ${form.uom || 'container'}?`}
-                disabled={isAddStockMode}
-              />
-              <span className="help-text">1 {form.uom} = {form.conversion_qty || '?'} Pieces</span>
-              {errors.conversion_qty && <span className="error-message">{errors.conversion_qty}</span>}
-            </label>
-          )}
-
-          <label>Unit Price (Per UOM)
-            <input 
-              name="unit_price" 
-              type="number" 
-              step="0.01" 
-              value={form.unit_price} 
-              onChange={handleChange} 
-              required
-              className={errors.unit_price ? 'error' : ''}
-              disabled={isAddStockMode}
-            />
-            {errors.unit_price && <span className="error-message">{errors.unit_price}</span>}
-          </label>
-
-          <div className="section-title">Product Details</div>
-
-          <div className="expirable-group full-width" style={{ margin: '0', flexDirection: 'row', justifyContent: 'flex-start' }}>
-            <label className="expirable-checkbox-label" style={{ marginRight: '1rem' }}>
-              <input
-                type="checkbox"
-                id="expirable"
-                checked={form.expirable}
-                onChange={e => setForm(prev => ({ ...prev, expirable: e.target.checked, expiration: e.target.checked ? prev.expiration : '' }))}
-                className="expirable-checkbox"
-                disabled={isAddStockMode}
-              />
-              <span>Expirable Product?</span>
-            </label>
-            {form.expirable ? (
-              <input
-                type="date"
-                name="expiration"
-                value={form.expiration}
-                onChange={e => setForm(prev => ({ ...prev, expiration: e.target.value }))}
-                className="expirable-date"
-                disabled={isAddStockMode}
-                style={{ width: 'auto' }}
-              />
-            ) : (
-              <span className="dont-expire-badge" style={{ width: 'auto', padding: '0.5rem 1rem' }}>DOES NOT EXPIRE</span>
+            {Number(quantityToAdd) > 0 && (
+              <p className="stock-preview-text">
+                New stock will be <strong>{Number(form.quantity) + Number(quantityToAdd)}</strong>
+              </p>
             )}
-          </div>
+            <label className="full-width">Reason <span className="optional-tag">optional</span>
+              <input
+                name="stock_reason"
+                value={form.stock_reason || ''}
+                onChange={handleChange}
+                placeholder="e.g. supplier delivery, return, stock count adjustment"
+              />
+            </label>
 
-          <div className="button-group">
-            <button type="button" className="submit-btn" onClick={onClose}>Cancel</button>
-            <button type="submit" className="submit-btn" style={{ background: '#4361ee' }}>
-              {isAddStockMode ? 'Add Stock' : 'Save Product'}
-            </button>
-          </div>
-        </form>
+            <div className="button-group">
+              <button type="button" className="submit-btn" onClick={onClose}>Cancel</button>
+              <button type="submit" className="submit-btn primary">Add Stock</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {!showAddSupplierModal && (
+        <div className="modal-overlay">
+          <div className="modal-content product-modal" onClick={e => e.stopPropagation()}>
+            <button className="close-btn" onClick={onClose} aria-label="Close">&times;</button>
+            <div className="modal-header">
+              <span className="modal-header-icon" aria-hidden="true">{isEdit ? '✏️' : '🏷️'}</span>
+              <div>
+                <h3>{selectedExistingProduct || (isEdit && initialData.sku) ? 'Edit Product Details' : 'Add Product'}</h3>
+                <p className="modal-subtitle">
+                  {isEdit ? `Editing ${initialData.name || 'product'}` : 'Fill in the details below to add a new inventory item'}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="add-product-form" encType="multipart/form-data">
+              <div className="section-title">Basic Information</div>
+
+              <div className="basic-info-row full-width">
+                <div className="image-upload-box">
+                  {preview ? (
+                    <img src={preview} alt="Preview" className="image-preview" />
+                  ) : (
+                    <div className="image-preview placeholder" aria-hidden="true">🖼️</div>
+                  )}
+                  <input type="file" accept="image/*" onChange={handleImageChange} id="product-image-input" className="visually-hidden-file" />
+                  <label htmlFor="product-image-input" className="image-upload-btn">Choose Photo</label>
+                </div>
+
+                <div className="basic-info-fields">
+                  <label>SKU
+                    <input name="sku" value={form.sku || 'Auto-generated after saving'} disabled />
+                  </label>
+
+                  <div className="product-name-input-container">
+                    <label htmlFor="name">Product Name</label>
+                    <input
+                      id="name"
+                      name="name"
+                      value={form.name}
+                      onChange={handleChange}
+                      required
+                      className={errors.name ? 'error' : ''}
+                      autoComplete="off"
+                    />
+                    {showProductNameSuggestions && productNameSuggestions.length > 0 && !isEdit && (
+                      <div className="product-name-suggestions">
+                        {productNameSuggestions.map((product, index) => (
+                          <div
+                            key={index}
+                            className="suggestion-item"
+                            onClick={() => handleProductNameSelect(product)}
+                          >
+                            {product.image_data && (
+                              <img
+                                src={`data:image/jpeg;base64,${product.image_data}`}
+                                alt={product.name}
+                                className="suggestion-item-image"
+                              />
+                            )}
+                            <span className="suggestion-item-text">{product.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {errors.name && <span className="error-message">{errors.name}</span>}
+                  </div>
+                </div>
+              </div>
+
+              <label>Category
+                <div className="category-input-container">
+                  <input
+                    name="category"
+                    value={categoryInput}
+                    onChange={handleCategoryChange}
+                    className={errors.category ? 'error' : ''}
+                    placeholder="Select or type a category"
+                  />
+                  {showSuggestions && filteredCategories.length > 0 && !isEdit && (
+                    <div className="category-suggestions">
+                      {filteredCategories.map((category, index) => (
+                        <div
+                          key={index}
+                          className="suggestion-item"
+                          onClick={() => handleCategorySelect(category)}
+                        >
+                          {category}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {errors.category && <span className="error-message">{errors.category}</span>}
+              </label>
+
+              <label>Supplier
+                <SupplierDropdown
+                  value={selectedSupplier}
+                  onChange={handleSupplierChange}
+                  onAddNewSupplier={handleAddNewSupplier}
+                  placeholder="Select a supplier..."
+                  error={!!errors.supplier}
+                />
+                {errors.supplier && <span className="error-message">{errors.supplier}</span>}
+              </label>
+
+              <label className="full-width">Description <span className="optional-tag">optional</span>
+                <input
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  className={errors.description ? 'error' : ''}
+                />
+                {errors.description && <span className="error-message">{errors.description}</span>}
+              </label>
+
+              <div className="section-title">Inventory & Pricing</div>
+
+              <label>Quantity (Base Unit)
+                <input
+                  name="quantity"
+                  type="number"
+                  value={form.quantity}
+                  onChange={handleChange}
+                  required
+                  className={errors.quantity ? 'error' : ''}
+                  disabled={isEdit}
+                />
+                {errors.quantity && <span className="error-message">{errors.quantity}</span>}
+              </label>
+
+              <label>Reorder Level
+                <input
+                  name="reorder_level"
+                  type="number"
+                  value={form.reorder_level}
+                  onChange={handleChange}
+                  min="0"
+                  step="1"
+                  className={errors.reorder_level ? 'error' : ''}
+                />
+                {errors.reorder_level && <span className="error-message">{errors.reorder_level}</span>}
+              </label>
+
+              <label>Unit Price (Per UOM)
+                <input
+                  name="unit_price"
+                  type="number"
+                  step="0.01"
+                  value={form.unit_price}
+                  onChange={handleChange}
+                  required
+                  className={errors.unit_price ? 'error' : ''}
+                />
+                {errors.unit_price && <span className="error-message">{errors.unit_price}</span>}
+              </label>
+
+              <label>Unit of Measure
+                <Select
+                  name="uom"
+                  value={UOM_OPTIONS.find(option => option.value === form.uom) || null}
+                  onChange={option => {
+                    const newUom = option ? option.value : '';
+                    setForm(prev => ({
+                      ...prev,
+                      uom: newUom,
+                      conversion_qty: UOMS_REQUIRING_CONVERSION.includes(newUom) ? prev.conversion_qty : ''
+                    }));
+                  }}
+                  options={UOM_OPTIONS}
+                  classNamePrefix={errors.uom ? 'error react-select' : 'react-select'}
+                  placeholder="Select UoM"
+                  isClearable
+                  menuPortalTarget={document.body}
+                  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                />
+                {errors.uom && <span className="error-message">{errors.uom}</span>}
+              </label>
+
+              {UOMS_REQUIRING_CONVERSION.includes(form.uom) && (
+                <label>Units per UOM
+                  <input
+                    name="conversion_qty"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.conversion_qty}
+                    onChange={handleChange}
+                    required
+                    placeholder={`How many units in one ${form.uom || 'container'}?`}
+                  />
+                  <span className="help-text">1 {form.uom} = {form.conversion_qty || '?'} Pieces</span>
+                  {errors.conversion_qty && <span className="error-message">{errors.conversion_qty}</span>}
+                </label>
+              )}
+
+              <div className="section-title">Product Details</div>
+
+              <div className="expirable-group full-width">
+                <label className="expirable-checkbox-label">
+                  <input
+                    type="checkbox"
+                    id="expirable"
+                    checked={form.expirable}
+                    onChange={e => setForm(prev => ({ ...prev, expirable: e.target.checked, expiration: e.target.checked ? prev.expiration : '' }))}
+                    className="expirable-checkbox"
+                  />
+                  <span>Expirable Product?</span>
+                </label>
+                {form.expirable ? (
+                  <input
+                    type="date"
+                    name="expiration"
+                    value={form.expiration}
+                    onChange={e => setForm(prev => ({ ...prev, expiration: e.target.value }))}
+                    className="expirable-date"
+                  />
+                ) : (
+                  <span className="dont-expire-badge">Does not expire</span>
+                )}
+              </div>
+
+              <div className="button-group">
+                <button type="button" className="submit-btn" onClick={onClose}>Cancel</button>
+                <button type="submit" className="submit-btn primary">Save Product</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
-      
+
       {showAddSupplierModal && (
         <AddSupplierModal
           onClose={() => setShowAddSupplierModal(false)}
@@ -785,4 +798,4 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       )}
     </>
   );
-} 
+}

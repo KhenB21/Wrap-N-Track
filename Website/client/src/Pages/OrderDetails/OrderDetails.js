@@ -10,6 +10,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../api';
 import PortalModal from '../../Components/Modal/PortalModal';
 import OrderInvoiceSection from '../Invoices/OrderInvoiceSection';
+import AddOrderModal from './AddOrderModal';
 
 // Add these styles at the top of the file
 const styles = {
@@ -343,36 +344,14 @@ export default function OrderDetails() {
   }, [showModal, form.order_id, selectedOrder]);
 
   // Function definitions (stubs)
-  const handleAddOrder = () => { 
-    console.log('handleAddOrder called'); 
-    setForm({ // Reset form for new order
-      order_id: generateOrderId(), name: '', status: 'Pending', customer_name: '', customer_email: '',
-      customer_phone: '', customer_address_line1: '', customer_address_line2: '', customer_city: '',
-      customer_state: '', customer_zip: '', customer_country: '', total_cost: 0, notes: '', products: []
-    });
+  const handleAddOrder = () => {
     setSelectedOrder(null); // Clear any selected order when adding new
-    setShowModal(true); 
+    setShowModal(true); // AddOrderModal owns/resets its own form state on open
   };
-  const handleFormSubmit = (e) => { e.preventDefault(); console.log('handleFormSubmit called', form); setShowModal(false); /* Add API call here */ };
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm(prevForm => ({ ...prevForm, [name]: type === 'checkbox' ? checked : value }));
     console.log('handleFormChange called', name, value);
-  };
-  const renderProductTable = () => { 
-    console.log('renderProductTable called'); 
-    if (!form.products || form.products.length === 0) {
-        return <tr><td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>No products added yet.</td></tr>;
-    }
-    return form.products.map((product, index) => (
-        <tr key={index}>
-            <td>{product.name}</td>
-            <td>{product.quantity}</td>
-            <td>{product.price}</td>
-            <td>{product.quantity * product.price}</td>
-            <td><button onClick={() => console.log('Remove product stub')}>Remove</button></td>
-        </tr>
-    ));
   };
   const handleProductSelection = (product, quantity) => { console.log('handleProductSelection called', product, quantity); };
   const handleAddProductToOrder = () => { 
@@ -796,115 +775,12 @@ export default function OrderDetails() {
         {/* More modal removed */}
 
         {/* Modal for Add Order */}
-        {showModal && (
-          <PortalModal onClose={() => setShowModal(false)}>
-            <div role="dialog" aria-modal="true" style={{background:'#fff',padding:20,borderRadius:12,width:'100%',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 6px 40px rgba(0,0,0,0.18)'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-                <h2 style={{margin:0,fontSize:22,fontWeight:700}}>Add Order</h2>
-                <button type="button" onClick={() => setShowModal(false)} aria-label="Close" style={{background:'transparent',border:'none',fontSize:28,lineHeight:1,color:'#666',cursor:'pointer',padding:6,borderRadius:6}}>&times;</button>
-              </div>
-              <form onSubmit={handleFormSubmit} style={{display:'flex',flexDirection:'row',gap:24,alignItems:'flex-start',flexWrap:'wrap'}}>
-                {/* Left: Order Details */}
-                <div style={{flex:'1 1 420px',minWidth:0}}>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>
-                      Order ID
-                      <input 
-                        name="order_id" 
-                        value={form.order_id} 
-                        readOnly 
-                        className="modal-input" 
-                        style={{backgroundColor: '#f8f9fa'}}
-                      />
-                    </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Name<input name="name" value={form.name} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Status
-                      <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">
-                        <option value="">Select status</option>
-                        <option value="Pending">Pending</option>
-                        <option value="To be pack">To be pack</option>
-                        <option value="Ready to ship">Ready to ship</option>
-                        <option value="En Route">En Route</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Invoice">Invoice</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
-                    </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Package Name
-                      <select name="package_name" value={form.package_name} onChange={handleFormChange} required className="modal-input">
-                        <option value="">Select package</option>
-                        <option value="Carlo">Carlo</option>
-                        <option value="Custom">Custom</option>
-                      </select>
-                    </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Expected Delivery<input name="expected_delivery" type="date" value={form.expected_delivery} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Shipped To (Receiver name) <input name="shipped_to" value={form.shipped_to} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Shipping Address<input name="shipping_address" value={form.shipping_address} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Telephone<input name="telephone" value={form.telephone} onChange={handleFormChange} className="modal-input" placeholder="(optional)" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Cellphone<input name="cellphone" value={form.cellphone} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Email Address<input name="email_address" value={form.email_address} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Total Cost
-                      <input 
-                        name="total_cost" 
-                        type="number" 
-                        step="0.01" 
-                        value={form.total_cost} 
-                        readOnly 
-                        className="modal-input" 
-                        style={{backgroundColor:'#f5f5f5'}}
-                      />
-                    </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Payment Type
-                      <select name="payment_type" value={form.payment_type} onChange={handleFormChange} className="modal-input" required>
-                        <option value="">Select payment type</option>
-                        <option value="50% paid">50% paid</option>
-                        <option value="70% paid">70% paid</option>
-                        <option value="100% Paid">100% Paid</option>
-                      </select>
-                    </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Payment Method
-                      <select name="payment_method" value={form.payment_method} onChange={handleFormChange} className="modal-input" required>
-                        <option value="">Select payment method</option>
-                        <option value="Cash">Cash</option>
-                        <option value="Online Banking">Online Banking</option>
-                        <option value="E-Wallet">E-Wallet</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                      </select>
-                    </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Account Name<input name="account_name" value={form.account_name} onChange={handleFormChange} className="modal-input" /></label>
-                    {/* Remarks - span both columns */}
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6,gridColumn:'1 / span 2'}}>Remarks<input name="remarks" value={form.remarks} onChange={handleFormChange} className="modal-input" /></label>
-                  </div>
-                  {/* Form buttons */}
-                  <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:24}}>
-                    <button type="button" onClick={()=>setShowModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}>Cancel</button>
-                    <button type="submit" style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#6c63ff',color:'#fff',fontWeight:600,cursor:'pointer'}}>Save</button>
-                  </div>
-                </div>
-                {/* Right: Products Section */}
-                <div style={{flex:'1 1 420px',minWidth:0}}>
-                  <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
-                  <div style={{maxHeight:400,overflowY:'auto',marginBottom:18,border:'1px solid #eee',borderRadius:8,padding:16}}>
-                    {renderProductTable()}
-                  </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
-                    <div style={{fontWeight:500}}>
-                      Total Estimated Profit: ₱{
-                        inventory.reduce((total, item) => {
-                          const quantity = Number(productSelection[item.sku] || 0);
-                          const margin = Number(profitMargins[item.sku] || 0);
-                          const unitPrice = Number(item.unit_price || 0);
-                          return total + (unitPrice * quantity * (margin / 100));
-                        }, 0).toFixed(2)
-                      }
-                    </div>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </PortalModal>
-        )}
+        <AddOrderModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          inventory={inventory}
+          onCreated={fetchOrders}
+        />
 
         {/* Modal for Add Product to Order */}
         {showProductModal && (
@@ -1296,13 +1172,7 @@ export default function OrderDetails() {
               <div style={{marginBottom:18, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Contact Number:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.cellphone || '-'}</span></div>
               <div style={{marginBottom:18, fontSize:18}}>
                 <span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Total Number of Boxes:</span> 
-                <span style={{fontWeight:400, marginLeft:6}}>{
-                  (selectedOrder.order_quantity && selectedOrder.order_quantity > 0)
-                    ? selectedOrder.order_quantity
-                    : (selectedOrder.products && selectedOrder.products.length > 0 && selectedOrder.products[0].quantity > 0)
-                      ? selectedOrder.products[0].quantity
-                      : '-'
-                }</span>
+                <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.order_quantity ?? selectedOrder.total_boxes ?? '-'}</span>
               </div>
               <div style={{marginBottom:18, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Date of Event:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.expected_delivery ? (new Date(selectedOrder.expected_delivery).toLocaleDateString('en-US')) : '-'}</span></div>
               <div style={{marginBottom:18, fontSize:18}}>

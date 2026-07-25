@@ -16,6 +16,7 @@ export default function Suppliers() {
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,11 +38,15 @@ export default function Suppliers() {
     setLoading(true);
     try {
       const response = await api.get('/api/suppliers');
-      console.log('Fetched suppliers:', response.data);
       setSuppliers(response.data || []);
+      setError(null);
     } catch (err) {
       console.error('Error fetching suppliers:', err);
-      toast.error('Failed to load suppliers');
+      const message = err.response?.status === 403
+        ? "You don't have permission to view suppliers."
+        : (err.response?.data?.error || 'Failed to load suppliers');
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -164,6 +169,14 @@ export default function Suppliers() {
             </button>
           </div>
 
+          {error && (
+            <div className="error-message">
+              <span className="error-icon">⚠️</span>
+              {error}
+              <button onClick={fetchSuppliers} className="retry-btn">Retry</button>
+            </div>
+          )}
+
           <div className="suppliers-filters">
             <div className="filter-group">
               <select 
@@ -253,9 +266,9 @@ export default function Suppliers() {
               </tbody>
             </table>
 
-            {!loading && currentSuppliers.length === 0 && (
+            {!loading && !error && currentSuppliers.length === 0 && (
               <div className="no-suppliers">
-                <p>No suppliers found</p>
+                <p>{suppliers.length === 0 ? 'No suppliers found' : 'No suppliers match your search or filter'}</p>
               </div>
             )}
           </div>

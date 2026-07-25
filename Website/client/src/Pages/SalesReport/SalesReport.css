@@ -2,7 +2,7 @@
 .sales-report-container {
   display: flex;
   min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: var(--app-bg, #f8fafc);
 }
 
 .sales-report-main {
@@ -31,7 +31,7 @@
 .sales-title {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text, #1f2937);
   margin: 0;
 }
 
@@ -43,7 +43,7 @@
 
 .period-selector {
   display: flex;
-  background-color: #e5e7eb;
+  background-color: var(--surface-muted, #e5e7eb);
   border-radius: 8px;
   padding: 4px;
   gap: 4px;
@@ -55,18 +55,18 @@
   background-color: transparent;
   border-radius: 6px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .period-btn:hover {
-  background-color: #f3f4f6;
-  color: #374151;
+  background-color: var(--hover, #f3f4f6);
+  color: var(--text, #374151);
 }
 
 .period-btn.active {
-  background-color: #3b82f6;
+  background-color: var(--brand, #3b82f6);
   color: white;
   box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
 }
@@ -76,7 +76,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background-color: #3b82f6;
+  background-color: var(--brand, #3b82f6);
   color: white;
   border: none;
   border-radius: 8px;
@@ -86,7 +86,7 @@
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background-color: #2563eb;
+  background-color: var(--brand-dark, #2563eb);
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
 }
@@ -105,11 +105,11 @@
 }
 
 .metric-card {
-  background: white;
+  background: var(--surface, white);
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border, #e5e7eb);
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
@@ -127,7 +127,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  background: linear-gradient(90deg, var(--brand, #3b82f6), var(--brand-deep, #1d4ed8));
 }
 
 .metric-header {
@@ -144,14 +144,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f3f4f6;
+  background-color: var(--surface-muted, #f3f4f6);
   border-radius: 8px;
 }
 
 .metric-title {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -159,7 +159,7 @@
 .metric-value {
   font-size: 2rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text, #1f2937);
   margin-bottom: 0.5rem;
   line-height: 1;
 }
@@ -174,17 +174,17 @@
 
 /* Chart Container */
 .chart-container {
-  background: white;
+  background: var(--surface, white);
   border-radius: 12px;
   padding: 2rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border, #e5e7eb);
 }
 
 .chart-title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text, #1f2937);
   margin: 0 0 1.5rem 0;
 }
 
@@ -224,7 +224,7 @@
   position: absolute;
   width: 120px;
   height: 120px;
-  background: white;
+  background: var(--surface, white);
   border-radius: 50%;
 }
 
@@ -237,13 +237,13 @@
 .donut-total {
   font-size: 2rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text, #1f2937);
   line-height: 1;
 }
 
 .donut-label {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   font-weight: 500;
 }
 
@@ -287,13 +287,13 @@
 .legend-label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-soft, #374151);
 }
 
 .legend-value {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text, #1f2937);
 }
 
 /* Loading States */
@@ -309,8 +309,8 @@
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #e5e7eb;
-  border-top: 4px solid #3b82f6;
+  border: 4px solid var(--border, #e5e7eb);
+  border-top: 4px solid var(--brand, #3b82f6);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -325,51 +325,51 @@
   .sales-report-content {
     padding: 1rem;
   }
-  
+
   .sales-header {
     flex-direction: column;
     align-items: stretch;
     gap: 1rem;
   }
-  
+
   .sales-title {
     font-size: 2rem;
     text-align: center;
   }
-  
+
   .header-controls {
     justify-content: center;
     flex-wrap: wrap;
   }
-  
+
   .metrics-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
-  
+
   .metric-card {
     padding: 1rem;
   }
-  
+
   .metric-value {
     font-size: 1.5rem;
   }
-  
+
   .chart-wrapper {
     flex-direction: column;
     gap: 2rem;
   }
-  
+
   .donut-chart {
     width: 150px;
     height: 150px;
   }
-  
+
   .donut-chart::before {
     width: 90px;
     height: 90px;
   }
-  
+
   .donut-total {
     font-size: 1.5rem;
   }
@@ -379,30 +379,30 @@
   .sales-title {
     font-size: 1.75rem;
   }
-  
+
   .period-selector {
     flex-direction: column;
     width: 100%;
   }
-  
+
   .period-btn {
     text-align: center;
   }
-  
+
   .refresh-btn {
     width: 100%;
     justify-content: center;
   }
-  
+
   .chart-container {
     padding: 1rem;
   }
-  
+
   .donut-chart {
     width: 120px;
     height: 120px;
   }
-  
+
   .donut-chart::before {
     width: 70px;
     height: 70px;
@@ -414,7 +414,7 @@
   .metrics-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .chart-wrapper {
     gap: 2rem;
   }
@@ -433,7 +433,7 @@
 /* Focus States for Accessibility */
 .period-btn:focus,
 .refresh-btn:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--brand, #3b82f6);
   outline-offset: 2px;
 }
 

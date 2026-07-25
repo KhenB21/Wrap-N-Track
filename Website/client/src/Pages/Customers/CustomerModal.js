@@ -1,5 +1,57 @@
 import React, { useState, useEffect } from 'react';
+import api from '../../api';
 import './CustomerModal.css';
+
+const ARCHIVED_STATUSES = ['completed', 'cancelled'];
+
+const formatDate = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+};
+
+const formatCurrency = (value) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '₱0.00';
+  return `₱${amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+function renderOrdersList(list, isLoading, error, emptyMessage) {
+  if (isLoading) {
+    return (
+      <div className="order-mini-list">
+        {[0, 1].map((i) => (
+          <div className="order-mini-row skeleton-card" key={i}>
+            <div className="skeleton-shimmer skeleton-text" style={{ width: '60%', height: '14px' }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (error) {
+    return <p className="order-mini-empty order-mini-error">{error}</p>;
+  }
+  if (!list.length) {
+    return <p className="order-mini-empty">{emptyMessage}</p>;
+  }
+  return (
+    <div className="order-mini-list">
+      {list.map((order) => (
+        <div className="order-mini-row" key={order.order_id}>
+          <div className="order-mini-main">
+            <span className="order-mini-id">#{order.order_id}</span>
+            <span className="order-mini-date">{formatDate(order.order_date)}</span>
+          </div>
+          <span className={`order-mini-status status-${(order.status || '').toLowerCase().replace(/\s+/g, '-')}`}>
+            {order.status || 'Pending'}
+          </span>
+          <span className="order-mini-total">{formatCurrency(order.total_cost)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function CustomerModal({ mode, customer, onSave, onClose }) {
   const [formData, setFormData] = useState({
@@ -13,6 +65,9 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState(null);
 
   useEffect(() => {
     if (mode === 'edit' && customer) {
@@ -38,6 +93,36 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
     setIsDirty(false);
     setErrors({});
   }, [mode, customer]);
+
+  // Ongoing Orders / Order History sections only apply once the customer actually
+  // exists (edit mode) — a brand-new "add" form has no orders yet.
+  useEffect(() => {
+    if (mode !== 'edit' || !customer?.customer_id) {
+      setOrders([]);
+      setOrdersError(null);
+      return;
+    }
+    let cancelled = false;
+    setOrdersLoading(true);
+    setOrdersError(null);
+    api.get('/api/customer-orders/orders', { params: { customer_id: customer.customer_id } })
+      .then((res) => {
+        if (cancelled) return;
+        setOrders(res.data?.orders || []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('Error fetching customer orders:', err);
+        setOrdersError('Failed to load this customer\'s orders');
+      })
+      .finally(() => {
+        if (!cancelled) setOrdersLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [mode, customer]);
+
+  const ongoingOrders = orders.filter((o) => !ARCHIVED_STATUSES.includes((o.status || '').toLowerCase()));
+  const orderHistory = orders.filter((o) => ARCHIVED_STATUSES.includes((o.status || '').toLowerCase()));
 
   const validateForm = () => {
     const newErrors = {};
@@ -160,10 +245,10 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
         </div>
 
         <form onSubmit={handleSubmit} className="customer-form">
-          {/* Personal Information Section */}
+          {/* 1. Basic Information */}
           <div className="form-section">
-            <h3 className="section-title">Customer Information</h3>
-            
+            <h3 className="section-title">Basic Information</h3>
+
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="name">Full Name *</label>
@@ -195,6 +280,11 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
                 {errors.status && <span className="error-message">{errors.status}</span>}
               </div>
             </div>
+          </div>
+
+          {/* 2. Contact Information */}
+          <div className="form-section">
+            <h3 className="section-title">Contact Information</h3>
 
             <div className="form-row">
               <div className="form-group">
@@ -244,10 +334,10 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
             </div>
           </div>
 
-          {/* Contact Information Section */}
+          {/* 3. Address */}
           <div className="form-section">
-            <h3 className="section-title">Address Information</h3>
-            
+            <h3 className="section-title">Address</h3>
+
             <div className="form-row single">
               <div className="form-group">
                 <label htmlFor="address">Shipping Address *</label>
@@ -268,6 +358,44 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
               </div>
             </div>
           </div>
+
+          {/* 4-6. Account Information / Ongoing Orders / Order History — only exist
+              once the customer has actually been created (edit mode). */}
+          {mode === 'edit' && (
+            <>
+              <div className="form-section readonly-section">
+                <h3 className="section-title">Account Information</h3>
+                <div className="account-info-grid">
+                  <div className="account-info-item">
+                    <span className="account-info-label">Customer ID</span>
+                    <span className="account-info-value">#{customer?.customer_id ?? '—'}</span>
+                  </div>
+                  <div className="account-info-item">
+                    <span className="account-info-label">Member Since</span>
+                    <span className="account-info-value">{formatDate(customer?.created_at)}</span>
+                  </div>
+                  <div className="account-info-item">
+                    <span className="account-info-label">Last Updated</span>
+                    <span className="account-info-value">{formatDate(customer?.updated_at)}</span>
+                  </div>
+                  <div className="account-info-item">
+                    <span className="account-info-label">Total Orders</span>
+                    <span className="account-info-value">{ordersLoading ? '…' : orders.length}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-section readonly-section">
+                <h3 className="section-title">Ongoing Orders</h3>
+                {renderOrdersList(ongoingOrders, ordersLoading, ordersError, 'No ongoing orders right now.')}
+              </div>
+
+              <div className="form-section readonly-section">
+                <h3 className="section-title">Order History</h3>
+                {renderOrdersList(orderHistory, ordersLoading, ordersError, 'No completed or cancelled orders yet.')}
+              </div>
+            </>
+          )}
 
           <div className="form-actions">
             <button type="button" className="btn-cancel" onClick={handleClose}>

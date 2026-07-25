@@ -56,7 +56,7 @@
   cursor: pointer;
   font-size: 1rem;
   transition: all 0.2s ease;
-  background: #f3f4f6;
+  background: var(--surface-muted, #f3f4f6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -160,7 +160,7 @@
   justify-content: space-between;
   align-items: center;
   padding-top: 1rem;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--border, #f3f4f6);
 }
 
 .status-badge {
@@ -301,4 +301,29 @@
 
 .customer-card.selected::after {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(29, 78, 216, 0.08));
+}
+
+/* Dark mode overrides */
+body.dark .action-btn.edit:hover {
+  background: #1e3a5f;
+  color: #7fb2ff;
+}
+
+body.dark .action-btn.delete:hover {
+  background: #4a1f1f;
+  color: #ff8a8a;
+}
+
+body.dark .detail-item:hover {
+  background: #2a2f3a;
+}
+
+body.dark .status-badge.active {
+  background: #14532d;
+  color: #86efac;
+}
+
+body.dark .status-badge.inactive {
+  background: #5c1f1f;
+  color: #fca5a5;
 }

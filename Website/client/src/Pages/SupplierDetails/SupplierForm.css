@@ -1,8 +1,8 @@
 /* Add to your CSS file, e.g., SupplierForm.css */
 .topbar {
   width: 100%;
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--surface, #fff);
+  border-bottom: 1px solid var(--border, #e0e0e0);
   display: flex;
   align-items: center;
   padding: 16px 24px;
@@ -16,9 +16,14 @@
   width: 300px;
   padding: 8px 12px;
   border-radius: 4px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-border, #ddd);
+  background: var(--input-background, #fff);
+  color: var(--input-text, #111);
   font-size: 16px;
   margin-right: auto;
+}
+.topbar-search::placeholder {
+  color: var(--input-placeholder, #9ca3af);
 }
 .topbar-actions {
   display: flex;
@@ -29,6 +34,7 @@
   background: none;
   border: none;
   font-size: 20px;
+  color: var(--text, inherit);
   cursor: pointer;
 }
 .topbar-avatar {
@@ -52,7 +58,7 @@
 
 .supplier-form-content {
   padding: 24px;
-  background-color: #f5f5f5;
+  background-color: var(--app-bg, #f5f5f5);
   flex: 1;
 }
 
@@ -63,9 +69,9 @@
   margin-bottom: 24px;
 }
 .delete-btn {
-  color: #666;
-  background: white;
-  border: 1px solid #ddd;
+  color: var(--text-muted, #666);
+  background: var(--surface, white);
+  border: 1px solid var(--border, #ddd);
   padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
@@ -73,12 +79,13 @@
   align-items: center;
 }
 .selected-count {
-  color: #666;
+  color: var(--text-muted, #666);
 }
 .clear-selection-btn {
   background: none;
   border: none;
   font-size: 18px;
+  color: var(--text, inherit);
   cursor: pointer;
 }
 
@@ -97,9 +104,13 @@
 .supplier-form-filters input[type="text"] {
   padding: 8px 24px 8px 12px;
   border-radius: 4px;
-  border: 1px solid #ddd;
-  background: white;
+  border: 1px solid var(--input-border, #ddd);
+  background: var(--input-background, white);
+  color: var(--input-text, #111);
   min-width: 120px;
+}
+.supplier-form-filters input[type="text"]::placeholder {
+  color: var(--input-placeholder, #9ca3af);
 }
 .supplier-form-filters input[type="text"] {
   min-width: 160px;
@@ -109,7 +120,7 @@
   flex: 1;
 }
 .add-product-btn {
-  background: #5c6bc0;
+  background: var(--brand, #5c6bc0);
   color: #fff;
   padding: 8px 16px;
   border: none;
@@ -120,24 +131,25 @@
 }
 
 .supplier-table-wrapper {
-  background: #fff;
+  background: var(--surface, #fff);
   border-radius: 8px;
   overflow: auto;
 }
 .supplier-table {
   width: 100%;
   border-collapse: collapse;
+  color: var(--text);
 }
 .supplier-table th,
 .supplier-table td {
   padding: 8px;
-  border: 1px solid #eee;
+  border: 1px solid var(--border, #eee);
 }
 .supplier-table th {
-  background: #f5f5f5;
+  background: var(--surface-muted, #f5f5f5);
 }
 .selected-row {
-  background: #e3e6f7;
+  background: var(--brand-soft, #e3e6f7);
 }
 
 /* Dialog styles */
@@ -147,39 +159,42 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--overlay, rgba(0, 0, 0, 0.3));
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 .add-supplier-dialog {
-  background: #fff;
+  background: var(--surface, #fff);
+  color: var(--text);
   border-radius: 8px;
   width: 90%;
   max-width: 700px;
   padding: 24px;
-  box-shadow: 0 2px 16px #0002;
+  box-shadow: var(--shadow-md, 0 2px 16px #0002);
 }
 .add-supplier-dialog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--border, #ddd);
   margin-bottom: 16px;
 }
 .close-btn {
   background: none;
   border: none;
   font-size: 24px;
+  color: var(--text, inherit);
   cursor: pointer;
 }
 .photo-upload-section {
   margin-bottom: 16px;
 }
 .photo-upload-btn {
-  border: 1px solid #ccc;
-  background: #fafafa;
+  border: 1px solid var(--border, #ccc);
+  background: var(--surface-muted, #fafafa);
+  color: var(--text);
   padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
@@ -187,9 +202,10 @@
 .photo-selected {
   margin-top: 8px;
   font-size: 14px;
+  color: var(--text-soft);
 }
 .error-text {
-  color: red;
+  color: var(--danger, red);
   font-size: 12px;
 }
 .supplier-form-fields {
@@ -204,13 +220,20 @@
 }
 .form-field label {
   margin-bottom: 4px;
+  color: var(--text-soft);
 }
 .form-field input,
 .form-field textarea {
   width: 100%;
   padding: 8px;
   border-radius: 4px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--input-border, #ccc);
+  background: var(--input-background, #fff);
+  color: var(--input-text, #111);
+}
+.form-field input::placeholder,
+.form-field textarea::placeholder {
+  color: var(--input-placeholder, #9ca3af);
 }
 .dialog-actions {
   display: flex;
@@ -220,15 +243,15 @@
 }
 .cancel-btn {
   padding: 8px 24px;
-  border: 1px solid #ddd;
-  background: #fff;
-  color: #666;
+  border: 1px solid var(--border, #ddd);
+  background: var(--surface, #fff);
+  color: var(--text-muted, #666);
   border-radius: 4px;
   cursor: pointer;
 }
 .add-btn {
   padding: 8px 24px;
-  background: #5c6bc0;
+  background: var(--brand, #5c6bc0);
   color: #fff;
   border: none;
   border-radius: 4px;

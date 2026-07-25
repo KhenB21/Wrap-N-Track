@@ -128,6 +128,8 @@ router.post('/', async (req, res) => {
       telephone,
       cellphone,
       email_address,
+      order_quantity,
+      customer_id: providedCustomerId, // optional: set when the employee picked an existing customer
       products, // array of { sku, quantity, profit_margin }
       wedding_details // for wedding orders
     } = req.body;
@@ -135,6 +137,16 @@ router.post('/', async (req, res) => {
     // Validate required fields (excluding order_id since we'll generate it if needed)
     if (!account_name || !name || !order_date || !expected_delivery || !status || !package_name) {
       return res.status(400).json({ error: 'Missing required fields for customer order' });
+    }
+    if (!email_address && !cellphone) {
+      return res.status(400).json({ error: 'Provide at least an email address or cellphone number for the customer' });
+    }
+
+    const boxCount = order_quantity === undefined || order_quantity === null || order_quantity === ''
+      ? 0
+      : Number(order_quantity);
+    if (!Number.isInteger(boxCount) || boxCount < 0) {
+      return res.status(400).json({ error: 'Total boxes must be a non-negative whole number' });
     }
 
   client = await pool.connect();
@@ -154,19 +166,61 @@ router.post('/', async (req, res) => {
         order_id = await generateUniqueCustomerOrderId(client);
       }
 
-      // Get customer's address and customer_id from customer_details
-      const customerResult = await client.query(
-        'SELECT customer_id, address FROM customer_details WHERE email_address = $1',
-        [email_address]
-      );
+      // Resolve the customer this order belongs to. Three paths, in order:
+      // 1) The employee explicitly picked an existing customer in the Add Order UI
+      //    (customer_id sent directly) — trust it, skip the email lookup entirely.
+      // 2) email_address matches an existing customer_details row — reuse it (this
+      //    is also how the customer-facing /order flow has always resolved an order).
+      // 3) Neither matched (a genuine walk-in / social-media order with no account
+      //    yet) — auto-create a minimal customer_details row, but only after checking
+      //    for a duplicate by email or phone first, so re-submitting the same walk-in
+      //    contact info twice doesn't create two customer records.
+      let customerId = null;
+      let customerAddress = shipping_address || 'Unknown Address';
 
-      if (!customerResult.rows.length) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ error: 'Customer not found' });
+      if (providedCustomerId) {
+        const byId = await client.query(
+          'SELECT customer_id, address FROM customer_details WHERE customer_id = $1',
+          [providedCustomerId]
+        );
+        if (!byId.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Selected customer was not found' });
+        }
+        customerId = byId.rows[0].customer_id;
+        customerAddress = shipping_address || byId.rows[0].address || 'Unknown Address';
+      } else if (email_address) {
+        const byEmail = await client.query(
+          'SELECT customer_id, address FROM customer_details WHERE email_address = $1',
+          [email_address]
+        );
+        if (byEmail.rows.length) {
+          customerId = byEmail.rows[0].customer_id;
+          customerAddress = shipping_address || byEmail.rows[0].address || 'Unknown Address';
+        }
       }
 
-      const customerId = customerResult.rows[0].customer_id;
-      const customerAddress = customerResult.rows[0].address || 'Unknown Address';
+      if (!customerId) {
+        const duplicate = await client.query(`
+          SELECT customer_id, address FROM customer_details
+          WHERE (email_address IS NOT NULL AND LOWER(email_address) = LOWER($1))
+             OR (COALESCE(cellphone, phone_number) IS NOT NULL AND regexp_replace(COALESCE(cellphone, phone_number), '[^0-9]', '', 'g') = regexp_replace($2, '[^0-9]', '', 'g'))
+          LIMIT 1
+        `, [email_address || '', cellphone || '']);
+
+        if (duplicate.rows.length) {
+          customerId = duplicate.rows[0].customer_id;
+          customerAddress = shipping_address || duplicate.rows[0].address || 'Unknown Address';
+        } else {
+          const created = await client.query(`
+            INSERT INTO customer_details (name, email_address, cellphone, telephone, address, status)
+            VALUES ($1, $2, $3, $4, $5, 'active')
+            RETURNING customer_id, address
+          `, [account_name || name, email_address || null, cellphone || null, telephone || null, shipping_address || null]);
+          customerId = created.rows[0].customer_id;
+          customerAddress = shipping_address || created.rows[0].address || 'Unknown Address';
+        }
+      }
 
       // Insert into orders table with duplicate retry guard (handles rare race conditions)
       let orderResult;
@@ -191,8 +245,9 @@ router.post('/', async (req, res) => {
               cellphone,
               email_address,
               customer_id,
+              order_quantity,
               order_placed_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *
           `, [
             order_id,
             account_name,
@@ -205,12 +260,13 @@ router.post('/', async (req, res) => {
             payment_type,
             shipped_to,
             customerAddress,
-            total_cost,
+            total_cost != null ? total_cost : 0,
             remarks,
             telephone,
             cellphone,
             email_address,
             customerId,
+            boxCount,
             new Date()
           ]);
           break; // success
@@ -375,8 +431,16 @@ router.put('/:order_id', async (req, res) => {
     telephone,
     cellphone,
     email_address,
+    order_quantity,
     products // optional array of { line_id? (ignored), sku, quantity, profit_margin }
   } = req.body;
+
+  const boxCount = order_quantity === undefined || order_quantity === null || order_quantity === ''
+    ? undefined
+    : Number(order_quantity);
+  if (boxCount !== undefined && (!Number.isInteger(boxCount) || boxCount < 0)) {
+    return res.status(400).json({ error: 'Total boxes must be a non-negative whole number' });
+  }
 
   const hasProductsPayload = Array.isArray(products) && products.length > 0;
   if (hasProductsPayload) {
@@ -485,6 +549,7 @@ router.put('/:order_id', async (req, res) => {
     add('telephone', telephone);
     add('cellphone', cellphone);
     add('email_address', email_address);
+    add('order_quantity', boxCount);
     // Always update total_cost last to avoid omission
     updateFields.push(`total_cost = $${idx++}`); values.push(newTotalCost);
     values.push(order_id);
@@ -513,13 +578,21 @@ router.put('/:order_id', async (req, res) => {
       const updatedOrderResult = await client.query('SELECT * FROM orders WHERE order_id = $1', [order_id]);
       const updatedOrder = updatedOrderResult.rows[0];
 
-      // Insert order header to history
+      // Insert order header to history (carries delivery/tracking/proof/box-count data
+      // over from `orders` before that row is deleted below, so customers don't lose
+      // their delivery info once the order reaches a terminal state)
       await client.query(
         `INSERT INTO order_history (
           order_id, customer_name, name, shipped_to, order_date, expected_delivery,
           status, shipping_address, total_cost, payment_type, payment_method,
-          account_name, remarks, telephone, cellphone, email_address, archived_by
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+          account_name, remarks, telephone, cellphone, email_address, archived_by,
+          delivery_status, delivery_method, delivery_mode_id, delivery_type, courier_name,
+          tracking_number, tracking_link, tracking_link_available, tracking_unavailable_message,
+          proof_image_url, proof_uploaded_by, proof_uploaded_at,
+          sent_at, picked_up_at, delivered_at, delivery_remarks,
+          delivery_updated_by, delivery_updated_at, order_quantity
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
+          $18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36)`,
         [
           updatedOrder.order_id,
           updatedOrder.name || 'Customer',
@@ -537,7 +610,26 @@ router.put('/:order_id', async (req, res) => {
           updatedOrder.telephone || null,
           updatedOrder.cellphone || null,
           updatedOrder.email_address || null,
-          req.user?.user_id || null
+          req.user?.user_id || null,
+          updatedOrder.delivery_status || null,
+          updatedOrder.delivery_method || null,
+          updatedOrder.delivery_mode_id || null,
+          updatedOrder.delivery_type || null,
+          updatedOrder.courier_name || null,
+          updatedOrder.tracking_number || null,
+          updatedOrder.tracking_link || null,
+          updatedOrder.tracking_link_available,
+          updatedOrder.tracking_unavailable_message || null,
+          updatedOrder.proof_image_url || null,
+          updatedOrder.proof_uploaded_by || null,
+          updatedOrder.proof_uploaded_at || null,
+          updatedOrder.sent_at || null,
+          updatedOrder.picked_up_at || null,
+          updatedOrder.delivered_at || null,
+          updatedOrder.delivery_remarks || null,
+          updatedOrder.delivery_updated_by || null,
+          updatedOrder.delivery_updated_at || null,
+          updatedOrder.order_quantity != null ? updatedOrder.order_quantity : null
         ]
       );
 

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../api';
 import './Invoices.css';
 
@@ -24,9 +24,9 @@ export default function PaymentModal({ invoice, onClose, onSaved }) {
     if (!invoice) return [];
     const options = [
       {
-        key: 'amount_due',
-        label: `Invoice Amount Due (${peso(invoice.amount_due)})`,
-        value: moneyValue(invoice.amount_due),
+        key: 'invoice_amount',
+        label: `Invoice Amount (${peso(invoice.invoice_amount || invoice.amount_due)})`,
+        value: moneyValue(invoice.invoice_amount || invoice.amount_due),
       },
     ];
 
@@ -52,8 +52,8 @@ export default function PaymentModal({ invoice, onClose, onSaved }) {
   }, [invoice]);
 
   const [form, setForm] = useState({
-    amount_paid: invoice?.amount_due || 0,
-    amount_choice: 'amount_due',
+    amount_paid: invoice?.invoice_amount || invoice?.amount_due || 0,
+    amount_choice: 'invoice_amount',
     payment_method: invoice?.payment_method || 'Bank Transfer',
     payment_provider: invoice?.payment_provider || 'BPI',
     payment_reference: invoice?.payment_reference || '',
@@ -61,6 +61,19 @@ export default function PaymentModal({ invoice, onClose, onSaved }) {
   });
   const [proofFile, setProofFile] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!invoice) return;
+    setForm({
+      amount_paid: invoice.invoice_amount || invoice.amount_due || 0,
+      amount_choice: 'invoice_amount',
+      payment_method: invoice.payment_method || 'Bank Transfer',
+      payment_provider: invoice.payment_provider || 'BPI',
+      payment_reference: invoice.payment_reference || '',
+      payment_notes: invoice.payment_notes || '',
+    });
+    setProofFile(null);
+  }, [invoice]);
 
   const providers = useMemo(() => paymentProviders[form.payment_method] || paymentProviders.Other, [form.payment_method]);
 
@@ -84,11 +97,12 @@ export default function PaymentModal({ invoice, onClose, onSaved }) {
 
   const save = async () => {
     const amountPaid = Number(String(form.amount_paid).replace(/,/g, ''));
-    if (!Number.isFinite(amountPaid) || amountPaid < Number(invoice.amount_due || 0)) {
-      alert('Amount paid must be at least the invoice amount due.');
+    const requiredPaymentAmount = Number(invoice.invoice_amount || invoice.amount_due || 0);
+    if (!Number.isFinite(amountPaid) || amountPaid < requiredPaymentAmount) {
+      alert('Amount paid must be at least the invoice amount.');
       return;
     }
-    if (Number(invoice.amount_due || 0) > 0 && !form.payment_method) {
+    if (requiredPaymentAmount > 0 && !form.payment_method) {
       alert('Payment method is required.');
       return;
     }
@@ -182,7 +196,7 @@ export default function PaymentModal({ invoice, onClose, onSaved }) {
               Proof of Payment
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/webp,application/pdf"
+                accept="image/png,image/jpeg,image/webp"
                 onChange={(e) => setProofFile(e.target.files?.[0] || null)}
               />
             </label>
