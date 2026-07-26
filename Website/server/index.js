@@ -246,6 +246,7 @@ const allowedOrigins = (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split
   'https://wrapntracwebservice-2g22j.ondigitalocean.app',
   // Development local React
   'http://localhost:3000',
+  'https://wrap-n-track.onrender.com',
   // Expo mobile web dev server (web, Android emulator, iOS simulator)
   'http://localhost:8081',
   'http://localhost:19006',
