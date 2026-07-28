@@ -697,143 +697,181 @@ export default function SupplierDetails() {
   };
 
   const renderForm = () => (
-    <div className="compact-form">
-      {error && <div className="error-message">{error}</div>}
-      
-      {/* Basic Information Section */}
-      <div className="form-section">
-        <h3 className="section-title">Basic Information</h3>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Name *</label>
+    <div className="sup-fm">
+      {/* Global error banner */}
+      {error && (
+        <div className="sup-fm-error-banner">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          {error}
+        </div>
+      )}
+
+      {/* ── Section 1: Supplier Information ──────────────────── */}
+      <div className="sup-fm-section">
+        <h3 className="sup-fm-section-title">Supplier Information</h3>
+        <div className="sup-fm-grid">
+
+          <div className="sup-fm-field">
+            <label className="sup-fm-label">
+              Company / Supplier Name <span className="sup-fm-req">*</span>
+            </label>
             <input
               type="text"
+              className="sup-fm-input"
               value={editForm.name}
               onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-              placeholder="Supplier name"
-              required
+              placeholder="e.g. ABC Supplies Co."
+              maxLength={255}
             />
           </div>
-          <div className="form-group">
-            <label>Contact Person *</label>
+
+          <div className="sup-fm-field">
+            <label className="sup-fm-label">
+              Contact Person <span className="sup-fm-req">*</span>
+            </label>
             <input
               type="text"
+              className="sup-fm-input"
               value={editForm.contact_person}
               onChange={(e) => setEditForm({...editForm, contact_person: e.target.value})}
-              placeholder="Primary contact person"
-              required
+              placeholder="Primary contact name"
+              maxLength={100}
             />
           </div>
-          <div className="form-group">
-            <label>Email *</label>
+
+          <div className="sup-fm-field">
+            <label className="sup-fm-label">
+              Email Address <span className="sup-fm-req">*</span>
+            </label>
             <input
               type="email"
+              className="sup-fm-input"
               value={editForm.email_address}
               onChange={(e) => setEditForm({...editForm, email_address: e.target.value})}
-              placeholder="Email address"
-              required
+              placeholder="supplier@company.com"
             />
           </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Telephone</label>
+
+          <div className="sup-fm-field">
+            <label className="sup-fm-label">
+              Mobile Number <span className="sup-fm-req">*</span>
+            </label>
             <input
               type="tel"
-              value={editForm.telephone}
-              onChange={(e) => handlePhoneChange('telephone', e.target.value)}
-              placeholder="(XXX) XXX-XXXX"
-              maxLength="15"
-            />
-          </div>
-          <div className="form-group">
-            <label>Cellphone *</label>
-            <input
-              type="tel"
+              className="sup-fm-input"
               value={editForm.cellphone}
               onChange={(e) => handlePhoneChange('cellphone', e.target.value)}
               placeholder="09171234567 or +639171234567"
-              maxLength="20"
-              required
+              maxLength={20}
             />
           </div>
-        </div>
-        <div className="form-group">
-          <label>Description</label>
-          <textarea
-            value={editForm.description}
-            onChange={(e) => setEditForm({...editForm, description: e.target.value})}
-            placeholder="Brief description (optional)"
-            rows="2"
-            maxLength="500"
-          />
+
+          <div className="sup-fm-field">
+            <label className="sup-fm-label">Telephone</label>
+            <input
+              type="tel"
+              className="sup-fm-input"
+              value={editForm.telephone}
+              onChange={(e) => handlePhoneChange('telephone', e.target.value)}
+              placeholder="(02) 1234-5678"
+              maxLength={15}
+            />
+          </div>
+
+          {/* spacer to keep grid balanced */}
+          <div className="sup-fm-field sup-fm-field--spacer" aria-hidden="true" />
         </div>
       </div>
 
-      {/* Address Section */}
-      <div className="form-section">
-        <h3 className="section-title">Address</h3>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Province *</label>
+      {/* ── Section 2: Address ───────────────────────────────── */}
+      <div className="sup-fm-section">
+        <h3 className="sup-fm-section-title">Address</h3>
+        <div className="sup-fm-grid">
+
+          <div className="sup-fm-field sup-fm-field--full">
+            <label className="sup-fm-label">
+              Street Address <span className="sup-fm-req">*</span>
+            </label>
             <input
               type="text"
-              value={editForm.province}
-              onChange={(e) => setEditForm({...editForm, province: e.target.value})}
-              placeholder="Province"
-              required
+              className="sup-fm-input"
+              value={editForm.street_address}
+              onChange={(e) => setEditForm({...editForm, street_address: e.target.value})}
+              placeholder="Unit / Lot / Building / Street name"
             />
           </div>
-          <div className="form-group">
-            <label>City/Municipality *</label>
+
+          <div className="sup-fm-field">
+            <label className="sup-fm-label">
+              Barangay <span className="sup-fm-req">*</span>
+            </label>
             <input
               type="text"
-              value={editForm.city_municipality}
-              onChange={(e) => setEditForm({...editForm, city_municipality: e.target.value})}
-              placeholder="City/Municipality"
-              required
-            />
-          </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Barangay *</label>
-            <input
-              type="text"
+              className="sup-fm-input"
               value={editForm.barangay}
               onChange={(e) => setEditForm({...editForm, barangay: e.target.value})}
               placeholder="Barangay"
-              required
             />
           </div>
-          <div className="form-group">
-            <label>ZIP Code *</label>
+
+          <div className="sup-fm-field">
+            <label className="sup-fm-label">
+              ZIP Code <span className="sup-fm-req">*</span>
+            </label>
             <input
               type="text"
+              className="sup-fm-input"
               value={editForm.zip_code}
               onChange={(e) => setEditForm({...editForm, zip_code: e.target.value})}
-              placeholder="ZIP Code"
-              required
+              placeholder="e.g. 1234"
+              maxLength={10}
             />
           </div>
-        </div>
-        <div className="form-group">
-          <label>Street Address *</label>
-          <input
-            type="text"
-            value={editForm.street_address}
-            onChange={(e) => setEditForm({...editForm, street_address: e.target.value})}
-            placeholder="Street address"
-            required
-          />
+
+          <div className="sup-fm-field">
+            <label className="sup-fm-label">
+              City / Municipality <span className="sup-fm-req">*</span>
+            </label>
+            <input
+              type="text"
+              className="sup-fm-input"
+              value={editForm.city_municipality}
+              onChange={(e) => setEditForm({...editForm, city_municipality: e.target.value})}
+              placeholder="City or Municipality"
+            />
+          </div>
+
+          <div className="sup-fm-field">
+            <label className="sup-fm-label">
+              Province <span className="sup-fm-req">*</span>
+            </label>
+            <input
+              type="text"
+              className="sup-fm-input"
+              value={editForm.province}
+              onChange={(e) => setEditForm({...editForm, province: e.target.value})}
+              placeholder="Province"
+            />
+          </div>
+
         </div>
       </div>
 
-      <div className="form-actions">
-        <button className="btn-save" onClick={isAdding ? handleSaveAdd : handleSaveEdit}>
-          {isAdding ? 'Add Supplier' : 'Save Changes'}
-        </button>
-        <button className="btn-cancel" onClick={handleCancel}>Cancel</button>
+      {/* ── Section 3: Notes ─────────────────────────────────── */}
+      <div className="sup-fm-section sup-fm-section--last">
+        <h3 className="sup-fm-section-title">Notes</h3>
+        <div className="sup-fm-field">
+          <label className="sup-fm-label">Description</label>
+          <textarea
+            className="sup-fm-textarea"
+            value={editForm.description}
+            onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+            placeholder="Any additional notes about this supplier (optional)"
+            rows={3}
+            maxLength={500}
+          />
+          <span className="sup-fm-char-hint">{(editForm.description || '').length} / 500</span>
+        </div>
       </div>
     </div>
   );
@@ -1344,16 +1382,27 @@ export default function SupplierDetails() {
 
         {/* Add/Edit Modal */}
         {(isAdding || isEditing) && (
-          <div className="modal-overlay" onClick={handleCancel}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2 className="modal-title">
-                  {isAdding ? 'Add New Supplier' : 'Edit Supplier'}
-                </h2>
-                <button className="modal-close" onClick={handleCancel}>×</button>
+          <div className="sup-modal-overlay" onClick={handleCancel}>
+            <div className="sup-modal" onClick={e => e.stopPropagation()}>
+              <div className="sup-modal-header">
+                <div className="sup-modal-title-group">
+                  <span className="sup-modal-icon">🏢</span>
+                  <h2 className="sup-modal-title">
+                    {isAdding ? 'Add New Supplier' : 'Edit Supplier'}
+                  </h2>
+                </div>
+                <button className="sup-modal-close" onClick={handleCancel} aria-label="Close">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
               </div>
-              <div className="modal-body">
+              <div className="sup-modal-body">
                 {renderForm()}
+              </div>
+              <div className="sup-modal-footer">
+                <button className="sup-modal-btn sup-modal-btn--cancel" onClick={handleCancel}>Cancel</button>
+                <button className="sup-modal-btn sup-modal-btn--save" onClick={isAdding ? handleSaveAdd : handleSaveEdit}>
+                  {isAdding ? 'Add Supplier' : 'Save Changes'}
+                </button>
               </div>
             </div>
           </div>

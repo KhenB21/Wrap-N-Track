@@ -225,201 +225,196 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={handleClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title-section">
-            <h2>{mode === 'add' ? 'Add New Customer' : 'Edit Customer'}</h2>
-            <p className="modal-subtitle">
-              {mode === 'add' 
-                ? 'Fill in the customer information below' 
-                : `Editing ${customer?.name || 'customer'}`
-              }
-            </p>
+    <div className="cust-modal-overlay" onClick={handleClose}>
+      <div className="cust-modal" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="cust-modal-header">
+          <div className="cust-modal-title-group">
+            <span className="cust-modal-icon">👤</span>
+            <h2 className="cust-modal-title">
+              {mode === 'add' ? 'Add New Customer' : 'Edit Customer'}
+            </h2>
           </div>
-          <button className="modal-close" onClick={handleClose} title="Close">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+          <button className="cust-modal-close" onClick={handleClose} aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="customer-form">
-          {/* 1. Basic Information */}
-          <div className="form-section">
-            <h3 className="section-title">Basic Information</h3>
+        {/* Scrollable body */}
+        <form onSubmit={handleSubmit} className="cust-modal-body">
 
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="name">Full Name *</label>
+          {/* ── 1. Customer Information ─────────────────── */}
+          <div className="cust-fm-section">
+            <h3 className="cust-fm-section-title">Customer Information</h3>
+            <div className="cust-fm-grid">
+
+              <div className="cust-fm-field">
+                <label className="cust-fm-label" htmlFor="name">
+                  Full Name <span className="cust-fm-req">*</span>
+                </label>
                 <input
                   type="text"
                   id="name"
                   name="name"
+                  className={`cust-fm-input${errors.name ? ' cust-fm-input--err' : ''}`}
                   value={formData.name}
                   onChange={handleChange}
-                  className={errors.name ? 'error' : ''}
-                  placeholder="Enter full name"
-                  maxLength="100"
+                  placeholder="e.g. Maria Santos"
+                  maxLength={100}
                 />
-                {errors.name && <span className="error-message">{errors.name}</span>}
+                {errors.name && <span className="cust-fm-err-msg">{errors.name}</span>}
               </div>
 
-              <div className="form-group">
-                <label htmlFor="status">Status *</label>
+              <div className="cust-fm-field">
+                <label className="cust-fm-label" htmlFor="status">Status</label>
                 <select
                   id="status"
                   name="status"
+                  className="cust-fm-select"
                   value={formData.status}
                   onChange={handleChange}
-                  className={errors.status ? 'error' : ''}
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
-                {errors.status && <span className="error-message">{errors.status}</span>}
               </div>
+
             </div>
           </div>
 
-          {/* 2. Contact Information */}
-          <div className="form-section">
-            <h3 className="section-title">Contact Information</h3>
+          {/* ── 2. Contact Information ──────────────────── */}
+          <div className="cust-fm-section">
+            <h3 className="cust-fm-section-title">Contact Information</h3>
+            <div className="cust-fm-grid">
 
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="email_address">Email Address *</label>
+              <div className="cust-fm-field">
+                <label className="cust-fm-label" htmlFor="email_address">
+                  Email Address <span className="cust-fm-req">*</span>
+                </label>
                 <input
                   type="email"
                   id="email_address"
                   name="email_address"
+                  className={`cust-fm-input${errors.email_address ? ' cust-fm-input--err' : ''}`}
                   value={formData.email_address}
                   onChange={handleChange}
-                  className={errors.email_address ? 'error' : ''}
-                  placeholder="Enter email address"
+                  placeholder="customer@email.com"
                 />
-                {errors.email_address && <span className="error-message">{errors.email_address}</span>}
+                {errors.email_address && <span className="cust-fm-err-msg">{errors.email_address}</span>}
               </div>
 
-              <div className="form-group">
-                <label htmlFor="cellphone">Cellphone *</label>
+              <div className="cust-fm-field">
+                <label className="cust-fm-label" htmlFor="cellphone">
+                  Mobile Number <span className="cust-fm-req">*</span>
+                </label>
                 <input
                   type="tel"
                   id="cellphone"
                   name="cellphone"
+                  className={`cust-fm-input${errors.cellphone ? ' cust-fm-input--err' : ''}`}
                   value={formData.cellphone}
                   onChange={(e) => handlePhoneChange('cellphone', e.target.value)}
-                  className={errors.cellphone ? 'error' : ''}
                   placeholder="09171234567 or +639171234567"
-                  maxLength="20"
+                  maxLength={20}
                 />
-                {errors.cellphone && <span className="error-message">{errors.cellphone}</span>}
+                {errors.cellphone && <span className="cust-fm-err-msg">{errors.cellphone}</span>}
               </div>
-            </div>
-            <div className="form-row single">
-              <div className="form-group">
-                <label htmlFor="telephone">Telephone</label>
+
+              <div className="cust-fm-field">
+                <label className="cust-fm-label" htmlFor="telephone">Telephone</label>
                 <input
                   type="tel"
                   id="telephone"
                   name="telephone"
+                  className={`cust-fm-input${errors.telephone ? ' cust-fm-input--err' : ''}`}
                   value={formData.telephone}
                   onChange={(e) => handlePhoneChange('telephone', e.target.value)}
-                  className={errors.telephone ? 'error' : ''}
-                  placeholder="Landline or office telephone"
-                  maxLength="20"
+                  placeholder="Landline or office number"
+                  maxLength={20}
                 />
-                {errors.telephone && <span className="error-message">{errors.telephone}</span>}
+                {errors.telephone && <span className="cust-fm-err-msg">{errors.telephone}</span>}
               </div>
+
+              {/* spacer */}
+              <div className="cust-fm-field cust-fm-field--spacer" aria-hidden="true" />
+
             </div>
           </div>
 
-          {/* 3. Address */}
-          <div className="form-section">
-            <h3 className="section-title">Address</h3>
-
-            <div className="form-row single">
-              <div className="form-group">
-                <label htmlFor="address">Shipping Address *</label>
-                <textarea
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className={errors.address ? 'error' : ''}
-                  placeholder="Enter shipping address"
-                  rows="4"
-                  maxLength="500"
-                />
-                <div className="character-count">
-                  {formData.address.length}/500 characters
-                </div>
-                {errors.address && <span className="error-message">{errors.address}</span>}
-              </div>
+          {/* ── 3. Address ──────────────────────────────── */}
+          <div className="cust-fm-section">
+            <h3 className="cust-fm-section-title">Address</h3>
+            <div className="cust-fm-field">
+              <label className="cust-fm-label" htmlFor="address">
+                Shipping Address <span className="cust-fm-req">*</span>
+              </label>
+              <textarea
+                id="address"
+                name="address"
+                className={`cust-fm-textarea${errors.address ? ' cust-fm-input--err' : ''}`}
+                value={formData.address}
+                onChange={handleChange}
+                placeholder="Full shipping address"
+                rows={4}
+                maxLength={500}
+              />
+              <span className="cust-fm-char-hint">{formData.address.length} / 500</span>
+              {errors.address && <span className="cust-fm-err-msg">{errors.address}</span>}
             </div>
           </div>
 
-          {/* 4-6. Account Information / Ongoing Orders / Order History — only exist
-              once the customer has actually been created (edit mode). */}
+          {/* ── 4-6. Edit-only sections ─────────────────── */}
           {mode === 'edit' && (
             <>
-              <div className="form-section readonly-section">
-                <h3 className="section-title">Account Information</h3>
-                <div className="account-info-grid">
-                  <div className="account-info-item">
-                    <span className="account-info-label">Customer ID</span>
-                    <span className="account-info-value">#{customer?.customer_id ?? '—'}</span>
+              <div className="cust-fm-section">
+                <h3 className="cust-fm-section-title">Account Information</h3>
+                <div className="cust-fm-info-grid">
+                  <div className="cust-fm-info-item">
+                    <span className="cust-fm-info-label">Customer ID</span>
+                    <span className="cust-fm-info-value">#{customer?.customer_id ?? '—'}</span>
                   </div>
-                  <div className="account-info-item">
-                    <span className="account-info-label">Member Since</span>
-                    <span className="account-info-value">{formatDate(customer?.created_at)}</span>
+                  <div className="cust-fm-info-item">
+                    <span className="cust-fm-info-label">Member Since</span>
+                    <span className="cust-fm-info-value">{formatDate(customer?.created_at)}</span>
                   </div>
-                  <div className="account-info-item">
-                    <span className="account-info-label">Last Updated</span>
-                    <span className="account-info-value">{formatDate(customer?.updated_at)}</span>
+                  <div className="cust-fm-info-item">
+                    <span className="cust-fm-info-label">Last Updated</span>
+                    <span className="cust-fm-info-value">{formatDate(customer?.updated_at)}</span>
                   </div>
-                  <div className="account-info-item">
-                    <span className="account-info-label">Total Orders</span>
-                    <span className="account-info-value">{ordersLoading ? '…' : orders.length}</span>
+                  <div className="cust-fm-info-item">
+                    <span className="cust-fm-info-label">Total Orders</span>
+                    <span className="cust-fm-info-value">{ordersLoading ? '…' : orders.length}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="form-section readonly-section">
-                <h3 className="section-title">Ongoing Orders</h3>
+              <div className="cust-fm-section">
+                <h3 className="cust-fm-section-title">Ongoing Orders</h3>
                 {renderOrdersList(ongoingOrders, ordersLoading, ordersError, 'No ongoing orders right now.')}
               </div>
 
-              <div className="form-section readonly-section">
-                <h3 className="section-title">Order History</h3>
+              <div className="cust-fm-section cust-fm-section--last">
+                <h3 className="cust-fm-section-title">Order History</h3>
                 {renderOrdersList(orderHistory, ordersLoading, ordersError, 'No completed or cancelled orders yet.')}
               </div>
             </>
           )}
 
-          <div className="form-actions">
-            <button type="button" className="btn-cancel" onClick={handleClose}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-save" disabled={loading}>
-              {loading ? (
-                <>
-                  <svg className="loading-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/>
-                  </svg>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <svg className="save-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
-                  </svg>
-                  {mode === 'add' ? 'Add Customer' : 'Update Customer'}
-                </>
-              )}
-            </button>
-          </div>
         </form>
+
+        {/* Footer */}
+        <div className="cust-modal-footer">
+          <button type="button" className="cust-modal-btn cust-modal-btn--cancel" onClick={handleClose}>
+            Cancel
+          </button>
+          <button type="submit" form="cust-form-proxy" className="cust-modal-btn cust-modal-btn--save" disabled={loading} onClick={handleSubmit}>
+            {loading ? 'Saving…' : mode === 'add' ? 'Add Customer' : 'Update Customer'}
+          </button>
+        </div>
+
       </div>
     </div>
   );

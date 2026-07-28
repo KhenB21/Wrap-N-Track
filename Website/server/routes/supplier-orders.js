@@ -8,6 +8,9 @@ const requireRole = require('../middleware/requireRole');
 const STAFF_SUPPLIER_ORDER_ROLES = ['operations_manager', 'sales_manager', 'super_admin', 'admin', 'director'];
 const SUPPLIER_ORDER_STATUSES = ['Waiting', 'Pending', 'Ordered', 'In Transit', 'Received', 'Cancelled'];
 
+// PostgreSQL "relation does not exist" (table not yet migrated)
+const isTableMissing = (err) => err.code === '42P01';
+
 router.use(verifyJwt());
 router.use(requireRole(STAFF_SUPPLIER_ORDER_ROLES));
 
@@ -22,6 +25,7 @@ router.get('/', async (req, res) => {
     `);
     res.json(result.rows);
   } catch (error) {
+    if (isTableMissing(error)) return res.json([]);
     console.error('Error fetching supplier orders:', error);
     res.status(500).json({ message: 'Error fetching supplier orders' });
   }
@@ -39,6 +43,7 @@ router.get('/supplier/:supplierId', async (req, res) => {
     `, [req.params.supplierId]);
     res.json(result.rows);
   } catch (error) {
+    if (isTableMissing(error)) return res.json([]);
     console.error('Error fetching supplier orders:', error);
     res.status(500).json({ message: 'Error fetching supplier orders' });
   }
@@ -105,6 +110,7 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     await client.query('ROLLBACK');
+    if (isTableMissing(error)) return res.status(503).json({ error: 'Supplier orders feature is not yet available on this server.' });
     console.error('Error creating order:', error);
     res.status(500).json({ error: 'Error creating order' });
   } finally {
@@ -275,8 +281,8 @@ router.put('/:orderId', async (req, res) => {
 
     res.json({ ...orderResult.rows[0], items: itemsResult.rows });
   } catch (error) {
-    // Rollback in case of error
     await client.query('ROLLBACK');
+    if (isTableMissing(error)) return res.status(503).json({ message: 'Supplier orders feature is not yet available.' });
     console.error('Error updating supplier order:', error);
     res.status(500).json({ message: 'Error updating supplier order' });
   } finally {
@@ -308,8 +314,8 @@ router.delete('/:orderId', async (req, res) => {
 
     res.json({ message: 'Order deleted successfully' });
   } catch (error) {
-    // Rollback in case of error
     await client.query('ROLLBACK');
+    if (isTableMissing(error)) return res.status(503).json({ message: 'Supplier orders feature is not yet available.' });
     console.error('Error deleting supplier order:', error);
     res.status(500).json({ message: 'Error deleting supplier order' });
   } finally {
@@ -329,6 +335,7 @@ router.get('/history/supplier/:supplierId', async (req, res) => {
     `, [req.params.supplierId]);
     res.json(result.rows);
   } catch (error) {
+    if (isTableMissing(error)) return res.json([]);
     console.error('Error fetching supplier order history:', error);
     res.status(500).json({ message: 'Error fetching supplier order history' });
   }
@@ -338,7 +345,7 @@ router.get('/history/supplier/:supplierId', async (req, res) => {
 router.get('/history/:orderId/items', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
+      SELECT
         sohi.*,
         i.name as product_name,
         i.image_data,
@@ -356,6 +363,7 @@ router.get('/history/:orderId/items', async (req, res) => {
 
     res.json(items);
   } catch (error) {
+    if (isTableMissing(error)) return res.json([]);
     console.error('Error fetching supplier order history items:', error);
     res.status(500).json({ message: 'Error fetching supplier order history items' });
   }
@@ -374,6 +382,7 @@ router.get('/:orderId/items', async (req, res) => {
     console.log('Query result:', result.rows);
     res.json(result.rows);
   } catch (error) {
+    if (isTableMissing(error)) return res.json([]);
     console.error('Error fetching supplier order items:', error);
     res.status(500).json({ message: 'Error fetching supplier order items' });
   }
