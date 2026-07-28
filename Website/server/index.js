@@ -10,11 +10,45 @@ const fs = require('fs');
 const WebSocket = require('ws');
 const http = require('http');
 const helmet = require('helmet');
-// Load environment variables - prioritize .env for production, .env.local for development
-const envLocal = path.join(__dirname, '..', '.env.local');
-const envProd = path.join(__dirname, '..', '.env');
-const envPath = process.env.NODE_ENV === 'production' ? envProd : (fs.existsSync(envLocal) ? envLocal : envProd);
-require('dotenv').config({ path: envPath });
+// Load environment variables.
+// On Render (and other PaaS), env vars are injected natively — dotenv is a local-dev convenience only.
+// index.js lives at Website/server/index.js so __dirname IS the server root; .env sits beside it.
+const envLocal = path.join(__dirname, '.env.local');
+const envProd  = path.join(__dirname, '.env');
+const envPath  = process.env.NODE_ENV === 'production'
+  ? envProd
+  : (fs.existsSync(envLocal) ? envLocal : envProd);
+const dotenvResult = require('dotenv').config({ path: envPath });
+if (dotenvResult.error && process.env.NODE_ENV !== 'production') {
+  // Only warn in dev; in production Render provides vars natively so the file is expected to be absent.
+  console.warn('[Startup] dotenv could not load', envPath, '—', dotenvResult.error.message);
+}
+
+// ─── Startup environment validation ───────────────────────────────────────────
+// Fail immediately with a clear message instead of crashing mid-request with a
+// cryptic library error (e.g. "secretOrPrivateKey must have a value").
+const REQUIRED_ENV_VARS = [
+  { name: 'JWT_SECRET',  purpose: 'signing and verifying JWT tokens' },
+  { name: 'DB_USER',     purpose: 'PostgreSQL connection' },
+  { name: 'DB_HOST',     purpose: 'PostgreSQL connection' },
+  { name: 'DB_NAME',     purpose: 'PostgreSQL connection' },
+  { name: 'DB_PASSWORD', purpose: 'PostgreSQL connection' },
+];
+let _envValid = true;
+for (const { name, purpose } of REQUIRED_ENV_VARS) {
+  if (process.env[name]) {
+    console.log(`✓ ${name} loaded  (${purpose})`);
+  } else {
+    console.error(`✗ ${name} MISSING — required for ${purpose}`);
+    _envValid = false;
+  }
+}
+if (!_envValid) {
+  console.error('[Startup] FATAL: One or more required environment variables are not set.');
+  console.error('[Startup] On Render: add them under Service → Environment → Environment Variables.');
+  process.exit(1);
+}
+// ──────────────────────────────────────────────────────────────────────────────
 // Pool now sourced from config/db.js
 let wss, notifyChange;
 const pool = require('./config/db');
@@ -41,6 +75,7 @@ const accountManagementRouter = require('./routes/accountManagement');
 const cartRouter = require('./routes/cart');
 const orderManagementRouter = require('./routes/order-management');
 const customerOrdersRouter = require('./routes/customer-orders');
+const showcaseRouter = require('./routes/showcase');
 const verifyJwt = require('./middleware/verifyJwt')();
 const requireRole = require('./middleware/requireRole');
 const requireReadOnly = require('./middleware/requireReadOnly');
@@ -406,6 +441,7 @@ app.use('/api/account-management', accountManagementRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/order-management', orderManagementRouter);
 app.use('/api/customer-orders', customerOrdersRouter);
+app.use('/api/showcase', showcaseRouter);
 
 // Add error handling middleware
 app.use((err, req, res, next) => {

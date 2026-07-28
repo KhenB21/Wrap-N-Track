@@ -697,8 +697,8 @@ router.post('/', upload.single('image'), async (req, res) => {
       });
     }
 
-    const result = await client.query(`
-      INSERT INTO inventory_items (
+    const result = await client.query(
+      `INSERT INTO inventory_items (
         sku,
         name,
         description,

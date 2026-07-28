@@ -18,38 +18,38 @@ const Sidebar = () => {
   // Define permissions for each role
   const rolePermissions = {
     super_admin: {
-      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
+      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true, showcaseGallery: true,
     },
     admin: {
-      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
+      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true, showcaseGallery: true,
     },
     director: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
+      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true, showcaseGallery: true,
     },
     business_developer: {
-      dashboard: true, inventory: false, orders: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: false, orders: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false, showcaseGallery: false,
     },
     creatives: {
-      dashboard: true, inventory: true, orders: false, reports: true, customers: false, suppliers: false, orderHistory: false, accountManagement: false,
+      dashboard: true, inventory: true, orders: false, reports: true, customers: false, suppliers: false, orderHistory: false, accountManagement: false, showcaseGallery: true,
     },
     sales_manager: {
-      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false, showcaseGallery: true,
     },
     assistant_sales: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: false, orderHistory: false, accountManagement: false,
+      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: false, orderHistory: false, accountManagement: false, showcaseGallery: false,
     },
     packer: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: false, suppliers: false, orderHistory: true, accountManagement: false,
-      readOnly: true, // Mark as read-only
+      dashboard: true, inventory: true, orders: true, reports: true, customers: false, suppliers: false, orderHistory: true, accountManagement: false, showcaseGallery: false,
+      readOnly: true,
     },
     operations_manager: {
-      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false, showcaseGallery: false,
     },
     social_media_manager: {
-      dashboard: true, inventory: false, orders: true, deliveryTracking: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: false, orders: true, deliveryTracking: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false, showcaseGallery: true,
     },
     default: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false, showcaseGallery: false,
     }
   };
 
@@ -158,6 +158,14 @@ const Sidebar = () => {
               <Link to="/account-management">
                 <span className="icon">👤</span>
                 <span className="text">Account Management</span>
+              </Link>
+            </li>
+          )}
+          {permissions.showcaseGallery && (
+            <li>
+              <Link to="/showcase-gallery">
+                <span className="icon">🖼️</span>
+                <span className="text">Showcase Gallery</span>
               </Link>
             </li>
           )}

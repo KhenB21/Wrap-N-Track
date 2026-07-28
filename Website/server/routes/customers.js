@@ -5,7 +5,7 @@ const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const requireRole = require('../middleware/requireRole');
-require('dotenv').config();
+// dotenv is loaded once at startup in index.js — no second call needed here.
 
 const STAFF_CUSTOMER_ROLES = [
   'operations_manager',

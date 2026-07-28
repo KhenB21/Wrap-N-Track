@@ -3,7 +3,7 @@ const express = require('express');
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
 const { initializeDeliveryForReadyOrder } = require('../services/deliveryService');
-require('dotenv').config();
+// dotenv is loaded once at startup in index.js — no second call needed here.
 
 const router = express.Router();
 // Embed a lightweight build signature (update manually when deploying)

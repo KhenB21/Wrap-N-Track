@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
+// dotenv is loaded once at startup in index.js — no second call needed here.
 
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {

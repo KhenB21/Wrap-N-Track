@@ -286,13 +286,71 @@ body, .customerpov-container, .carlo-preview-container {
   margin-bottom: 18px;
 }
 
+/* Responsive 4-col showcase grid
+   Desktop  : 4 cards · Laptop : 3 · Tablet : 2 · Mobile : 1           */
 .customerpov-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: 48px;
-  max-width: 1200px;
-  margin: 0 auto;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 28px;
+  max-width: 1400px;
+  margin: 0 auto 60px;
+  padding: 0 24px;
+}
+
+@media (max-width: 1200px) {
+  .customerpov-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 860px) {
+  .customerpov-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+}
+
+@media (max-width: 520px) {
+  .customerpov-grid { grid-template-columns: 1fr; gap: 16px; padding: 0 12px; }
+}
+
+/* Loading / empty states */
+.customerpov-grid-loading,
+.customerpov-grid-empty {
+  text-align: center;
+  padding: 60px 24px;
+  font-family: 'Lora', serif;
+  font-size: 1.1rem;
+  color: #9ca3af;
   margin-bottom: 60px;
+}
+
+/* "View Collection" button on each card */
+.customerpov-view-btn {
+  margin-top: 16px;
+  padding: 10px 22px;
+  background: transparent;
+  color: #4a4a6a;
+  border: 1.5px solid #4a4a6a;
+  border-radius: 4px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  align-self: flex-start;
+}
+
+.customerpov-card:hover .customerpov-view-btn,
+.customerpov-card--hovered .customerpov-view-btn {
+  background: #4a4a6a;
+  color: #fff;
+}
+
+/* Fade-up entrance animation for dynamically loaded cards */
+@keyframes showcaseFadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.showcase-card-fadein {
+  animation: showcaseFadeUp 0.45s ease both;
 }
 
 .customerpov-card {
@@ -306,9 +364,10 @@ body, .customerpov-container, .carlo-preview-container {
   border: 1px solid #f0e9d2;
 }
 
-.customerpov-card:hover {
-  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-  transform: translateY(-4px);
+.customerpov-card:hover,
+.customerpov-card--hovered {
+  box-shadow: 0 12px 40px rgba(0,0,0,0.16);
+  transform: translateY(-6px);
 }
 
 .customerpov-card-image-wrapper {
@@ -326,6 +385,11 @@ body, .customerpov-container, .carlo-preview-container {
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.35s ease;
+}
+
+.customerpov-card-image--zoomed {
+  transform: scale(1.06);
 }
 
 .customerpov-card-image-placeholder {

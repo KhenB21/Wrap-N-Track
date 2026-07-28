@@ -8,7 +8,7 @@ const multer = require('multer');
 // Use centralized pool from config/db to avoid undefined imports
 const pool = require('../config/db');
 const { isValidRegion, isValidCity, isValidBarangay } = require('../data/philippineLocations');
-require('dotenv').config();
+// dotenv is loaded once at startup in index.js — no second call needed here.
 
 // Configure multer for memory storage
 const upload = multer({
