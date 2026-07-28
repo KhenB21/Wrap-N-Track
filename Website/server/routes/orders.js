@@ -131,7 +131,8 @@ router.post('/', async (req, res) => {
       order_quantity,
       customer_id: providedCustomerId, // optional: set when the employee picked an existing customer
       products, // array of { sku, quantity, profit_margin }
-      wedding_details // for wedding orders
+      wedding_details, // for wedding orders
+      bundle_id // optional: expand bundle items instead of explicit products
     } = req.body;
 
     // Validate required fields (excluding order_id since we'll generate it if needed)
@@ -261,9 +262,9 @@ router.post('/', async (req, res) => {
             shipped_to,
             customerAddress,
             total_cost != null ? total_cost : 0,
-            remarks,
-            telephone,
-            cellphone,
+            remarks ?? null,
+            telephone ?? null,   // legacy landline — nullable; customer orders send cellphone only
+            cellphone ?? null,
             email_address,
             customerId,
             boxCount,
@@ -324,11 +325,53 @@ router.post('/', async (req, res) => {
         ]);
       }
 
+    // Resolve products: if bundle_id provided, expand bundle items × bundle quantity
+    let resolvedProducts = Array.isArray(products) ? [...products] : [];
+
+    if (bundle_id) {
+      const bundleRow = await client.query(
+        'SELECT id, title FROM showcase_bundles WHERE id = $1 AND is_active = true',
+        [bundle_id]
+      );
+      if (!bundleRow.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Bundle not found or is currently inactive' });
+      }
+      const bundleItemsResult = await client.query(
+        `SELECT bi.sku, bi.quantity, ii.name, ii.quantity AS stock
+         FROM bundle_items bi
+         JOIN inventory_items ii ON bi.sku = ii.sku
+         WHERE bi.bundle_id = $1`,
+        [bundle_id]
+      );
+      if (!bundleItemsResult.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'This bundle has no items configured yet. Please contact us to place this order.' });
+      }
+      // Expand: each item qty × number of bundles ordered
+      resolvedProducts = bundleItemsResult.rows.map(row => ({
+        sku: row.sku,
+        quantity: row.quantity * boxCount,
+        profit_margin: 0,
+        _item_name: row.name,
+        _stock: Number(row.stock)
+      }));
+      // Pre-flight stock check (inventory is deducted at "To Be Pack", but warn early)
+      for (const p of resolvedProducts) {
+        if (p._stock < p.quantity) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: `Insufficient stock for "${p._item_name}". Available: ${p._stock}, required: ${p.quantity}`
+          });
+        }
+      }
+    }
+
     // Insert order products if provided (allow duplicate SKUs as separate lines)
-    console.log('Received products for order:', JSON.stringify(products, null, 2));
-    if (products && Array.isArray(products) && products.length > 0) {
-      console.log(`Processing ${products.length} products for order ${order_id}`);
-      for (const raw of products) {
+    console.log('Received products for order:', JSON.stringify(resolvedProducts, null, 2));
+    if (resolvedProducts && resolvedProducts.length > 0) {
+      console.log(`Processing ${resolvedProducts.length} products for order ${order_id}`);
+      for (const raw of resolvedProducts) {
           const product = { ...raw };
           if (product.itemName && !product.sku) {
             const skuResult = await client.query('SELECT sku FROM inventory_items WHERE name = $1', [product.itemName]);
@@ -357,8 +400,8 @@ router.post('/', async (req, res) => {
 
       // Calculate and update total_cost for the order
       let calculatedTotalCost = 0;
-      if (products && Array.isArray(products) && products.length > 0) {
-        for (const product of products) {
+      if (resolvedProducts && resolvedProducts.length > 0) {
+        for (const product of resolvedProducts) {
           const inventoryItemResult = await client.query(
             'SELECT unit_price FROM inventory_items WHERE sku = $1',
             [product.sku]

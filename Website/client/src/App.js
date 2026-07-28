@@ -35,7 +35,7 @@ import EricMarielPreview from "./Pages/CustomerPOV/EricMarielPreview";
 import DanielPreview from "./Pages/CustomerPOV/EricMarielPreview";
 import CustomerBespoke from "./Pages/CustomerBespoke";
 import CustomerAboutUs from "./Pages/CustomerAboutUs.js/CustomerAboutUs";
-import ShowcasePreview from "./Pages/CustomerPOV/ShowcasePreview";
+import BundleDetails from "./Pages/CustomerPOV/BundleDetails";
 import ShowcaseGallery from "./Pages/ShowcaseGallery/ShowcaseGallery";
 import CustomerRegister from "./Pages/CustomerPOV/CustomerRegister";
 import CustomerLogIn from "./Pages/CustomerPOV/CustomerLogIn";
@@ -101,7 +101,7 @@ function App() {
 
         <Route path="/bespoke" element={<CustomerBespoke />} />
         <Route path="/about" element={<CustomerAboutUs />} />
-        <Route path="/showcase/:id" element={<ShowcasePreview />} />
+        <Route path="/showcase/:id" element={<BundleDetails />} />
         <Route path="/showcase-gallery" element={<ShowcaseGallery />} />
         <Route path="/customer-register" element={<CustomerRegister />} />
         <Route path="/customer-login" element={<CustomerLogIn />} />

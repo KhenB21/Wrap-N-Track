@@ -87,20 +87,167 @@ router.get('/manage/all', verifyEmployee, async (req, res) => {
   }
 });
 
-// GET /api/showcase/:id  — single bundle by id
+// GET /api/showcase/:id  — single bundle with bundle_items and gallery count
 router.get('/:id', async (req, res) => {
   try {
-    const result = await pool.query(
+    const bundleResult = await pool.query(
       `SELECT ${IMAGE_SELECT} FROM showcase_bundles WHERE id = $1`,
       [req.params.id]
     );
-    if (!result.rows.length) {
+    if (!bundleResult.rows.length) {
       return res.status(404).json({ success: false, message: 'Bundle not found' });
     }
-    res.json({ success: true, bundle: result.rows[0] });
+    const bundle = bundleResult.rows[0];
+
+    const [itemsResult, galleryCountResult] = await Promise.all([
+      pool.query(
+        `SELECT bi.id, bi.sku, bi.quantity, ii.name AS item_name, ii.unit_price
+         FROM bundle_items bi
+         JOIN inventory_items ii ON bi.sku = ii.sku
+         WHERE bi.bundle_id = $1
+         ORDER BY bi.id ASC`,
+        [req.params.id]
+      ),
+      pool.query(
+        'SELECT COUNT(*) AS cnt FROM bundle_gallery_images WHERE bundle_id = $1',
+        [req.params.id]
+      )
+    ]);
+
+    bundle.bundle_items = itemsResult.rows;
+    bundle.gallery_image_count = parseInt(galleryCountResult.rows[0].cnt, 10);
+
+    res.json({ success: true, bundle });
   } catch (err) {
     console.error('[showcase] GET /:id error:', err.message);
     res.status(500).json({ success: false, message: 'Failed to fetch bundle' });
+  }
+});
+
+// ─── Gallery image sub-routes ──────────────────────────────────────────────
+
+const MAX_GALLERY = 10;
+
+// GET /api/showcase/:id/gallery  — all gallery images (base64) for a bundle
+router.get('/:id/gallery', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, sort_order, image_mime,
+         encode(image_data, 'base64') AS image_data
+       FROM bundle_gallery_images
+       WHERE bundle_id = $1
+       ORDER BY sort_order ASC, id ASC`,
+      [req.params.id]
+    );
+    res.json({ success: true, images: result.rows });
+  } catch (err) {
+    console.error('[showcase] GET /:id/gallery error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch gallery images' });
+  }
+});
+
+// POST /api/showcase/:id/gallery  — upload one gallery image (employee, max 10)
+router.post('/:id/gallery', verifyEmployee, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Image file is required' });
+    }
+    const bundleCheck = await pool.query(
+      'SELECT id FROM showcase_bundles WHERE id = $1', [req.params.id]
+    );
+    if (!bundleCheck.rows.length) {
+      return res.status(404).json({ success: false, message: 'Bundle not found' });
+    }
+    const countResult = await pool.query(
+      'SELECT COUNT(*) AS cnt FROM bundle_gallery_images WHERE bundle_id = $1',
+      [req.params.id]
+    );
+    if (parseInt(countResult.rows[0].cnt, 10) >= MAX_GALLERY) {
+      return res.status(400).json({ success: false, message: `Maximum ${MAX_GALLERY} gallery images per bundle` });
+    }
+    const sortResult = await pool.query(
+      'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM bundle_gallery_images WHERE bundle_id = $1',
+      [req.params.id]
+    );
+    const result = await pool.query(
+      `INSERT INTO bundle_gallery_images (bundle_id, image_data, image_mime, sort_order)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, sort_order, image_mime, encode(image_data, 'base64') AS image_data`,
+      [req.params.id, req.file.buffer, req.file.mimetype, sortResult.rows[0].next_order]
+    );
+    res.status(201).json({ success: true, image: result.rows[0] });
+  } catch (err) {
+    console.error('[showcase] POST /:id/gallery error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to upload gallery image' });
+  }
+});
+
+// DELETE /api/showcase/:id/gallery/:imageId  — remove one gallery image
+router.delete('/:id/gallery/:imageId', verifyEmployee, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM bundle_gallery_images WHERE id = $1 AND bundle_id = $2 RETURNING id',
+      [req.params.imageId, req.params.id]
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ success: false, message: 'Gallery image not found' });
+    }
+    res.json({ success: true, message: 'Gallery image deleted' });
+  } catch (err) {
+    console.error('[showcase] DELETE /:id/gallery/:imageId error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to delete gallery image' });
+  }
+});
+
+// PUT /api/showcase/:id/items  — replace all bundle items (employee)
+router.put('/:id/items', verifyEmployee, async (req, res) => {
+  const { items } = req.body;
+  if (!Array.isArray(items)) {
+    return res.status(400).json({ success: false, message: 'items must be an array' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const bundleCheck = await client.query(
+      'SELECT id FROM showcase_bundles WHERE id = $1', [req.params.id]
+    );
+    if (!bundleCheck.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Bundle not found' });
+    }
+
+    await client.query('DELETE FROM bundle_items WHERE bundle_id = $1', [req.params.id]);
+
+    const savedItems = [];
+    for (const item of items) {
+      if (!item.sku || !item.quantity || Number(item.quantity) < 1) continue;
+      const skuCheck = await client.query(
+        'SELECT sku, name, unit_price FROM inventory_items WHERE sku = $1', [item.sku]
+      );
+      if (!skuCheck.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, message: `SKU ${item.sku} not found in inventory` });
+      }
+      const ins = await client.query(
+        'INSERT INTO bundle_items (bundle_id, sku, quantity) VALUES ($1, $2, $3) RETURNING id, sku, quantity',
+        [req.params.id, item.sku, parseInt(item.quantity, 10)]
+      );
+      savedItems.push({
+        ...ins.rows[0],
+        item_name:  skuCheck.rows[0].name,
+        unit_price: skuCheck.rows[0].unit_price
+      });
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, items: savedItems });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[showcase] PUT /:id/items error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to save bundle items' });
+  } finally {
+    client.release();
   }
 });
 
