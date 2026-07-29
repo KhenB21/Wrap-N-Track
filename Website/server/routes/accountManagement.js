@@ -1,9 +1,31 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const pool = require('../config/db');
 const bcrypt = require('bcrypt');
 const verifyJwt = require('../middleware/verifyJwt')();
 const requireRole = require('../middleware/requireRole');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (!allowed.includes(file.mimetype)) {
+      return cb(new Error('Only PNG, JPG, JPEG, or WEBP images are allowed'), false);
+    }
+    cb(null, true);
+  }
+});
+
+const VALID_ROLES = ['admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer'];
+
+const deriveName = (first_name, last_name, fallbackName) => {
+  const combined = [first_name, last_name].filter(Boolean).join(' ').trim();
+  return combined || (fallbackName || '').trim();
+};
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Apply admin-only access to all routes
 router.use(verifyJwt, requireRole(['admin']));
@@ -14,16 +36,21 @@ router.get('/users', async (req, res) => {
     const { includeArchived = false, search = '', role = '', status = '' } = req.query;
     
     let query = `
-      SELECT 
+      SELECT
         user_id,
         name,
+        first_name,
+        last_name,
+        username,
         email,
+        phone_number,
+        department,
         role,
         is_active,
         is_archived,
         created_at,
         updated_at
-      FROM users 
+      FROM users
       WHERE 1=1
     `;
     
@@ -80,19 +107,30 @@ router.get('/users/:id', async (req, res) => {
     const { id } = req.params;
     
     const result = await pool.query(`
-      SELECT 
+      SELECT
         user_id,
         name,
+        first_name,
+        last_name,
+        username,
         email,
+        phone_number,
+        department,
+        address,
+        notes,
         role,
         is_active,
         is_archived,
         created_at,
         updated_at,
         profile_picture_data
-      FROM users 
+      FROM users
       WHERE user_id = $1
     `, [id]);
+
+    if (result.rows.length > 0 && result.rows[0].profile_picture_data) {
+      result.rows[0].profile_picture_data = result.rows[0].profile_picture_data.toString('base64');
+    }
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -115,51 +153,85 @@ router.get('/users/:id', async (req, res) => {
 });
 
 // POST /api/account-management/users - Create new user
-router.post('/users', async (req, res) => {
+router.post('/users', upload.single('profilePicture'), async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
-    
+    const {
+      name, first_name, last_name, username, email, phone_number,
+      department, address, notes, password, role
+    } = req.body;
+
+    const resolvedName = deriveName(first_name, last_name, name);
+
     // Validation
-    if (!name || !email || !password || !role) {
+    if (!resolvedName || !email || !password || !role) {
       return res.status(400).json({
         success: false,
-        message: 'All fields are required'
+        message: 'Name, email, password, and role are required'
       });
     }
-    
+
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid email address'
+      });
+    }
+
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role'
+      });
+    }
+
     // Check if email already exists
     const existingUser = await pool.query(
       'SELECT user_id FROM users WHERE email = $1',
       [email]
     );
-    
+
     if (existingUser.rows.length > 0) {
       return res.status(400).json({
         success: false,
         message: 'Email already exists'
       });
     }
-    
-    // Validate role
-    const validRoles = ['admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer'];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid role'
-      });
+
+    // Check if username already exists (only when provided — column is nullable)
+    if (username && username.trim()) {
+      const existingUsername = await pool.query(
+        'SELECT user_id FROM users WHERE username = $1',
+        [username.trim()]
+      );
+      if (existingUsername.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username already exists'
+        });
+      }
     }
-    
+
     // Hash password
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
-    
+    const profilePictureData = req.file ? req.file.buffer : null;
+
     // Create user
     const result = await pool.query(`
-      INSERT INTO users (name, email, password_hash, role, is_active, is_archived)
-      VALUES ($1, $2, $3, $4, true, false)
-      RETURNING user_id, name, email, role, is_active, is_archived, created_at
-    `, [name, email, passwordHash, role]);
-    
+      INSERT INTO users (
+        name, first_name, last_name, username, email, phone_number,
+        department, address, notes, password_hash, role,
+        profile_picture_data, is_active, is_archived
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true, false)
+      RETURNING user_id, name, first_name, last_name, username, email, phone_number,
+                department, address, notes, role, is_active, is_archived, created_at
+    `, [
+      resolvedName, first_name || null, last_name || null, username?.trim() || null,
+      email, phone_number || null, department || null, address || null, notes || null,
+      passwordHash, role, profilePictureData
+    ]);
+
     res.status(201).json({
       success: true,
       message: 'User created successfully',
@@ -175,31 +247,41 @@ router.post('/users', async (req, res) => {
 });
 
 // PUT /api/account-management/users/:id - Update user
-router.put('/users/:id', async (req, res) => {
+router.put('/users/:id', upload.single('profilePicture'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, role, is_active } = req.body;
-    
+    const {
+      name, first_name, last_name, username, email, phone_number,
+      department, address, notes, role, is_active
+    } = req.body;
+
     // Check if user exists
     const existingUser = await pool.query(
       'SELECT user_id FROM users WHERE user_id = $1',
       [id]
     );
-    
+
     if (existingUser.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-    
+
+    if (email && !EMAIL_REGEX.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid email address'
+      });
+    }
+
     // Check if email is being changed and if it already exists
     if (email) {
       const emailCheck = await pool.query(
         'SELECT user_id FROM users WHERE email = $1 AND user_id != $2',
         [email, id]
       );
-      
+
       if (emailCheck.rows.length > 0) {
         return res.status(400).json({
           success: false,
@@ -207,64 +289,74 @@ router.put('/users/:id', async (req, res) => {
         });
       }
     }
-    
-    // Validate role if provided
-    if (role) {
-      const validRoles = ['admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer'];
-      if (!validRoles.includes(role)) {
+
+    // Check if username is being changed and if it already exists
+    if (username && username.trim()) {
+      const usernameCheck = await pool.query(
+        'SELECT user_id FROM users WHERE username = $1 AND user_id != $2',
+        [username.trim(), id]
+      );
+
+      if (usernameCheck.rows.length > 0) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid role'
+          message: 'Username already exists'
         });
       }
     }
-    
+
+    // Validate role if provided
+    if (role && !VALID_ROLES.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role'
+      });
+    }
+
+    const resolvedName = (first_name || last_name) ? deriveName(first_name, last_name, name) : name;
+
     // Build update query dynamically
     const updateFields = [];
     const updateValues = [];
     let paramCount = 0;
-    
-    if (name) {
+
+    const addField = (column, value) => {
       paramCount++;
-      updateFields.push(`name = $${paramCount}`);
-      updateValues.push(name);
-    }
-    
-    if (email) {
-      paramCount++;
-      updateFields.push(`email = $${paramCount}`);
-      updateValues.push(email);
-    }
-    
-    if (role) {
-      paramCount++;
-      updateFields.push(`role = $${paramCount}`);
-      updateValues.push(role);
-    }
-    
-    if (is_active !== undefined) {
-      paramCount++;
-      updateFields.push(`is_active = $${paramCount}`);
-      updateValues.push(is_active);
-    }
-    
+      updateFields.push(`${column} = $${paramCount}`);
+      updateValues.push(value);
+    };
+
+    if (resolvedName) addField('name', resolvedName);
+    if (first_name !== undefined) addField('first_name', first_name || null);
+    if (last_name !== undefined) addField('last_name', last_name || null);
+    if (username !== undefined) addField('username', username?.trim() || null);
+    if (email) addField('email', email);
+    if (phone_number !== undefined) addField('phone_number', phone_number || null);
+    if (department !== undefined) addField('department', department || null);
+    if (address !== undefined) addField('address', address || null);
+    if (notes !== undefined) addField('notes', notes || null);
+    if (role) addField('role', role);
+    if (is_active !== undefined) addField('is_active', is_active === 'true' || is_active === true);
+    if (req.file) addField('profile_picture_data', req.file.buffer);
+
     if (updateFields.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'No fields to update'
       });
     }
-    
+
     paramCount++;
     updateValues.push(id);
-    
+
     const result = await pool.query(`
-      UPDATE users 
+      UPDATE users
       SET ${updateFields.join(', ')}, updated_at = NOW()
       WHERE user_id = $${paramCount}
-      RETURNING user_id, name, email, role, is_active, is_archived, created_at
+      RETURNING user_id, name, first_name, last_name, username, email, phone_number,
+                department, address, notes, role, is_active, is_archived, created_at
     `, updateValues);
-    
+
     res.json({
       success: true,
       message: 'User updated successfully',
@@ -424,6 +516,71 @@ router.get('/roles', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch roles'
+    });
+  }
+});
+
+// GET /api/account-management/users-check-availability - Live duplicate check for email/username
+router.get('/users-check-availability', async (req, res) => {
+  try {
+    const { email, username, excludeId } = req.query;
+    const result = { emailTaken: false, usernameTaken: false };
+
+    if (email) {
+      const params = excludeId ? [email, excludeId] : [email];
+      const query = excludeId
+        ? 'SELECT user_id FROM users WHERE email = $1 AND user_id != $2'
+        : 'SELECT user_id FROM users WHERE email = $1';
+      const emailResult = await pool.query(query, params);
+      result.emailTaken = emailResult.rows.length > 0;
+    }
+
+    if (username && username.trim()) {
+      const params = excludeId ? [username.trim(), excludeId] : [username.trim()];
+      const query = excludeId
+        ? 'SELECT user_id FROM users WHERE username = $1 AND user_id != $2'
+        : 'SELECT user_id FROM users WHERE username = $1';
+      const usernameResult = await pool.query(query, params);
+      result.usernameTaken = usernameResult.rows.length > 0;
+    }
+
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('Error checking availability:', error);
+    res.status(500).json({ success: false, message: 'Failed to check availability' });
+  }
+});
+
+// GET /api/account-management/roles/:role/permissions - Read-only feature list for a role
+router.get('/roles/:role/permissions', async (req, res) => {
+  try {
+    const { role } = req.params;
+
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role'
+      });
+    }
+
+    const result = await pool.query(`
+      SELECT f.feature_id, f.name
+      FROM role_feature_access rfa
+      JOIN features f ON f.feature_id = rfa.feature_id
+      WHERE rfa.role = $1
+      ORDER BY f.name
+    `, [role]);
+
+    res.json({
+      success: true,
+      role,
+      permissions: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching role permissions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch role permissions'
     });
   }
 });

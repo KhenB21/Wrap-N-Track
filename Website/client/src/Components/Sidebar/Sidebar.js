@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Sidebar.css"; // We'll create this next
 import { useAuth } from "../../Context/AuthContext";
+import { useMobileNav } from "../../Context/MobileNavContext";
 
 const Sidebar = () => {
   const [reportsOpen, setReportsOpen] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { isOpen, close } = useMobileNav();
 
   const handleLogout = () => {
     logout();
@@ -57,7 +59,13 @@ const Sidebar = () => {
 
 
   return (
-    <div className="sidebar">
+    <>
+      <div
+        className={`sidebar-backdrop${isOpen ? ' visible' : ''}`}
+        onClick={close}
+        aria-hidden="true"
+      />
+      <div className={`sidebar${isOpen ? ' sidebar-open' : ''}`}>
       <div className="sidebar-header">
         <h2>Wrap N' Track</h2>
       </div>
@@ -184,7 +192,8 @@ const Sidebar = () => {
           <span className="text">Log Out</span>
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

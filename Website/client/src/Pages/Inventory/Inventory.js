@@ -12,11 +12,13 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import usePermissions from '../../hooks/usePermissions';
+import { useTheme } from '../../Context/ThemeContext';
 
 const UOMS_REQUIRING_CONVERSION = ['Dozen', 'Box', 'Bundle', 'Set', 'Kit'];
 
 function Inventory() {
   const { checkPermission } = usePermissions();
+  const { theme } = useTheme();
 
   useEffect(() => {
     checkPermission('inventory');
@@ -42,12 +44,22 @@ function Inventory() {
   const getStockStatus = (product) => {
     const quantity = Number(product?.quantity || 0);
     const reorderLevel = Number(product?.reorder_level || 0);
+    if (theme === 'dark') {
+      if (quantity <= 0) return { label: 'Out of Stock', className: 'low-stock-row', color: '#fca5a5', background: 'rgba(220, 38, 38, 0.22)' };
+      if (quantity <= reorderLevel) return { label: 'Low Stock', className: 'low-stock-row', color: '#fbbf24', background: 'rgba(217, 119, 6, 0.22)' };
+      return { label: 'In Stock', className: 'high-stock-row', color: '#6ee7b7', background: 'rgba(4, 120, 87, 0.22)' };
+    }
     if (quantity <= 0) return { label: 'Out of Stock', className: 'low-stock-row', color: '#dc2626', background: '#fee2e2' };
     if (quantity <= reorderLevel) return { label: 'Low Stock', className: 'low-stock-row', color: '#d97706', background: '#fef3c7' };
     return { label: 'In Stock', className: 'high-stock-row', color: '#047857', background: '#d1fae5' };
   };
 
-  const REORDER_STATUS_STYLE = {
+  const REORDER_STATUS_STYLE = theme === 'dark' ? {
+    'Out of Stock': { icon: '⛔', color: '#fca5a5', background: 'rgba(220, 38, 38, 0.22)', rowClass: 'low-stock-row' },
+    'Reorder Recommended': { icon: '⚠️', color: '#fbbf24', background: 'rgba(217, 119, 6, 0.22)', rowClass: 'low-stock-row' },
+    'Approaching Reorder Point': { icon: '🔶', color: '#fcd34d', background: 'rgba(180, 83, 9, 0.22)', rowClass: '' },
+    'Healthy': { icon: '✅', color: '#6ee7b7', background: 'rgba(4, 120, 87, 0.22)', rowClass: 'high-stock-row' }
+  } : {
     'Out of Stock': { icon: '⛔', color: '#dc2626', background: '#fee2e2', rowClass: 'low-stock-row' },
     'Reorder Recommended': { icon: '⚠️', color: '#d97706', background: '#fef3c7', rowClass: 'low-stock-row' },
     'Approaching Reorder Point': { icon: '🔶', color: '#b45309', background: '#fffbeb', rowClass: '' },
@@ -305,9 +317,9 @@ function Inventory() {
   };
 
   return (
-    <div className="dashboard-container" style={{ backgroundColor: '#ffffff', height: '100vh', overflow: 'hidden' }}>
+    <div className="dashboard-container" style={{ height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
-      <div className="dashboard-main" style={{ marginLeft: '220px', width: 'calc(100% - 220px)', height: '100vh', backgroundColor: '#ffffff', overflow: 'hidden' }}>
+      <div className="dashboard-main" style={{ marginLeft: '220px', width: 'calc(100% - 220px)', height: '100vh', overflow: 'hidden' }}>
         <TopBar
           lowStockProducts={Array.isArray(products) ? products.filter(item => Number(item.quantity || 0) > 0 && Number(item.quantity || 0) <= Number(item.reorder_level || 0)) : []}
           searchValue={searchTerm}
@@ -452,9 +464,8 @@ function Inventory() {
                           : product.uom}
                       </td>
                       <td style={{ textAlign: 'center' }}>
-                        <div style={{
+                        <div className="inventory-quantity-pill" style={{
                           padding: '8px 16px',
-                          backgroundColor: '#f0f0f0',
                           borderRadius: '4px',
                           fontWeight: 'bold',
                           fontSize: '14px'

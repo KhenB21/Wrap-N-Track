@@ -138,7 +138,16 @@ html, body {
   width: 100% !important;
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments — mirrors Sidebar.css's own tiers:
+   >=1024px full 220px sidebar; 768-1023px icon rail (70px); <768px off-canvas drawer (0). */
+@media (min-width: 768.02px) and (max-width: 1023.98px) {
+  .dashboard-main,
+  .main-content {
+    margin-left: 70px;
+    width: calc(100% - 70px);
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard-main,
   .main-content {

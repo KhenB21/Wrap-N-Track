@@ -101,9 +101,9 @@ function ArchiveProductsContent() {
   };
 
   return (
-    <div className="dashboard-container" style={{ backgroundColor: '#ffffff', height: '100vh', overflow: 'hidden' }}>
+    <div className="dashboard-container" style={{ height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
-      <div className="dashboard-main" style={{ marginLeft: '220px', width: 'calc(100% - 220px)', height: '100vh', backgroundColor: '#ffffff', overflow: 'hidden' }}>
+      <div className="dashboard-main" style={{ marginLeft: '220px', width: 'calc(100% - 220px)', height: '100vh', overflow: 'hidden' }}>
         <TopBar
           lowStockProducts={[]} // Archived products don't need low stock alerts
           searchValue={searchTerm}
@@ -239,9 +239,8 @@ function ArchiveProductsContent() {
                             : product.uom}
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <div style={{
+                          <div className="archived-quantity-pill" style={{
                             padding: '8px 16px',
-                            backgroundColor: '#f0f0f0',
                             borderRadius: '4px',
                             fontWeight: 'bold',
                             fontSize: '14px',

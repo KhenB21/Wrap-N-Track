@@ -413,6 +413,11 @@ router.post('/customer/login', async (req, res) => {
     if (!validPassword) {
       return res.status(401).json({ success: false, message: 'Invalid username or password' });
     }
+    const lastLoginResult = await pool.query(
+      'UPDATE users SET last_login = NOW() WHERE user_id = $1 RETURNING last_login',
+      [user.user_id]
+    );
+    user.last_login = lastLoginResult.rows[0].last_login;
     const token = jwt.sign({
       user_id: user.user_id,
       name: user.name,

@@ -4,7 +4,7 @@ import { useAuth } from '../Context/AuthContext';
 import { useSecurity } from '../hooks/useSecurity';
 
 const RouteGuard = ({ children, requiredUserType = 'employee', redirectTo = '/' }) => {
-  const { user, isAuthenticated, loading, clearConflictingTokens, validateAccess } = useAuth();
+  const { user, isAuthenticated, isLoading: loading, clearConflictingTokens, validateAccess } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   

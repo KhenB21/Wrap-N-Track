@@ -19,8 +19,6 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '16px 24px',
-    background: '#fff',
-    borderBottom: '1px solid #eee',
     boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
   },
   button: {
@@ -49,12 +47,10 @@ const styles = {
     display: 'flex',
     gap: '24px',
     padding: '24px',
-    height: 'calc(100vh - 180px)',
-    background: '#f8f9fa'
+    height: 'calc(100vh - 180px)'
   },
   column: {
     flex: 1,
-    background: '#fff',
     borderRadius: '12px',
     padding: '20px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
@@ -66,21 +62,17 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '20px',
-    paddingBottom: '12px',
-    borderBottom: '2px solid #f0f0f0'
+    paddingBottom: '12px'
   },
   columnTitle: {
     margin: 0,
-    color: '#2c3e50',
     fontSize: '18px',
     fontWeight: 600
   },
   orderCount: {
-    background: '#e9ecef',
     padding: '4px 12px',
     borderRadius: '20px',
     fontSize: '13px',
-    color: '#495057',
     fontWeight: 500
   },
   orderList: {
@@ -100,33 +92,23 @@ const styles = {
     }
   },
   orderCard: {
-    background: '#fff',
-    border: '1px solid #e9ecef',
     borderRadius: '8px',
     padding: '16px',
     marginBottom: '12px',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-      borderColor: '#4a90e2'
-    }
+    transition: 'all 0.2s ease'
   },
   orderName: {
     fontWeight: 600,
-    color: '#2c3e50',
     marginBottom: '4px'
   },
   orderInfo: {
-    color: '#6c757d',
     fontSize: '13px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center'
   },
   modal: {
-    background: '#fff',
     padding: '32px',
     borderRadius: '12px',
     minWidth: '800px',
@@ -136,12 +118,10 @@ const styles = {
   },
   modalHeader: {
     marginBottom: '24px',
-    paddingBottom: '16px',
-    borderBottom: '2px solid #f0f0f0'
+    paddingBottom: '16px'
   },
   modalTitle: {
     margin: 0,
-    color: '#2c3e50',
     fontSize: '24px',
     fontWeight: 600
   },
@@ -153,7 +133,6 @@ const styles = {
     display: 'inline-block'
   },
   orderDetailsModalContainer: {
-    background:'#fff',
     padding:0,
     borderRadius:18,
     minWidth:900,
@@ -170,7 +149,6 @@ const styles = {
   orderDetailsColumnDefault: {
     flex:2,
     padding:'48px 36px 36px 64px',
-    borderRight:'2px solid #e0e0e0',
     minWidth:420,
     display:'flex',
     flexDirection:'column',
@@ -180,7 +158,6 @@ const styles = {
   },
   whatsInsideColumnDefault: {
     flex:1.1,
-    background:'#f8f9fa',
     borderRadius:'0 18px 18px 0',
     padding:'48px 32px 36px 32px',
     display:'flex',
@@ -189,13 +166,11 @@ const styles = {
     minWidth:300,
     maxWidth:340,
     justifyContent:'center',
-    boxShadow:'inset 1px 0 0 #ececec',
     overflowY: 'auto',
     boxSizing: 'border-box',
   },
   whatsInsideColumnLeft: {
     flex:1.1,
-    background:'#f8f9fa',
     borderRadius:'18px 0 0 18px',
     padding:'48px 32px 36px 32px',
     display:'flex',
@@ -203,9 +178,7 @@ const styles = {
     alignItems:'flex-start',
     minWidth:300,
     maxWidth:340,
-    borderRight:'2px solid #e0e0e0',
     justifyContent:'center',
-    boxShadow:'inset -1px 0 0 #ececec',
     overflowY: 'auto',
     boxSizing: 'border-box',
   },
@@ -628,7 +601,7 @@ export default function OrderDetails() {
         <TopBar avatarUrl={getProfilePictureUrl()} />
         
         {/* Action Bar */}
-        <div style={styles.actionBar}>
+        <div className="od-action-bar" style={styles.actionBar}>
           <div style={{ display: 'flex', gap: '12px' }}>
             <button 
               style={{...styles.button, ...styles.primaryButton}} 
@@ -641,17 +614,17 @@ export default function OrderDetails() {
         </div>
 
         {/* Main Order Columns */}
-        <div style={styles.columnsContainer}>
+        <div className="od-columns-container" style={styles.columnsContainer}>
           {/* Pending Orders Column */}
-          <div style={styles.column}>
-            <div style={styles.columnHeader}>
-              <h3 style={styles.columnTitle}>Pending Orders</h3>
-              <span style={styles.orderCount}>{pendingOrders.length}</span>
+          <div className="od-column" style={styles.column}>
+            <div className="od-column-header" style={styles.columnHeader}>
+              <h3 className="od-column-title" style={styles.columnTitle}>Pending Orders</h3>
+              <span className="od-order-count" style={styles.orderCount}>{pendingOrders.length}</span>
             </div>
             <div style={styles.orderList}>
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} style={{ ...styles.orderCard, pointerEvents: 'none' }}>
+                  <div key={i} className="od-order-card" style={{ ...styles.orderCard, pointerEvents: 'none' }}>
                     <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', marginBottom: '8px' }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                       <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
@@ -660,16 +633,17 @@ export default function OrderDetails() {
                   </div>
                 ))
               ) : pendingOrders.length === 0 ? (
-                <div style={{ color: '#999', textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
+                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
               ) : (
                 pendingOrders.map(order => (
                   <div 
                     key={order.order_id} 
+                    className="od-order-card"
                     style={styles.orderCard}
                     onClick={() => setSelectedOrderId(order.order_id)}
                   >
-                    <div style={styles.orderName}>{order.name}</div>
-                    <div style={styles.orderInfo}>
+                    <div className="od-order-name" style={styles.orderName}>{order.name}</div>
+                    <div className="od-order-info" style={styles.orderInfo}>
                       <span>{order.order_id}</span>
                       <span>
                         ₱{
@@ -686,15 +660,15 @@ export default function OrderDetails() {
           </div>
 
           {/* To Be Pack Column */}
-          <div style={styles.column}>
-            <div style={styles.columnHeader}>
-              <h3 style={styles.columnTitle}>To Be Packed</h3>
-              <span style={styles.orderCount}>{toBePackOrders.length}</span>
+          <div className="od-column" style={styles.column}>
+            <div className="od-column-header" style={styles.columnHeader}>
+              <h3 className="od-column-title" style={styles.columnTitle}>To Be Packed</h3>
+              <span className="od-order-count" style={styles.orderCount}>{toBePackOrders.length}</span>
             </div>
             <div style={styles.orderList}>
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} style={{ ...styles.orderCard, pointerEvents: 'none' }}>
+                  <div key={i} className="od-order-card" style={{ ...styles.orderCard, pointerEvents: 'none' }}>
                     <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', marginBottom: '8px' }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                       <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
@@ -703,16 +677,17 @@ export default function OrderDetails() {
                   </div>
                 ))
               ) : toBePackOrders.length === 0 ? (
-                <div style={{ color: '#999', textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
+                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
               ) : (
                 toBePackOrders.map(order => (
                   <div 
                     key={order.order_id} 
+                    className="od-order-card"
                     style={styles.orderCard}
                     onClick={() => setSelectedOrderId(order.order_id)}
                   >
-                    <div style={styles.orderName}>{order.name}</div>
-                    <div style={styles.orderInfo}>
+                    <div className="od-order-name" style={styles.orderName}>{order.name}</div>
+                    <div className="od-order-info" style={styles.orderInfo}>
                       <span>{order.order_id}</span>
                       <span>
                         ₱{
@@ -729,15 +704,15 @@ export default function OrderDetails() {
           </div>
 
           {/* Ready to Deliver Column */}
-          <div style={styles.column}>
-            <div style={styles.columnHeader}>
-              <h3 style={styles.columnTitle}>Ready for Delivery</h3>
-              <span style={styles.orderCount}>{readyToDeliverOrders.length}</span>
+          <div className="od-column" style={styles.column}>
+            <div className="od-column-header" style={styles.columnHeader}>
+              <h3 className="od-column-title" style={styles.columnTitle}>Ready for Delivery</h3>
+              <span className="od-order-count" style={styles.orderCount}>{readyToDeliverOrders.length}</span>
             </div>
             <div style={styles.orderList}>
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} style={{ ...styles.orderCard, pointerEvents: 'none' }}>
+                  <div key={i} className="od-order-card" style={{ ...styles.orderCard, pointerEvents: 'none' }}>
                     <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', marginBottom: '8px' }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                       <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
@@ -746,16 +721,17 @@ export default function OrderDetails() {
                   </div>
                 ))
               ) : readyToDeliverOrders.length === 0 ? (
-                <div style={{ color: '#999', textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
+                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
               ) : (
                 readyToDeliverOrders.map(order => (
                   <div 
                     key={order.order_id} 
+                    className="od-order-card"
                     style={styles.orderCard}
                     onClick={() => setSelectedOrderId(order.order_id)}
                   >
-                    <div style={styles.orderName}>{order.name}</div>
-                    <div style={styles.orderInfo}>
+                    <div className="od-order-name" style={styles.orderName}>{order.name}</div>
+                    <div className="od-order-info" style={styles.orderInfo}>
                       <span>{order.order_id}</span>
                       <span>
                         ₱{
@@ -785,12 +761,12 @@ export default function OrderDetails() {
         {/* Modal for Add Product to Order */}
         {showProductModal && (
           <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#0008',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <div className="modal" style={{background:'#fff',padding:32,borderRadius:12,minWidth:700,maxWidth:900,width:'90vw',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
-              <h2 style={{marginBottom:20}}>Add Products to Order</h2>
+            <div className="modal" style={{padding:32,borderRadius:12,minWidth:700,maxWidth:900,width:'90vw',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
+              <h2 className="modal-title" style={{marginBottom:20}}>Add Products to Order</h2>
               <div style={{maxHeight:400,overflowY:'auto',marginBottom:18}}>
-                <table style={{width:'100%',borderCollapse:'collapse'}}>
+                <table className="od-product-table" style={{width:'100%',borderCollapse:'collapse'}}>
                   <thead>
-                    <tr style={{background:'#f8f8f8'}}>
+                    <tr className="od-product-table-head-row">
                       <th style={{textAlign:'left',padding:'8px'}}>Image</th>
                       <th style={{textAlign:'left',padding:'8px'}}>Name</th>
                       <th style={{textAlign:'right',padding:'8px'}}>Unit Price</th>
@@ -820,7 +796,8 @@ export default function OrderDetails() {
                               max={100}
                               value={profitMargins[item.sku] || ''} 
                               onChange={e => setProfitMargins(pm => ({...pm, [item.sku]: e.target.value}))} 
-                              style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
+                              className="od-small-input"
+                              style={{width:60,padding:'4px'}}
                             />
                           </td>
                           <td style={{padding:'8px',textAlign:'right'}}>
@@ -833,7 +810,8 @@ export default function OrderDetails() {
                               max={item.quantity} 
                               value={productSelection[item.sku] || ''} 
                               onChange={e => handleProductSelection(item.sku, e.target.value)} 
-                              style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
+                              className="od-small-input"
+                              style={{width:60,padding:'4px'}}
                             />
                           </td>
                         </tr>
@@ -854,9 +832,9 @@ export default function OrderDetails() {
                   }
                 </div>
               </div>
-              {productError && <div style={{color:'red',marginBottom:8}}>{productError}</div>}
+              {productError && <div className="od-form-error" style={{marginBottom:8}}>{productError}</div>}
               <div style={{display:'flex',justifyContent:'flex-end',gap:10}}>
-                <button type="button" onClick={()=>setShowProductModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}>Cancel</button>
+                <button type="button" className="modal-close-btn" onClick={()=>setShowProductModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',cursor:'pointer'}}>Cancel</button>
                 <button type="button" onClick={handleAddProductToOrder} style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#6c63ff',color:'#fff',fontWeight:600,cursor:'pointer'}} disabled={placingOrder}>{placingOrder ? 'Placing...' : 'Place Order'}</button>
               </div>
             </div>
@@ -867,7 +845,6 @@ export default function OrderDetails() {
         {showEditModal && (
           <div className={`modal-backdrop${showCompleteConfirm ? ' order-details-modal-dim' : ''}`} style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
             <div className="modal" style={{
-              background:'#fff',
               borderRadius:16,
               maxWidth:1400,
               width:'99vw',
@@ -885,14 +862,12 @@ export default function OrderDetails() {
                 alignItems:'center',
                 justifyContent:'space-between',
                 padding:'28px 36px 18px 36px',
-                borderBottom:'1.5px solid #ececec',
-                background:'#fff',
                 position:'sticky',
                 top:0,
                 zIndex:2
               }}>
-                <h2 className="modal-title" style={{fontSize:28,fontWeight:700,margin:0,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50'}}>Edit Order</h2>
-                <button className="modal-close" type="button" onClick={() => setShowEditModal(false)} style={{fontSize:28,color:'#aaa',background:'none',border:'none',borderRadius:'50%',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'color 0.2s, background 0.2s'}}>&times;</button>
+                <h2 className="modal-title" style={{fontSize:28,fontWeight:700,margin:0,fontFamily:'Cormorant Garamond,serif'}}>Edit Order</h2>
+                <button className="modal-close" type="button" onClick={() => setShowEditModal(false)} style={{fontSize:28,background:'none',border:'none',borderRadius:'50%',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'color 0.2s, background 0.2s'}}>&times;</button>
               </div>
               <form onSubmit={handleEditOrderSubmit} style={{
                 display:'flex',
@@ -901,8 +876,7 @@ export default function OrderDetails() {
                 alignItems:'stretch',
                 height:'100%',
                 minHeight:400,
-                overflow:'visible',
-                background:'#fff'
+                overflow:'visible'
               }}>
                 {/* Left: Order Details */}
                 <div style={{
@@ -1034,7 +1008,8 @@ export default function OrderDetails() {
                                     max={100}
                                     value={profitMargins[item.sku] || ''} 
                                     onChange={e => setProfitMargins(pm => ({...pm, [item.sku]: e.target.value}))} 
-                                    style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc',textAlign:'right'}} 
+                                    className="od-small-input"
+                                    style={{width:60,padding:'4px',textAlign:'right'}}
                                   />
                                 </td>
                                 <td style={{padding:'8px',textAlign:'right'}}>
@@ -1047,7 +1022,8 @@ export default function OrderDetails() {
                                     max={item.quantity} 
                                     value={productSelection[item.sku] || ''} 
                                     onChange={e => handleProductSelection(item.sku, e.target.value)} 
-                                    style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc',textAlign:'right'}} 
+                                    className="od-small-input"
+                                    style={{width:60,padding:'4px',textAlign:'right'}}
                                   />
                                 </td>
                               </tr>
@@ -1106,7 +1082,7 @@ export default function OrderDetails() {
                         <td style={{padding:'8px'}}>{item.name}</td>
                         <td style={{padding:'8px',textAlign:'right'}}>{item.quantity}</td>
                         <td style={{padding:'8px',textAlign:'right'}}>
-                          <input type="number" min={0} max={item.quantity} value={editingProducts[item.sku]||''} onChange={e => setEditingProducts(ps => ({...ps, [item.sku]: e.target.value}))} style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} />
+                          <input type="number" min={0} max={item.quantity} value={editingProducts[item.sku]||''} onChange={e => setEditingProducts(ps => ({...ps, [item.sku]: e.target.value}))} className="od-small-input" style={{width:60,padding:'4px'}} />
                         </td>
                       </tr>
                     ))}
@@ -1415,23 +1391,23 @@ export default function OrderDetails() {
 
           return (
             <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <div style={styles.orderDetailsModalContainer}>
-                <button onClick={()=>setSelectedOrderId(null)} className="order-modal-close" style={{position:'absolute',top:24,right:32,fontSize:28,color:'#222',background:'none',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2}}>&times;</button>
+              <div className="od-details-modal" style={styles.orderDetailsModalContainer}>
+                <button onClick={()=>setSelectedOrderId(null)} className="od-modal-close" style={{position:'absolute',top:24,right:32,fontSize:28,background:'none',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2}}>&times;</button>
                 {isToBePacked ? (
                   <>
-                    <div style={styles.whatsInsideColumnLeft}>
+                    <div className="od-whats-inside od-whats-inside-left" style={styles.whatsInsideColumnLeft}>
                       {WhatsInsideSectionJSX}
                     </div>
-                    <div style={styles.orderDetailsColumnRight}>
+                    <div className="od-details-column od-details-column-plain" style={styles.orderDetailsColumnRight}>
                       {OrderDetailsSectionJSX}
                     </div>
                   </>
                 ) : (
                   <>
-                    <div style={styles.orderDetailsColumnDefault}>
+                    <div className="od-details-column" style={styles.orderDetailsColumnDefault}>
                       {OrderDetailsSectionJSX}
                     </div>
-                    <div style={styles.whatsInsideColumnDefault}>
+                    <div className="od-whats-inside" style={styles.whatsInsideColumnDefault}>
                       {WhatsInsideSectionJSX}
                     </div>
                   </>

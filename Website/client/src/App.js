@@ -1,4 +1,5 @@
 import "./App.css";
+import "./styles/design-system.css";
 import Dashboard from "./Pages/Dashboard/Dashboard";
 import Login from "./Pages/Login/Login";
 import OrderDetails from "./Pages/OrderDetails/OrderDetails";
@@ -43,6 +44,8 @@ import CustomerUserDetails from "./Pages/CustomerPOV/CustomerUserDetails";
 import CustomerVerify from "./Pages/CustomerPOV/CustomerVerify";
 import Forbidden403 from "./Pages/Forbidden403";
 import { AuthProvider } from "./Context/AuthContext";
+import { ThemeProvider } from "./Context/ThemeContext";
+import { MobileNavProvider } from "./Context/MobileNavContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { CartProvider } from "./Context/CartContext";
 import CustomerCart from "./Pages/CustomerPOV/CustomerCart";
@@ -57,10 +60,12 @@ import KhenTestDataGenerator from "./Components/KhenTestDataGenerator";
 
 function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
     <NotificationProvider>
     <CartProvider>
     <Router>
+      <MobileNavProvider>
       <Routes>
         <Route path="/" element={<CustomerHome />} />
         <Route path="/employee-dashboard" element={<Dashboard />} />
@@ -122,10 +127,12 @@ function App() {
         <Route path="*" element={<NotFound404 />} />
 
       </Routes>
+      </MobileNavProvider>
     </Router>
     </CartProvider>
     </NotificationProvider>
     </AuthProvider>
+    </ThemeProvider>
   );
 }
 

@@ -239,6 +239,17 @@
   background-color: rgba(40, 167, 69, 0.1);
 }
 
+.archived-quantity-pill {
+  background-color: #f0f0f0;
+  color: #1a1a1a;
+  display: inline-block;
+}
+
+body.dark .archived-quantity-pill {
+  background-color: #333333;
+  color: #e0e0e0;
+}
+
 /* Dark mode overrides */
 body.dark .low-stock-row {
   background-color: rgba(220, 53, 69, 0.22);

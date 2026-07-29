@@ -6,7 +6,7 @@
   width: calc(100% - 220px);
 }
 .suppliers-container {
-  background: #f8f9fc;
+  background: var(--app-bg, #f8f9fc);
   padding: 28px 36px;
   height: auto;
   display: flex;
@@ -20,12 +20,12 @@
   justify-content: space-between;
   margin-bottom: 32px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.06));
 }
 
 .suppliers-header h2 {
   font-size: 1.75rem;
-  color: #2c3e50;
+  color: var(--text, #2c3e50);
   font-weight: 600;
   letter-spacing: -0.5px;
   margin: 0;
@@ -65,10 +65,10 @@
   justify-content: space-between;
   margin-bottom: 24px;
   padding: 16px 20px;
-  background: white;
+  background: var(--surface, white);
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.02));
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.06));
 }
 
 .filter-group {
@@ -79,10 +79,11 @@
 
 .type-filter {
   padding: 8px 12px;
-  border: 1px solid #e1e5e9;
+  border: 1px solid var(--input-border, #e1e5e9);
   border-radius: 6px;
   font-size: 14px;
-  background: white;
+  background: var(--input-background, white);
+  color: var(--input-text, #1a1a1a);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -95,7 +96,7 @@
 
 .results-info {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   font-weight: 500;
 }
 
@@ -105,10 +106,10 @@
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  background: white;
+  background: var(--surface, white);
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.02));
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.06));
 }
 
 .loading-spinner {
@@ -127,11 +128,11 @@
 }
 
 .suppliers-table-container {
-  background: white;
+  background: var(--surface, white);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.02));
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.06));
   margin-bottom: 24px;
 }
 
@@ -142,15 +143,15 @@
 }
 
 .suppliers-table thead {
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--surface-muted, #f8fafc);
+  border-bottom: 1px solid var(--border, #e2e8f0);
 }
 
 .suppliers-table th {
   padding: 16px 20px;
   text-align: left;
   font-weight: 600;
-  color: #475569;
+  color: var(--text-soft, #475569);
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -158,13 +159,13 @@
 
 .suppliers-table td {
   padding: 16px 20px;
-  border-bottom: 1px solid #f1f5f9;
-  color: #334155;
+  border-bottom: 1px solid var(--border, #f1f5f9);
+  color: var(--text, #334155);
   vertical-align: middle;
 }
 
 .suppliers-table tbody tr:hover {
-  background-color: #f8fafc;
+  background-color: var(--hover, #f8fafc);
 }
 
 .suppliers-table tbody tr:last-child td {
@@ -173,11 +174,11 @@
 
 .supplier-name {
   font-weight: 500;
-  color: #1e293b;
+  color: var(--text, #1e293b);
 }
 
 .supplier-email {
-  color: #3b82f6;
+  color: var(--brand, #3b82f6);
 }
 
 .supplier-address {
@@ -251,9 +252,9 @@
 }
 
 .error-message {
-  background: #fef2f2;
+  background: var(--danger-soft, #fef2f2);
   border: 1px solid #fecaca;
-  color: #dc2626;
+  color: var(--danger, #dc2626);
   padding: 1rem;
   border-radius: 8px;
   display: flex;
@@ -279,7 +280,7 @@
 .no-suppliers {
   text-align: center;
   padding: 60px 20px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
 }
 
 .no-suppliers p {
@@ -298,9 +299,9 @@
 
 .pagination-btn {
   padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  background: white;
-  color: #64748b;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, white);
+  color: var(--text-muted, #64748b);
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
@@ -308,8 +309,8 @@
 }
 
 .pagination-btn:hover:not(:disabled) {
-  background-color: #f8fafc;
-  border-color: #cbd5e1;
+  background-color: var(--hover, #f8fafc);
+  border-color: var(--border-strong, #cbd5e1);
 }
 
 .pagination-btn.active {
@@ -376,74 +377,18 @@
 }
 
 /* Dark mode styles for Suppliers */
-body.dark .suppliers-container {
-  background-color: #1a1a1a; /* Dark background */
-  color: #e0e0e0; /* Light text */
+body.dark .suppliers-table thead {
+  background-color: #202020;
 }
 
-body.dark .suppliers-header h2 {
-  color: #e0e0e0;
-}
-
-/* Add dark mode styles for supplier list, cards, details, etc. */
-/* Assuming a table or card layout similar to Inventory/Orders/Customers */
-
-body.dark .supplier-table,
-body.dark .supplier-card {
-    background-color: #2c2c2c;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    color: #e0e0e0; /* Ensure text is light */
-}
-
-body.dark .supplier-table th,
-body.dark .supplier-card-header {
-    background-color: #333333;
-    color: #ffffff;
-    border-bottom-color: #404040;
-}
-
-body.dark .supplier-table td {
-    color: #e0e0e0;
-    border-color: #404040;
-}
-
-body.dark .supplier-table tr:hover,
-body.dark .supplier-card:hover {
-    background-color: #404040;
-}
-
-body.dark .supplier-name {
-    color: #e0e0e0;
-}
-
-body.dark .supplier-info,
-body.dark .supplier-card-info {
-    color: #cccccc;
-}
-
-body.dark .supplier-card-label {
-    color: #bb86fc; /* Accent color for labels */
-}
-
-/* Styles for the supplier list container and empty state */
-body.dark .supplier-list-container {
-  background-color: #2c2c2c; /* Dark background for the list container */
-  color: #e0e0e0; /* Light text */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  border-radius: 12px; /* Assuming similar border radius */
-  padding: 20px; /* Assuming some padding */
+body.dark .suppliers-table tbody tr:hover {
+  background-color: #333333;
 }
 
 body.dark .error-message {
   background: #3a1f1f;
   border-color: #6b2b2b;
   color: #ff8080;
-}
-
-body.dark .no-suppliers-found {
-  color: #b0b0b0; /* Slightly lighter color for the empty state message */
-  text-align: center; /* Assuming it's centered */
-  padding: 20px; /* Assuming some padding */
 }
 
 /* Styles for any modals related to suppliers */

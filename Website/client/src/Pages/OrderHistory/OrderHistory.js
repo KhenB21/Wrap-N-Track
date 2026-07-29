@@ -383,7 +383,7 @@ export default function OrderHistory() {
                     </div>
                   </div>
                   {/* RIGHT COLUMN: PRODUCTS CARD */}
-                  <div style={{width:340,minWidth:260,background:'#fafbfc',borderRadius:10,padding:'18px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
+                  <div className="order-history-products-card" style={{width:340,minWidth:260,borderRadius:10,padding:'18px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
                     <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
                     {(() => {
                       // Prefer explicitly fetched products; fall back to embedded products if valid

@@ -356,9 +356,9 @@ router.get('/scan/:code', verifyToken, requireInventoryStaff, async (req, res) =
       FROM inventory_items i
       LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id
       WHERE i.is_active = true
-        AND (i.sku = $1 OR i.barcode_value = $1 OR i.qr_value = $1)
+        AND (i.sku = $1 OR i.barcode_value = $2 OR i.qr_value = $3)
       LIMIT 1
-    `, [code]);
+    `, [code, code, code]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -719,9 +719,9 @@ router.post('/', upload.single('image'), async (req, res) => {
         updated_at,
         last_updated
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $1, $1, $13, true, NOW(), NOW(), NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $14, $15, $13, true, NOW(), NOW(), NOW())
       RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration, barcode_value, qr_value, reorder_level, created_at, updated_at
-    `, [generatedSku, name, description, category, productQuantity, unitPrice, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, reorderLevel]);
+    `, [generatedSku, name, description, category, productQuantity, unitPrice, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, reorderLevel, generatedSku, generatedSku]);
 
     await logStockMovement(client, {
       sku: generatedSku,

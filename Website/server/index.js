@@ -1025,7 +1025,7 @@ The Wrap N' Track Team`,
 app.get('/api/user/details', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT user_id, name, email, role, created_at, profile_picture_data FROM users WHERE user_id = $1',
+      'SELECT user_id, name, email, role, created_at, last_login, is_email_verified, is_active, profile_picture_data FROM users WHERE user_id = $1',
       [req.user.user_id]
     );
 
@@ -1061,6 +1061,20 @@ app.post('/api/user/profile-picture', verifyToken, upload.single('profilePicture
     res.json({ success: true, profile_picture_data: profilePictureData.toString('base64') });
   } catch (error) {
     console.error('Profile picture upload error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Remove profile picture endpoint (store in DB)
+app.delete('/api/user/profile-picture', verifyToken, async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE users SET profile_picture_data = NULL WHERE user_id = $1',
+      [req.user.user_id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Profile picture removal error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

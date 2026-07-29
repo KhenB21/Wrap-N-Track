@@ -183,7 +183,13 @@ async function ensureInvoiceSchema() {
   schemaReady = true;
 }
 
-router.use(verifyJwt());
+// Scoped to this router's own routes via each route's explicit verifyJwt()
+// below, rather than an unconditional router.use(verifyJwt()) — this router
+// is mounted at the bare `/api` prefix in index.js, and a path-less
+// router-level middleware runs for ANY /api/* request that reaches it
+// (including ones matching no route here at all, e.g. /api/auth/login),
+// which was incorrectly 401-ing unrelated endpoints before they could reach
+// their real handler further down the middleware chain.
 router.use(async (req, res, next) => {
   try {
     await ensureInvoiceSchema();
@@ -569,7 +575,7 @@ async function createInvoice(req, res, invoiceType) {
   }
 }
 
-router.get('/invoices', staffOnly, async (req, res) => {
+router.get('/invoices', verifyJwt(), staffOnly, async (req, res) => {
   try {
     const { invoice_type, status, customer, order, date_from, date_to } = req.query;
     const clauses = [];
@@ -630,7 +636,7 @@ router.get('/invoices', staffOnly, async (req, res) => {
   }
 });
 
-router.get('/invoices/:id', staffOnly, async (req, res) => {
+router.get('/invoices/:id', verifyJwt(), staffOnly, async (req, res) => {
   try {
     const invoice = await getInvoiceWithDetails(req.params.id);
     if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
@@ -641,7 +647,7 @@ router.get('/invoices/:id', staffOnly, async (req, res) => {
   }
 });
 
-router.get('/orders/:orderId/invoices', staffOnly, async (req, res) => {
+router.get('/orders/:orderId/invoices', verifyJwt(), staffOnly, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT *
@@ -662,11 +668,11 @@ router.get('/orders/:orderId/invoices', staffOnly, async (req, res) => {
   }
 });
 
-router.post('/orders/:orderId/invoices/down-payment', staffOnly, (req, res) => {
+router.post('/orders/:orderId/invoices/down-payment', verifyJwt(), staffOnly, (req, res) => {
   createInvoice(req, res, 'DOWN_PAYMENT');
 });
 
-router.post('/orders/:orderId/invoices/remaining-balance', staffOnly, (req, res) => {
+router.post('/orders/:orderId/invoices/remaining-balance', verifyJwt(), staffOnly, (req, res) => {
   createInvoice(req, res, 'REMAINING_BALANCE');
 });
 
@@ -826,7 +832,7 @@ router.patch('/invoices/:id/mark-paid', staffOnly, proofUpload.single('payment_p
   }
 });
 
-router.get('/invoices/:id/payment-proof', async (req, res) => {
+router.get('/invoices/:id/payment-proof', verifyJwt(), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT
@@ -1001,7 +1007,7 @@ function drawInvoicePdf(doc, invoice) {
     .text(`Generated ${new Date().toLocaleString('en-PH')} by ${invoice.created_by_name || 'Wrap N Track'}`, 50, 755, { align: 'center', width: 495 });
 }
 
-router.get('/invoices/:id/pdf', staffOnly, async (req, res) => {
+router.get('/invoices/:id/pdf', verifyJwt(), staffOnly, async (req, res) => {
   try {
     const invoice = await getInvoiceWithDetails(req.params.id);
     if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });

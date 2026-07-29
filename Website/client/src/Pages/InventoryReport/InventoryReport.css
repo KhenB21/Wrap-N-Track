@@ -81,11 +81,12 @@
 
 .date-range input {
   padding: 10px 14px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--input-border, #e2e8f0);
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  background: white;
+  background: var(--input-background, white);
+  color: var(--input-text, #1a202c);
   transition: all 0.2s ease;
   min-width: 140px;
 }

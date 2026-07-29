@@ -4,11 +4,14 @@ import NotificationContainer from "./NotificationContainer";
 import "./TopBar.css";
 import api from '../api'; // Unified axios instance
 import { useAuth } from "../Context/AuthContext";
+import { useTheme } from "../Context/ThemeContext";
+import { useMobileNav } from "../Context/MobileNavContext";
 
 export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowStockProducts, searchValue = "", onSearchChange = () => {} }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const { theme, setTheme } = useTheme();
+  const { toggle: toggleMobileNav } = useMobileNav();
   const dropdownRef = useRef();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -60,13 +63,6 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
     };
   }, [dropdownOpen]);
 
-  useEffect(() => {
-    // Apply theme to body
-    document.body.className = theme;
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-
   const getProfilePictureUrl = () => {
     if (!user) return null;
     
@@ -90,6 +86,16 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
 
   return (
     <div className="dashboard-topbar">
+      <button
+        type="button"
+        className="mobile-nav-toggle"
+        onClick={toggleMobileNav}
+        aria-label="Open navigation menu"
+      >
+        <span />
+        <span />
+        <span />
+      </button>
       <input
         className="dashboard-search"
         type="text"
@@ -127,20 +133,9 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
               }}
             />
           ) : null}
-          <div 
-            className="avatar-initials" 
-            style={{ 
-              display: getProfilePictureUrl() ? 'none' : 'flex',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              backgroundColor: '#007bff',
-              color: 'white',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px',
-              fontWeight: 'bold'
-            }}
+          <div
+            className="avatar-initials"
+            style={{ display: getProfilePictureUrl() ? 'none' : 'flex' }}
           >
             {getInitials()}
           </div>
@@ -154,24 +149,16 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
       </div>
       {showDropdown && (
         <div className="settings-dropdown">
-          <button 
-            className="theme-btn"
+          <button
+            className={`theme-btn${theme === 'light' ? ' theme-btn-active' : ''}`}
             onClick={() => handleThemeChange('light')}
-            style={{ 
-              backgroundColor: theme === 'light' ? '#e6f0ff' : 'transparent',
-              color: theme === 'light' ? '#007bff' : '#666'
-            }}
           >
             <span role="img" aria-label="Light Mode">☀️</span>
             Light Mode
           </button>
-          <button 
-            className="theme-btn"
+          <button
+            className={`theme-btn${theme === 'dark' ? ' theme-btn-active' : ''}`}
             onClick={() => handleThemeChange('dark')}
-            style={{ 
-              backgroundColor: theme === 'dark' ? '#2c2c2c' : 'transparent',
-              color: theme === 'dark' ? '#fff' : '#666'
-            }}
           >
             <span role="img" aria-label="Dark Mode">🌙</span>
             Dark Mode

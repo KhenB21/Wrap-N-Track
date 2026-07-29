@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../Context/AuthContext';
 import usePermissions from '../../hooks/usePermissions';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import withEmployeeAuth from '../../Components/withEmployeeAuth';
+import UserFormModal from '../../Components/UserFormModal';
+import ConfirmDialog from '../../Components/ConfirmDialog';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import './AccountManagement.css';
 import api from '../../api';
 
 const AccountManagement = () => {
-  const { user } = useAuth();
   const { isReadOnly } = usePermissions();
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -18,19 +20,9 @@ const AccountManagement = () => {
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [editingUser, setEditingUser] = useState(null);
   const [roles, setRoles] = useState([]);
-
-  // Form states
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: '',
-    is_active: true
-  });
+  const [archiveTarget, setArchiveTarget] = useState(null); // { userId, name, action: 'archive'|'restore' }
 
   useEffect(() => {
     fetchUsers();
@@ -55,7 +47,7 @@ const AccountManagement = () => {
       setUsers(response.data.users);
     } catch (error) {
       console.error('Error fetching users:', error);
-      showNotification('Failed to fetch users', 'error');
+      toast.error('Failed to fetch users');
     } finally {
       setLoading(false);
     }
@@ -74,112 +66,46 @@ const AccountManagement = () => {
     let filtered = [...users];
 
     if (searchTerm) {
-      filtered = filtered.filter(user => 
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(u =>
+        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.email.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     if (roleFilter) {
-      filtered = filtered.filter(user => user.role === roleFilter);
+      filtered = filtered.filter(u => u.role === roleFilter);
     }
 
     if (statusFilter) {
       if (statusFilter === 'active') {
-        filtered = filtered.filter(user => user.is_active);
+        filtered = filtered.filter(u => u.is_active);
       } else if (statusFilter === 'inactive') {
-        filtered = filtered.filter(user => !user.is_active);
+        filtered = filtered.filter(u => !u.is_active);
       }
     }
 
     setFilteredUsers(filtered);
   };
 
-  const handleAddUser = async (e) => {
-    e.preventDefault();
+  const handleFormSaved = (message) => {
+    toast.success(message);
+    setShowAddModal(false);
+    setEditingUser(null);
+    fetchUsers();
+  };
+
+  const confirmArchiveToggle = async () => {
+    if (!archiveTarget) return;
+    const { userId, name, action } = archiveTarget;
+    setArchiveTarget(null);
     try {
-      const response = await api.post('/api/account-management/users', formData);
-      showNotification('User created successfully', 'success');
-      setShowAddModal(false);
-      resetForm();
+      await api.put(`/api/account-management/users/${userId}/${action}`);
+      toast.success(`User ${name} has been ${action === 'archive' ? 'archived' : 'restored'}`);
       fetchUsers();
     } catch (error) {
-      console.error('Error creating user:', error);
-      showNotification(error.response?.data?.message || 'Failed to create user', 'error');
+      console.error(`Error ${action}ing user:`, error);
+      toast.error(error.response?.data?.message || `Failed to ${action} user`);
     }
-  };
-
-  const handleEditUser = async (e) => {
-    e.preventDefault();
-    try {
-      const { password, ...updateData } = formData;
-      await api.put(`/api/account-management/users/${selectedUser.user_id}`, updateData);
-      showNotification('User updated successfully', 'success');
-      setShowEditModal(false);
-      resetForm();
-      fetchUsers();
-    } catch (error) {
-      console.error('Error updating user:', error);
-      showNotification(error.response?.data?.message || 'Failed to update user', 'error');
-    }
-  };
-
-
-  const handleArchiveUser = async (userId, userName) => {
-    if (window.confirm(`Are you sure you want to archive ${userName}?`)) {
-      try {
-        await api.put(`/api/account-management/users/${userId}/archive`);
-        showNotification(`User ${userName} has been archived`, 'success');
-        fetchUsers();
-      } catch (error) {
-        console.error('Error archiving user:', error);
-        showNotification(error.response?.data?.message || 'Failed to archive user', 'error');
-      }
-    }
-  };
-
-  const handleRestoreUser = async (userId, userName) => {
-    if (window.confirm(`Are you sure you want to restore ${userName}?`)) {
-      try {
-        await api.put(`/api/account-management/users/${userId}/restore`);
-        showNotification(`User ${userName} has been restored`, 'success');
-        fetchUsers();
-      } catch (error) {
-        console.error('Error restoring user:', error);
-        showNotification(error.response?.data?.message || 'Failed to restore user', 'error');
-      }
-    }
-  };
-
-  const openEditModal = (user) => {
-    setSelectedUser(user);
-    setFormData({
-      name: user.name,
-      email: user.email,
-      password: '',
-      role: user.role,
-      is_active: user.is_active
-    });
-    setShowEditModal(true);
-  };
-
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      role: '',
-      is_active: true
-    });
-    setSelectedUser(null);
-  };
-
-  const showNotification = (message, type) => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: '' });
-    }, 3000);
   };
 
   const getRoleLabel = (role) => {
@@ -187,12 +113,12 @@ const AccountManagement = () => {
     return roleObj ? roleObj.label : role;
   };
 
-  const getStatusBadge = (user) => {
-    if (user.is_archived) {
+  const getStatusBadge = (u) => {
+    if (u.is_archived) {
       return <span className="status-badge archived">Archived</span>;
     }
-    return user.is_active ? 
-      <span className="status-badge active">Active</span> : 
+    return u.is_active ?
+      <span className="status-badge active">Active</span> :
       <span className="status-badge inactive">Inactive</span>;
   };
 
@@ -219,285 +145,165 @@ const AccountManagement = () => {
       <div className="main-content">
         <TopBar />
         <div className="account-management">
-      <div className="account-management-header">
-        <h1>Account Management</h1>
-        <button 
-          className="btn btn-primary"
-          onClick={() => setShowAddModal(true)}
-        >
-          Add New User
-        </button>
-      </div>
+          <div className="account-management-header">
+            <h1>Account Management</h1>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowAddModal(true)}
+            >
+              Add New User
+            </button>
+          </div>
 
-      {/* Filters */}
-      <div className="filters-section">
-        <div className="filters-row">
-          <div className="filter-group">
-            <label>Search:</label>
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
+          {/* Filters */}
+          <div className="filters-section">
+            <div className="filters-row">
+              <div className="filter-group">
+                <label>Search:</label>
+                <input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="search-input"
+                />
+              </div>
+
+              <div className="filter-group">
+                <label>Role:</label>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="">All Roles</option>
+                  {roles.map(role => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label>Status:</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showArchived}
+                    onChange={(e) => setShowArchived(e.target.checked)}
+                  />
+                  Show Archived
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Users Table */}
+          <div className="users-table-container">
+            {loading ? (
+              <div className="loading">Loading users...</div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="users-empty-state">
+                <span className="users-empty-icon" aria-hidden="true">👥</span>
+                <p>No users match your current filters.</p>
+              </div>
+            ) : (
+              <table className="users-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map(u => (
+                    <tr key={u.user_id}>
+                      <td>{u.name}</td>
+                      <td>{u.email}</td>
+                      <td>{getRoleLabel(u.role)}</td>
+                      <td>{getStatusBadge(u)}</td>
+                      <td>{new Date(u.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <div className="action-buttons">
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => setEditingUser(u)}
+                          >
+                            Edit
+                          </button>
+                          {u.is_archived ? (
+                            <button
+                              className="btn btn-sm btn-success"
+                              onClick={() => setArchiveTarget({ userId: u.user_id, name: u.name, action: 'restore' })}
+                            >
+                              Restore
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => setArchiveTarget({ userId: u.user_id, name: u.name, action: 'archive' })}
+                            >
+                              Archive
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {showAddModal && (
+            <UserFormModal
+              mode="add"
+              roles={roles}
+              onClose={() => setShowAddModal(false)}
+              onSaved={handleFormSaved}
             />
-          </div>
-          
-          <div className="filter-group">
-            <label>Role:</label>
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">All Roles</option>
-              {roles.map(role => (
-                <option key={role.value} value={role.value}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="filter-group">
-            <label>Status:</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-          
-          <div className="filter-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={showArchived}
-                onChange={(e) => setShowArchived(e.target.checked)}
-              />
-              Show Archived
-            </label>
-          </div>
-        </div>
-      </div>
+          )}
 
-      {/* Users Table */}
-      <div className="users-table-container">
-        {loading ? (
-          <div className="loading">Loading users...</div>
-        ) : (
-          <table className="users-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map(user => (
-                <tr key={user.user_id}>
-                  <td>{user.name}</td>
-                  <td>{user.email}</td>
-                  <td>{getRoleLabel(user.role)}</td>
-                  <td>{getStatusBadge(user)}</td>
-                  <td>{new Date(user.created_at).toLocaleDateString()}</td>
-                  <td>
-                    <div className="action-buttons">
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => openEditModal(user)}
-                      >
-                        Edit
-                      </button>
-                      {user.is_archived ? (
-                        <button
-                          className="btn btn-sm btn-success"
-                          onClick={() => handleRestoreUser(user.user_id, user.name)}
-                        >
-                          Restore
-                        </button>
-                      ) : (
-                        <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() => handleArchiveUser(user.user_id, user.name)}
-                        >
-                          Archive
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+          {editingUser && (
+            <UserFormModal
+              mode="edit"
+              user={editingUser}
+              roles={roles}
+              onClose={() => setEditingUser(null)}
+              onSaved={handleFormSaved}
+            />
+          )}
 
-      {/* Add User Modal */}
-      {showAddModal && (
-        <div className="modal-overlay">
-          <div className="modal-content account-modal-content" onClick={e => e.stopPropagation()}>
-            <div className="account-modal-header">
-              <div>
-                <p className="modal-eyebrow">Account Management</p>
-                <h3>Add New User</h3>
-                <p className="modal-subtitle">Create a new employee account with the correct role and access.</p>
-              </div>
-              <button className="close-btn" onClick={() => setShowAddModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleAddUser} className="account-modal-form">
-              <div className="form-section">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Full Name *</label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      placeholder="Enter full name"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Email *</label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      placeholder="name@company.com"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Password *</label>
-                    <input
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData({...formData, password: e.target.value})}
-                      placeholder="Create a secure password"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Role *</label>
-                    <select
-                      value={formData.role}
-                      onChange={(e) => setFormData({...formData, role: e.target.value})}
-                      required
-                    >
-                      <option value="">Select Role</option>
-                      {roles.map(role => (
-                        <option key={role.value} value={role.value}>
-                          {role.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div className="form-actions account-modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Create User
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          <ConfirmDialog
+            open={!!archiveTarget}
+            title={archiveTarget?.action === 'archive' ? 'Archive this user?' : 'Restore this user?'}
+            message={archiveTarget
+              ? `${archiveTarget.name} will be ${archiveTarget.action === 'archive' ? 'archived and signed out of access' : 'restored to active status'}.`
+              : ''}
+            confirmLabel={archiveTarget?.action === 'archive' ? 'Archive' : 'Restore'}
+            tone={archiveTarget?.action === 'archive' ? 'danger' : 'default'}
+            onConfirm={confirmArchiveToggle}
+            onCancel={() => setArchiveTarget(null)}
+          />
 
-      {/* Edit User Modal */}
-      {showEditModal && selectedUser && (
-        <div className="modal-overlay">
-          <div className="modal-content account-modal-content" onClick={e => e.stopPropagation()}>
-            <button className="close-btn" onClick={() => setShowEditModal(false)}>&times;</button>
-            <div className="account-modal-header account-modal-header--compact">
-              <div>
-                <p className="modal-eyebrow">Account Management</p>
-                <h3>Edit User</h3>
-                <p className="modal-subtitle">Update the account profile and role without changing the password.</p>
-              </div>
-            </div>
-            <form onSubmit={handleEditUser} className="account-modal-form">
-              <div className="form-section">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Full Name *</label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      placeholder="Enter full name"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Email *</label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      placeholder="name@company.com"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Role *</label>
-                    <select
-                      value={formData.role}
-                      onChange={(e) => setFormData({...formData, role: e.target.value})}
-                      required
-                    >
-                      <option value="">Select Role</option>
-                      {roles.map(role => (
-                        <option key={role.value} value={role.value}>
-                          {role.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group form-group--checkbox">
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={formData.is_active}
-                        onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
-                      />
-                      <span>Account active</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-              <div className="form-actions account-modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowEditModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Update User
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-
-      {/* Notification */}
-      {notification.show && (
-        <div className={`notification ${notification.type}`}>
-          {notification.message}
-        </div>
-      )}
+          <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
         </div>
       </div>
     </div>

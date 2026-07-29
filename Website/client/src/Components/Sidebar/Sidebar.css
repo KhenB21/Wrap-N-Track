@@ -16,13 +16,35 @@ html, body {
   color: white;
   display: flex;
   flex-direction: column;
-  transition: all 0.3s;
+  transition: transform 0.25s ease, width 0.25s ease;
   font-size: 15px;
   position: fixed;
   left: 0;
   top: 0;
   z-index: 1000;
   overflow-y: auto;
+  box-shadow: var(--shadow-md, 2px 0 12px rgba(0,0,0,0.08));
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar-backdrop.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (min-width: 768.02px) {
+  .sidebar-backdrop {
+    display: none;
+  }
 }
 
 .text {
@@ -121,8 +143,8 @@ html, body {
   background-color: #e74c3c;
 }
 
-/* Responsive styles */
-@media (max-width: 768px) {
+/* Tablet: icon-only rail (768px-1023px) */
+@media (min-width: 768.02px) and (max-width: 1023.98px) {
   .sidebar {
     width: 70px;
   }
@@ -140,65 +162,61 @@ html, body {
   }
 }
 
+/* Phone/small tablet: full off-canvas drawer, hidden by default */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 260px;
+    max-width: 82vw;
+    transform: translateX(-100%);
+  }
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+  .text,
+  .sidebar-header h2,
+  .dropdown .arrow {
+    display: inline;
+  }
+  .icon {
+    margin-right: 15px;
+    font-size: 1.1rem;
+  }
+}
+
 /* Dark mode styles for Sidebar */
 body.dark .sidebar {
-  background-color: #1e1e1e; /* Darker background for sidebar */
+  background-color: #1e1e1e;
   border-right: 1px solid #333333;
 }
 
-body.dark .sidebar-header h1 {
+body.dark .sidebar-header h2 {
   color: #e0e0e0;
 }
 
-body.dark .sidebar-menu a {
+body.dark .sidebar-nav li a,
+body.dark .dropdown-header {
   color: #cccccc;
 }
 
-body.dark .sidebar-menu a:hover {
+body.dark .sidebar-nav li a:hover,
+body.dark .dropdown-header:hover {
   background-color: #333333;
   color: #ffffff;
-}
-
-body.dark .sidebar-menu a.active {
-  background-color: #0056b3; /* A dark mode friendly accent color */
-  color: #ffffff;
-}
-
-body.dark .sidebar-menu a.active .sidebar-icon {
-  color: #ffffff; /* Ensure icons are visible */
-}
-
-body.dark .sidebar-menu a .sidebar-icon {
-    color: #999999; /* Default icon color */
-}
-
-body.dark .sidebar-menu a:hover .sidebar-icon {
-    color: #ffffff;
 }
 
 body.dark .sidebar-footer {
   border-top: 1px solid #333333;
 }
 
-body.dark .sidebar-footer .log-out {
-  color: #e74c3c; /* Keep logout button color for clarity */
+body.dark .logout-btn {
+  color: #ff8a80;
 }
 
-body.dark .sidebar-footer .log-out:hover {
+body.dark .logout-btn:hover {
   background-color: #444444;
 }
 
-/* Adjust report submenu for dark mode */
-body.dark .sidebar-menu .submenu {
-    background-color: #2c2c2c;
-    border-top: 1px solid #444444;
-}
-
-body.dark .sidebar-menu .submenu a {
-    color: #cccccc;
-}
-
-body.dark .sidebar-menu .submenu a:hover {
-    background-color: #404040;
-    color: #ffffff;
+/* Report submenu */
+body.dark .dropdown-menu {
+  background-color: #151515;
 }

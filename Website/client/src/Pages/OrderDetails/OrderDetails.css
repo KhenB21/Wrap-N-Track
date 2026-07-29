@@ -698,3 +698,111 @@ body.dark .order-details-panel .status-ready-to-ship { background: #0d3d38; colo
 body.dark .order-details-panel .status-completed { background: #123d22; color: #6fdb94; }
 body.dark .order-details-panel .status-invoice { background: #4a1414; color: #ff9c9c; }
 body.dark .order-details-panel .status-cancelled { background: var(--surface-muted); color: var(--text-muted); }
+
+/* ============ Kanban board (inline-style JS object in OrderDetails.js) ============
+   These classNames sit alongside the `styles.*` inline style objects — the JS side
+   was stripped of its hardcoded background/color/border-color values so these rules
+   (and their dark variants) can actually take effect instead of losing to inline styles. */
+.od-action-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.od-columns-container {
+  background: var(--app-bg);
+}
+
+.od-column {
+  background: var(--surface);
+}
+
+.od-column-header {
+  border-bottom: 2px solid var(--border);
+}
+
+.od-column-title {
+  color: var(--text);
+}
+
+.od-order-count {
+  background: var(--surface-muted);
+  color: var(--text-soft);
+}
+
+.od-order-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.od-order-card:hover {
+  border-color: var(--brand);
+}
+
+.od-order-name {
+  color: var(--text);
+}
+
+.od-order-info {
+  color: var(--text-muted);
+}
+
+.od-empty-column {
+  color: var(--text-muted);
+}
+
+.od-modal-close {
+  color: var(--text-muted);
+}
+
+.od-modal-close:hover {
+  color: var(--text);
+}
+
+.od-details-modal {
+  background: var(--surface-elevated);
+}
+
+.od-details-column {
+  color: var(--text);
+  border-right: 2px solid var(--border);
+}
+
+.od-details-column-plain {
+  border-right: none;
+}
+
+.od-whats-inside {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.od-whats-inside-left {
+  border-right: 2px solid var(--border);
+}
+
+.od-product-table-head-row {
+  background: var(--surface-muted);
+}
+
+.od-form-error {
+  color: var(--danger);
+}
+
+.od-product-table {
+  color: var(--text);
+}
+
+.od-small-input {
+  border-radius: 4px;
+  border: 1px solid var(--input-border, #ccc);
+  background: var(--input-background, #fff);
+  color: var(--input-text, #1f2937);
+}
+
+.modal-close-btn {
+  color: var(--text);
+}
+
+body.dark .od-order-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
