@@ -13,6 +13,9 @@ import { Button, Card, Divider, Chip } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
 import { useOrders } from '../../Context/OrdersContext';
+import { useAuth } from '../../Context/AuthContext';
+
+const INVOICE_ROLES = ['operations_manager', 'sales_manager', 'super_admin', 'admin'];
 
 const { width } = Dimensions.get('window');
 
@@ -22,8 +25,10 @@ export default function OrderDetailScreen({ navigation }) {
   const { order: initialOrder } = route.params;
   const { getOrder, updateOrderStatus } = useOrders();
 
+  const { user } = useAuth();
   const [order, setOrder] = useState(initialOrder);
   const [loading, setLoading] = useState(false);
+  const canViewInvoice = INVOICE_ROLES.includes(user?.role);
 
   useEffect(() => {
     if (initialOrder?.order_id) {
@@ -331,6 +336,16 @@ export default function OrderDetailScreen({ navigation }) {
       >
         Back
       </Button>
+      {canViewInvoice && (
+        <Button
+          mode="outlined"
+          onPress={() => navigation.navigate('InvoiceScreen', { orderId: order.order_id })}
+          style={styles.actionButton}
+          icon="file-document-outline"
+        >
+          Invoices
+        </Button>
+      )}
       <Button
         mode="contained"
         onPress={handleStatusUpdate}

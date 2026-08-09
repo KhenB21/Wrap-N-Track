@@ -39,6 +39,10 @@ const BASE_URL = getBaseURL();
 // Log the base URL for debugging
 console.log('API Base URL:', BASE_URL);
 
+// Logout handler — set by AuthContext so the interceptor can trigger a proper logout
+let _logoutHandler = null;
+export const setLogoutHandler = (fn) => { _logoutHandler = fn; };
+
 // Create axios instance with default config
 const api = axios.create({
   baseURL: BASE_URL,
@@ -89,11 +93,15 @@ api.interceptors.response.use(
     });
     
     if (error.response?.status === 401) {
-      try {
-        await AsyncStorage.multiRemove(['authToken', 'userData', 'userType']);
-        console.log('Token expired, cleared auth data');
-      } catch (storageError) {
-        console.error('Error clearing auth data:', storageError);
+      if (_logoutHandler) {
+        _logoutHandler();
+      } else {
+        try {
+          await AsyncStorage.multiRemove(['authToken', 'userData', 'userType']);
+          console.log('Token expired, cleared auth data');
+        } catch (storageError) {
+          console.error('Error clearing auth data:', storageError);
+        }
       }
     }
     
@@ -616,34 +624,145 @@ export const supplierAPI = {
   }
 };
 
+export const customerOrderAPI = {
+  getMyOrders: async () => {
+    try {
+      const response = await api.get('/customer-orders/orders');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching customer orders:', error);
+      throw error;
+    }
+  },
+  getMyOrder: async (orderId) => {
+    try {
+      const response = await api.get(`/customer-orders/orders/${orderId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching customer order:', error);
+      throw error;
+    }
+  },
+  getOrderTracking: async (orderId) => {
+    try {
+      const response = await api.get(`/customer-orders/tracking/${orderId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching order tracking:', error);
+      throw error;
+    }
+  },
+};
+
+export const invoiceAPI = {
+  getOrderInvoices: async (orderId) => {
+    try {
+      const response = await api.get(`/orders/${orderId}/invoices`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching order invoices:', error);
+      throw error;
+    }
+  },
+  getInvoice: async (invoiceId) => {
+    try {
+      const response = await api.get(`/invoices/${invoiceId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching invoice:', error);
+      throw error;
+    }
+  },
+  getPdfUrl: () => `${BASE_URL.replace('/api', '')}/api`,
+};
+
 export const notificationAPI = {
   getNotifications: async () => {
-    try {
-      const response = await api.get('/notifications');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      throw error;
-    }
+    const response = await api.get('/notifications');
+    return response.data;
+  },
+  getUnreadCount: async () => {
+    const response = await api.get('/notifications/unread-count');
+    return response.data;
   },
   markAsRead: async (notificationId) => {
-    try {
-      const response = await api.put(`/notifications/${notificationId}/read`);
-      return response.data;
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-      throw error;
-    }
+    const response = await api.put(`/notifications/${notificationId}/read`);
+    return response.data;
   },
   markAllAsRead: async () => {
-    try {
-      const response = await api.put('/notifications/read-all');
-      return response.data;
-    } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-      throw error;
-    }
-  }
+    const response = await api.put('/notifications/mark-all-read');
+    return response.data;
+  },
+};
+
+export const deliveryAPI = {
+  getDeliveries: async (filters = {}) => {
+    const response = await api.get('/deliveries', { params: filters });
+    return response.data;
+  },
+  getDelivery: async (orderId) => {
+    const response = await api.get(`/deliveries/${encodeURIComponent(orderId)}`);
+    return response.data;
+  },
+  getDeliveryHistory: async (orderId) => {
+    const response = await api.get(`/deliveries/${encodeURIComponent(orderId)}/history`);
+    return response.data;
+  },
+  getDeliveryModes: async () => {
+    const response = await api.get('/deliveries/modes');
+    return response.data;
+  },
+  updateDelivery: async (orderId, data) => {
+    const response = await api.patch(`/deliveries/${encodeURIComponent(orderId)}`, data);
+    return response.data;
+  },
+  uploadProof: async (orderId, imageUri) => {
+    const formData = new FormData();
+    const filename = imageUri.split('/').pop() || 'proof.jpg';
+    const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
+    formData.append('proof', {
+      uri: imageUri,
+      name: filename,
+      type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+    });
+    const response = await api.post(
+      `/deliveries/${encodeURIComponent(orderId)}/proof`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data;
+  },
+};
+
+export const accountManagementAPI = {
+  getUsers: async (params = {}) => {
+    const response = await api.get('/account-management/users', { params });
+    return response.data;
+  },
+  getUser: async (userId) => {
+    const response = await api.get(`/account-management/users/${userId}`);
+    return response.data;
+  },
+  createUser: async (data) => {
+    const response = await api.post('/account-management/users', data);
+    return response.data;
+  },
+  updateUser: async (userId, data) => {
+    const response = await api.put(`/account-management/users/${userId}`, data);
+    return response.data;
+  },
+  archiveUser: async (userId) => {
+    const response = await api.patch(`/account-management/users/${userId}/archive`);
+    return response.data;
+  },
+  restoreUser: async (userId) => {
+    const response = await api.patch(`/account-management/users/${userId}/restore`);
+    return response.data;
+  },
+  resetPassword: async (userId, newPassword) => {
+    const response = await api.patch(`/account-management/users/${userId}/reset-password`, { newPassword });
+    return response.data;
+  },
 };
 
 export default api;

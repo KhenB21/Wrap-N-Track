@@ -10,275 +10,136 @@ import {
 } from "react-native";
 import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useOrders } from "../Context/OrdersContext";
+import { customerOrderAPI } from "../services/api";
 import { useTheme } from "../Context/ThemeContext";
+
+const STEP_ICONS = {
+  'order-placed': 'clipboard-text-outline',
+  'order-paid': 'credit-card-outline',
+  'order-shipped': 'truck-outline',
+  'order-received': 'home-outline',
+};
 
 export default function OrderTrackingScreen({ navigation, route }) {
   const { orderId } = route.params || {};
-  const { getOrder, orders, loading, error } = useOrders();
   const { darkMode } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
-  const [order, setOrder] = useState(null);
+  const [tracking, setTracking] = useState(null);
 
   useEffect(() => {
     if (orderId) {
-      loadOrder();
+      loadTracking();
     }
   }, [orderId]);
 
-  const loadOrder = async () => {
+  const loadTracking = async () => {
     try {
-      const orderData = await getOrder(orderId);
-      setOrder(orderData);
+      const data = await customerOrderAPI.getOrderTracking(orderId);
+      setTracking(data.tracking || data);
     } catch (error) {
-      console.error("Error loading order:", error);
-      Alert.alert("Error", "Failed to load order details");
+      console.error("Error loading tracking:", error);
+      Alert.alert("Error", "Failed to load order tracking");
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await loadOrder();
+      await loadTracking();
     } catch (error) {
-      console.error("Error refreshing order:", error);
+      console.error("Error refreshing tracking:", error);
     } finally {
       setRefreshing(false);
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-        return '#FFA726';
-      case 'confirmed':
-        return '#42A5F5';
-      case 'processing':
-        return '#AB47BC';
-      case 'shipped':
-        return '#66BB6A';
-      case 'delivered':
-        return '#4CAF50';
-      case 'cancelled':
-        return '#EF5350';
-      default:
-        return darkMode ? '#B0B3B8' : '#6B6593';
-    }
-  };
+  const getStepColor = (completed) => completed ? '#6B6593' : (darkMode ? '#393A3B' : '#EDECF3');
+  const getStepIconColor = (completed) => completed ? '#fff' : (darkMode ? '#B0B3B8' : '#6B6593');
 
-  const getStatusIcon = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-        return 'clock-outline';
-      case 'confirmed':
-        return 'check-circle-outline';
-      case 'processing':
-        return 'cog-outline';
-      case 'shipped':
-        return 'truck-outline';
-      case 'delivered':
-        return 'check-circle';
-      case 'cancelled':
-        return 'close-circle-outline';
-      default:
-        return 'help-circle-outline';
-    }
-  };
+  const bg = darkMode ? "#18191A" : "#F5F4FA";
+  const card = darkMode ? "#242526" : "#fff";
+  const text = darkMode ? "#E4E6EB" : "#222";
+  const sub = darkMode ? "#B0B3B8" : "#6B6593";
 
-  const getStatusSteps = () => {
-    const statuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
-    const currentStatus = order?.status?.toLowerCase();
-    const currentIndex = statuses.indexOf(currentStatus);
-    
-    return statuses.map((status, index) => ({
-      status,
-      completed: index <= currentIndex,
-      current: index === currentIndex,
-    }));
-  };
-
-  if (!order) {
+  if (!tracking) {
     return (
-      <View style={[styles.container, { backgroundColor: darkMode ? "#18191A" : "#F5F4FA" }]}>
-        <Header
-          showBack
-          showCart
-          logoType="image"
-          onBackPress={() => navigation.goBack()}
-          onCartPress={() => navigation.navigate("MyCart")}
-          darkMode={darkMode}
-        />
+      <View style={[styles.container, { backgroundColor: bg }]}>
+        <Header showBack showCart logoType="image" onBackPress={() => navigation.goBack()} onCartPress={() => navigation.navigate("MyCart")} darkMode={darkMode} />
         <View style={styles.loadingContainer}>
-          <MaterialCommunityIcons name="loading" size={32} color={darkMode ? "#B0B3B8" : "#6B6593"} />
-          <Text style={[styles.loadingText, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-            Loading order details...
-          </Text>
+          <MaterialCommunityIcons name="loading" size={32} color={sub} />
+          <Text style={[styles.loadingText, { color: sub }]}>Loading tracking...</Text>
         </View>
       </View>
     );
   }
 
+  const steps = tracking.steps || [];
+  const currentStage = tracking.currentStage;
+
   return (
-    <View style={[styles.container, { backgroundColor: darkMode ? "#18191A" : "#F5F4FA" }]}>
-      <Header
-        showBack
-        showCart
-        logoType="image"
-        onBackPress={() => navigation.goBack()}
-        onCartPress={() => navigation.navigate("MyCart")}
-        darkMode={darkMode}
-      />
-      
-      <ScrollView 
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
+    <View style={[styles.container, { backgroundColor: bg }]}>
+      <Header showBack showCart logoType="image" onBackPress={() => navigation.goBack()} onCartPress={() => navigation.navigate("MyCart")} darkMode={darkMode} />
+
+      <ScrollView style={styles.scrollView} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {/* Order Header */}
-        <View style={[styles.section, { backgroundColor: darkMode ? "#242526" : "#fff" }]}>
+        <View style={[styles.section, { backgroundColor: card }]}>
           <View style={styles.orderHeader}>
-            <Text style={[styles.orderId, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-              Order #{order.order_id || order.id}
-            </Text>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}>
-              <Text style={styles.statusText}>
-                {order.status?.toUpperCase()}
-              </Text>
+            <Text style={[styles.orderId, { color: text }]}>Order #{tracking.orderId}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: '#6B6593' }]}>
+              <Text style={styles.statusText}>{currentStage?.toUpperCase().replace(/-/g, ' ')}</Text>
             </View>
           </View>
-          <Text style={[styles.orderDate, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-            Placed on {new Date(order.created_at || order.order_date).toLocaleDateString()}
-          </Text>
+          {tracking.expectedDelivery && (
+            <Text style={[styles.orderDate, { color: sub }]}>
+              Expected: {tracking.expectedDelivery}
+            </Text>
+          )}
+          {tracking.shippingAddress && (
+            <Text style={[styles.orderDate, { color: sub }]}>
+              To: {tracking.shippingAddress}
+            </Text>
+          )}
         </View>
 
         {/* Status Timeline */}
-        <View style={[styles.section, { backgroundColor: darkMode ? "#242526" : "#fff" }]}>
-          <Text style={[styles.sectionTitle, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-            Order Status
-          </Text>
+        <View style={[styles.section, { backgroundColor: card }]}>
+          <Text style={[styles.sectionTitle, { color: text }]}>Order Tracking</Text>
           <View style={styles.timeline}>
-            {getStatusSteps().map((step, index) => (
-              <View key={step.status} style={styles.timelineItem}>
-                <View style={[
-                  styles.timelineIcon,
-                  { 
-                    backgroundColor: step.completed ? getStatusColor(step.status) : (darkMode ? "#393A3B" : "#EDECF3"),
-                    borderColor: step.completed ? getStatusColor(step.status) : (darkMode ? "#393A3B" : "#EDECF3"),
-                  }
-                ]}>
-                  <MaterialCommunityIcons 
-                    name={getStatusIcon(step.status)} 
-                    size={16} 
-                    color={step.completed ? "#fff" : (darkMode ? "#B0B3B8" : "#6B6593")} 
+            {steps.map((step, index) => (
+              <View key={step.id} style={styles.timelineItem}>
+                <View style={[styles.timelineIcon, { backgroundColor: getStepColor(step.completed), borderColor: getStepColor(step.completed) }]}>
+                  <MaterialCommunityIcons
+                    name={STEP_ICONS[step.id] || 'circle-outline'}
+                    size={16}
+                    color={getStepIconColor(step.completed)}
                   />
                 </View>
                 <View style={styles.timelineContent}>
-                  <Text style={[
-                    styles.timelineStatus,
-                    { 
-                      color: step.completed ? (darkMode ? "#E4E6EB" : "#222") : (darkMode ? "#B0B3B8" : "#6B6593"),
-                      fontWeight: step.current ? 'bold' : 'normal'
-                    }
-                  ]}>
-                    {step.status.charAt(0).toUpperCase() + step.status.slice(1)}
+                  <Text style={[styles.timelineStatus, { color: step.completed ? text : sub, fontWeight: step.status === 'current' ? 'bold' : 'normal' }]}>
+                    {step.title}
                   </Text>
-                  {step.current && (
-                    <Text style={[styles.timelineDescription, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-                      Current status
+                  {step.description ? (
+                    <Text style={[styles.timelineDescription, { color: sub }]}>{step.description}</Text>
+                  ) : null}
+                  {step.timestamp ? (
+                    <Text style={[styles.timelineDescription, { color: sub }]}>
+                      {new Date(step.timestamp).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </Text>
-                  )}
+                  ) : null}
                 </View>
-                {index < getStatusSteps().length - 1 && (
-                  <View style={[
-                    styles.timelineLine,
-                    { 
-                      backgroundColor: step.completed ? getStatusColor(step.status) : (darkMode ? "#393A3B" : "#EDECF3")
-                    }
-                  ]} />
+                {index < steps.length - 1 && (
+                  <View style={[styles.timelineLine, { backgroundColor: step.completed ? '#6B6593' : (darkMode ? "#393A3B" : "#EDECF3") }]} />
                 )}
               </View>
             ))}
           </View>
         </View>
 
-        {/* Order Items */}
-        <View style={[styles.section, { backgroundColor: darkMode ? "#242526" : "#fff" }]}>
-          <Text style={[styles.sectionTitle, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-            Order Items
-          </Text>
-          {order.items?.map((item, index) => (
-            <View key={index} style={styles.orderItem}>
-              <View style={styles.itemInfo}>
-                <Text style={[styles.itemName, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-                  {item.name || item.product_name}
-                </Text>
-                <Text style={[styles.itemSku, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-                  SKU: {item.sku}
-                </Text>
-              </View>
-              <View style={styles.itemDetails}>
-                <Text style={[styles.itemQuantity, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-                  Qty: {item.quantity}
-                </Text>
-                <Text style={[styles.itemPrice, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-                  ₱{parseFloat(item.unit_price || item.price).toFixed(2)}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* Order Summary */}
-        <View style={[styles.section, { backgroundColor: darkMode ? "#242526" : "#fff" }]}>
-          <Text style={[styles.sectionTitle, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-            Order Summary
-          </Text>
-          <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-              Subtotal:
-            </Text>
-            <Text style={[styles.summaryValue, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-              ₱{parseFloat(order.subtotal || order.total_amount).toFixed(2)}
-            </Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-              Delivery Fee:
-            </Text>
-            <Text style={[styles.summaryValue, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-              ₱{parseFloat(order.delivery_fee || 0).toFixed(2)}
-            </Text>
-          </View>
-          <View style={[styles.summaryRow, styles.totalRow]}>
-            <Text style={[styles.totalLabel, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-              Total:
-            </Text>
-            <Text style={[styles.totalValue, { color: darkMode ? "#fff" : "#222" }]}>
-              ₱{parseFloat(order.total_amount).toFixed(2)}
-            </Text>
-          </View>
-        </View>
-
-        {/* Customer Information */}
-        {order.customer_info && (
-          <View style={[styles.section, { backgroundColor: darkMode ? "#242526" : "#fff" }]}>
-            <Text style={[styles.sectionTitle, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-              Delivery Information
-            </Text>
-            <View style={styles.customerInfo}>
-              <Text style={[styles.customerName, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-                {order.customer_info.name}
-              </Text>
-              <Text style={[styles.customerDetail, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-                {order.customer_info.email}
-              </Text>
-              <Text style={[styles.customerDetail, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-                {order.customer_info.phone}
-              </Text>
-              <Text style={[styles.customerAddress, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-                {order.customer_info.address}
-              </Text>
+        {tracking.totalCost != null && (
+          <View style={[styles.section, { backgroundColor: card }]}>
+            <View style={[styles.summaryRow, styles.totalRow]}>
+              <Text style={[styles.totalLabel, { color: text }]}>Order Total:</Text>
+              <Text style={[styles.totalValue, { color: text }]}>₱{parseFloat(tracking.totalCost).toFixed(2)}</Text>
             </View>
           </View>
         )}

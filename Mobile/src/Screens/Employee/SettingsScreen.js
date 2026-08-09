@@ -14,9 +14,12 @@ import { Card, List, Button, Divider } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useAuth } from '../../Context/AuthContext';
 
+const ADMIN_ROLES = ['admin', 'super_admin'];
+
 export default function SettingsScreen({ navigation }) {
   const theme = useTheme();
   const { user, logout } = useAuth();
+  const canManageAccounts = ADMIN_ROLES.includes(user?.role);
   const { darkMode, setDarkMode } = useTheme();
   
   const [locationEnabled, setLocationEnabled] = useState(false);
@@ -233,6 +236,34 @@ export default function SettingsScreen({ navigation }) {
     </Card>
   );
 
+  const renderManagementSettings = () => (
+    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+      <Card.Content>
+        <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+          Management
+        </Text>
+
+        <List.Item
+          title="Notifications"
+          description="View and manage your notifications"
+          left={(props) => <List.Icon {...props} icon="bell-outline" />}
+          right={(props) => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('Notifications')}
+        />
+
+        {canManageAccounts && (
+          <List.Item
+            title="Account Management"
+            description="Manage employee accounts and roles"
+            left={(props) => <List.Icon {...props} icon="account-cog-outline" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => navigation.navigate('AccountManagement')}
+          />
+        )}
+      </Card.Content>
+    </Card>
+  );
+
   const renderSupportSettings = () => (
     <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
       <Card.Content>
@@ -294,6 +325,9 @@ export default function SettingsScreen({ navigation }) {
 
         {/* Data Settings */}
         {renderDataSettings()}
+
+        {/* Management Settings */}
+        {renderManagementSettings()}
 
         {/* Support Settings */}
         {renderSupportSettings()}

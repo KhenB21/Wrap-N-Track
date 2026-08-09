@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authAPI } from '../services/api';
+import { authAPI, setLogoutHandler } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -163,7 +163,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Logout function
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       // Clear AsyncStorage
       await AsyncStorage.multiRemove(['authToken', 'userData', 'userType', 'profileData']);
@@ -174,7 +174,12 @@ export const AuthProvider = ({ children }) => {
       // Still dispatch logout even if AsyncStorage fails
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
-  };
+  }, []);
+
+  // Register logout with the API interceptor so 401s trigger a proper auth reset
+  useEffect(() => {
+    setLogoutHandler(logout);
+  }, [logout]);
 
   const updateUser = async (userUpdates) => {
     const updatedUser = { ...(state.user || {}), ...userUpdates };

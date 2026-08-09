@@ -12,7 +12,7 @@ import {
   TextInput
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button } from 'react-native-paper';
+import { Button, Chip } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { supplierAPI } from '../../services/api';

@@ -10,23 +10,40 @@ import {
 } from "react-native";
 import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useOrders } from "../Context/OrdersContext";
+import { customerOrderAPI } from "../services/api";
 import { useTheme } from "../Context/ThemeContext";
 
 export default function OrderHistoryScreen({ navigation }) {
-  const { orders, loading, error, loadOrders, getOrdersByStatus } = useOrders();
   const { darkMode } = useTheme();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("all");
 
   useEffect(() => {
-    loadOrders();
+    fetchMyOrders();
   }, []);
+
+  const fetchMyOrders = async () => {
+    setLoading(true);
+    try {
+      const data = await customerOrderAPI.getMyOrders();
+      setOrders(Array.isArray(data) ? data : (data.orders || []));
+    } catch (error) {
+      console.error("Error loading orders:", error);
+      Alert.alert("Error", "Failed to load your orders");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getOrdersByStatus = (status) =>
+    orders.filter((o) => o.status?.toLowerCase() === status.toLowerCase());
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await loadOrders();
+      await fetchMyOrders();
     } catch (error) {
       console.error("Error refreshing orders:", error);
     } finally {
