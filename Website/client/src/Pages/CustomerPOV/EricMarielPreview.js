@@ -1,8 +1,8 @@
 /* eslint-disable no-undef */
-import React, { useState, useEffect } from 'react';
-import TopbarCustomer from '../../Components/TopbarCustomer';
-import './CustomerPOV.css';
-import api from '../../api';
+import React, { useState } from "react";
+import TopbarCustomer from "../../Components/TopbarCustomer";
+import "./CustomerPOV.css";
+import api from "../../api";
 
 function generateOrderId() {
   const now = Date.now();
@@ -34,7 +34,8 @@ export default function DanielPreview() {
   const [error, setError] = useState("");
 
   React.useEffect(() => {
-    api.get(`/api/inventory`)
+    api
+      .get(`/api/inventory`)
       .then((res) => setInventory(res.data))
       .catch(() => setInventory([]));
   }, []);
@@ -61,7 +62,7 @@ export default function DanielPreview() {
     const products = defaultProductNames
       .map((name) => {
         const inventoryItem = inventory.find(
-          (item) => item.name.toLowerCase() === name.toLowerCase()
+          (item) => item.name.toLowerCase() === name.toLowerCase(),
         );
         return {
           sku: inventoryItem?.sku || null,
@@ -98,7 +99,7 @@ export default function DanielPreview() {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Failed to submit order. Please try again."
+          "Failed to submit order. Please try again.",
       );
     }
   };
