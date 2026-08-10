@@ -18,6 +18,7 @@ import { useTheme } from '../../Context/ThemeContext';
 import { useInventory } from '../../Context/InventoryContext';
 import { useAuth } from '../../Context/AuthContext';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import Toast from '../../Components/Toast';
 
 const { width } = Dimensions.get('window');
 
@@ -44,12 +45,46 @@ export default function InventoryListScreen() {
     searchProducts,
     filterProducts,
     deleteProduct,
-    clearError
+    clearError,
+    realtimeStatus,
+    lastRealtimeEvent
   } = useInventory();
 
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
+  const [rtFlashSku, setRtFlashSku] = useState(null);
+  const [rtToast, setRtToast] = useState('');
+
+  // Flash the row + toast "who changed what" for events from OTHER employees —
+  // the person who made the change already got their own success feedback.
+  useEffect(() => {
+    if (!lastRealtimeEvent?.sku) return;
+    setRtFlashSku(lastRealtimeEvent.sku);
+    const t = setTimeout(() => setRtFlashSku(null), 2500);
+    return () => clearTimeout(t);
+  }, [lastRealtimeEvent]);
+
+  useEffect(() => {
+    if (!lastRealtimeEvent) return;
+    const myId = user?.user_id;
+    const evt = lastRealtimeEvent;
+    if (!evt.updatedBy?.name || String(evt.updatedBy.id) === String(myId)) return;
+
+    const productName = evt.product?.name || evt.sku;
+    let message = null;
+    if (evt.type === 'inventory_update' && evt.adjustmentType && evt.adjustmentType !== 'DETAILS') {
+      const sign = evt.adjustmentType === 'ADD' ? '+' : '-';
+      message = `${sign}${Math.abs(evt.adjustmentQuantity || 0)} units: ${productName} by ${evt.updatedBy.name}`;
+    } else if (evt.type === 'inventory_created') {
+      message = `${productName} added by ${evt.updatedBy.name}`;
+    } else if (evt.type === 'inventory_archived') {
+      message = `${productName} archived by ${evt.updatedBy.name}`;
+    } else if (evt.type === 'inventory_restored') {
+      message = `${productName} restored by ${evt.updatedBy.name}`;
+    }
+    if (message) setRtToast(message);
+  }, [lastRealtimeEvent]);
   const inventoryManagerRoles = ['operations_manager', 'sales_manager', 'admin', 'super_admin', 'director'];
   const canManageInventory = userType === 'employee' && inventoryManagerRoles.includes(String(user?.role || '').toLowerCase());
 
@@ -190,15 +225,16 @@ export default function InventoryListScreen() {
   const renderProductItem = ({ item }) => {
     const stockLevel = getStockLevel(item);
     const isSelected = selectedItems.has(item.sku);
+    const isFlashing = rtFlashSku === item.sku;
 
     return (
       <TouchableOpacity
         style={[
           styles.productCard,
-          { 
-            backgroundColor: theme.colors.surface,
-            borderColor: isSelected ? theme.colors.primary : theme.colors.outline,
-            borderWidth: isSelected ? 2 : 1
+          {
+            backgroundColor: isFlashing ? 'rgba(33, 150, 243, 0.15)' : theme.colors.surface,
+            borderColor: isSelected ? theme.colors.primary : (isFlashing ? '#2196F3' : theme.colors.outline),
+            borderWidth: isSelected || isFlashing ? 2 : 1
           }
         ]}
         onPress={() => handleItemPress(item)}
@@ -346,6 +382,15 @@ export default function InventoryListScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
+      <View style={styles.rtStatusRow}>
+        <View style={[
+          styles.rtStatusDot,
+          { backgroundColor: realtimeStatus === 'live' ? '#4CAF50' : realtimeStatus === 'offline' ? '#9E9E9E' : '#F57C00' }
+        ]} />
+        <Text style={[styles.rtStatusText, { color: theme.colors.onSurfaceVariant }]}>
+          {realtimeStatus === 'live' ? 'Live' : realtimeStatus === 'reconnecting' ? 'Reconnecting…' : realtimeStatus === 'offline' ? 'Offline' : 'Connecting…'}
+        </Text>
+      </View>
       <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
         <TextInput
           placeholder="Search products..."
@@ -366,6 +411,23 @@ export default function InventoryListScreen() {
             onPress={() => navigation.navigate('InventoryScanner')}
           >
             <MaterialCommunityIcons name="barcode-scan" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
+        {canManageInventory && (
+          <TouchableOpacity
+            style={[styles.filterButton, { backgroundColor: '#696a8f', marginLeft: 6 }]}
+            onPress={() => navigation.navigate('StockAdjustScanner')}
+          >
+            <MaterialCommunityIcons name="package-variant-closed" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
+        {canManageInventory && (
+          <TouchableOpacity
+            style={[styles.filterButton, { backgroundColor: '#1565C0', marginLeft: 6 }]}
+            onPress={() => navigation.navigate('RemoteScanner')}
+            title="Use this phone as a scanner for the web dashboard"
+          >
+            <MaterialCommunityIcons name="cellphone-link" size={20} color="#fff" />
           </TouchableOpacity>
         )}
       </View>
@@ -437,6 +499,13 @@ export default function InventoryListScreen() {
 
       {/* Filter Modal */}
       {renderFilterModal()}
+
+      <Toast
+        visible={!!rtToast}
+        message={rtToast}
+        onHide={() => setRtToast('')}
+        duration={3000}
+      />
     </View>
   );
 }
@@ -454,6 +523,22 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+  },
+  rtStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  rtStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  rtStatusText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   searchBar: {
     flex: 1,

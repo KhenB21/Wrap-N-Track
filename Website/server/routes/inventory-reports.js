@@ -12,7 +12,7 @@ router.get('/summary', async (req, res) => {
         SUM(quantity * unit_price) as total_value,
         AVG(quantity * unit_price) as avg_item_value,
         COUNT(CASE WHEN quantity <= COALESCE(reorder_level, CEIL(quantity * 0.2)) THEN 1 END) as low_stock_count,
-        COUNT(CASE WHEN expiration_date IS NOT NULL AND expiration_date <= CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_count
+        COUNT(CASE WHEN expiration IS NOT NULL AND expiration <= CURRENT_DATE + INTERVAL '30 days' THEN 1 END) as expiring_count
       FROM inventory_items 
       WHERE is_active = true
     `);
@@ -104,14 +104,14 @@ router.get('/expiring', async (req, res) => {
         category,
         quantity,
         unit_price,
-        expiration_date,
+        expiration,
         (quantity * unit_price) as total_value,
-        (expiration_date - CURRENT_DATE) as days_until_expiration
-      FROM inventory_items 
-      WHERE is_active = true 
-        AND expiration_date IS NOT NULL 
-        AND expiration_date <= CURRENT_DATE + INTERVAL '${parseInt(days)} days'
-      ORDER BY expiration_date ASC
+        (expiration - CURRENT_DATE) as days_until_expiration
+      FROM inventory_items
+      WHERE is_active = true
+        AND expiration IS NOT NULL
+        AND expiration <= CURRENT_DATE + INTERVAL '${parseInt(days)} days'
+      ORDER BY expiration ASC
     `);
     
     res.json({
@@ -703,15 +703,43 @@ router.post('/test-data/insert', async (req, res) => {
     
     try {
       await client.query('BEGIN');
-      
-      // Insert test orders with different movement patterns
+
+      const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
+      // Realistic gift-shop products spanning healthy / low / zero stock, so
+      // the report's stock KPIs and category chart have real variation to show.
+      const testProducts = [
+        { sku: 'TEST-GFT-001', name: 'Premium Gift Box', category: 'Gift Boxes', quantity: 120, unit_price: 350.00, reorder_level: 30 },
+        { sku: 'TEST-GFT-002', name: 'Kraft Gift Box', category: 'Gift Boxes', quantity: 8, unit_price: 180.00, reorder_level: 20 },
+        { sku: 'TEST-RIB-001', name: 'Satin Ribbon (5m roll)', category: 'Wrapping Supplies', quantity: 0, unit_price: 95.00, reorder_level: 25 },
+        { sku: 'TEST-MUG-001', name: 'Personalized Mug', category: 'Personalized Gifts', quantity: 45, unit_price: 275.00, reorder_level: 15 },
+        { sku: 'TEST-KEY-001', name: 'Acrylic Keychain', category: 'Personalized Gifts', quantity: 3, unit_price: 65.00, reorder_level: 20 },
+        { sku: 'TEST-FLR-001', name: 'Floral Gift Set', category: 'Gift Sets', quantity: 15, unit_price: 620.00, reorder_level: 10 },
+        { sku: 'TEST-WED-001', name: 'Wedding Invitation Set', category: 'Wedding', quantity: 72, unit_price: 45.00, reorder_level: 50 },
+        { sku: 'TEST-COR-001', name: 'Corporate Gift Bundle', category: 'Corporate', quantity: 22, unit_price: 950.00, reorder_level: 8 },
+        { sku: 'TEST-TOT-001', name: 'Custom Tote Bag', category: 'Personalized Gifts', quantity: 60, unit_price: 220.00, reorder_level: 15 },
+        { sku: 'TEST-CRD-001', name: 'Greeting Card', category: 'Wrapping Supplies', quantity: 200, unit_price: 25.00, reorder_level: 40 },
+        { sku: 'TEST-WRP-001', name: 'Gift Wrapping Paper', category: 'Wrapping Supplies', quantity: 5, unit_price: 55.00, reorder_level: 30 },
+        { sku: 'TEST-STK-001', name: 'Decorative Sticker Set', category: 'Wrapping Supplies', quantity: 0, unit_price: 40.00, reorder_level: 25 }
+      ];
+      for (const p of testProducts) {
+        await client.query(`
+          INSERT INTO inventory_items (sku, name, description, quantity, unit_price, category, reorder_level)
+          VALUES ($1, $2, 'Temporary test data — safe to delete', $3, $4, $5, $6)
+          ON CONFLICT (sku) DO NOTHING
+        `, [p.sku, p.name, p.quantity, p.unit_price, p.category, p.reorder_level]);
+      }
+
+      // Insert test orders with different movement patterns, spread across the
+      // last ~90 days so date-based charts (trends, movement, turnover) have
+      // real variation instead of everything landing on "today".
       const testOrders = [
-        // Fast moving items (high sales)
+        // Fast moving items (high sales, recent)
         {
           order_id: 'TEST-FAST-001',
           name: 'Test Customer Fast',
           shipped_to: 'Test Address',
-          order_date: new Date(),
+          order_date: daysAgo(2),
           status: 'Completed',
           shipping_address: 'Test Address',
           total_cost: 150.00,
@@ -725,7 +753,7 @@ router.post('/test-data/insert', async (req, res) => {
           order_id: 'TEST-FAST-002',
           name: 'Test Customer Fast 2',
           shipped_to: 'Test Address 2',
-          order_date: new Date(),
+          order_date: daysAgo(5),
           status: 'Completed',
           shipping_address: 'Test Address 2',
           total_cost: 200.00,
@@ -735,12 +763,12 @@ router.post('/test-data/insert', async (req, res) => {
           cellphone: '123-456-7891',
           email_address: 'testfast2@example.com'
         },
-        // Moderate moving items (medium sales)
+        // Moderate moving items (medium sales, mid-range)
         {
           order_id: 'TEST-MOD-001',
           name: 'Test Customer Mod',
           shipped_to: 'Test Address',
-          order_date: new Date(),
+          order_date: daysAgo(30),
           status: 'Completed',
           shipping_address: 'Test Address',
           total_cost: 75.00,
@@ -750,12 +778,12 @@ router.post('/test-data/insert', async (req, res) => {
           cellphone: '123-456-7892',
           email_address: 'testmod@example.com'
         },
-        // Slow moving items (low sales)
+        // Slow moving items (low sales, older)
         {
           order_id: 'TEST-SLOW-001',
           name: 'Test Customer Slow',
           shipped_to: 'Test Address',
-          order_date: new Date(),
+          order_date: daysAgo(75),
           status: 'Completed',
           shipping_address: 'Test Address',
           total_cost: 25.00,
@@ -776,33 +804,23 @@ router.post('/test-data/insert', async (req, res) => {
         `, [order.order_id, order.name, order.shipped_to, order.order_date, order.status, order.shipping_address, order.total_cost, order.payment_type, order.payment_method, order.telephone, order.cellphone, order.email_address]);
       }
       
-      // Get some existing inventory items to use for test data
-      const inventoryItems = await client.query(`
-        SELECT sku, name, unit_price FROM inventory_items 
-        WHERE is_active = true 
-        ORDER BY sku 
-        LIMIT 10
-      `);
-      
-      if (inventoryItems.rows.length === 0) {
-        throw new Error('No inventory items found to create test data');
-      }
-      
-      // Insert order products with different quantities to simulate movement patterns
+      // Insert order products with different quantities to simulate movement patterns.
+      // Uses the realistic test SKUs inserted above, so this doesn't depend on
+      // whatever real inventory happens to exist.
       const testOrderProducts = [
         // Fast moving - high quantities
-        { order_id: 'TEST-FAST-001', sku: inventoryItems.rows[0].sku, quantity: 15 },
-        { order_id: 'TEST-FAST-001', sku: inventoryItems.rows[1].sku, quantity: 12 },
-        { order_id: 'TEST-FAST-002', sku: inventoryItems.rows[0].sku, quantity: 20 },
-        { order_id: 'TEST-FAST-002', sku: inventoryItems.rows[2].sku, quantity: 18 },
-        
+        { order_id: 'TEST-FAST-001', sku: 'TEST-GFT-001', quantity: 15 },
+        { order_id: 'TEST-FAST-001', sku: 'TEST-MUG-001', quantity: 12 },
+        { order_id: 'TEST-FAST-002', sku: 'TEST-GFT-001', quantity: 20 },
+        { order_id: 'TEST-FAST-002', sku: 'TEST-TOT-001', quantity: 18 },
+
         // Moderate moving - medium quantities
-        { order_id: 'TEST-MOD-001', sku: inventoryItems.rows[3].sku, quantity: 5 },
-        { order_id: 'TEST-MOD-001', sku: inventoryItems.rows[4].sku, quantity: 3 },
-        
+        { order_id: 'TEST-MOD-001', sku: 'TEST-FLR-001', quantity: 5 },
+        { order_id: 'TEST-MOD-001', sku: 'TEST-WED-001', quantity: 3 },
+
         // Slow moving - low quantities
-        { order_id: 'TEST-SLOW-001', sku: inventoryItems.rows[5].sku, quantity: 1 },
-        { order_id: 'TEST-SLOW-001', sku: inventoryItems.rows[6].sku, quantity: 2 }
+        { order_id: 'TEST-SLOW-001', sku: 'TEST-COR-001', quantity: 1 },
+        { order_id: 'TEST-SLOW-001', sku: 'TEST-CRD-001', quantity: 2 }
       ];
       
       // Insert order products
@@ -812,16 +830,50 @@ router.post('/test-data/insert', async (req, res) => {
           VALUES ($1, $2, $3)
         `, [product.order_id, product.sku, product.quantity]);
       }
-      
+
+      // ── TEST DATA — TEMPORARY ──────────────────────────────────────────
+      // Extra orders covering Pending/Cancelled statuses, so the Sales Overview
+      // "Orders by Status" and Completed/Pending/Cancelled KPIs have something
+      // to show beyond the all-Completed set above. Remove via /test-data/clear.
+      const extraStatusOrders = [
+        { order_id: 'TEST-PENDING-001', name: 'Test Customer Pending', status: 'Order Placed', total_cost: 120.00, order_date: daysAgo(1) },
+        { order_id: 'TEST-PENDING-002', name: 'Test Customer Pending 2', status: 'To Be Packed', total_cost: 95.00, order_date: daysAgo(3) },
+        { order_id: 'TEST-CANCELLED-001', name: 'Test Customer Cancelled', status: 'Cancelled', total_cost: 60.00, order_date: daysAgo(10) }
+      ];
+      for (const order of extraStatusOrders) {
+        await client.query(`
+          INSERT INTO orders (order_id, name, shipped_to, order_date, status, shipping_address, total_cost, payment_type, payment_method, telephone, cellphone, email_address)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, 'Cash', 'Cash', '123-456-0000', '123-456-0000', 'testextra@example.com')
+          ON CONFLICT (order_id) DO NOTHING
+        `, [order.order_id, order.name, order.name, order.order_date, order.status, order.name, order.total_cost]);
+      }
+
+      // Invoices for two TEST-FAST orders — one fully paid, one partially paid —
+      // so Paid Amount / Outstanding Payments KPIs have non-zero demo values.
+      await client.query(`
+        INSERT INTO invoices (invoice_number, order_id, invoice_type, status, subtotal, total_order_amount, amount_due, amount_paid)
+        VALUES ($1, $2, 'DOWN_PAYMENT', 'PAID', $3, $3, 0, $3)
+        ON CONFLICT (invoice_number) DO NOTHING
+      `, ['TEST-INV-PAID-001', 'TEST-FAST-001', 150.00]);
+
+      await client.query(`
+        INSERT INTO invoices (invoice_number, order_id, invoice_type, status, subtotal, total_order_amount, amount_due, amount_paid)
+        VALUES ($1, $2, 'DOWN_PAYMENT', 'UNPAID', $3, $3, $4, $5)
+        ON CONFLICT (invoice_number) DO NOTHING
+      `, ['TEST-INV-PARTIAL-001', 'TEST-FAST-002', 200.00, 100.00, 100.00]);
+
+      // ── END TEST DATA ───────────────────────────────────────────────────
+
       await client.query('COMMIT');
-      
+
       res.json({
         success: true,
         message: 'Test data inserted successfully',
         data: {
-          orders_inserted: testOrders.length,
+          orders_inserted: testOrders.length + extraStatusOrders.length,
           order_products_inserted: testOrderProducts.length,
-          inventory_items_used: inventoryItems.rows.length
+          test_inventory_items_created: testProducts.length,
+          test_invoices_created: 2
         }
       });
       
@@ -849,18 +901,24 @@ router.post('/test-data/clear', async (req, res) => {
     try {
       await client.query('BEGIN');
       
+      // Delete test invoices (must go before orders/order_products due to order_id references)
+      await client.query(`DELETE FROM invoices WHERE order_id LIKE 'TEST-%'`);
+
       // Delete test order products first (due to foreign key constraints)
       await client.query(`
-        DELETE FROM order_products 
+        DELETE FROM order_products
         WHERE order_id LIKE 'TEST-%'
       `);
-      
+
       // Delete test orders
       await client.query(`
-        DELETE FROM orders 
+        DELETE FROM orders
         WHERE order_id LIKE 'TEST-%'
       `);
-      
+
+      // Delete test inventory items
+      await client.query(`DELETE FROM inventory_items WHERE sku LIKE 'TEST-%'`);
+
       await client.query('COMMIT');
       
       res.json({

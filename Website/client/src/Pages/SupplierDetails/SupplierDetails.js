@@ -648,6 +648,20 @@ export default function SupplierDetails() {
     setError(null);
   };
 
+  const handleEmailSupplier = (supplier, event) => {
+    event.stopPropagation();
+    const email = (supplier.email_address || '').trim();
+    if (!email) {
+      setError(`${supplier.name} has no email address on file.`);
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError(`${supplier.name}'s email address ("${email}") looks invalid.`);
+      return;
+    }
+    window.location.href = `mailto:${email}`;
+  };
+
   const handleSupplierSelect = (supplier, event) => {
     if (event.shiftKey && selectedSuppliers.size > 0) {
       // Get the index of the last selected supplier
@@ -1331,8 +1345,15 @@ export default function SupplierDetails() {
                         <p className="supplier-id">#{supplier.supplier_id}</p>
                       </div>
                       <div className="card-actions">
-                        <button 
-                          className="action-btn edit-btn" 
+                        <button
+                          className="action-btn email-btn"
+                          onClick={(e) => handleEmailSupplier(supplier, e)}
+                          title="Email Supplier"
+                        >
+                          📧
+                        </button>
+                        <button
+                          className="action-btn edit-btn"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEdit(supplier);

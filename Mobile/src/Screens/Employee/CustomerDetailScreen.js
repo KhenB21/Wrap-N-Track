@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Dimensions
+  Dimensions,
+  Linking
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, Chip, Avatar, Divider } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useFocusEffect } from '@react-navigation/native';
 import { customerAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
@@ -30,6 +31,16 @@ export default function CustomerDetailScreen({ navigation }) {
       fetchCustomerDetails();
     }
   }, [initialCustomer?.customer_id]);
+
+  // Re-fetch on focus so returning from AddEditCustomerScreen (e.g. after
+  // toggling Active/Inactive) shows the saved state, not the stale param.
+  useFocusEffect(
+    useCallback(() => {
+      if (initialCustomer?.customer_id) {
+        fetchCustomerDetails();
+      }
+    }, [initialCustomer?.customer_id])
+  );
 
   const fetchCustomerDetails = async () => {
     try {
@@ -75,44 +86,50 @@ export default function CustomerDetailScreen({ navigation }) {
     );
   };
 
+  const customerPhone = customer.cellphone || customer.phone_number;
+
   const handleCall = () => {
-    if (customer.phone_number) {
-      Alert.alert(
-        'Call Customer',
-        `Call ${customer.name} at ${customer.phone_number}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Call', 
-            onPress: () => {
-              Alert.alert('Call', 'Phone call functionality would be implemented here');
-            }
-          }
-        ]
-      );
-    } else {
+    if (!customerPhone) {
       Alert.alert('No Phone Number', 'Customer phone number is not available');
+      return;
     }
+    Alert.alert(
+      'Call Customer',
+      `Call ${customer.name} at ${customerPhone}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Call',
+          onPress: () => {
+            Linking.openURL(`tel:${customerPhone}`).catch(() =>
+              Alert.alert('Error', 'Unable to open the phone dialer on this device')
+            );
+          }
+        }
+      ]
+    );
   };
 
   const handleEmail = () => {
-    if (customer.email_address) {
-      Alert.alert(
-        'Email Customer',
-        `Send email to ${customer.name} at ${customer.email_address}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Email', 
-            onPress: () => {
-              Alert.alert('Email', 'Email functionality would be implemented here');
-            }
-          }
-        ]
-      );
-    } else {
+    if (!customer.email_address) {
       Alert.alert('No Email', 'Customer email address is not available');
+      return;
     }
+    Alert.alert(
+      'Email Customer',
+      `Send email to ${customer.name} at ${customer.email_address}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Email',
+          onPress: () => {
+            Linking.openURL(`mailto:${customer.email_address}`).catch(() =>
+              Alert.alert('Error', 'No email app is available on this device')
+            );
+          }
+        }
+      ]
+    );
   };
 
   const formatCurrency = (amount) => {
@@ -164,8 +181,13 @@ export default function CustomerDetailScreen({ navigation }) {
               {customer.email_address}
             </Text>
             <Text style={[styles.customerPhone, { color: theme.colors.onSurfaceVariant }]}>
-              {customer.phone_number || 'No phone number'}
+              {customerPhone || 'No phone number'}
             </Text>
+            {customer.address ? (
+              <Text style={[styles.customerPhone, { color: theme.colors.onSurfaceVariant }]} numberOfLines={2}>
+                {customer.address}
+              </Text>
+            ) : null}
             <Chip
               mode="outlined"
               style={[

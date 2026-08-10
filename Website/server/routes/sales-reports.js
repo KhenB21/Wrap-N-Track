@@ -46,14 +46,36 @@ router.get('/overview', async (req, res) => {
       FROM period_orders
     `, [defaultStartDate, defaultEndDate]);
 
-    // Get orders by status
+    // Get orders by status — grouped by the *actual* status strings used in the
+    // orders table (Order Placed, Order Paid, To Be Packed, Order Shipped Out,
+    // Ready for Delivery, Order Received, Completed, Cancelled), not a fixed
+    // pending/delivered/completed bucket set that most of those never matched.
     const ordersByStatus = await pool.query(`
-      SELECT 
+      SELECT
         status,
         COUNT(*) as count
-      FROM orders 
+      FROM orders
       WHERE order_date BETWEEN $1 AND $2
       GROUP BY status
+      ORDER BY count DESC
+    `, [defaultStartDate, defaultEndDate]);
+
+    // Payment status — sourced from invoices (the same table customer-orders.js
+    // uses for remaining_balance/total_verified_payments), joined per order within
+    // the period, so Outstanding Payments / Paid Amount reflect real invoice data.
+    const paymentSummary = await pool.query(`
+      SELECT
+        COALESCE(SUM(o.total_cost), 0) as total_order_value,
+        COALESCE(SUM(pay.amount_paid), 0) as paid_amount,
+        COALESCE(SUM(GREATEST(o.total_cost - pay.amount_paid, 0)), 0) as outstanding_amount
+      FROM orders o
+      LEFT JOIN LATERAL (
+        SELECT COALESCE(SUM(i.amount_paid), 0) as amount_paid
+        FROM invoices i
+        WHERE i.order_id = o.order_id::text AND i.status <> 'CANCELLED'
+      ) pay ON true
+      WHERE o.order_date BETWEEN $1 AND $2
+        AND o.status <> 'Cancelled'
     `, [defaultStartDate, defaultEndDate]);
 
     // Get previous period data for trend calculation
@@ -102,19 +124,19 @@ router.get('/overview', async (req, res) => {
       ? currentData.total_revenue / currentData.total_orders 
       : 0;
 
-    // Process orders by status
-    const statusData = {
-      pending: 0,
-      delivered: 0,
-      completed: 0
-    };
-
+    // Orders by status — real status strings as counted, e.g.
+    // { "Order Placed": 3, "Completed": 10, "Cancelled": 2 }
+    const statusData = {};
     ordersByStatus.rows.forEach(row => {
-      const status = row.status.toLowerCase();
-      if (status === 'pending') statusData.pending = parseInt(row.count);
-      else if (status === 'delivered') statusData.delivered = parseInt(row.count);
-      else if (status === 'completed') statusData.completed = parseInt(row.count);
+      statusData[row.status] = parseInt(row.count, 10);
     });
+    const completedCount = statusData['Completed'] || 0;
+    const cancelledCount = statusData['Cancelled'] || 0;
+    const pendingCount = Object.entries(statusData)
+      .filter(([status]) => status !== 'Completed' && status !== 'Cancelled')
+      .reduce((sum, [, count]) => sum + count, 0);
+
+    const payments = paymentSummary.rows[0];
 
     const responseData = {
       totalRevenue: parseFloat(currentData.total_revenue) || 0,
@@ -123,6 +145,11 @@ router.get('/overview', async (req, res) => {
       totalProfit: parseFloat(currentData.total_profit) || 0,
       totalUnitsSold: parseInt(currentData.total_units_sold) || 0,
       totalCustomers: parseInt(currentData.total_customers) || 0,
+      completedOrders: completedCount,
+      cancelledOrders: cancelledCount,
+      pendingOrders: pendingCount,
+      paidAmount: parseFloat(payments.paid_amount) || 0,
+      outstandingAmount: parseFloat(payments.outstanding_amount) || 0,
       ordersByStatus: statusData,
       revenueTrend,
       ordersTrend,
@@ -330,6 +357,170 @@ router.get('/trends', async (req, res) => {
       message: 'Failed to fetch sales trends',
       error: error.message
     });
+  }
+});
+
+// GET /api/sales-reports/recent - Recent orders for the Sales Overview "Recent Sales" table
+router.get('/recent', async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+
+    const result = await pool.query(`
+      SELECT
+        o.order_id,
+        o.name as customer_name,
+        o.order_date,
+        o.total_cost,
+        o.status,
+        COALESCE(pay.amount_paid, 0) as amount_paid,
+        CASE
+          WHEN o.status = 'Cancelled' THEN 'N/A'
+          WHEN COALESCE(pay.amount_paid, 0) >= o.total_cost AND o.total_cost > 0 THEN 'Fully Paid'
+          WHEN COALESCE(pay.amount_paid, 0) > 0 THEN 'Partially Paid'
+          ELSE 'Unpaid'
+        END as payment_status
+      FROM orders o
+      LEFT JOIN LATERAL (
+        SELECT COALESCE(SUM(i.amount_paid), 0) as amount_paid
+        FROM invoices i
+        WHERE i.order_id = o.order_id::text AND i.status <> 'CANCELLED'
+      ) pay ON true
+      ORDER BY o.order_date DESC
+      LIMIT $1
+    `, [parseInt(limit, 10)]);
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching recent sales:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recent sales',
+      error: error.message
+    });
+  }
+});
+
+// POST /api/sales-reports/test-data/insert - Realistic temporary sales test data
+//
+// Spreads orders across the last 60 days, several statuses, and several
+// customers/products, so the Sales Overview trend chart, orders-by-status
+// breakdown, top-products, and customer-analysis sections all have
+// meaningful variation to render instead of flat/empty data. Uses the same
+// TEST- prefixed inventory items the Inventory Report test-data seeds (or
+// creates them here if they don't exist yet), so it can be run independently.
+router.post('/test-data/insert', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
+    const testProducts = [
+      { sku: 'TEST-GFT-001', name: 'Premium Gift Box', category: 'Gift Boxes', quantity: 120, unit_price: 350.00, reorder_level: 30 },
+      { sku: 'TEST-MUG-001', name: 'Personalized Mug', category: 'Personalized Gifts', quantity: 45, unit_price: 275.00, reorder_level: 15 },
+      { sku: 'TEST-FLR-001', name: 'Floral Gift Set', category: 'Gift Sets', quantity: 15, unit_price: 620.00, reorder_level: 10 },
+      { sku: 'TEST-WED-001', name: 'Wedding Invitation Set', category: 'Wedding', quantity: 72, unit_price: 45.00, reorder_level: 50 },
+      { sku: 'TEST-COR-001', name: 'Corporate Gift Bundle', category: 'Corporate', quantity: 22, unit_price: 950.00, reorder_level: 8 },
+      { sku: 'TEST-TOT-001', name: 'Custom Tote Bag', category: 'Personalized Gifts', quantity: 60, unit_price: 220.00, reorder_level: 15 }
+    ];
+    for (const p of testProducts) {
+      await client.query(`
+        INSERT INTO inventory_items (sku, name, description, quantity, unit_price, category, reorder_level)
+        VALUES ($1, $2, 'Temporary test data — safe to delete', $3, $4, $5, $6)
+        ON CONFLICT (sku) DO NOTHING
+      `, [p.sku, p.name, p.quantity, p.unit_price, p.category, p.reorder_level]);
+    }
+
+    // Customers spread across "New" / "Regular" / "VIP" segments (by order
+    // count), so customer-analysis has more than one bucket to show.
+    const testOrders = [
+      { order_id: 'TEST-SALE-001', name: 'Test Customer Anna', status: 'Completed', total_cost: 950.00, days_ago: 2, sku: 'TEST-GFT-001', qty: 2 },
+      { order_id: 'TEST-SALE-002', name: 'Test Customer Anna', status: 'Completed', total_cost: 620.00, days_ago: 9, sku: 'TEST-FLR-001', qty: 1 },
+      { order_id: 'TEST-SALE-003', name: 'Test Customer Anna', status: 'Completed', total_cost: 275.00, days_ago: 20, sku: 'TEST-MUG-001', qty: 1 },
+      { order_id: 'TEST-SALE-004', name: 'Test Customer Ben', status: 'Completed', total_cost: 1900.00, days_ago: 4, sku: 'TEST-COR-001', qty: 2 },
+      { order_id: 'TEST-SALE-005', name: 'Test Customer Ben', status: 'Order Received', total_cost: 440.00, days_ago: 15, sku: 'TEST-TOT-001', qty: 2 },
+      { order_id: 'TEST-SALE-006', name: 'Test Customer Carla', status: 'Completed', total_cost: 350.00, days_ago: 1, sku: 'TEST-GFT-001', qty: 1 },
+      { order_id: 'TEST-SALE-007', name: 'Test Customer Diego', status: 'To Be Packed', total_cost: 180.00, days_ago: 0, sku: 'TEST-WED-001', qty: 4 },
+      { order_id: 'TEST-SALE-013', name: 'Test Customer Hana', status: 'Completed', total_cost: 350.00, days_ago: 0, sku: 'TEST-GFT-001', qty: 1 },
+      { order_id: 'TEST-SALE-008', name: 'Test Customer Diego', status: 'Order Placed', total_cost: 220.00, days_ago: 6, sku: 'TEST-TOT-001', qty: 1 },
+      { order_id: 'TEST-SALE-009', name: 'Test Customer Elena', status: 'Cancelled', total_cost: 620.00, days_ago: 30, sku: 'TEST-FLR-001', qty: 1 },
+      { order_id: 'TEST-SALE-010', name: 'Test Customer Elena', status: 'Completed', total_cost: 700.00, days_ago: 45, sku: 'TEST-GFT-001', qty: 2 },
+      { order_id: 'TEST-SALE-011', name: 'Test Customer Fabio', status: 'Completed', total_cost: 950.00, days_ago: 55, sku: 'TEST-COR-001', qty: 1 },
+      { order_id: 'TEST-SALE-012', name: 'Test Customer Gia', status: 'Order Shipped Out', total_cost: 275.00, days_ago: 3, sku: 'TEST-MUG-001', qty: 1 }
+    ];
+
+    for (const o of testOrders) {
+      const orderDate = daysAgo(o.days_ago);
+      await client.query(`
+        INSERT INTO orders (order_id, name, shipped_to, order_date, status, shipping_address, total_cost, payment_type, payment_method, telephone, cellphone, email_address)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'Cash', 'Cash', '123-456-0001', '123-456-0001', 'testsales@example.com')
+        ON CONFLICT (order_id) DO NOTHING
+      `, [o.order_id, o.name, o.name, orderDate, o.status, o.name, o.total_cost]);
+
+      const existing = await client.query(
+        `SELECT 1 FROM order_products WHERE order_id = $1 AND sku = $2`,
+        [o.order_id, o.sku]
+      );
+      if (existing.rows.length === 0) {
+        const product = testProducts.find(p => p.sku === o.sku);
+        await client.query(`
+          INSERT INTO order_products (order_id, sku, quantity, unit_price)
+          VALUES ($1, $2, $3, $4)
+        `, [o.order_id, o.sku, o.qty, product.unit_price]);
+      }
+
+      if (o.status === 'Completed' || o.status === 'Order Received') {
+        await client.query(`
+          INSERT INTO invoices (invoice_number, order_id, invoice_type, status, subtotal, total_order_amount, amount_due, amount_paid)
+          VALUES ($1, $2, 'DOWN_PAYMENT', 'PAID', $3, $3, 0, $3)
+          ON CONFLICT (invoice_number) DO NOTHING
+        `, [`TEST-SALE-INV-${o.order_id}`, o.order_id, o.total_cost]);
+      }
+    }
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: 'Sales test data inserted successfully',
+      data: {
+        orders_inserted: testOrders.length,
+        products_used: testProducts.length
+      }
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error inserting sales test data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to insert sales test data',
+      error: error.message
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/sales-reports/test-data/clear - Remove TEST-SALE-% rows
+router.post('/test-data/clear', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`DELETE FROM invoices WHERE order_id LIKE 'TEST-SALE-%'`);
+    await client.query(`DELETE FROM order_products WHERE order_id LIKE 'TEST-SALE-%'`);
+    await client.query(`DELETE FROM orders WHERE order_id LIKE 'TEST-SALE-%'`);
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Sales test data cleared successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error clearing sales test data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear sales test data',
+      error: error.message
+    });
+  } finally {
+    client.release();
   }
 });
 

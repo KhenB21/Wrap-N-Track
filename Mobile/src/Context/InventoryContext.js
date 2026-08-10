@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { inventoryAPI } from '../services/api';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { inventoryAPI, getWsUrl } from '../services/api';
 
 const InventoryContext = createContext();
 
@@ -215,6 +216,106 @@ export const InventoryProvider = ({ children }) => {
   //   loadInventory();
   // }, []);
 
+  // ── Real-time inventory sync (shared WS server — see Website/server/index.js
+  // + broadcast.js) ──────────────────────────────────────────────────────────
+  // 'connecting' | 'live' | 'reconnecting' | 'offline'
+  const [realtimeStatus, setRealtimeStatus] = useState('connecting');
+  const [lastRealtimeEvent, setLastRealtimeEvent] = useState(null);
+  const rtWsRef = useRef(null);
+  const rtMountedRef = useRef(true);
+  const rtAttemptsRef = useRef(0);
+  const rtWasDisconnectedRef = useRef(false);
+  const rtLoadRef = useRef(loadInventory);
+  rtLoadRef.current = loadInventory;
+
+  const rtConnect = useCallback(async () => {
+    if (!rtMountedRef.current || rtWsRef.current) return;
+    const token = await AsyncStorage.getItem('authToken');
+    if (!token) {
+      setRealtimeStatus('offline');
+      return;
+    }
+
+    let ws;
+    try { ws = new WebSocket(getWsUrl()); } catch (_) {
+      scheduleRtReconnect();
+      return;
+    }
+    rtWsRef.current = ws;
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'register', token, clientType: 'mobile' }));
+    };
+
+    ws.onmessage = (e) => {
+      if (!rtMountedRef.current) return;
+      let msg;
+      try { msg = JSON.parse(e.data); } catch (_) { return; }
+
+      if (msg.type === 'registered') {
+        setRealtimeStatus('live');
+        rtAttemptsRef.current = 0;
+        if (rtWasDisconnectedRef.current) {
+          rtWasDisconnectedRef.current = false;
+          rtLoadRef.current?.();
+        }
+        return;
+      }
+
+      if (
+        msg.type === 'inventory_update' ||
+        msg.type === 'inventory_created' ||
+        msg.type === 'inventory_archived' ||
+        msg.type === 'inventory_restored'
+      ) {
+        rtLoadRef.current?.();
+        setLastRealtimeEvent(msg);
+      } else if (msg.type === 'ping') {
+        try { ws.send(JSON.stringify({ type: 'pong' })); } catch (_) {}
+      }
+    };
+
+    ws.onclose = () => {
+      rtWsRef.current = null;
+      if (!rtMountedRef.current) return;
+      rtWasDisconnectedRef.current = true;
+      scheduleRtReconnect();
+    };
+
+    ws.onerror = () => { try { ws.close(); } catch (_) {} };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const scheduleRtReconnect = useCallback(() => {
+    if (!rtMountedRef.current) return;
+    const attempt = rtAttemptsRef.current;
+    setRealtimeStatus(attempt >= 2 ? 'offline' : 'reconnecting');
+    rtAttemptsRef.current += 1;
+    const delay = Math.min(4000 * Math.pow(1.5, attempt), 20000);
+    setTimeout(() => rtConnect(), delay);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rtConnect]);
+
+  useEffect(() => {
+    rtMountedRef.current = true;
+    rtConnect();
+    const keepAlive = setInterval(() => {
+      if (rtWsRef.current?.readyState === WebSocket.OPEN) {
+        try { rtWsRef.current.send(JSON.stringify({ type: 'ping' })); } catch (_) {}
+      }
+    }, 25000);
+    return () => {
+      rtMountedRef.current = false;
+      clearInterval(keepAlive);
+      if (rtWsRef.current) {
+        rtWsRef.current.onclose = null;
+        rtWsRef.current.close();
+        rtWsRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Load inventory by category
   const loadInventoryByCategory = async (category) => {
     try {
@@ -377,7 +478,9 @@ export const InventoryProvider = ({ children }) => {
   const value = {
     // State
     ...state,
-    
+    realtimeStatus,
+    lastRealtimeEvent,
+
     // Actions
     fetchInventory: loadInventory, // Alias for compatibility
     loadInventory,

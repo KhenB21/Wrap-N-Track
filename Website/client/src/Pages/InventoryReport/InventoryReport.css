@@ -1125,3 +1125,66 @@ Y
     padding: 6px;
   }
 }
+
+/* Low Stock & Out of Stock filter bar + status pills */
+.stock-watch-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0 20px;
+}
+
+.stock-watch-search {
+  flex: 1;
+  min-width: 220px;
+  padding: 10px 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--surface, #fff);
+  color: var(--text, #1a202c);
+}
+
+.stock-watch-filters select {
+  padding: 10px 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--surface, #fff);
+  color: var(--text, #1a202c);
+  min-width: 160px;
+}
+
+.empty-note {
+  color: var(--text-muted, #718096);
+  text-align: center;
+  padding: 24px 0;
+  font-size: 14px;
+}
+
+.stock-status-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.stock-status-pill.low {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.stock-status-pill.out {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .stock-watch-search,
+  .stock-watch-filters select {
+    background: #1e1e2e;
+    border-color: rgba(255,255,255,0.15);
+    color: #e5e7eb;
+  }
+}

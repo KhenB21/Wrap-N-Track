@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const pool = require('../config/db');
+const { broadcastInventoryUpdate, broadcastInventoryCreated, broadcastInventoryArchived, broadcastInventoryRestored } = require('../broadcast');
 
 // Configure multer for memory storage
 const upload = multer({
@@ -133,6 +134,15 @@ const getActor = (req) => {
   return req.user.employee_id || req.user.user_id || req.user.id || req.user.email || req.user.username || null;
 };
 
+// { id, name } for the "updated by" real-time UI — never expose more than that.
+const getActorInfo = (req) => {
+  if (!req.user) return null;
+  const id = req.user.user_id || req.user.employee_id || req.user.id || null;
+  const name = req.user.name || null;
+  if (!id && !name) return null;
+  return { id, name };
+};
+
 const getStockStatus = (quantity, reorderLevel) => {
   const qty = Number(quantity || 0);
   const reorder = Number(reorderLevel || 0);
@@ -207,9 +217,12 @@ const ensureInventorySchema = async (client = pool) => {
       new_quantity INTEGER,
       reason TEXT,
       performed_by TEXT,
+      source TEXT DEFAULT 'manual',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // Add source column if it was created before this migration
+  await client.query(`ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'manual'`);
 
   await client.query('CREATE INDEX IF NOT EXISTS idx_stock_movements_product_id ON stock_movements(product_id)');
   await client.query('CREATE INDEX IF NOT EXISTS idx_stock_movements_created_at ON stock_movements(created_at DESC)');
@@ -273,7 +286,8 @@ const logStockMovement = async (client, {
   previous_quantity = null,
   new_quantity = null,
   reason = null,
-  performed_by = null
+  performed_by = null,
+  source = 'manual'
 }) => {
   await client.query(`
     INSERT INTO stock_movements (
@@ -283,9 +297,10 @@ const logStockMovement = async (client, {
       previous_quantity,
       new_quantity,
       reason,
-      performed_by
+      performed_by,
+      source
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
   `, [
     sku,
     movement_type,
@@ -293,8 +308,21 @@ const logStockMovement = async (client, {
     previous_quantity,
     new_quantity,
     reason,
-    performed_by
+    performed_by,
+    source || 'manual'
   ]);
+};
+
+// Middleware: tries to verify JWT but never blocks — records performed_by when token present
+const optionalVerifyToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const token = (authHeader.split(' ')[1] || '').trim();
+    try {
+      req.user = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (_) { /* invalid or expired — proceed without user */ }
+  }
+  next();
 };
 
 // GET /api/inventory - Get all inventory items (public route for order process)
@@ -435,8 +463,8 @@ router.get('/:sku', async (req, res) => {
 });
 
 // POST /api/inventory/add-stock - Add stock to existing item
-router.post('/add-stock', async (req, res) => {
-  const { sku, quantity, reason } = req.body;
+router.post('/add-stock', optionalVerifyToken, async (req, res) => {
+  const { sku, quantity, reason, source } = req.body;
 
   console.log('Add stock request received:', { sku, quantity, reason });
 
@@ -481,12 +509,23 @@ router.post('/add-stock', async (req, res) => {
       previous_quantity: previousQuantity,
       new_quantity: newQuantity,
       reason,
-      performed_by: getActor(req)
+      performed_by: getActor(req),
+      source: source || 'manual'
     });
 
     await client.query('COMMIT');
 
     console.log('Stock added successfully:', result.rows[0]);
+    broadcastInventoryUpdate({
+      action: 'STOCK_IN',
+      sku,
+      product: result.rows[0],
+      previousQuantity,
+      newQuantity,
+      adjustmentQuantity: movementQuantity,
+      adjustmentType: 'ADD',
+      updatedBy: getActorInfo(req)
+    });
 
     return res.json({
       success: true,
@@ -506,8 +545,8 @@ router.post('/add-stock', async (req, res) => {
 });
 
 // POST /api/inventory/stock-out - Deduct stock from an existing item
-router.post('/stock-out', async (req, res) => {
-  const { sku, quantity, reason } = req.body;
+router.post('/stock-out', optionalVerifyToken, async (req, res) => {
+  const { sku, quantity, reason, source } = req.body;
   const movementQuantity = Number(quantity);
 
   if (!sku || !Number.isInteger(movementQuantity) || movementQuantity <= 0) {
@@ -555,10 +594,21 @@ router.post('/stock-out', async (req, res) => {
       previous_quantity: previousQuantity,
       new_quantity: newQuantity,
       reason,
-      performed_by: getActor(req)
+      performed_by: getActor(req),
+      source: source || 'manual'
     });
 
     await client.query('COMMIT');
+    broadcastInventoryUpdate({
+      action: 'STOCK_OUT',
+      sku,
+      product: result.rows[0],
+      previousQuantity,
+      newQuantity,
+      adjustmentQuantity: movementQuantity,
+      adjustmentType: 'REMOVE',
+      updatedBy: getActorInfo(req)
+    });
 
     return res.json({
       success: true,
@@ -578,7 +628,7 @@ router.post('/stock-out', async (req, res) => {
 });
 
 // POST /api/inventory - Create new inventory item OR update existing item
-router.post('/', upload.single('image'), async (req, res) => {
+router.post('/', optionalVerifyToken, upload.single('image'), async (req, res) => {
   const {
     sku,
     name,
@@ -679,6 +729,17 @@ router.post('/', upload.single('image'), async (req, res) => {
 
       await client.query('COMMIT');
 
+      broadcastInventoryUpdate({
+        action: 'PRODUCT_UPDATED',
+        sku,
+        product: result.rows[0],
+        previousQuantity,
+        newQuantity: previousQuantity,
+        adjustmentQuantity: 0,
+        adjustmentType: 'DETAILS',
+        updatedBy: getActorInfo(req)
+      });
+
       return res.json({
         success: true,
         message: 'Item updated successfully',
@@ -735,6 +796,12 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     await client.query('COMMIT');
 
+    broadcastInventoryCreated({
+      sku: generatedSku,
+      product: result.rows[0],
+      updatedBy: getActorInfo(req)
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Item created successfully',
@@ -753,7 +820,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 });
 
 // PUT /api/inventory/:sku - Update inventory item
-router.put('/:sku', async (req, res) => {
+router.put('/:sku', optionalVerifyToken, async (req, res) => {
   const { sku } = req.params;
   const { name, description, category, quantity, unit_price, image_data, supplier_id, uom, conversion_qty, expirable, expiration, reorder_level } = req.body;
 
@@ -778,6 +845,7 @@ router.put('/:sku', async (req, res) => {
         message: 'Item not found'
       });
     }
+    const previousQuantity = Number(existingItem.rows[0].quantity || 0);
 
     // Handle image data if provided
     let imageBuffer = null;
@@ -840,6 +908,18 @@ router.put('/:sku', async (req, res) => {
       `, [name, description, category, quantity, unit_price, imageBuffer, supplierId, uomValue, conversionQty, reorderLevel, sku]);
     }
 
+    const newQuantity = Number(result.rows[0].quantity || 0);
+    broadcastInventoryUpdate({
+      action: newQuantity !== previousQuantity ? 'STOCK_ADJUSTED' : 'PRODUCT_UPDATED',
+      sku,
+      product: result.rows[0],
+      previousQuantity,
+      newQuantity,
+      adjustmentQuantity: newQuantity - previousQuantity,
+      adjustmentType: newQuantity === previousQuantity ? 'DETAILS' : (newQuantity > previousQuantity ? 'ADD' : 'REMOVE'),
+      updatedBy: getActorInfo(req)
+    });
+
     return res.json({
       success: true,
       message: 'Item updated successfully',
@@ -855,7 +935,7 @@ router.put('/:sku', async (req, res) => {
 });
 
 // DELETE /api/inventory/:sku - Delete inventory item
-router.delete('/:sku', async (req, res) => {
+router.delete('/:sku', optionalVerifyToken, async (req, res) => {
   const { sku } = req.params;
   const client = await pool.connect();
 
@@ -891,6 +971,8 @@ router.delete('/:sku', async (req, res) => {
     await client.query('DELETE FROM public.available_inventory WHERE sku = $1', [sku]);
     await client.query('COMMIT');
 
+    broadcastInventoryArchived({ sku: item.sku, product: { sku: item.sku, name: item.name }, updatedBy: getActorInfo(req) });
+
     return res.json({
       success: true,
       archived: true,
@@ -913,12 +995,12 @@ router.delete('/:sku', async (req, res) => {
 });
 
 // PATCH /api/inventory/:sku/restore - Restore soft-deleted inventory item
-router.patch('/:sku/restore', async (req, res) => {
+router.patch('/:sku/restore', optionalVerifyToken, async (req, res) => {
   const { sku } = req.params;
 
   try {
     // Check if item exists (including inactive ones)
-    const existingItem = await pool.query('SELECT sku FROM inventory_items WHERE sku = $1', [sku]);
+    const existingItem = await pool.query('SELECT sku, name FROM inventory_items WHERE sku = $1', [sku]);
     if (existingItem.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -928,6 +1010,13 @@ router.patch('/:sku/restore', async (req, res) => {
 
     // Restore item (set is_active to true)
     await pool.query('UPDATE inventory_items SET is_active = true, last_updated = NOW() WHERE sku = $1', [sku]);
+
+    broadcastInventoryRestored({
+      sku,
+      product: { sku, name: existingItem.rows[0].name },
+      updatedBy: getActorInfo(req)
+    });
+
     return res.json({
       success: true,
       message: 'Item restored successfully'

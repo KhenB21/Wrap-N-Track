@@ -64,11 +64,36 @@ export default function OrderListScreen() {
     
     // Apply status filter
     if (filters.status && filters.status !== 'all') {
-      filtered = filtered.filter(order => 
+      filtered = filtered.filter(order =>
         (order?.status || '').toLowerCase().replace(' ', '_') === filters.status
       );
     }
-    
+
+    // Apply date range filter
+    if (filters.dateRange && filters.dateRange !== 'all') {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      filtered = filtered.filter(order => {
+        if (!order?.order_date) return false;
+        const orderDate = new Date(order.order_date);
+        if (isNaN(orderDate.getTime())) return false;
+
+        if (filters.dateRange === 'today') {
+          return orderDate >= startOfToday;
+        }
+        if (filters.dateRange === 'week') {
+          const startOfWeek = new Date(startOfToday);
+          startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+          return orderDate >= startOfWeek;
+        }
+        if (filters.dateRange === 'month') {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          return orderDate >= startOfMonth;
+        }
+        return true;
+      });
+    }
+
     setFilteredOrders(filtered);
   }, [orders, searchQuery, filters]);
 
@@ -302,8 +327,8 @@ export default function OrderListScreen() {
             <Button
               mode="outlined"
               onPress={() => {
-                filterOrders('status', 'all');
-                filterOrders('dateRange', 'all');
+                handleFilter('status', 'all');
+                handleFilter('dateRange', 'all');
                 setShowFilters(false);
               }}
               style={styles.clearButton}

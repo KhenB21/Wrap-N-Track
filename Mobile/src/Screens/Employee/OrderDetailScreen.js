@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Dimensions
+  Dimensions,
+  Linking
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, Divider, Chip } from 'react-native-paper';
@@ -108,45 +109,47 @@ export default function OrderDetailScreen({ navigation }) {
   };
 
   const handleCallCustomer = () => {
-    if (order.telephone) {
-      Alert.alert(
-        'Call Customer',
-        `Call ${order.customer_name} at ${order.telephone}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Call', 
-            onPress: () => {
-              // Implement phone call functionality
-              Alert.alert('Call', 'Phone call functionality would be implemented here');
-            }
-          }
-        ]
-      );
-    } else {
+    if (!order.telephone) {
       Alert.alert('No Phone Number', 'Customer phone number is not available');
+      return;
     }
+    Alert.alert(
+      'Call Customer',
+      `Call ${order.customer_name} at ${order.telephone}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Call',
+          onPress: () => {
+            Linking.openURL(`tel:${order.telephone}`).catch(() =>
+              Alert.alert('Error', 'Unable to open the phone dialer on this device')
+            );
+          }
+        }
+      ]
+    );
   };
 
   const handleEmailCustomer = () => {
-    if (order.email_address) {
-      Alert.alert(
-        'Email Customer',
-        `Send email to ${order.customer_name} at ${order.email_address}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Email', 
-            onPress: () => {
-              // Implement email functionality
-              Alert.alert('Email', 'Email functionality would be implemented here');
-            }
-          }
-        ]
-      );
-    } else {
+    if (!order.email_address) {
       Alert.alert('No Email', 'Customer email address is not available');
+      return;
     }
+    Alert.alert(
+      'Email Customer',
+      `Send email to ${order.customer_name} at ${order.email_address}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Email',
+          onPress: () => {
+            Linking.openURL(`mailto:${order.email_address}`).catch(() =>
+              Alert.alert('Error', 'No email app is available on this device')
+            );
+          }
+        }
+      ]
+    );
   };
 
   const renderOrderHeader = () => (

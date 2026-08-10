@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Dimensions
+  Dimensions,
+  Linking
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, Chip, Divider } from 'react-native-paper';
@@ -76,43 +77,61 @@ export default function SupplierDetailScreen({ navigation }) {
   };
 
   const handleCall = () => {
-    if (supplier.cellphone) {
-      Alert.alert(
-        'Call Supplier',
-        `Call ${supplier.name} at ${supplier.cellphone}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Call', 
-            onPress: () => {
-              Alert.alert('Call', 'Phone call functionality would be implemented here');
-            }
-          }
-        ]
-      );
-    } else {
+    if (!supplier.cellphone) {
       Alert.alert('No Phone Number', 'Supplier phone number is not available');
+      return;
     }
+    Alert.alert(
+      'Call Supplier',
+      `Call ${supplier.name} at ${supplier.cellphone}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Call',
+          onPress: () => {
+            Linking.openURL(`tel:${supplier.cellphone}`).catch(() =>
+              Alert.alert('Error', 'Unable to open the phone dialer on this device')
+            );
+          }
+        }
+      ]
+    );
   };
 
   const handleEmail = () => {
-    if (supplier.email_address) {
-      Alert.alert(
-        'Email Supplier',
-        `Send email to ${supplier.name} at ${supplier.email_address}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Email', 
-            onPress: () => {
-              Alert.alert('Email', 'Email functionality would be implemented here');
-            }
-          }
-        ]
-      );
-    } else {
+    if (!supplier.email_address) {
       Alert.alert('No Email', 'Supplier email address is not available');
+      return;
     }
+    Alert.alert(
+      'Email Supplier',
+      `Send email to ${supplier.name} at ${supplier.email_address}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Email',
+          onPress: () => {
+            Linking.openURL(`mailto:${supplier.email_address}`).catch(() =>
+              Alert.alert('Error', 'No email app is available on this device')
+            );
+          }
+        }
+      ]
+    );
+  };
+
+  const handleContact = () => {
+    const canCall = !!supplier.cellphone;
+    const canEmail = !!supplier.email_address;
+    if (!canCall && !canEmail) {
+      Alert.alert('No Contact Info', 'This supplier has no phone number or email on file');
+      return;
+    }
+    const options = [];
+    if (canCall) options.push({ text: '📞 Call', onPress: handleCall });
+    if (canEmail) options.push({ text: '✉️ Email', onPress: handleEmail });
+    options.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert('Contact Supplier', supplier.name, options);
   };
 
   const getReliabilityColor = (score) => {
@@ -174,18 +193,11 @@ export default function SupplierDetailScreen({ navigation }) {
         
         <View style={styles.contactActions}>
           <TouchableOpacity
-            style={[styles.contactButton, { backgroundColor: '#4CAF50' }]}
-            onPress={handleCall}
+            style={[styles.contactButton, styles.contactButtonWide, { backgroundColor: theme.colors.primary }]}
+            onPress={handleContact}
           >
-            <MaterialCommunityIcons name="phone" size={16} color="#fff" />
-            <Text style={styles.contactButtonText}>Call</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.contactButton, { backgroundColor: '#2196F3' }]}
-            onPress={handleEmail}
-          >
-            <MaterialCommunityIcons name="email" size={16} color="#fff" />
-            <Text style={styles.contactButtonText}>Email</Text>
+            <MaterialCommunityIcons name="account-voice" size={16} color="#fff" />
+            <Text style={styles.contactButtonText}>Contact Supplier</Text>
           </TouchableOpacity>
         </View>
       </Card.Content>
@@ -478,6 +490,9 @@ const styles = StyleSheet.create({
   contactActions: {
     flexDirection: 'row',
     gap: 12,
+  },
+  contactButtonWide: {
+    flex: 1,
   },
   contactButton: {
     flex: 1,

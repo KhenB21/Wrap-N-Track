@@ -39,6 +39,12 @@ const BASE_URL = getBaseURL();
 // Log the base URL for debugging
 console.log('API Base URL:', BASE_URL);
 
+// Same host as BASE_URL, just ws(s):// and /ws instead of http(s):// and /api —
+// keeps the WebSocket URL in lockstep with wherever the REST API actually is,
+// so real-time inventory sync (see InventoryContext) doesn't need its own
+// host-detection logic.
+export const getWsUrl = () => BASE_URL.replace(/^http/, 'ws').replace(/\/api\/?$/, '') + '/ws';
+
 // Logout handler — set by AuthContext so the interceptor can trigger a proper logout
 let _logoutHandler = null;
 export const setLogoutHandler = (fn) => { _logoutHandler = fn; };
@@ -249,18 +255,18 @@ export const inventoryAPI = {
       throw error;
     }
   },
-  stockIn: async (productId, quantity, reason = '') => {
+  stockIn: async (productId, quantity, reason = '', source = 'manual') => {
     try {
-      const response = await api.post('/inventory/add-stock', { sku: productId, quantity, reason });
+      const response = await api.post('/inventory/add-stock', { sku: productId, quantity, reason, source });
       return response.data;
     } catch (error) {
       console.error('Error adding stock:', error);
       throw error;
     }
   },
-  stockOut: async (productId, quantity, reason = '') => {
+  stockOut: async (productId, quantity, reason = '', source = 'manual') => {
     try {
-      const response = await api.post('/inventory/stock-out', { sku: productId, quantity, reason });
+      const response = await api.post('/inventory/stock-out', { sku: productId, quantity, reason, source });
       return response.data;
     } catch (error) {
       console.error('Error removing stock:', error);
@@ -761,6 +767,48 @@ export const accountManagementAPI = {
   },
   resetPassword: async (userId, newPassword) => {
     const response = await api.patch(`/account-management/users/${userId}/reset-password`, { newPassword });
+    return response.data;
+  },
+};
+
+// Mirrors Website/server/routes/sales-reports.js — same endpoints the Web
+// Sales Overview page (SalesReport.js) uses, so Mobile shows identical figures.
+export const salesReportsAPI = {
+  getOverview: async (startDate, endDate) => {
+    const response = await api.get('/sales-reports/overview', { params: { startDate, endDate } });
+    return response.data;
+  },
+  getTopProducts: async (startDate, endDate, limit = 8) => {
+    const response = await api.get('/sales-reports/top-products', { params: { startDate, endDate, limit } });
+    return response.data;
+  },
+  getTrends: async (startDate, endDate, groupBy = 'day') => {
+    const response = await api.get('/sales-reports/trends', { params: { startDate, endDate, groupBy } });
+    return response.data;
+  },
+  getRecent: async (limit = 10) => {
+    const response = await api.get('/sales-reports/recent', { params: { limit } });
+    return response.data;
+  },
+};
+
+// Mirrors Website/server/routes/inventory-reports.js — same endpoints the Web
+// Inventory Report page (InventoryReport.js) uses.
+export const inventoryReportsAPI = {
+  getSummary: async () => {
+    const response = await api.get('/inventory-reports/summary');
+    return response.data;
+  },
+  getLowStock: async () => {
+    const response = await api.get('/inventory-reports/low-stock');
+    return response.data;
+  },
+  getExpiring: async () => {
+    const response = await api.get('/inventory-reports/expiring');
+    return response.data;
+  },
+  getCategoryBreakdown: async () => {
+    const response = await api.get('/inventory-reports/category-breakdown');
     return response.data;
   },
 };

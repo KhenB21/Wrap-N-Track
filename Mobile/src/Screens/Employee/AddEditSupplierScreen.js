@@ -5,13 +5,33 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
-  TextInput
+  TouchableOpacity
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Card, RadioButton } from 'react-native-paper';
+import { Button, Card, RadioButton, TextInput } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
 import { supplierAPI } from '../../services/api';
+
+// Plain TouchableOpacity chip — avoids any Paper <Chip> touch/ripple quirks
+// so tapping a suggestion reliably updates the field.
+const SuggestionChip = ({ label, selected, onPress, theme }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    activeOpacity={0.7}
+    style={[
+      styles.suggestionChip,
+      {
+        backgroundColor: selected ? theme.colors.primary : 'transparent',
+        borderColor: selected ? theme.colors.primary : theme.colors.outline || '#9ca3af',
+      },
+    ]}
+  >
+    <Text style={{ color: selected ? '#fff' : theme.colors.onSurface, fontSize: 13, fontWeight: '500' }}>
+      {label}
+    </Text>
+  </TouchableOpacity>
+);
 
 export default function AddEditSupplierScreen({ navigation }) {
   const theme = useTheme();
@@ -125,6 +145,7 @@ export default function AddEditSupplierScreen({ navigation }) {
             </Text>
             
             <TextInput
+              mode="outlined"
               label="Supplier Name *"
               value={formData.name}
               onChangeText={(value) => handleInputChange('name', value)}
@@ -134,6 +155,7 @@ export default function AddEditSupplierScreen({ navigation }) {
             {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
 
             <TextInput
+              mode="outlined"
               label="Contact Person *"
               value={formData.contact_person}
               onChangeText={(value) => handleInputChange('contact_person', value)}
@@ -143,6 +165,7 @@ export default function AddEditSupplierScreen({ navigation }) {
             {errors.contact_person && <Text style={styles.errorText}>{errors.contact_person}</Text>}
 
             <TextInput
+              mode="outlined"
               label="Email Address *"
               value={formData.email_address}
               onChangeText={(value) => handleInputChange('email_address', value)}
@@ -154,6 +177,7 @@ export default function AddEditSupplierScreen({ navigation }) {
             {errors.email_address && <Text style={styles.errorText}>{errors.email_address}</Text>}
 
             <TextInput
+              mode="outlined"
               label="Cellphone *"
               value={formData.cellphone}
               onChangeText={(value) => handleInputChange('cellphone', value)}
@@ -164,6 +188,7 @@ export default function AddEditSupplierScreen({ navigation }) {
             {errors.cellphone && <Text style={styles.errorText}>{errors.cellphone}</Text>}
 
             <TextInput
+              mode="outlined"
               label="Telephone"
               value={formData.telephone}
               onChangeText={(value) => handleInputChange('telephone', value)}
@@ -179,8 +204,9 @@ export default function AddEditSupplierScreen({ navigation }) {
             <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
               Address Information
             </Text>
-            
+
             <TextInput
+              mode="outlined"
               label="Street Address *"
               value={formData.street_address}
               onChangeText={(value) => handleInputChange('street_address', value)}
@@ -190,6 +216,7 @@ export default function AddEditSupplierScreen({ navigation }) {
             {errors.street_address && <Text style={styles.errorText}>{errors.street_address}</Text>}
 
             <TextInput
+              mode="outlined"
               label="Barangay"
               value={formData.barangay}
               onChangeText={(value) => handleInputChange('barangay', value)}
@@ -197,6 +224,7 @@ export default function AddEditSupplierScreen({ navigation }) {
             />
 
             <TextInput
+              mode="outlined"
               label="City/Municipality *"
               value={formData.city_municipality}
               onChangeText={(value) => handleInputChange('city_municipality', value)}
@@ -206,6 +234,7 @@ export default function AddEditSupplierScreen({ navigation }) {
             {errors.city_municipality && <Text style={styles.errorText}>{errors.city_municipality}</Text>}
 
             <TextInput
+              mode="outlined"
               label="Province *"
               value={formData.province}
               onChangeText={(value) => handleInputChange('province', value)}
@@ -222,9 +251,24 @@ export default function AddEditSupplierScreen({ navigation }) {
             <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
               Business Information
             </Text>
-            
+
+            <Text style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>
+              Type of Supplies *
+            </Text>
+            <View style={styles.chipRow}>
+              {supplyTypes.map((type) => (
+                <SuggestionChip
+                  key={type}
+                  label={type}
+                  selected={formData.type_of_supplies === type}
+                  onPress={() => handleInputChange('type_of_supplies', type)}
+                  theme={theme}
+                />
+              ))}
+            </View>
             <TextInput
-              label="Type of Supplies *"
+              mode="outlined"
+              label="Type of Supplies * (or type your own)"
               value={formData.type_of_supplies}
               onChangeText={(value) => handleInputChange('type_of_supplies', value)}
               error={!!errors.type_of_supplies}
@@ -233,6 +277,7 @@ export default function AddEditSupplierScreen({ navigation }) {
             {errors.type_of_supplies && <Text style={styles.errorText}>{errors.type_of_supplies}</Text>}
 
             <TextInput
+              mode="outlined"
               label="Description"
               value={formData.description}
               onChangeText={(value) => handleInputChange('description', value)}
@@ -242,6 +287,7 @@ export default function AddEditSupplierScreen({ navigation }) {
             />
 
             <TextInput
+              mode="outlined"
               label="Reliability Score"
               value={formData.reliability_score}
               onChangeText={(value) => handleInputChange('reliability_score', value)}
@@ -336,6 +382,23 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 8,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 6,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  suggestionChip: {
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
   },
   errorText: {
     color: '#F44336',

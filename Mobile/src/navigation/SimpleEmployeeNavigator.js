@@ -30,6 +30,8 @@ import NotificationsScreen from '../Screens/Employee/NotificationsScreen';
 import EmployeeDeliveryListScreen from '../Screens/Employee/EmployeeDeliveryListScreen';
 import EmployeeDeliveryUpdateScreen from '../Screens/Employee/EmployeeDeliveryUpdateScreen';
 import AccountManagementScreen from '../Screens/Employee/AccountManagementScreen';
+import RemoteScannerScreen from '../Screens/Employee/RemoteScannerScreen';
+import StockAdjustScannerScreen from '../Screens/Employee/StockAdjustScannerScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -45,6 +47,8 @@ function InventoryStack() {
       <Stack.Screen name="InventoryScanner" component={InventoryScannerScreen} />
       <Stack.Screen name="AddProduct" component={AddProductScreen} />
       <Stack.Screen name="EditProduct" component={EditProductScreen} />
+      <Stack.Screen name="RemoteScanner" component={RemoteScannerScreen} />
+      <Stack.Screen name="StockAdjustScanner" component={StockAdjustScannerScreen} />
     </Stack.Navigator>
   );
 }
