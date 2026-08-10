@@ -3,67 +3,67 @@
 .dashboard-container {
     display: flex;
     min-height: 100vh;
-    background: #f6f7fb;
+    background: var(--app-bg, #f6f7fb);
   }
-  
+
   .dashboard-main {
     flex: 1;
     margin-left: 220px;
     width: calc(100% - 220px);
     display: flex;
     flex-direction: column;
-    background: #f6f7fb;
+    background: var(--app-bg, #f6f7fb);
   }
-  
+
   .user-management-container {
     margin: 32px 0;
-    background: #fff;
+    background: var(--surface, #fff);
     border-radius: 12px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.06);
     padding: 24px 18px 18px 18px;
     max-width: none;
     width: 100%;
   }
-  
+
   .user-management-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 18px;
   }
-  
+
   .user-management-header h1 {
     font-size: 1.5rem;
     font-weight: 600;
-    color: #222;
+    color: var(--text, #222);
   }
-  
+
   .register-user-btn {
     padding: 7px 16px;
     border: none;
     border-radius: 5px;
     font-size: 15px;
     cursor: pointer;
-    background: #007bff;
+    background: var(--brand, #007bff);
     color: #fff;
     font-weight: 500;
     transition: background 0.2s;
   }
-  
+
   .register-user-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
-  
+
   .user-cards-list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
     gap: 18px;
     margin-top: 10px;
   }
-  
+
   .user-card {
-    background: #fafbfc;
+    background: var(--surface-muted, #fafbfc);
     border-radius: 10px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     padding: 18px 14px 14px 14px;
@@ -72,56 +72,56 @@
     gap: 10px;
     transition: box-shadow 0.18s;
   }
-  
+
   .user-card:hover {
     box-shadow: 0 4px 18px rgba(0,0,0,0.10);
   }
-  
+
   .user-card-header {
     display: flex;
     align-items: center;
     gap: 12px;
     margin-bottom: 4px;
   }
-  
+
   .user-profile-pic-large {
     width: 44px;
     height: 44px;
     border-radius: 50%;
     object-fit: cover;
     background: #e3eeff;
-    border: 1.5px solid #e0e0e0;
+    border: 1.5px solid var(--border, #e0e0e0);
   }
-  
+
   .user-card-name {
     font-size: 1.08rem;
     font-weight: 600;
-    color: #222;
+    color: var(--text, #222);
   }
-  
+
   .user-card-role {
     font-size: 0.97rem;
-    color: #888;
+    color: var(--text-muted, #888);
     margin-top: 1px;
   }
-  
+
   .user-card-info {
     display: flex;
     flex-direction: column;
     gap: 3px;
     font-size: 0.98rem;
   }
-  
+
   .user-card-label {
     font-weight: 500;
-    color: #007bff;
+    color: var(--brand, #007bff);
     margin-right: 4px;
   }
-  
+
   .loading,
   .error {
     font-size: 1.05rem;
-    color: #888;
+    color: var(--text-muted, #888);
     text-align: center;
     margin: 24px 0;
     background: #fff0f0;
@@ -129,7 +129,7 @@
     border: 1px solid #ffd6d6;
     padding: 18px 0;
   }
-  
+
   @media (max-width: 700px) {
     .user-management-container {
       padding: 8px 2px;
@@ -144,14 +144,14 @@
 .user-modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.18);
+  background: var(--overlay, rgba(0,0,0,0.18));
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 .user-modal {
-  background: #fff;
+  background: var(--surface, #fff);
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.18);
   padding: 28px 24px 18px 24px;
@@ -173,14 +173,14 @@
   background: none;
   border: none;
   font-size: 1.6rem;
-  color: #888;
+  color: var(--text-muted, #888);
   cursor: pointer;
 }
 .user-modal-fields label {
   display: flex;
   flex-direction: column;
   font-size: 0.98rem;
-  color: #444;
+  color: var(--text-soft, #444);
   margin-bottom: 8px;
   font-weight: 500;
 }
@@ -188,10 +188,14 @@
 .user-modal-fields select {
   margin-top: 3px;
   padding: 7px 10px;
-  border: 1.2px solid #e0e0e0;
+  border: 1.2px solid var(--input-border, #e0e0e0);
   border-radius: 5px;
   font-size: 1rem;
-  background: #fafbfc;
+  background: var(--input-background, #fafbfc);
+  color: var(--input-text, #222);
+}
+.user-modal-fields input::placeholder {
+  color: var(--input-placeholder, #94a3b8);
 }
 .user-modal-actions {
   display: flex;
@@ -200,7 +204,7 @@
   margin-top: 10px;
 }
 .user-modal-save {
-  background: #007bff;
+  background: var(--brand, #007bff);
   color: #fff;
   border: none;
   border-radius: 5px;
@@ -222,11 +226,11 @@
 .users-table-container {
   width: 100%;
   margin-top: 20px;
-  background: #fff;
+  background: var(--surface, #fff);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   overflow-x: auto;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.06));
 }
 
 .users-table {
@@ -236,11 +240,11 @@
 }
 
 .users-table thead th {
-  background: #f8f9fa;
+  background: var(--surface-muted, #f8f9fa);
   padding: 14px 16px;
   font-weight: 600;
-  border-bottom: 2px solid #e9ecef;
-  color: #495057;
+  border-bottom: 2px solid var(--border, #e9ecef);
+  color: var(--text-soft, #495057);
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -251,18 +255,18 @@
   padding: 12px 16px;
   font-size: 0.95rem;
   line-height: 1.6;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--border, #e9ecef);
   vertical-align: middle;
-  color: #343a40;
+  color: var(--text-soft, #343a40);
   text-align: left;
 }
 
 .users-table tbody tr:nth-child(even) {
-  background-color: #fdfdfe;
+  background-color: var(--surface-muted, #fdfdfe);
 }
 
 .users-table tbody tr:hover {
-  background-color: #f1f3f5;
+  background-color: var(--hover, #f1f3f5);
 }
 
 .user-table-profile-pic {
@@ -270,7 +274,7 @@
   height: 36px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border, #dee2e6);
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
@@ -302,3 +306,27 @@
   display: none;
 }
 */
+
+/* Dark mode overrides */
+body.dark .loading,
+body.dark .error {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+body.dark .user-profile-pic-large {
+  background: #24344d;
+}
+
+body.dark .edit-user-btn-table {
+  background-color: rgba(91, 157, 255, 0.16);
+  color: #5b9dff;
+  border-color: rgba(91, 157, 255, 0.35);
+}
+
+body.dark .edit-user-btn-table:hover {
+  background-color: rgba(91, 157, 255, 0.26);
+  border-color: rgba(91, 157, 255, 0.5);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.35);
+}

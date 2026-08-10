@@ -16,7 +16,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 // Removed Chip import - using custom implementation
 import { useTheme } from '../../Context/ThemeContext';
 import { useInventory } from '../../Context/InventoryContext';
-import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../../Context/AuthContext';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import Toast from '../../Components/Toast';
 
 const { width } = Dimensions.get('window');
 
@@ -31,6 +33,7 @@ const CustomChip = ({ icon, children, style, iconColor = '#fff' }) => (
 export default function InventoryListScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
+  const { user, userType } = useAuth();
   const {
     inventory,
     filteredInventory,
@@ -41,16 +44,59 @@ export default function InventoryListScreen() {
     fetchInventory,
     searchProducts,
     filterProducts,
-    clearError
+    deleteProduct,
+    clearError,
+    realtimeStatus,
+    lastRealtimeEvent
   } = useInventory();
 
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
+  const [rtFlashSku, setRtFlashSku] = useState(null);
+  const [rtToast, setRtToast] = useState('');
+
+  // Flash the row + toast "who changed what" for events from OTHER employees —
+  // the person who made the change already got their own success feedback.
+  useEffect(() => {
+    if (!lastRealtimeEvent?.sku) return;
+    setRtFlashSku(lastRealtimeEvent.sku);
+    const t = setTimeout(() => setRtFlashSku(null), 2500);
+    return () => clearTimeout(t);
+  }, [lastRealtimeEvent]);
+
+  useEffect(() => {
+    if (!lastRealtimeEvent) return;
+    const myId = user?.user_id;
+    const evt = lastRealtimeEvent;
+    if (!evt.updatedBy?.name || String(evt.updatedBy.id) === String(myId)) return;
+
+    const productName = evt.product?.name || evt.sku;
+    let message = null;
+    if (evt.type === 'inventory_update' && evt.adjustmentType && evt.adjustmentType !== 'DETAILS') {
+      const sign = evt.adjustmentType === 'ADD' ? '+' : '-';
+      message = `${sign}${Math.abs(evt.adjustmentQuantity || 0)} units: ${productName} by ${evt.updatedBy.name}`;
+    } else if (evt.type === 'inventory_created') {
+      message = `${productName} added by ${evt.updatedBy.name}`;
+    } else if (evt.type === 'inventory_archived') {
+      message = `${productName} archived by ${evt.updatedBy.name}`;
+    } else if (evt.type === 'inventory_restored') {
+      message = `${productName} restored by ${evt.updatedBy.name}`;
+    }
+    if (message) setRtToast(message);
+  }, [lastRealtimeEvent]);
+  const inventoryManagerRoles = ['operations_manager', 'sales_manager', 'admin', 'super_admin', 'director'];
+  const canManageInventory = userType === 'employee' && inventoryManagerRoles.includes(String(user?.role || '').toLowerCase());
 
   useEffect(() => {
     fetchInventory();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchInventory();
+    }, [fetchInventory])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -74,11 +120,12 @@ export default function InventoryListScreen() {
     setShowFilters(false);
   };
 
-  const getStockLevel = (quantity) => {
+  const getStockLevel = (item) => {
+    const quantity = Number(item?.quantity || 0);
+    const reorderLevel = Number(item?.reorder_level || 0);
     if (quantity <= 0) return { level: 'out', color: '#D32F2F', text: 'Out of Stock' };
-    if (quantity <= 300) return { level: 'low', color: '#F57C00', text: 'Low Stock' };
-    if (quantity <= 800) return { level: 'medium', color: '#FFC107', text: 'Medium Stock' };
-    return { level: 'high', color: '#4CAF50', text: 'High Stock' };
+    if (quantity <= reorderLevel) return { level: 'low', color: '#F57C00', text: 'Low Stock' };
+    return { level: 'high', color: '#4CAF50', text: 'In Stock' };
   };
 
   const handleItemPress = (item) => {
@@ -87,6 +134,10 @@ export default function InventoryListScreen() {
   };
 
   const handleAddStock = (item) => {
+    if (!canManageInventory) {
+      Alert.alert('Not Authorized', 'You are not authorized to access this feature');
+      return;
+    }
     navigation.push('EditProduct', {
       initialData: item,
       isAddStockMode: true
@@ -94,6 +145,10 @@ export default function InventoryListScreen() {
   };
 
   const handleEdit = (item) => {
+    if (!canManageInventory) {
+      Alert.alert('Not Authorized', 'You are not authorized to access this feature');
+      return;
+    }
     navigation.push('EditProduct', {
       initialData: item,
       isEdit: true
@@ -101,6 +156,10 @@ export default function InventoryListScreen() {
   };
 
   const handleArchive = (item) => {
+    if (!canManageInventory) {
+      Alert.alert('Not Authorized', 'You are not authorized to access this feature');
+      return;
+    }
     Alert.alert(
       'Archive Product',
       `Are you sure you want to archive "${item.name}"?`,
@@ -109,9 +168,13 @@ export default function InventoryListScreen() {
         { 
           text: 'Archive', 
           style: 'destructive',
-          onPress: () => {
-            // Implement archive functionality
-            Alert.alert('Success', 'Product archived successfully');
+          onPress: async () => {
+            try {
+              await deleteProduct(item.sku);
+              Alert.alert('Success', 'Product archived successfully');
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to archive product');
+            }
           }
         }
       ]
@@ -160,17 +223,18 @@ export default function InventoryListScreen() {
   };
 
   const renderProductItem = ({ item }) => {
-    const stockLevel = getStockLevel(item.quantity);
+    const stockLevel = getStockLevel(item);
     const isSelected = selectedItems.has(item.sku);
+    const isFlashing = rtFlashSku === item.sku;
 
     return (
       <TouchableOpacity
         style={[
           styles.productCard,
-          { 
-            backgroundColor: theme.colors.surface,
-            borderColor: isSelected ? theme.colors.primary : theme.colors.outline,
-            borderWidth: isSelected ? 2 : 1
+          {
+            backgroundColor: isFlashing ? 'rgba(33, 150, 243, 0.15)' : theme.colors.surface,
+            borderColor: isSelected ? theme.colors.primary : (isFlashing ? '#2196F3' : theme.colors.outline),
+            borderWidth: isSelected || isFlashing ? 2 : 1
           }
         ]}
         onPress={() => handleItemPress(item)}
@@ -206,6 +270,9 @@ export default function InventoryListScreen() {
             <Text style={[styles.stockQuantity, { color: theme.colors.onSurface }]}>
               {item.quantity.toLocaleString()}
             </Text>
+            <Text style={[styles.stockUnit, { color: theme.colors.onSurfaceVariant }]}>
+              {item.uom || item.unit || 'units'}
+            </Text>
           </View>
         </View>
 
@@ -213,26 +280,28 @@ export default function InventoryListScreen() {
           <Text style={[styles.productPrice, { color: theme.colors.onSurface }]}>
             ₱{parseFloat(item.unit_price || 0).toFixed(2)}
           </Text>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
-              onPress={() => handleAddStock(item)}
-            >
-              <MaterialCommunityIcons name="plus" size={16} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
-              onPress={() => handleEdit(item)}
-            >
-              <MaterialCommunityIcons name="pencil" size={16} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#F44336' }]}
-              onPress={() => handleArchive(item)}
-            >
-              <MaterialCommunityIcons name="archive" size={16} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          {canManageInventory && (
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
+                onPress={() => handleAddStock(item)}
+              >
+                <MaterialCommunityIcons name="plus" size={16} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
+                onPress={() => handleEdit(item)}
+              >
+                <MaterialCommunityIcons name="pencil" size={16} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#F44336' }]}
+                onPress={() => handleArchive(item)}
+              >
+                <MaterialCommunityIcons name="archive" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -259,10 +328,9 @@ export default function InventoryListScreen() {
           <View style={styles.filterOptions}>
             {[
               { key: 'all', label: 'All Products', icon: 'package-variant' },
-              { key: 'low-stock', label: 'Low Stock (≤300)', icon: 'alert-circle' },
-              { key: 'medium-stock', label: 'Medium Stock (301-800)', icon: 'package-variant-closed' },
-              { key: 'high-stock', label: 'High Stock (>800)', icon: 'package-variant' },
-              { key: 'replenishment', label: 'Need Replenishment (0)', icon: 'alert' }
+              { key: 'low-stock', label: 'Low Stock', icon: 'alert-circle' },
+              { key: 'high-stock', label: 'In Stock', icon: 'package-variant' },
+              { key: 'replenishment', label: 'Out of Stock', icon: 'alert' }
             ].map((option) => (
               <TouchableOpacity
                 key={option.key}
@@ -314,6 +382,15 @@ export default function InventoryListScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
+      <View style={styles.rtStatusRow}>
+        <View style={[
+          styles.rtStatusDot,
+          { backgroundColor: realtimeStatus === 'live' ? '#4CAF50' : realtimeStatus === 'offline' ? '#9E9E9E' : '#F57C00' }
+        ]} />
+        <Text style={[styles.rtStatusText, { color: theme.colors.onSurfaceVariant }]}>
+          {realtimeStatus === 'live' ? 'Live' : realtimeStatus === 'reconnecting' ? 'Reconnecting…' : realtimeStatus === 'offline' ? 'Offline' : 'Connecting…'}
+        </Text>
+      </View>
       <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
         <TextInput
           placeholder="Search products..."
@@ -328,6 +405,31 @@ export default function InventoryListScreen() {
         >
           <MaterialCommunityIcons name="filter" size={20} color="#fff" />
         </TouchableOpacity>
+        {canManageInventory && (
+          <TouchableOpacity
+            style={[styles.filterButton, { backgroundColor: '#2E7D32', marginLeft: 8 }]}
+            onPress={() => navigation.navigate('InventoryScanner')}
+          >
+            <MaterialCommunityIcons name="barcode-scan" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
+        {canManageInventory && (
+          <TouchableOpacity
+            style={[styles.filterButton, { backgroundColor: '#696a8f', marginLeft: 6 }]}
+            onPress={() => navigation.navigate('StockAdjustScanner')}
+          >
+            <MaterialCommunityIcons name="package-variant-closed" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
+        {canManageInventory && (
+          <TouchableOpacity
+            style={[styles.filterButton, { backgroundColor: '#1565C0', marginLeft: 6 }]}
+            onPress={() => navigation.navigate('RemoteScanner')}
+            title="Use this phone as a scanner for the web dashboard"
+          >
+            <MaterialCommunityIcons name="cellphone-link" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Selection Bar */}
@@ -365,7 +467,7 @@ export default function InventoryListScreen() {
           Total: {inventory.length}
         </CustomChip>
         <CustomChip icon="alert-circle" style={[styles.statChip, { backgroundColor: '#F57C00' }]}>
-          Low Stock: {inventory.filter(item => item.quantity <= 300).length}
+          Low Stock: {inventory.filter(item => Number(item.quantity || 0) > 0 && Number(item.quantity || 0) <= Number(item.reorder_level || 0)).length}
         </CustomChip>
         <CustomChip icon="alert" style={[styles.statChip, { backgroundColor: '#D32F2F' }]}>
           Out: {inventory.filter(item => item.quantity <= 0).length}
@@ -386,15 +488,24 @@ export default function InventoryListScreen() {
       />
 
       {/* Floating Action Button */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        onPress={() => navigation.navigate('AddProduct')}
-      >
-        <MaterialCommunityIcons name="plus" size={24} color="#fff" />
-      </TouchableOpacity>
+      {canManageInventory && (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          onPress={() => navigation.navigate('AddProduct')}
+        >
+          <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
 
       {/* Filter Modal */}
       {renderFilterModal()}
+
+      <Toast
+        visible={!!rtToast}
+        message={rtToast}
+        onHide={() => setRtToast('')}
+        duration={3000}
+      />
     </View>
   );
 }
@@ -412,6 +523,22 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+  },
+  rtStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  rtStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  rtStatusText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   searchBar: {
     flex: 1,
@@ -526,6 +653,10 @@ const styles = StyleSheet.create({
   stockQuantity: {
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  stockUnit: {
+    fontSize: 11,
+    marginTop: 2,
   },
   cardFooter: {
     flexDirection: 'row',

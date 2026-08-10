@@ -2,9 +2,19 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const verifyJwt = require('../middleware/verifyJwt');
+const { ensureDeliverySchema, TRACKING_UNAVAILABLE_MESSAGE } = require('../services/deliveryService');
 
 // Apply authentication middleware to all routes
 router.use(verifyJwt());
+router.use(async (_req, res, next) => {
+  try {
+    await ensureDeliverySchema(pool);
+    next();
+  } catch (error) {
+    console.error('Error preparing customer delivery schema:', error);
+    res.status(500).json({ success: false, message: 'Failed to prepare delivery information' });
+  }
+});
 
 // GET /api/customer-orders/orders - Get customer's orders
 router.get('/orders', async (req, res) => {
@@ -61,6 +71,15 @@ router.get('/orders', async (req, res) => {
         o.status,
         o.shipping_address,
         o.total_cost,
+        COALESCE(o.order_quantity, 0) AS total_boxes,
+        GREATEST(COALESCE(o.total_cost, 0) - COALESCE(pay.total_verified_payments, 0), 0) AS remaining_balance,
+        COALESCE(pay.total_verified_payments, 0) AS total_verified_payments,
+        CASE
+          WHEN COALESCE(o.total_cost, 0) > 0
+            AND GREATEST(COALESCE(o.total_cost, 0) - COALESCE(pay.total_verified_payments, 0), 0) = 0 THEN 'Fully Paid'
+          WHEN COALESCE(pay.total_verified_payments, 0) > 0 THEN 'Partially Paid'
+          ELSE 'Unpaid'
+        END AS payment_status,
         o.payment_type,
         o.payment_method,
         o.remarks,
@@ -72,6 +91,20 @@ router.get('/orders', async (req, res) => {
         o.order_shipped_at,
         o.order_received_at,
         o.status_updated_at,
+        COALESCE(o.delivery_status, 'Pending') AS delivery_status,
+        o.delivery_method,
+        o.delivery_type,
+        o.courier_name,
+        o.tracking_number,
+        o.tracking_link_available,
+        o.tracking_link,
+        COALESCE(o.tracking_unavailable_message, $2) AS tracking_unavailable_message,
+        o.proof_image_url,
+        o.proof_uploaded_at,
+        o.delivery_remarks,
+        o.sent_at,
+        o.picked_up_at,
+        o.delivered_at,
         COALESCE(
           json_agg(
             json_build_object(
@@ -85,11 +118,17 @@ router.get('/orders', async (req, res) => {
           '[]'::json
         ) as products
       FROM orders o
+      LEFT JOIN LATERAL (
+        SELECT COALESCE(SUM(i.amount_paid), 0) AS total_verified_payments
+        FROM invoices i
+        WHERE i.order_id = o.order_id
+          AND i.status = 'PAID'
+      ) pay ON true
       LEFT JOIN order_products op ON o.order_id = op.order_id
       LEFT JOIN inventory_items i ON op.sku = i.sku
       WHERE o.customer_id = $1
-      GROUP BY o.order_id
-    `, [customerId]);
+      GROUP BY o.order_id, pay.total_verified_payments
+    `, [customerId, TRACKING_UNAVAILABLE_MESSAGE]);
 
     // Fetch completed/cancelled orders from order_history table with products
     // Include orders that match customer_id OR have matching email/name for this customer
@@ -104,6 +143,10 @@ router.get('/orders', async (req, res) => {
         oh.status,
         oh.shipping_address,
         oh.total_cost,
+        COALESCE(oh.order_quantity, 0) AS total_boxes,
+        NULL::numeric AS remaining_balance,
+        NULL::numeric AS total_verified_payments,
+        NULL::varchar AS payment_status,
         oh.payment_type,
         oh.payment_method,
         oh.remarks,
@@ -115,6 +158,20 @@ router.get('/orders', async (req, res) => {
         oh.archived_at as order_shipped_at,
         oh.archived_at as order_received_at,
         oh.archived_at as status_updated_at,
+        COALESCE(oh.delivery_status, 'Pending') AS delivery_status,
+        oh.delivery_method,
+        oh.delivery_type,
+        oh.courier_name,
+        oh.tracking_number,
+        oh.tracking_link_available,
+        oh.tracking_link,
+        COALESCE(oh.tracking_unavailable_message, $2) AS tracking_unavailable_message,
+        oh.proof_image_url,
+        oh.proof_uploaded_at,
+        oh.delivery_remarks,
+        oh.sent_at,
+        oh.picked_up_at,
+        oh.delivered_at,
         COALESCE(
           json_agg(
             json_build_object(
@@ -137,11 +194,15 @@ router.get('/orders', async (req, res) => {
            OR oh.name = cd.name 
            OR oh.cellphone = cd.phone_number
          ))
-      GROUP BY oh.order_id, oh.customer_name, oh.shipped_to, oh.order_date, 
+      GROUP BY oh.order_id, oh.customer_name, oh.shipped_to, oh.order_date,
                oh.expected_delivery, oh.status, oh.shipping_address, oh.total_cost,
                oh.payment_type, oh.payment_method, oh.remarks, oh.telephone,
-               oh.cellphone, oh.email_address, oh.archived_at
-    `, [customerId]);
+               oh.cellphone, oh.email_address, oh.archived_at, oh.order_quantity,
+               oh.delivery_status, oh.delivery_method, oh.delivery_type, oh.courier_name,
+               oh.tracking_number, oh.tracking_link_available, oh.tracking_link,
+               oh.tracking_unavailable_message, oh.proof_image_url, oh.proof_uploaded_at,
+               oh.delivery_remarks, oh.sent_at, oh.picked_up_at, oh.delivered_at
+    `, [customerId, TRACKING_UNAVAILABLE_MESSAGE]);
 
     // Combine both results
     const allOrders = [...activeOrdersResult.rows, ...historyOrdersResult.rows];
@@ -216,21 +277,25 @@ router.get('/orders/:orderId', async (req, res) => {
       orderResult = await pool.query(`
         SELECT 
           o.*,
+          COALESCE(o.delivery_status, 'Pending') AS delivery_status,
+          COALESCE(o.tracking_unavailable_message, $3) AS tracking_unavailable_message,
           u.name as updated_by_name
         FROM orders o
         LEFT JOIN users u ON o.status_updated_by = u.user_id
         WHERE o.order_id = $1 AND o.customer_id = $2
-      `, [orderId, customerId]);
+      `, [orderId, customerId, TRACKING_UNAVAILABLE_MESSAGE]);
     } else {
       // Employee access - any order
       orderResult = await pool.query(`
         SELECT 
           o.*,
+          COALESCE(o.delivery_status, 'Pending') AS delivery_status,
+          COALESCE(o.tracking_unavailable_message, $2) AS tracking_unavailable_message,
           u.name as updated_by_name
         FROM orders o
         LEFT JOIN users u ON o.status_updated_by = u.user_id
         WHERE o.order_id = $1
-      `, [orderId]);
+      `, [orderId, TRACKING_UNAVAILABLE_MESSAGE]);
     }
 
     let isArchived = false;
@@ -322,6 +387,13 @@ router.get('/orders/:orderId', async (req, res) => {
       ORDER BY osh.updated_at ASC
     `, [orderId]);
 
+    const deliveryHistoryResult = await pool.query(`
+      SELECT status, remarks, delivery_method, courier_name, tracking_number, tracking_link, proof_image_url, created_at
+      FROM delivery_status_history
+      WHERE order_id = $1
+      ORDER BY created_at ASC
+    `, [orderId]);
+
     // Determine current tracking stage for customer view
     const order = orderResult.rows[0];
     const trackingStage = getCustomerTrackingStage(order.status);
@@ -332,6 +404,25 @@ router.get('/orders/:orderId', async (req, res) => {
         ...order,
         products: productsResult.rows,
         statusHistory: historyResult.rows,
+        deliveryHistory: deliveryHistoryResult.rows,
+        // order_history now carries the same delivery/tracking/proof columns as orders
+        // (migration 030), so archived orders no longer have to report delivery info as null.
+        delivery: {
+          delivery_status: order.delivery_status || 'Pending',
+          delivery_method: order.delivery_method,
+          delivery_type: order.delivery_type,
+          courier_name: order.courier_name,
+          tracking_number: order.tracking_number,
+          tracking_link_available: order.tracking_link_available,
+          tracking_link: order.tracking_link,
+          tracking_unavailable_message: order.tracking_unavailable_message || TRACKING_UNAVAILABLE_MESSAGE,
+          proof_image_url: order.proof_image_url,
+          proof_uploaded_at: order.proof_uploaded_at,
+          sent_at: order.sent_at,
+          picked_up_at: order.picked_up_at,
+          delivered_at: order.delivered_at,
+          delivery_remarks: order.delivery_remarks
+        },
         trackingStage
       }
     });

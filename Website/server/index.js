@@ -10,13 +10,48 @@ const fs = require('fs');
 const WebSocket = require('ws');
 const http = require('http');
 const helmet = require('helmet');
-// Load environment variables - prioritize .env for production, .env.local for development
-const envLocal = path.join(__dirname, '..', '.env.local');
-const envProd = path.join(__dirname, '..', '.env');
-const envPath = process.env.NODE_ENV === 'production' ? envProd : (fs.existsSync(envLocal) ? envLocal : envProd);
-require('dotenv').config({ path: envPath });
+// Load environment variables.
+// On Render (and other PaaS), env vars are injected natively — dotenv is a local-dev convenience only.
+// index.js lives at Website/server/index.js so __dirname IS the server root; .env sits beside it.
+const envLocal = path.join(__dirname, '.env.local');
+const envProd  = path.join(__dirname, '.env');
+const envPath  = process.env.NODE_ENV === 'production'
+  ? envProd
+  : (fs.existsSync(envLocal) ? envLocal : envProd);
+const dotenvResult = require('dotenv').config({ path: envPath });
+if (dotenvResult.error && process.env.NODE_ENV !== 'production') {
+  // Only warn in dev; in production Render provides vars natively so the file is expected to be absent.
+  console.warn('[Startup] dotenv could not load', envPath, '—', dotenvResult.error.message);
+}
+
+// ─── Startup environment validation ───────────────────────────────────────────
+// Fail immediately with a clear message instead of crashing mid-request with a
+// cryptic library error (e.g. "secretOrPrivateKey must have a value").
+const REQUIRED_ENV_VARS = [
+  { name: 'JWT_SECRET',  purpose: 'signing and verifying JWT tokens' },
+  { name: 'DB_USER',     purpose: 'PostgreSQL connection' },
+  { name: 'DB_HOST',     purpose: 'PostgreSQL connection' },
+  { name: 'DB_NAME',     purpose: 'PostgreSQL connection' },
+  { name: 'DB_PASSWORD', purpose: 'PostgreSQL connection' },
+];
+let _envValid = true;
+for (const { name, purpose } of REQUIRED_ENV_VARS) {
+  if (process.env[name]) {
+    console.log(`✓ ${name} loaded  (${purpose})`);
+  } else {
+    console.error(`✗ ${name} MISSING — required for ${purpose}`);
+    _envValid = false;
+  }
+}
+if (!_envValid) {
+  console.error('[Startup] FATAL: One or more required environment variables are not set.');
+  console.error('[Startup] On Render: add them under Service → Environment → Environment Variables.');
+  process.exit(1);
+}
+// ──────────────────────────────────────────────────────────────────────────────
 // Pool now sourced from config/db.js
 let wss, notifyChange;
+const { setWss, routeBarcodeToWeb, notifyPeer, isPeerOnline } = require('./broadcast');
 const pool = require('./config/db');
 const { runAutoMigrations } = require('./auto-migrate');
 const customersRouter = require('./routes/customers');
@@ -26,6 +61,8 @@ const ordersRouter = require('./routes/orders');
 const supplierOrdersRouter = require('./routes/supplier-orders');
 const notificationsRouter = require('./routes/notifications');
 const inventoryRouter = require('./routes/inventory');
+const invoicesRouter = require('./routes/invoices');
+const deliveriesRouter = require('./routes/deliveries');
 const availableInventoryRouter = require('./routes/available-inventory');
 const inventoryReportsRouter = require('./routes/inventory-reports');
 const salesReportsRouter = require('./routes/sales-reports');
@@ -39,6 +76,7 @@ const accountManagementRouter = require('./routes/accountManagement');
 const cartRouter = require('./routes/cart');
 const orderManagementRouter = require('./routes/order-management');
 const customerOrdersRouter = require('./routes/customer-orders');
+const showcaseRouter = require('./routes/showcase');
 const verifyJwt = require('./middleware/verifyJwt')();
 const requireRole = require('./middleware/requireRole');
 const requireReadOnly = require('./middleware/requireReadOnly');
@@ -238,12 +276,15 @@ const upload = multer({
 // --- CORS configuration (hardened) ---
 // Build the allowed origins list once. If CORS_ORIGIN env var exists, it overrides defaults.
 const allowedOrigins = (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)) || [
-  // Production deployed frontend (DigitalOcean App Platform)
-  'https://staticwrapntrack-b3akc.ondigitalocean.app',
-  // API origin (self) if browser ever calls directly from same host
-  'https://wrapntracwebservice-2g22j.ondigitalocean.app',
+  // Production deployed frontend (Render)
+  'https://wrap-n-track.onrender.com',
   // Development local React
   'http://localhost:3000',
+  // Expo mobile web dev server (web, Android emulator, iOS simulator)
+  'http://localhost:8081',
+  'http://localhost:19006',
+  'http://10.0.2.2:8081',
+  'http://10.0.2.2:19006',
   // Legacy fallbacks (remove when no longer needed)
   'https://wrap-n-track-b6z5.vercel.app',
   'https://wrap-n-track-b6z5-git-main-khenb21s-projects.vercel.app'
@@ -265,7 +306,7 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400
+  maxAge: 0
 };
 
 app.use(cors(corsOptions));
@@ -316,6 +357,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/customers', customersRouter);
@@ -330,6 +372,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/customer', customerRoutes);
 // Temporarily disable authentication for testing
 app.use('/api/inventory', inventoryRouter);
+app.use('/api', invoicesRouter);
+app.use('/api/deliveries', deliveriesRouter);
 // Available inventory is public for customers to view products in order page
 app.use('/api/available-inventory', availableInventoryRouter);
 app.use('/api/inventory-reports', verifyJwt, requireReadOnly(), inventoryReportsRouter);
@@ -361,6 +405,8 @@ app.get('/api/public/inventory', async (req, res) => {
         order_products op ON i.sku = op.sku
       LEFT JOIN 
         orders o ON op.order_id = o.order_id
+      WHERE
+        i.is_active = true
       GROUP BY 
         i.sku, i.name, i.description, i.quantity, i.unit_price, i.category, i.last_updated, i.uom, i.conversion_qty, i.expiration, i.image_data
       ORDER BY 
@@ -396,6 +442,7 @@ app.use('/api/account-management', accountManagementRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/order-management', orderManagementRouter);
 app.use('/api/customer-orders', customerOrdersRouter);
+app.use('/api/showcase', showcaseRouter);
 
 // Add error handling middleware
 app.use((err, req, res, next) => {
@@ -979,7 +1026,7 @@ The Wrap N' Track Team`,
 app.get('/api/user/details', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT user_id, name, email, role, created_at, profile_picture_data FROM users WHERE user_id = $1',
+      'SELECT user_id, name, email, role, created_at, last_login, is_email_verified, is_active, profile_picture_data FROM users WHERE user_id = $1',
       [req.user.user_id]
     );
 
@@ -1015,6 +1062,20 @@ app.post('/api/user/profile-picture', verifyToken, upload.single('profilePicture
     res.json({ success: true, profile_picture_data: profilePictureData.toString('base64') });
   } catch (error) {
     console.error('Profile picture upload error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Remove profile picture endpoint (store in DB)
+app.delete('/api/user/profile-picture', verifyToken, async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE users SET profile_picture_data = NULL WHERE user_id = $1',
+      [req.user.user_id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Profile picture removal error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
@@ -1201,17 +1262,10 @@ const server = app.listen(port, () => {
   console.log('[Startup] If deployed (e.g. DigitalOcean App Platform), PORT is injected via environment.');
 });
 
-// Initialize WebSocket server
-wss = new WebSocket.Server({ 
-  server,
-  path: '/ws',
-  verifyClient: (info) => {
-    // Allow connections from allowed origins
-    const origin = info.origin;
-    if (!origin) return true; // Allow server-to-server connections
-    return allowedOrigins.some(allowedOrigin => origin === allowedOrigin);
-  }
-});
+// Initialize WebSocket server — no verifyClient so Expo/RN clients aren't blocked;
+// auth is handled inside the 'register' message via JWT verification.
+wss = new WebSocket.Server({ server, path: '/ws' });
+setWss(wss);
 
 console.log('[WebSocket] Server initialized on /ws path');
 
@@ -1242,77 +1296,78 @@ process.on('unhandledRejection', (reason, promise) => {
   }
 });
 
-// Upgrade HTTP server to WebSocket server
-server.on('upgrade', (request, socket, head) => {
-  if (!wss) {
-    socket.destroy();
-    return;
-  }
-  try {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, request);
-    });
-  } catch (e) {
-    console.error('WebSocket upgrade failed:', e.message);
-    try { socket.destroy(); } catch(_) {}
-  }
-});
+// WebSocket connection handling — user-scoped routing.
+// The 'ws' library auto-attaches its own upgrade listener when given { server };
+// do NOT add a manual server.on('upgrade') handler — that would call handleUpgrade twice.
+wss.on('connection', (ws) => {
+  ws.userId = null;
+  ws.clientType = null;
 
-// WebSocket connection handling
-if (wss) {
-  wss.on('connection', (ws) => {
-    console.log('New WebSocket connection established');
+  ws.on('message', (raw) => {
+    let data;
+    try { data = JSON.parse(raw); } catch (_) { return; }
 
-  ws.on('message', (message) => {
-    try {
-      const data = JSON.parse(message);
-      console.log('Received message:', data);
-      
-      // Handle different message types
-      switch (data.type) {
-        case 'barcode':
-          // Broadcast barcode to all connected clients
-          broadcastBarcode(data.barcode);
-          break;
-        default:
-          console.log('Unknown message type:', data.type);
+    switch (data.type) {
+      case 'register': {
+        const token = (data.token || '').trim();
+        if (!token) {
+          ws.send(JSON.stringify({ type: 'register_error', message: 'No token provided.' }));
+          return;
+        }
+        let payload;
+        try { payload = jwt.verify(token, process.env.JWT_SECRET); } catch (_) {
+          ws.send(JSON.stringify({ type: 'register_error', message: 'Invalid or expired token.' }));
+          return;
+        }
+        const userId = payload.user_id || payload.customer_id;
+        if (!userId) {
+          ws.send(JSON.stringify({ type: 'register_error', message: 'Token missing user identity.' }));
+          return;
+        }
+        ws.userId = String(userId);
+        ws.clientType = data.clientType === 'mobile' ? 'mobile' : 'web';
+        ws.send(JSON.stringify({ type: 'registered', clientType: ws.clientType }));
+        // Tell the opposite peer this side is now online
+        notifyPeer(ws.userId, ws.clientType, 'peer_connected');
+        // ...and tell THIS client if the opposite peer was already online
+        // before it connected — notifyPeer alone only reaches whichever side
+        // was already there when the other joins; the side that connects
+        // second never otherwise learns the first side's presence.
+        if (isPeerOnline(ws.userId, ws.clientType)) {
+          ws.send(JSON.stringify({ type: 'peer_connected' }));
+        }
+        console.log(`[WS] registered userId=${ws.userId} type=${ws.clientType}`);
+        break;
       }
-    } catch (error) {
-      console.error('Error processing message:', error);
+
+      case 'barcode': {
+        if (!ws.userId || ws.clientType !== 'mobile') return;
+        const barcode = data.barcode || data.data;
+        if (barcode) routeBarcodeToWeb(ws.userId, barcode);
+        break;
+      }
+
+      case 'ping':
+        try { ws.send(JSON.stringify({ type: 'pong' })); } catch (_) {}
+        break;
+
+      default:
+        break;
     }
   });
 
-    ws.on('close', () => {
-      console.log('Client disconnected');
-    });
-  });
-} else {
-  console.log('WebSocket server (wss) not initialized; skipping connection handler setup.');
-}
-
-// Broadcast barcode to all connected clients
-const broadcastBarcode = (barcode) => {
-  if (!wss) return; // silently ignore if websocket not available
-  wss.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: 'barcode_scanned', barcode }));
+  ws.on('close', () => {
+    if (ws.userId) {
+      notifyPeer(ws.userId, ws.clientType, 'peer_disconnected');
+      console.log(`[WS] disconnected userId=${ws.userId} type=${ws.clientType}`);
     }
   });
-};
 
-// API endpoint to receive scanned barcode
-app.post('/api/inventory/scanned-barcode', (req, res) => {
-  const { barcode } = req.body;
-  
-  if (!barcode) {
-    return res.status(400).json({ error: 'Barcode is required' });
-  }
-
-  // Broadcast the barcode to all connected clients
-  broadcastBarcode(barcode);
-  
-  res.json({ success: true });
+  ws.on('error', (err) => {
+    console.error('[WS] socket error:', err.message);
+  });
 });
+
 
 // Get customer's ongoing orders
 app.get('/api/orders/customer/:customer_name', async (req, res) => {

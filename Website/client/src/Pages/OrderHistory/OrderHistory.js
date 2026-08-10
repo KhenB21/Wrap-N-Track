@@ -188,10 +188,18 @@ export default function OrderHistory() {
           <div className="order-list">
             <div className="order-list-title">ARCHIVED ORDERS</div>
             {loading ? (
-              <div style={{padding: '20px', textAlign: 'center', color: '#666'}}>
-                <div style={{fontSize: '16px', marginBottom: '8px'}}>Loading orders...</div>
-                <div style={{fontSize: '14px'}}>Please wait while we fetch your order history</div>
-              </div>
+              Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} className="order-list-item" style={{ pointerEvents: 'none' }}>
+                  <div className="order-info" style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
+                    <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', margin: 0 }} />
+                    <div className="skeleton-shimmer" style={{ width: '60px', height: '18px', borderRadius: '10px' }} />
+                  </div>
+                  <div className="order-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '8px' }}>
+                    <div className="skeleton-shimmer skeleton-text" style={{ width: '70px', height: '14px', margin: 0 }} />
+                    <div className="skeleton-shimmer skeleton-text" style={{ width: '90px', height: '14px', margin: 0 }} />
+                  </div>
+                </div>
+              ))
             ) : error ? (
               <div style={{padding: '20px', textAlign: 'center', color: '#e74c3c'}}>
                 <div style={{fontSize: '16px', marginBottom: '8px'}}>Error loading orders</div>
@@ -375,7 +383,7 @@ export default function OrderHistory() {
                     </div>
                   </div>
                   {/* RIGHT COLUMN: PRODUCTS CARD */}
-                  <div style={{width:340,minWidth:260,background:'#fafbfc',borderRadius:10,padding:'18px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
+                  <div className="order-history-products-card" style={{width:340,minWidth:260,borderRadius:10,padding:'18px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
                     <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
                     {(() => {
                       // Prefer explicitly fetched products; fall back to embedded products if valid

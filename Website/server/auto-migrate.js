@@ -63,16 +63,8 @@ async function runAutoMigrations() {
         // Rollback on error
         await pool.query('ROLLBACK');
         console.error(`❌ Error executing migration ${migrationFile}:`, error.message);
-        
-        // Skip problematic migrations and continue with others
-        console.log(`⏭️ Skipping migration ${migrationFile} due to error`);
-        
-        // Mark the migration as executed to avoid retrying it
-        try {
-          await pool.query('INSERT INTO migrations (name) VALUES ($1)', [migrationFile]);
-        } catch (insertError) {
-          // Ignore if already exists
-        }
+        console.log(`⏭️ Skipping remaining migrations until ${migrationFile} is fixed`);
+        break;
       }
     }
 

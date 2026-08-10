@@ -6,13 +6,13 @@ Create a React Native mobile application that connects to an existing Node.js/Ex
 ## Current System Architecture
 
 ### Backend Server (Node.js/Express + PostgreSQL)
-- **Base URL**: `https://wrapntracwebservice-2g22j.ondigitalocean.app/api` (production) or `http://localhost:3001/api` (development)
+- **Base URL**: `https://wrap-n-track-server.onrender.com/api` (production) or `http://localhost:3001/api` (development)
 - **Database**: PostgreSQL with comprehensive schema including inventory, orders, customers, users, cart, and delivery tracking
 - **Authentication**: JWT-based with unified login for both customers and employees
 - **Key Features**: Inventory management, order processing, cart system, user management, reporting, notifications
 
 ### Website (React)
-- **URL**: `https://staticwrapntrack-tz5cu.ondigitalocean.app`
+- **URL**: `https://wrap-n-track.onrender.com`
 - **Features**: Employee dashboard, customer portal, inventory management, order tracking, reporting
 - **UI Framework**: React with custom CSS, responsive design
 - **State Management**: Context API for auth, cart, inventory, orders, profile

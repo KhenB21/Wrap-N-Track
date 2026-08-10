@@ -15,7 +15,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Avatar } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { customerAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
@@ -52,6 +52,14 @@ export default function CustomerListScreen() {
     fetchCustomers();
   }, []);
 
+  // Re-fetch whenever this screen regains focus (e.g. returning from
+  // AddEditCustomerScreen after a save), so edits show up without a manual pull-to-refresh.
+  useFocusEffect(
+    useCallback(() => {
+      fetchCustomers();
+    }, [])
+  );
+
   const fetchCustomers = async () => {
     try {
       setLoading(true);
@@ -74,7 +82,7 @@ export default function CustomerListScreen() {
         customer_id: customer.customer_id || customer.id || '',
         name: customer.name || 'Unknown',
         email_address: customer.email_address || customer.email || '',
-        phone_number: customer.phone_number || customer.phone || '',
+        phone_number: customer.cellphone || customer.phone_number || customer.phone || '',
         account_status: customer.account_status || customer.status || 'active',
         status: (customer.account_status || customer.status || 'active').toLowerCase(),
         created_at: customer.created_at || customer.createdAt || new Date().toISOString(),
@@ -178,32 +186,47 @@ export default function CustomerListScreen() {
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            // Implement delete functionality
-            Alert.alert('Success', 'Customer deleted successfully');
+          onPress: async () => {
+            try {
+              await customerAPI.deleteCustomer(customer.customer_id);
+              Alert.alert('Success', 'Customer deleted successfully');
+              await fetchCustomers();
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to delete customer');
+            }
           }
         }
       ]
     );
   };
 
-  const handleBulkAction = (action) => {
+  const handleBulkDelete = () => {
     if (selectedCustomers.size === 0) {
       Alert.alert('No Selection', 'Please select customers first');
       return;
     }
 
     Alert.alert(
-      'Bulk Action',
-      `Are you sure you want to ${action} ${selectedCustomers.size} customers?`,
+      'Delete Customers',
+      `Are you sure you want to delete ${selectedCustomers.size} customer(s)? This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Confirm', 
-          onPress: () => {
-            // Implement bulk action
-            Alert.alert('Success', `Bulk ${action} completed`);
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const ids = Array.from(selectedCustomers);
+            const results = await Promise.allSettled(
+              ids.map(id => customerAPI.deleteCustomer(id))
+            );
+            const failed = results.filter(r => r.status === 'rejected').length;
             setSelectedCustomers(new Set());
+            await fetchCustomers();
+            if (failed > 0) {
+              Alert.alert('Partial Success', `${ids.length - failed} of ${ids.length} customers deleted. ${failed} failed.`);
+            } else {
+              Alert.alert('Success', `${ids.length} customer(s) deleted successfully`);
+            }
           }
         }
       ]
@@ -614,13 +637,7 @@ export default function CustomerListScreen() {
           <View style={styles.selectionActions}>
             <TouchableOpacity
               style={styles.selectionAction}
-              onPress={() => handleBulkAction('export')}
-            >
-              <MaterialCommunityIcons name="export" size={20} color={theme.colors.onPrimaryContainer} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.selectionAction}
-              onPress={() => handleBulkAction('delete')}
+              onPress={handleBulkDelete}
             >
               <MaterialCommunityIcons name="delete" size={20} color={theme.colors.onPrimaryContainer} />
             </TouchableOpacity>

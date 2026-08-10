@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Sidebar.css"; // We'll create this next
 import { useAuth } from "../../Context/AuthContext";
+import { useMobileNav } from "../../Context/MobileNavContext";
 
 const Sidebar = () => {
   const [reportsOpen, setReportsOpen] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { isOpen, close } = useMobileNav();
 
   const handleLogout = () => {
     logout();
@@ -18,38 +20,38 @@ const Sidebar = () => {
   // Define permissions for each role
   const rolePermissions = {
     super_admin: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
+      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true, showcaseGallery: true,
     },
     admin: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
+      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true, showcaseGallery: true,
     },
     director: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true,
+      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true, showcaseGallery: true,
     },
     business_developer: {
-      dashboard: true, inventory: false, orders: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: false, orders: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false, showcaseGallery: false,
     },
     creatives: {
-      dashboard: true, inventory: true, orders: false, reports: true, customers: false, suppliers: false, orderHistory: false, accountManagement: false,
+      dashboard: true, inventory: true, orders: false, reports: true, customers: false, suppliers: false, orderHistory: false, accountManagement: false, showcaseGallery: true,
     },
     sales_manager: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false, showcaseGallery: true,
     },
     assistant_sales: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: false, orderHistory: false, accountManagement: false,
+      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: false, orderHistory: false, accountManagement: false, showcaseGallery: false,
     },
     packer: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: false, suppliers: false, orderHistory: true, accountManagement: false,
-      readOnly: true, // Mark as read-only
+      dashboard: true, inventory: true, orders: true, reports: true, customers: false, suppliers: false, orderHistory: true, accountManagement: false, showcaseGallery: false,
+      readOnly: true,
     },
     operations_manager: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false, showcaseGallery: false,
     },
     social_media_manager: {
-      dashboard: true, inventory: false, orders: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: false, orders: true, deliveryTracking: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false, showcaseGallery: true,
     },
     default: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false,
+      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false, showcaseGallery: false,
     }
   };
 
@@ -57,7 +59,13 @@ const Sidebar = () => {
 
 
   return (
-    <div className="sidebar">
+    <>
+      <div
+        className={`sidebar-backdrop${isOpen ? ' visible' : ''}`}
+        onClick={close}
+        aria-hidden="true"
+      />
+      <div className={`sidebar${isOpen ? ' sidebar-open' : ''}`}>
       <div className="sidebar-header">
         <h2>Wrap N' Track</h2>
       </div>
@@ -93,6 +101,22 @@ const Sidebar = () => {
               <Link to="/orders">
                 <span className="icon">💰</span>
                 <span className="text">Orders</span>
+              </Link>
+            </li>
+          )}
+          {permissions.invoices && (
+            <li>
+              <Link to="/invoices">
+                <span className="icon">INV</span>
+                <span className="text">Invoices</span>
+              </Link>
+            </li>
+          )}
+          {permissions.deliveryTracking && (
+            <li>
+              <Link to="/delivery-tracking">
+                <span className="icon">DEL</span>
+                <span className="text">Delivery Tracking</span>
               </Link>
             </li>
           )}
@@ -145,6 +169,14 @@ const Sidebar = () => {
               </Link>
             </li>
           )}
+          {permissions.showcaseGallery && (
+            <li>
+              <Link to="/showcase-gallery">
+                <span className="icon">🖼️</span>
+                <span className="text">Showcase Gallery</span>
+              </Link>
+            </li>
+          )}
           <li>
             <Link to="/customer-home">
               <span className="icon">💍</span>
@@ -160,7 +192,8 @@ const Sidebar = () => {
           <span className="text">Log Out</span>
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

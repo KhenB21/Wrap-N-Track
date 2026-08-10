@@ -81,6 +81,19 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Merges a partial update (e.g. a freshly uploaded profile picture) into the shared
+  // session user so every consumer of useAuth() (TopBar, etc.) reflects it immediately,
+  // instead of only the component that made the change patching its own local state.
+  const updateUser = (partialUser) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...partialUser };
+      const storageKey = prev.source === 'customer' ? 'customer' : 'user';
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   // Security function to clear conflicting tokens
   const clearConflictingTokens = (currentUserType) => {
     if (currentUserType === 'employee') {
@@ -107,6 +120,7 @@ export const AuthProvider = ({ children }) => {
     isLoading: loading,
     login,
     logout,
+    updateUser,
     clearConflictingTokens,
     validateAccess
   };

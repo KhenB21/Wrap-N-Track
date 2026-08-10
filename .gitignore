@@ -5,3 +5,8 @@ Website/server/.env
 Website/server/.env.*
 Website/client/.env
 Website/client/.env.*
+Website/servers/uploads/
+uploads/
+Website/server/uploads/*
+!Website/server/uploads/
+!Website/server/uploads/.gitkeep

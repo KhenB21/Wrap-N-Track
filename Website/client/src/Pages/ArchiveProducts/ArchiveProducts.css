@@ -2,7 +2,7 @@
 .dashboard-container {
   display: flex;
   height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--app-bg, #f5f5f5);
 }
 
 .dashboard-main {
@@ -18,6 +18,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  background-color: var(--app-bg, #fff);
+  color: var(--text, #333);
 }
 
 .inventory-header {
@@ -26,11 +28,11 @@
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--border, #e0e0e0);
 }
 
 .inventory-header h2 {
-  color: #333;
+  color: var(--text, #333);
   margin: 0;
   font-size: 28px;
   font-weight: 600;
@@ -64,16 +66,18 @@
 
 .inventory-filter-select {
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-border, #ddd);
   border-radius: 4px;
   font-size: 14px;
-  background-color: white;
+  background-color: var(--input-background, white);
+  color: var(--input-text, #333);
   cursor: pointer;
 }
 
 .inventory-filter-select:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: var(--brand, #007bff);
+  box-shadow: 0 0 0 2px var(--focus-ring, rgba(0, 123, 255, 0.15));
 }
 
 .loading-container {
@@ -82,15 +86,15 @@
   align-items: center;
   height: 200px;
   font-size: 16px;
-  color: #666;
+  color: var(--text-muted, #666);
 }
 
 .inventory-table-container {
   flex: 1;
   overflow: hidden;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border, #e0e0e0);
   border-radius: 8px;
-  background-color: white;
+  background-color: var(--surface, white);
 }
 
 .inventory-table-wrapper {
@@ -102,10 +106,12 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  background-color: var(--surface, #fff);
+  color: var(--text, #333);
 }
 
 .inventory-table thead {
-  background-color: #f8f9fa;
+  background-color: var(--surface-muted, #f8f9fa);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -115,10 +121,10 @@
   padding: 12px 8px;
   text-align: left;
   font-weight: 600;
-  color: #495057;
-  border-bottom: 2px solid #dee2e6;
-  border-right: 1px solid #dee2e6;
-  background-color: #f8f9fa;
+  color: var(--text-soft, #495057);
+  border-bottom: 2px solid var(--border, #dee2e6);
+  border-right: 1px solid var(--border, #dee2e6);
+  background-color: var(--surface-muted, #f8f9fa);
 }
 
 .inventory-table th:last-child {
@@ -126,18 +132,19 @@
 }
 
 .inventory-table tbody tr {
-  border-bottom: 1px solid #dee2e6;
+  border-bottom: 1px solid var(--border, #dee2e6);
   transition: background-color 0.2s;
 }
 
 .inventory-table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--hover, #f8f9fa);
 }
 
 .inventory-table td {
   padding: 10px 8px;
-  border-right: 1px solid #dee2e6;
+  border-right: 1px solid var(--border, #dee2e6);
   vertical-align: middle;
+  color: var(--text, #333);
 }
 
 .inventory-table td:last-child {
@@ -149,15 +156,15 @@
   height: 40px;
   object-fit: cover;
   border-radius: 4px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border, #ddd);
 }
 
 .img-placeholder {
   width: 40px;
   height: 40px;
-  background-color: #f0f0f0;
+  background-color: var(--surface-muted, #f0f0f0);
   border-radius: 4px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border, #ddd);
 }
 
 .ellipsis {
@@ -175,16 +182,16 @@
 
 .supplier-name {
   font-weight: 500;
-  color: #333;
+  color: var(--text, #333);
 }
 
 .supplier-phone {
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted, #666);
 }
 
 .no-supplier {
-  color: #999;
+  color: var(--text-muted, #999);
   font-style: italic;
 }
 
@@ -216,7 +223,7 @@
   align-items: center;
   height: 200px;
   font-size: 16px;
-  color: #666;
+  color: var(--text-muted, #666);
 }
 
 /* Stock level styling */
@@ -230,6 +237,30 @@
 
 .high-stock-row {
   background-color: rgba(40, 167, 69, 0.1);
+}
+
+.archived-quantity-pill {
+  background-color: #f0f0f0;
+  color: #1a1a1a;
+  display: inline-block;
+}
+
+body.dark .archived-quantity-pill {
+  background-color: #333333;
+  color: #e0e0e0;
+}
+
+/* Dark mode overrides */
+body.dark .low-stock-row {
+  background-color: rgba(220, 53, 69, 0.22);
+}
+
+body.dark .medium-stock-row {
+  background-color: rgba(255, 193, 7, 0.22);
+}
+
+body.dark .high-stock-row {
+  background-color: rgba(40, 167, 69, 0.22);
 }
 
 /* Responsive adjustments */

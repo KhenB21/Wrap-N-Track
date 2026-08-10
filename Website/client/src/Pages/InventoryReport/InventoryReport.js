@@ -19,6 +19,7 @@ export default function InventoryReport() {
     totalValue: 0,
     totalSKUs: 0,
     lowStockItems: [],
+    outOfStockItems: [],
     expiringItems: [],
     categoryBreakdown: [],
     topSellingItems: [],
@@ -34,6 +35,9 @@ export default function InventoryReport() {
     endDate: new Date().toISOString().split('T')[0]
   });
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedSupplier, setSelectedSupplier] = useState('all');
+  const [stockStatusFilter, setStockStatusFilter] = useState('all'); // all | low | out
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     // Check if user is logged in first
@@ -135,12 +139,17 @@ export default function InventoryReport() {
     }
   };
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'URGENT': return '#EF4444';
-      case 'SOON': return '#F59E0B';
-      case 'PLAN': return '#3B82F6';
-      case 'ADEQUATE': return '#10B981';
+  // Matches the actual reorder_status values the backend computes in
+  // /api/inventory-reports/replenishment-suggestions (see the formula
+  // documented in Website/server/routes/inventory-reports.js) — the frontend
+  // previously filtered on invented URGENT/SOON/PLAN/ADEQUATE labels that the
+  // backend never sends, so this tab always rendered empty.
+  const getPriorityColor = (status) => {
+    switch (status) {
+      case 'Out of Stock': return '#EF4444';
+      case 'Reorder Recommended': return '#F59E0B';
+      case 'Approaching Reorder Point': return '#3B82F6';
+      case 'Healthy': return '#10B981';
       default: return '#6B7280';
     }
   };
@@ -162,9 +171,15 @@ export default function InventoryReport() {
     // Calculate total SKUs
     const totalSKUs = data.length;
     
-    // Find low stock items (assuming reorder_level exists, otherwise use 20% of current stock)
+    // Out-of-stock: zero (or negative) quantity — tracked separately from "low stock"
+    // so the two KPIs don't double-count the same items.
+    const outOfStockItems = data.filter(item => (parseFloat(item.quantity) || 0) <= 0);
+
+    // Low stock: positive quantity at/below reorder level (or 20% of stock if no
+    // reorder_level is set), excluding items already counted as out of stock.
     const lowStockItems = data.filter(item => {
       const quantity = parseFloat(item.quantity) || 0;
+      if (quantity <= 0) return false;
       const reorderLevel = item.reorder_level || Math.ceil(quantity * 0.2);
       return quantity <= reorderLevel;
     });
@@ -213,6 +228,7 @@ export default function InventoryReport() {
       totalValue,
       totalSKUs,
       lowStockItems,
+      outOfStockItems,
       expiringItems,
       categoryBreakdown: categoryArray,
       topSellingItems,
@@ -240,11 +256,12 @@ export default function InventoryReport() {
       ['Total Inventory Value', formatCurrency(reportData.totalValue)],
       ['Total SKUs', formatNumber(reportData.totalSKUs)],
       ['Low Stock Items', formatNumber(reportData.lowStockItems.length)],
+      ['Out of Stock Items', formatNumber(reportData.outOfStockItems.length)],
       ['Expiring Items', formatNumber(reportData.expiringItems.length)],
       ['Fast Moving Items', formatNumber(movementData.filter(item => item.movement_category === 'FAST_MOVING').length)],
       ['Slow Moving Items', formatNumber(movementData.filter(item => item.movement_category === 'SLOW_MOVING').length)],
       ['Dead Stock Items', formatNumber(movementData.filter(item => item.movement_category === 'DEAD_STOCK').length)],
-      ['Urgent Replenishment', formatNumber(replenishmentData.filter(item => item.priority_level === 'URGENT').length)]
+      ['Urgent Replenishment', formatNumber(replenishmentData.filter(item => item.reorder_status === 'Out of Stock' || item.reorder_status === 'Reorder Recommended').length)]
     ];
     
     autoTable(doc, {
@@ -277,17 +294,19 @@ export default function InventoryReport() {
     }
     
     // Urgent Replenishment Items
-    const urgentItems = replenishmentData.filter(item => item.priority_level === 'URGENT').slice(0, 10);
+    const urgentItems = replenishmentData
+      .filter(item => item.reorder_status === 'Out of Stock' || item.reorder_status === 'Reorder Recommended')
+      .slice(0, 10);
     if (urgentItems.length > 0) {
       doc.setFontSize(14);
       doc.text('Urgent Replenishment Items', 14, doc.lastAutoTable.finalY + 20);
-      
+
       const urgentData = urgentItems.map(item => [
         item.sku,
         item.name,
-        formatNumber(item.current_stock),
-        formatNumber(item.suggested_order_quantity),
-        formatCurrency(item.suggested_order_value)
+        formatNumber(item.available_stock),
+        formatNumber(item.suggested_reorder_quantity),
+        formatCurrency((parseFloat(item.suggested_reorder_quantity) || 0) * (parseFloat(item.unit_price) || 0))
       ]);
       
       autoTable(doc, {
@@ -310,11 +329,12 @@ export default function InventoryReport() {
       'Total Inventory Value': formatCurrency(reportData.totalValue),
       'Total SKUs': reportData.totalSKUs,
       'Low Stock Items': reportData.lowStockItems.length,
+      'Out of Stock Items': reportData.outOfStockItems.length,
       'Expiring Items': reportData.expiringItems.length,
       'Fast Moving Items': movementData.filter(item => item.movement_category === 'FAST_MOVING').length,
       'Slow Moving Items': movementData.filter(item => item.movement_category === 'SLOW_MOVING').length,
       'Dead Stock Items': movementData.filter(item => item.movement_category === 'DEAD_STOCK').length,
-      'Urgent Replenishment': replenishmentData.filter(item => item.priority_level === 'URGENT').length
+      'Urgent Replenishment': replenishmentData.filter(item => item.reorder_status === 'Out of Stock' || item.reorder_status === 'Reorder Recommended').length
     }]);
     XLSX.utils.book_append_sheet(workbook, overviewSheet, 'Overview');
     
@@ -337,10 +357,10 @@ export default function InventoryReport() {
       SKU: item.sku,
       Name: item.name,
       Category: item.category,
-      'Current Stock': item.current_stock,
-      'Priority Level': item.priority_level,
-      'Suggested Reorder Point': item.suggested_reorder_point,
-      'Suggested Order Qty': item.suggested_order_quantity,
+      'Available Stock': item.available_stock,
+      'Status': item.reorder_status,
+      'Reorder Point': item.reorder_point,
+      'Suggested Order Qty': item.suggested_reorder_quantity,
       'Days of Supply': item.days_of_supply,
       'Supplier': item.supplier_name
     })));
@@ -407,9 +427,33 @@ export default function InventoryReport() {
     }
   };
 
-  const filteredData = selectedCategory === 'all' 
-    ? (inventoryData || []) 
-    : (inventoryData || []).filter(item => item.category === selectedCategory);
+  const categoryOptions = Array.from(
+    new Set((inventoryData || []).map(item => item.category || 'Uncategorized'))
+  ).sort();
+  const supplierOptions = Array.from(
+    new Set((inventoryData || []).map(item => item.supplier_name).filter(Boolean))
+  ).sort();
+
+  // Product/stock table for the Low Stock & Out of Stock section — combines
+  // reportData's lowStockItems + outOfStockItems, then applies the
+  // category/supplier/stock-status/search filters.
+  const stockWatchItems = [...reportData.lowStockItems, ...reportData.outOfStockItems]
+    .filter(item => selectedCategory === 'all' || (item.category || 'Uncategorized') === selectedCategory)
+    .filter(item => selectedSupplier === 'all' || item.supplier_name === selectedSupplier)
+    .filter(item => {
+      if (stockStatusFilter === 'all') return true;
+      const qty = parseFloat(item.quantity) || 0;
+      return stockStatusFilter === 'out' ? qty <= 0 : qty > 0;
+    })
+    .filter(item => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.trim().toLowerCase();
+      return (
+        (item.name || '').toLowerCase().includes(term) ||
+        (item.sku || '').toLowerCase().includes(term)
+      );
+    })
+    .sort((a, b) => (parseFloat(a.quantity) || 0) - (parseFloat(b.quantity) || 0));
 
   if (loading) {
     return (
@@ -516,6 +560,10 @@ export default function InventoryReport() {
                   <div className="value">{formatNumber(reportData.lowStockItems.length)}</div>
                 </div>
                 <div className="summary-card danger">
+                  <h3>Out of Stock</h3>
+                  <div className="value">{formatNumber(reportData.outOfStockItems.length)}</div>
+                </div>
+                <div className="summary-card danger">
                   <h3>Expiring Items</h3>
                   <div className="value">{formatNumber(reportData.expiringItems.length)}</div>
                 </div>
@@ -533,9 +581,75 @@ export default function InventoryReport() {
                 </div>
                 <div className="summary-card info">
                   <h3>Urgent Replenishment</h3>
-                  <div className="value">{formatNumber(replenishmentData.filter(item => item.priority_level === 'URGENT').length)}</div>
+                  <div className="value">{formatNumber(replenishmentData.filter(item => item.reorder_status === 'Out of Stock' || item.reorder_status === 'Reorder Recommended').length)}</div>
                 </div>
               </div>
+
+              <div className="section-header" style={{ marginTop: '32px' }}>
+                <h2>Low Stock &amp; Out of Stock</h2>
+                <p>Products that need attention, filterable by category, supplier, and status</p>
+              </div>
+
+              <div className="stock-watch-filters">
+                <input
+                  type="text"
+                  className="stock-watch-search"
+                  placeholder="Search by product name or SKU..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+                  <option value="all">All Categories</option>
+                  {categoryOptions.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+                <select value={selectedSupplier} onChange={(e) => setSelectedSupplier(e.target.value)}>
+                  <option value="all">All Suppliers</option>
+                  {supplierOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select value={stockStatusFilter} onChange={(e) => setStockStatusFilter(e.target.value)}>
+                  <option value="all">Low Stock + Out of Stock</option>
+                  <option value="low">Low Stock Only</option>
+                  <option value="out">Out of Stock Only</option>
+                </select>
+              </div>
+
+              {stockWatchItems.length === 0 ? (
+                <p className="empty-note">No products match the current filters.</p>
+              ) : (
+                <div className="replenishment-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>SKU</th>
+                        <th>Current Stock</th>
+                        <th>Reorder Threshold</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stockWatchItems.map(item => {
+                        const qty = parseFloat(item.quantity) || 0;
+                        const threshold = item.reorder_level || Math.ceil(qty * 0.2);
+                        const isOut = qty <= 0;
+                        return (
+                          <tr key={item.sku}>
+                            <td>{item.name}</td>
+                            <td>{item.sku}</td>
+                            <td>{formatNumber(qty)}</td>
+                            <td>{formatNumber(threshold)}</td>
+                            <td>
+                              <span className={`stock-status-pill ${isOut ? 'out' : 'low'}`}>
+                                {isOut ? 'Out of Stock' : 'Low Stock'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -596,12 +710,12 @@ export default function InventoryReport() {
               </div>
               
               <div className="replenishment-priority">
-                {['URGENT', 'SOON', 'PLAN', 'ADEQUATE'].map(priority => {
-                  const items = replenishmentData.filter(item => item.priority_level === priority);
+                {['Out of Stock', 'Reorder Recommended', 'Approaching Reorder Point', 'Healthy'].map(status => {
+                  const items = replenishmentData.filter(item => item.reorder_status === status);
                   return (
-                    <div key={priority} className="priority-section">
-                      <div className="priority-header" style={{ backgroundColor: getPriorityColor(priority) }}>
-                        <h3>{priority} Priority</h3>
+                    <div key={status} className="priority-section">
+                      <div className="priority-header" style={{ backgroundColor: getPriorityColor(status) }}>
+                        <h3>{status}</h3>
                         <span className="count">{items.length} items</span>
                       </div>
                       <div className="replenishment-table">
@@ -610,10 +724,10 @@ export default function InventoryReport() {
                             <tr>
                               <th>SKU</th>
                               <th>Name</th>
-                              <th>Current Stock</th>
-                              <th>Daily Demand</th>
+                              <th>Available Stock</th>
+                              <th>Avg Daily Usage</th>
                               <th>Days of Supply</th>
-                              <th>Suggested Reorder Point</th>
+                              <th>Reorder Point</th>
                               <th>Suggested Order Qty</th>
                               <th>Order Value</th>
                               <th>Supplier</th>
@@ -624,12 +738,12 @@ export default function InventoryReport() {
                               <tr key={item.sku}>
                                 <td>{item.sku}</td>
                                 <td>{item.name}</td>
-                                <td>{formatNumber(item.current_stock)}</td>
-                                <td>{formatNumber(item.avg_daily_demand)}</td>
-                                <td>{item.days_of_supply}</td>
-                                <td>{formatNumber(item.suggested_reorder_point)}</td>
-                                <td>{formatNumber(item.suggested_order_quantity)}</td>
-                                <td>{formatCurrency(item.suggested_order_value)}</td>
+                                <td>{formatNumber(item.available_stock)}</td>
+                                <td>{formatNumber(item.average_daily_usage)}</td>
+                                <td>{item.days_of_supply ?? 'N/A'}</td>
+                                <td>{formatNumber(item.reorder_point)}</td>
+                                <td>{formatNumber(item.suggested_reorder_quantity)}</td>
+                                <td>{formatCurrency((parseFloat(item.suggested_reorder_quantity) || 0) * (parseFloat(item.unit_price) || 0))}</td>
                                 <td>{item.supplier_name || 'N/A'}</td>
                               </tr>
                             ))}

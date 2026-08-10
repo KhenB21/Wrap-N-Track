@@ -39,6 +39,7 @@ router.get('/', async (req, res) => {
              CASE WHEN i.image_data IS NOT NULL THEN encode(i.image_data, 'base64') ELSE NULL END AS image_data
       FROM public.available_inventory ai
       JOIN public.inventory_items i ON i.sku = ai.sku
+      WHERE i.is_active = true
       ORDER BY ai.category, i.name ASC
     `);
 

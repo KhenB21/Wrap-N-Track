@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const verifyJwt = require('../middleware/verifyJwt');
 const requireRole = require('../middleware/requireRole');
+const { initializeDeliveryForReadyOrder } = require('../services/deliveryService');
 
 // Apply authentication middleware to all routes
 router.use(verifyJwt());
@@ -110,7 +111,7 @@ router.get('/orders', requireRole(['admin', 'sales_manager', 'assistant_sales', 
 });
 
 // PUT /api/order-management/orders/:orderId/status - Update order status
-router.put('/orders/:orderId/status', requireRole(['admin', 'sales_manager', 'assistant_sales', 'packer']), async (req, res) => {
+router.put('/orders/:orderId/status', requireRole(['admin', 'super_admin', 'operations_manager', 'sales_manager', 'social_media_manager', 'assistant_sales', 'packer']), async (req, res) => {
   try {
     const { orderId } = req.params;
     const { status, notes, payment_method } = req.body;
@@ -173,6 +174,10 @@ router.put('/orders/:orderId/status', requireRole(['admin', 'sales_manager', 'as
       console.log(`Payment method update result: ${updateResult.rowCount} rows affected`);
     }
 
+    if (status === 'Ready for Delivery') {
+      await initializeDeliveryForReadyOrder(pool, orderId, updatedBy, notes);
+    }
+
     // Check if the order should be archived (after status update)
     const checkOrderResult = await pool.query('SELECT * FROM orders WHERE order_id = $1', [orderId]);
     console.log(`Order status after update: ${status}, Order exists: ${checkOrderResult.rows.length > 0}`);
@@ -233,13 +238,21 @@ router.put('/orders/:orderId/status', requireRole(['admin', 'sales_manager', 'as
         }
       }
       
-      // Insert into order_history
+      // Insert into order_history (carries delivery/tracking/proof/box-count data over
+      // from `orders` before that row is deleted below, so customers don't lose their
+      // delivery info once the order reaches a terminal state)
       await pool.query(
         `INSERT INTO order_history (
           order_id, customer_name, name, shipped_to, order_date, expected_delivery,
           status, shipping_address, total_cost, payment_type, payment_method,
-          account_name, remarks, telephone, cellphone, email_address, archived_by, customer_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+          account_name, remarks, telephone, cellphone, email_address, archived_by, customer_id,
+          delivery_status, delivery_method, delivery_mode_id, delivery_type, courier_name,
+          tracking_number, tracking_link, tracking_link_available, tracking_unavailable_message,
+          proof_image_url, proof_uploaded_by, proof_uploaded_at,
+          sent_at, picked_up_at, delivered_at, delivery_remarks,
+          delivery_updated_by, delivery_updated_at, order_quantity
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
+          $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)`,
         [
           order.order_id,
           order.name || 'Customer',
@@ -258,7 +271,26 @@ router.put('/orders/:orderId/status', requireRole(['admin', 'sales_manager', 'as
           order.cellphone || null,
           order.email_address || null,
           updatedBy,
-          customerId
+          customerId,
+          order.delivery_status || null,
+          order.delivery_method || null,
+          order.delivery_mode_id || null,
+          order.delivery_type || null,
+          order.courier_name || null,
+          order.tracking_number || null,
+          order.tracking_link || null,
+          order.tracking_link_available,
+          order.tracking_unavailable_message || null,
+          order.proof_image_url || null,
+          order.proof_uploaded_by || null,
+          order.proof_uploaded_at || null,
+          order.sent_at || null,
+          order.picked_up_at || null,
+          order.delivered_at || null,
+          order.delivery_remarks || null,
+          order.delivery_updated_by || null,
+          order.delivery_updated_at || null,
+          order.order_quantity != null ? order.order_quantity : null
         ]
       );
       console.log(`Order ${order.order_id} archived successfully with customer_id: ${customerId}`);

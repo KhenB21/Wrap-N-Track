@@ -3,15 +3,26 @@
     "name": "Wrap N Track",
     "slug": "wrapntrack",
     "version": "1.0.0",
-    "sdkVersion": "54.0.0",
     "orientation": "portrait",
-    "icon": "./src/Images/Logo/pensee-logo-only.png",
+    "icon": "./src/Images/Logo/pensee-logo-square.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./src/Images/Logo/pensee-logo-only.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Wrap N Track to scan product barcode and QR labels."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./src/Images/Logo/pensee-logo-square.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-audio"
+    ],
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -19,13 +30,16 @@
       "supportsTablet": true
     },
     "android": {
+      "permissions": [
+        "CAMERA"
+      ],
       "adaptiveIcon": {
-        "foregroundImage": "./src/Images/Logo/pensee-logo-only.png",
+        "foregroundImage": "./src/Images/Logo/pensee-logo-square.png",
         "backgroundColor": "#FFFFFF"
       }
     },
     "web": {
-      "favicon": "./src/Images/Logo/pensee-logo-only.png"
+      "favicon": "./src/Images/Logo/pensee-logo-square.png"
     }
   }
 }

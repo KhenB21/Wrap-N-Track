@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { inventoryAPI } from '../services/api';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { inventoryAPI, getWsUrl } from '../services/api';
 
 const InventoryContext = createContext();
 
@@ -16,6 +17,7 @@ const INVENTORY_ACTIONS = {
   SET_CATEGORY_FILTER: 'SET_CATEGORY_FILTER',
   SET_SEARCH_QUERY: 'SET_SEARCH_QUERY',
   SET_FILTER: 'SET_FILTER',
+  REMOVE_INVENTORY_ITEM: 'REMOVE_INVENTORY_ITEM',
 };
 
 // Initial state
@@ -139,19 +141,27 @@ const inventoryReducer = (state, action) => {
       let filtered = [...state.inventory];
       
       if (filterType === 'low-stock') {
-        filtered = filtered.filter(item => item.quantity > 0 && item.quantity <= 300);
-      } else if (filterType === 'medium-stock') {
-        filtered = filtered.filter(item => item.quantity > 300 && item.quantity <= 800);
+        filtered = filtered.filter(item => Number(item.quantity || 0) > 0 && Number(item.quantity || 0) <= Number(item.reorder_level || 0));
       } else if (filterType === 'high-stock') {
-        filtered = filtered.filter(item => item.quantity > 800);
+        filtered = filtered.filter(item => Number(item.quantity || 0) > Number(item.reorder_level || 0));
       } else if (filterType === 'replenishment') {
-        filtered = filtered.filter(item => item.quantity <= 0);
+        filtered = filtered.filter(item => Number(item.quantity || 0) <= 0);
       }
       
       return {
         ...state,
         filter: filterType,
         filteredInventory: filtered,
+      };
+
+    case INVENTORY_ACTIONS.REMOVE_INVENTORY_ITEM:
+      const archivedSku = action.payload;
+      return {
+        ...state,
+        inventory: state.inventory.filter(item => item.sku !== archivedSku),
+        filteredInventory: state.filteredInventory.filter(item => item.sku !== archivedSku),
+        selectedProducts: state.selectedProducts.filter(item => item.sku !== archivedSku),
+        loading: false,
       };
 
     default:
@@ -183,6 +193,7 @@ export const InventoryProvider = ({ children }) => {
       inventory = inventory.map(item => ({
         ...item,
         quantity: parseInt(item.quantity || 0),
+        reorder_level: parseInt(item.reorder_level || 0),
         unit_price: parseFloat(item.unit_price || 0),
         ordered_quantity: parseInt(item.ordered_quantity || 0),
         // Ensure image data is properly formatted for base64 display
@@ -204,6 +215,106 @@ export const InventoryProvider = ({ children }) => {
   // useEffect(() => {
   //   loadInventory();
   // }, []);
+
+  // ── Real-time inventory sync (shared WS server — see Website/server/index.js
+  // + broadcast.js) ──────────────────────────────────────────────────────────
+  // 'connecting' | 'live' | 'reconnecting' | 'offline'
+  const [realtimeStatus, setRealtimeStatus] = useState('connecting');
+  const [lastRealtimeEvent, setLastRealtimeEvent] = useState(null);
+  const rtWsRef = useRef(null);
+  const rtMountedRef = useRef(true);
+  const rtAttemptsRef = useRef(0);
+  const rtWasDisconnectedRef = useRef(false);
+  const rtLoadRef = useRef(loadInventory);
+  rtLoadRef.current = loadInventory;
+
+  const rtConnect = useCallback(async () => {
+    if (!rtMountedRef.current || rtWsRef.current) return;
+    const token = await AsyncStorage.getItem('authToken');
+    if (!token) {
+      setRealtimeStatus('offline');
+      return;
+    }
+
+    let ws;
+    try { ws = new WebSocket(getWsUrl()); } catch (_) {
+      scheduleRtReconnect();
+      return;
+    }
+    rtWsRef.current = ws;
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'register', token, clientType: 'mobile' }));
+    };
+
+    ws.onmessage = (e) => {
+      if (!rtMountedRef.current) return;
+      let msg;
+      try { msg = JSON.parse(e.data); } catch (_) { return; }
+
+      if (msg.type === 'registered') {
+        setRealtimeStatus('live');
+        rtAttemptsRef.current = 0;
+        if (rtWasDisconnectedRef.current) {
+          rtWasDisconnectedRef.current = false;
+          rtLoadRef.current?.();
+        }
+        return;
+      }
+
+      if (
+        msg.type === 'inventory_update' ||
+        msg.type === 'inventory_created' ||
+        msg.type === 'inventory_archived' ||
+        msg.type === 'inventory_restored'
+      ) {
+        rtLoadRef.current?.();
+        setLastRealtimeEvent(msg);
+      } else if (msg.type === 'ping') {
+        try { ws.send(JSON.stringify({ type: 'pong' })); } catch (_) {}
+      }
+    };
+
+    ws.onclose = () => {
+      rtWsRef.current = null;
+      if (!rtMountedRef.current) return;
+      rtWasDisconnectedRef.current = true;
+      scheduleRtReconnect();
+    };
+
+    ws.onerror = () => { try { ws.close(); } catch (_) {} };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const scheduleRtReconnect = useCallback(() => {
+    if (!rtMountedRef.current) return;
+    const attempt = rtAttemptsRef.current;
+    setRealtimeStatus(attempt >= 2 ? 'offline' : 'reconnecting');
+    rtAttemptsRef.current += 1;
+    const delay = Math.min(4000 * Math.pow(1.5, attempt), 20000);
+    setTimeout(() => rtConnect(), delay);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rtConnect]);
+
+  useEffect(() => {
+    rtMountedRef.current = true;
+    rtConnect();
+    const keepAlive = setInterval(() => {
+      if (rtWsRef.current?.readyState === WebSocket.OPEN) {
+        try { rtWsRef.current.send(JSON.stringify({ type: 'ping' })); } catch (_) {}
+      }
+    }, 25000);
+    return () => {
+      rtMountedRef.current = false;
+      clearInterval(keepAlive);
+      if (rtWsRef.current) {
+        rtWsRef.current.onclose = null;
+        rtWsRef.current.close();
+        rtWsRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load inventory by category
   const loadInventoryByCategory = async (category) => {
@@ -312,23 +423,26 @@ export const InventoryProvider = ({ children }) => {
     try {
       dispatch({ type: INVENTORY_ACTIONS.SET_LOADING, payload: true });
       await inventoryAPI.deleteProduct(sku);
-      // Remove from local state
-      dispatch({ type: INVENTORY_ACTIONS.REMOVE_PRODUCT, payload: sku });
+      dispatch({ type: INVENTORY_ACTIONS.REMOVE_INVENTORY_ITEM, payload: sku });
     } catch (error) {
       console.error('Error deleting product:', error);
+      if (error.response?.status === 404) {
+        dispatch({ type: INVENTORY_ACTIONS.REMOVE_INVENTORY_ITEM, payload: sku });
+        return;
+      }
       dispatch({ 
         type: INVENTORY_ACTIONS.SET_ERROR, 
-        payload: error.message || 'Failed to delete product' 
+        payload: error.message || 'Failed to archive product' 
       });
       throw error;
     }
   };
 
   // Add stock
-  const addStock = async (sku, quantity) => {
+  const addStock = async (sku, quantity, reason = '') => {
     try {
       dispatch({ type: INVENTORY_ACTIONS.SET_LOADING, payload: true });
-      await inventoryAPI.addStock(sku, quantity);
+      await inventoryAPI.addStock(sku, quantity, reason);
       // Refresh inventory
       await loadInventory();
     } catch (error) {
@@ -336,6 +450,21 @@ export const InventoryProvider = ({ children }) => {
       dispatch({ 
         type: INVENTORY_ACTIONS.SET_ERROR, 
         payload: error.message || 'Failed to add stock' 
+      });
+      throw error;
+    }
+  };
+
+  const stockOut = async (sku, quantity, reason = '') => {
+    try {
+      dispatch({ type: INVENTORY_ACTIONS.SET_LOADING, payload: true });
+      await inventoryAPI.stockOut(sku, quantity, reason);
+      await loadInventory();
+    } catch (error) {
+      console.error('Error removing stock:', error);
+      dispatch({ 
+        type: INVENTORY_ACTIONS.SET_ERROR, 
+        payload: error.message || 'Failed to remove stock' 
       });
       throw error;
     }
@@ -349,7 +478,9 @@ export const InventoryProvider = ({ children }) => {
   const value = {
     // State
     ...state,
-    
+    realtimeStatus,
+    lastRealtimeEvent,
+
     // Actions
     fetchInventory: loadInventory, // Alias for compatibility
     loadInventory,
@@ -369,6 +500,7 @@ export const InventoryProvider = ({ children }) => {
     getTotalPrice,
     deleteProduct,
     addStock,
+    stockOut,
     clearError,
   };
 

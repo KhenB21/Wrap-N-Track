@@ -2,31 +2,53 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAuth } from '../Context/AuthContext';
 
 // Import Employee Screens
 import DashboardScreen from '../Screens/Employee/DashboardScreen';
 import InventoryListScreen from '../Screens/Employee/InventoryListScreen';
 import InventoryDetailScreen from '../Screens/Employee/InventoryDetailScreen';
+import InventoryScannerScreen from '../Screens/Employee/InventoryScannerScreen';
 import AddProductScreen from '../Screens/Employee/AddProductScreen';
 import EditProductScreen from '../Screens/Employee/EditProductScreen';
 import OrderListScreen from '../Screens/Employee/OrderListScreen';
 import OrderDetailScreen from '../Screens/Employee/OrderDetailScreen';
+import OrderStatusUpdateScreen from '../Screens/Employee/OrderStatusUpdateScreen';
+import InvoiceScreen from '../Screens/Employee/InvoiceScreen';
 import CustomerListScreen from '../Screens/Employee/CustomerListScreen';
 import CustomerDetailScreen from '../Screens/Employee/CustomerDetailScreen';
+import AddEditCustomerScreen from '../Screens/Employee/AddEditCustomerScreen';
+import SupplierListScreen from '../Screens/Employee/SupplierListScreen';
+import SupplierDetailScreen from '../Screens/Employee/SupplierDetailScreen';
+import AddEditSupplierScreen from '../Screens/Employee/AddEditSupplierScreen';
 import ReportsHomeScreen from '../Screens/Employee/ReportsHomeScreen';
+import SalesReportScreen from '../Screens/Employee/SalesReportScreen';
+import InventoryReportScreen from '../Screens/Employee/InventoryReportScreen';
 import SettingsScreen from '../Screens/Employee/SettingsScreen';
+import ChangePasswordScreen from '../Screens/ChangePasswordScreen';
+import NotificationsScreen from '../Screens/Employee/NotificationsScreen';
+import EmployeeDeliveryListScreen from '../Screens/Employee/EmployeeDeliveryListScreen';
+import EmployeeDeliveryUpdateScreen from '../Screens/Employee/EmployeeDeliveryUpdateScreen';
+import AccountManagementScreen from '../Screens/Employee/AccountManagementScreen';
+import RemoteScannerScreen from '../Screens/Employee/RemoteScannerScreen';
+import StockAdjustScannerScreen from '../Screens/Employee/StockAdjustScannerScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// Simple stack navigators without complex logic
+const ADMIN_ROLES = ['admin', 'super_admin'];
+const DELIVERY_ROLES = ['operations_manager', 'sales_manager', 'social_media_manager', 'super_admin', 'admin'];
+
 function InventoryStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="InventoryList" component={InventoryListScreen} />
       <Stack.Screen name="InventoryDetail" component={InventoryDetailScreen} />
+      <Stack.Screen name="InventoryScanner" component={InventoryScannerScreen} />
       <Stack.Screen name="AddProduct" component={AddProductScreen} />
       <Stack.Screen name="EditProduct" component={EditProductScreen} />
+      <Stack.Screen name="RemoteScanner" component={RemoteScannerScreen} />
+      <Stack.Screen name="StockAdjustScanner" component={StockAdjustScannerScreen} />
     </Stack.Navigator>
   );
 }
@@ -36,6 +58,8 @@ function OrdersStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="OrderList" component={OrderListScreen} />
       <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+      <Stack.Screen name="OrderStatusUpdate" component={OrderStatusUpdateScreen} />
+      <Stack.Screen name="InvoiceScreen" component={InvoiceScreen} />
     </Stack.Navigator>
   );
 }
@@ -45,6 +69,17 @@ function CustomersStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="CustomerList" component={CustomerListScreen} />
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
+      <Stack.Screen name="AddEditCustomer" component={AddEditCustomerScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function SuppliersStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="SupplierList" component={SupplierListScreen} />
+      <Stack.Screen name="SupplierDetail" component={SupplierDetailScreen} />
+      <Stack.Screen name="AddEditSupplier" component={AddEditSupplierScreen} />
     </Stack.Navigator>
   );
 }
@@ -53,11 +88,39 @@ function ReportsStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ReportsHome" component={ReportsHomeScreen} />
+      <Stack.Screen name="SalesReport" component={SalesReportScreen} />
+      <Stack.Screen name="InventoryReport" component={InventoryReportScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function DeliveryStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="EmployeeDeliveryList" component={EmployeeDeliveryListScreen} />
+      <Stack.Screen name="EmployeeDeliveryUpdate" component={EmployeeDeliveryUpdateScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function SettingsStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="SettingsHome" component={SettingsScreen} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Stack.Screen name="AccountManagement" component={AccountManagementScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
     </Stack.Navigator>
   );
 }
 
 export default function SimpleEmployeeNavigator() {
+  const { user } = useAuth();
+  const userRole = user?.role || '';
+
+  const canManageDeliveries = DELIVERY_ROLES.includes(userRole);
+  const canManageAccounts = ADMIN_ROLES.includes(userRole);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -115,6 +178,19 @@ export default function SimpleEmployeeNavigator() {
         }}
       />
 
+      {canManageDeliveries && (
+        <Tab.Screen
+          name="Deliveries"
+          component={DeliveryStack}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="truck-delivery" size={size} color={color} />
+            ),
+            tabBarLabel: 'Deliveries',
+          }}
+        />
+      )}
+
       <Tab.Screen
         name="Customers"
         component={CustomersStack}
@@ -123,6 +199,17 @@ export default function SimpleEmployeeNavigator() {
             <MaterialCommunityIcons name="account-group" size={size} color={color} />
           ),
           tabBarLabel: 'Customers',
+        }}
+      />
+
+      <Tab.Screen
+        name="Suppliers"
+        component={SuppliersStack}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="truck" size={size} color={color} />
+          ),
+          tabBarLabel: 'Suppliers',
         }}
       />
 
@@ -139,7 +226,7 @@ export default function SimpleEmployeeNavigator() {
 
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsStack}
         options={{
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="cog" size={size} color={color} />
@@ -150,4 +237,3 @@ export default function SimpleEmployeeNavigator() {
     </Tab.Navigator>
   );
 }
-

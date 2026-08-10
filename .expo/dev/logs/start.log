@@ -1,0 +1,759 @@
+{"_e":"root:init","_t":1782456473862,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782456473863,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782456473870,"mode":"development","files":[],"env":{}}
+{"_e":"devserver:start","_t":1782456474401,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782456475163,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782456507757,"atlas":false,"workers":3,"host":"::","port":8081}
+{"_e":"root:init","_t":1782457246632,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782457246634,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782457246640,"mode":"development","files":[],"env":{}}
+{"_e":"devserver:start","_t":1782457247479,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782457248781,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782457292592,"atlas":false,"workers":3,"host":"::","port":8081}
+{"_e":"metro:client_log","_t":1782457307368,"level":"error","data":["Project is incompatible with this version of Expo Go\n\nThis project requires a newer version of Expo Go.\n\nHow to fix this error:\nDownload the latest version of Expo Go from the Play Store."]}
+{"_e":"root:init","_t":1782884063812,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782884063816,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782884063825,"mode":"development","files":[],"env":{}}
+{"_e":"devserver:start","_t":1782884065498,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782884082932,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782884109137,"atlas":false,"workers":3,"host":"::","port":8081}
+{"_e":"metro:bundling:started","_t":1782884190344,"id":"1","platform":"android","environment":null,"entry":"Mobile\\node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:progress","_t":1782884190344,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782884190349,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782884192709,"id":"1","progress":0.010000000000000002,"total":1,"current":1}
+{"_e":"metro:bundling:progress","_t":1782884192808,"id":"1","progress":0.010000000000000002,"total":3,"current":1}
+{"_e":"metro:bundling:progress","_t":1782884192931,"id":"1","progress":0.04000000000000001,"total":3,"current":2}
+{"_e":"metro:bundling:progress","_t":1782884193035,"id":"1","progress":0.04000000000000001,"total":17,"current":3}
+{"_e":"metro:bundling:progress","_t":1782884193144,"id":"1","progress":0.04000000000000001,"total":20,"current":4}
+{"_e":"metro:bundling:progress","_t":1782884193242,"id":"1","progress":0.0625,"total":20,"current":5}
+{"_e":"metro:bundling:progress","_t":1782884193360,"id":"1","progress":0.1012396694214876,"total":22,"current":7}
+{"_e":"metro:bundling:progress","_t":1782884193460,"id":"1","progress":0.1322314049586777,"total":22,"current":8}
+{"_e":"metro:bundling:progress","_t":1782884193574,"id":"1","progress":0.16735537190082647,"total":22,"current":9}
+{"_e":"metro:bundling:progress","_t":1782884193692,"id":"1","progress":0.2287334593572779,"total":23,"current":11}
+{"_e":"metro:bundling:progress","_t":1782884193796,"id":"1","progress":0.2287334593572779,"total":69,"current":14}
+{"_e":"metro:bundling:progress","_t":1782884193927,"id":"1","progress":0.2287334593572779,"total":139,"current":15}
+{"_e":"metro:bundling:progress","_t":1782884194083,"id":"1","progress":0.2287334593572779,"total":139,"current":16}
+{"_e":"metro:bundling:progress","_t":1782884194184,"id":"1","progress":0.2287334593572779,"total":139,"current":17}
+{"_e":"metro:bundling:progress","_t":1782884194354,"id":"1","progress":0.2287334593572779,"total":139,"current":18}
+{"_e":"metro:bundling:progress","_t":1782884194468,"id":"1","progress":0.2287334593572779,"total":231,"current":19}
+{"_e":"metro:bundling:progress","_t":1782884194588,"id":"1","progress":0.2287334593572779,"total":236,"current":21}
+{"_e":"metro:bundling:progress","_t":1782884194638,"id":"1","progress":0.2287334593572779,"total":236,"current":22}
+{"_e":"metro:bundling:progress","_t":1782884194751,"id":"1","progress":0.2287334593572779,"total":237,"current":22}
+{"_e":"metro:bundling:progress","_t":1782884194776,"id":"1","progress":0.2287334593572779,"total":237,"current":23}
+{"_e":"metro:bundling:progress","_t":1782884194880,"id":"1","progress":0.2287334593572779,"total":252,"current":23}
+{"_e":"metro:bundling:progress","_t":1782884194889,"id":"1","progress":0.2287334593572779,"total":252,"current":24}
+{"_e":"metro:bundling:progress","_t":1782884194989,"id":"1","progress":0.2287334593572779,"total":253,"current":25}
+{"_e":"metro:bundling:progress","_t":1782884195134,"id":"1","progress":0.2287334593572779,"total":253,"current":27}
+{"_e":"metro:bundling:progress","_t":1782884195187,"id":"1","progress":0.2287334593572779,"total":253,"current":28}
+{"_e":"metro:bundling:progress","_t":1782884195294,"id":"1","progress":0.2287334593572779,"total":253,"current":29}
+{"_e":"metro:bundling:progress","_t":1782884195376,"id":"1","progress":0.2287334593572779,"total":253,"current":30}
+{"_e":"metro:bundling:progress","_t":1782884195478,"id":"1","progress":0.2287334593572779,"total":253,"current":31}
+{"_e":"metro:bundling:progress","_t":1782884195582,"id":"1","progress":0.2287334593572779,"total":255,"current":31}
+{"_e":"metro:bundling:progress","_t":1782884195636,"id":"1","progress":0.2287334593572779,"total":255,"current":32}
+{"_e":"metro:bundling:progress","_t":1782884195752,"id":"1","progress":0.2287334593572779,"total":255,"current":33}
+{"_e":"metro:bundling:progress","_t":1782884195896,"id":"1","progress":0.2287334593572779,"total":255,"current":34}
+{"_e":"metro:bundling:progress","_t":1782884195903,"id":"1","progress":0.2287334593572779,"total":255,"current":35}
+{"_e":"metro:bundling:progress","_t":1782884196010,"id":"1","progress":0.2287334593572779,"total":255,"current":36}
+{"_e":"metro:bundling:progress","_t":1782884196120,"id":"1","progress":0.2287334593572779,"total":257,"current":38}
+{"_e":"metro:bundling:progress","_t":1782884196225,"id":"1","progress":0.2287334593572779,"total":279,"current":40}
+{"_e":"metro:bundling:progress","_t":1782884196345,"id":"1","progress":0.2287334593572779,"total":279,"current":42}
+{"_e":"metro:bundling:progress","_t":1782884196498,"id":"1","progress":0.2287334593572779,"total":279,"current":43}
+{"_e":"metro:bundling:progress","_t":1782884196598,"id":"1","progress":0.2287334593572779,"total":292,"current":47}
+{"_e":"metro:bundling:progress","_t":1782884196728,"id":"1","progress":0.2287334593572779,"total":311,"current":51}
+{"_e":"metro:bundling:progress","_t":1782884196833,"id":"1","progress":0.2287334593572779,"total":313,"current":56}
+{"_e":"metro:bundling:progress","_t":1782884196936,"id":"1","progress":0.2287334593572779,"total":319,"current":64}
+{"_e":"metro:bundling:progress","_t":1782884197054,"id":"1","progress":0.2287334593572779,"total":357,"current":71}
+{"_e":"metro:bundling:progress","_t":1782884197161,"id":"1","progress":0.2287334593572779,"total":362,"current":81}
+{"_e":"metro:bundling:progress","_t":1782884197266,"id":"1","progress":0.2287334593572779,"total":376,"current":85}
+{"_e":"metro:bundling:progress","_t":1782884197385,"id":"1","progress":0.2287334593572779,"total":389,"current":91}
+{"_e":"metro:bundling:progress","_t":1782884197508,"id":"1","progress":0.2287334593572779,"total":393,"current":94}
+{"_e":"metro:bundling:progress","_t":1782884197624,"id":"1","progress":0.2287334593572779,"total":409,"current":102}
+{"_e":"metro:bundling:progress","_t":1782884197728,"id":"1","progress":0.2287334593572779,"total":415,"current":107}
+{"_e":"metro:bundling:progress","_t":1782884197844,"id":"1","progress":0.2287334593572779,"total":418,"current":109}
+{"_e":"metro:bundling:progress","_t":1782884197944,"id":"1","progress":0.2287334593572779,"total":437,"current":115}
+{"_e":"metro:bundling:progress","_t":1782884198053,"id":"1","progress":0.2287334593572779,"total":456,"current":124}
+{"_e":"metro:bundling:progress","_t":1782884198163,"id":"1","progress":0.2287334593572779,"total":464,"current":127}
+{"_e":"metro:bundling:progress","_t":1782884198263,"id":"1","progress":0.2287334593572779,"total":469,"current":131}
+{"_e":"metro:bundling:progress","_t":1782884198374,"id":"1","progress":0.2287334593572779,"total":475,"current":137}
+{"_e":"metro:bundling:progress","_t":1782884198475,"id":"1","progress":0.2287334593572779,"total":487,"current":142}
+{"_e":"metro:bundling:progress","_t":1782884198589,"id":"1","progress":0.2287334593572779,"total":491,"current":145}
+{"_e":"metro:bundling:progress","_t":1782884198706,"id":"1","progress":0.2287334593572779,"total":492,"current":148}
+{"_e":"metro:bundling:progress","_t":1782884198818,"id":"1","progress":0.2287334593572779,"total":509,"current":153}
+{"_e":"metro:bundling:progress","_t":1782884198925,"id":"1","progress":0.2287334593572779,"total":515,"current":158}
+{"_e":"metro:bundling:progress","_t":1782884199038,"id":"1","progress":0.2287334593572779,"total":518,"current":161}
+{"_e":"metro:bundling:progress","_t":1782884199143,"id":"1","progress":0.2287334593572779,"total":531,"current":168}
+{"_e":"metro:bundling:progress","_t":1782884199243,"id":"1","progress":0.2287334593572779,"total":534,"current":171}
+{"_e":"metro:bundling:progress","_t":1782884199348,"id":"1","progress":0.2287334593572779,"total":544,"current":178}
+{"_e":"metro:bundling:progress","_t":1782884199447,"id":"1","progress":0.2287334593572779,"total":556,"current":187}
+{"_e":"metro:bundling:progress","_t":1782884199547,"id":"1","progress":0.2287334593572779,"total":563,"current":197}
+{"_e":"metro:bundling:progress","_t":1782884199657,"id":"1","progress":0.2287334593572779,"total":575,"current":203}
+{"_e":"metro:bundling:progress","_t":1782884199762,"id":"1","progress":0.2287334593572779,"total":583,"current":216}
+{"_e":"metro:bundling:progress","_t":1782884199861,"id":"1","progress":0.2287334593572779,"total":589,"current":227}
+{"_e":"metro:bundling:progress","_t":1782884199976,"id":"1","progress":0.2287334593572779,"total":593,"current":234}
+{"_e":"metro:bundling:progress","_t":1782884200080,"id":"1","progress":0.2287334593572779,"total":598,"current":245}
+{"_e":"metro:bundling:progress","_t":1782884200190,"id":"1","progress":0.2287334593572779,"total":598,"current":250}
+{"_e":"metro:bundling:progress","_t":1782884200313,"id":"1","progress":0.2287334593572779,"total":599,"current":255}
+{"_e":"metro:bundling:progress","_t":1782884200419,"id":"1","progress":0.2287334593572779,"total":611,"current":257}
+{"_e":"metro:bundling:progress","_t":1782884200536,"id":"1","progress":0.2287334593572779,"total":611,"current":258}
+{"_e":"metro:bundling:progress","_t":1782884200642,"id":"1","progress":0.2287334593572779,"total":611,"current":260}
+{"_e":"metro:bundling:progress","_t":1782884200756,"id":"1","progress":0.2287334593572779,"total":611,"current":261}
+{"_e":"metro:bundling:progress","_t":1782884200885,"id":"1","progress":0.2287334593572779,"total":611,"current":263}
+{"_e":"metro:bundling:progress","_t":1782884200994,"id":"1","progress":0.2287334593572779,"total":611,"current":265}
+{"_e":"metro:bundling:progress","_t":1782884201101,"id":"1","progress":0.2287334593572779,"total":611,"current":270}
+{"_e":"metro:bundling:progress","_t":1782884201201,"id":"1","progress":0.2287334593572779,"total":619,"current":279}
+{"_e":"metro:bundling:progress","_t":1782884201301,"id":"1","progress":0.2287334593572779,"total":620,"current":289}
+{"_e":"metro:bundling:progress","_t":1782884201404,"id":"1","progress":0.2287334593572779,"total":645,"current":301}
+{"_e":"metro:bundling:progress","_t":1782884201511,"id":"1","progress":0.2287334593572779,"total":663,"current":309}
+{"_e":"metro:bundling:progress","_t":1782884201611,"id":"1","progress":0.22948115744558786,"total":668,"current":320}
+{"_e":"metro:bundling:progress","_t":1782884201711,"id":"1","progress":0.23682518997261576,"total":674,"current":328}
+{"_e":"metro:bundling:progress","_t":1782884201815,"id":"1","progress":0.23682518997261576,"total":688,"current":333}
+{"_e":"metro:bundling:progress","_t":1782884201914,"id":"1","progress":0.23929461591799253,"total":693,"current":339}
+{"_e":"metro:bundling:progress","_t":1782884202016,"id":"1","progress":0.25216293152528335,"total":695,"current":349}
+{"_e":"metro:bundling:progress","_t":1782884202126,"id":"1","progress":0.2571527150051653,"total":704,"current":357}
+{"_e":"metro:bundling:progress","_t":1782884202230,"id":"1","progress":0.2571527150051653,"total":729,"current":365}
+{"_e":"metro:bundling:progress","_t":1782884202332,"id":"1","progress":0.25760150233045626,"total":729,"current":370}
+{"_e":"metro:bundling:progress","_t":1782884202432,"id":"1","progress":0.26320137136577726,"total":729,"current":374}
+{"_e":"metro:bundling:progress","_t":1782884202536,"id":"1","progress":0.2730813064576195,"total":731,"current":382}
+{"_e":"metro:bundling:progress","_t":1782884202638,"id":"1","progress":0.276630012840037,"total":732,"current":385}
+{"_e":"metro:bundling:progress","_t":1782884202743,"id":"1","progress":0.2845414665105744,"total":733,"current":391}
+{"_e":"metro:bundling:progress","_t":1782884202853,"id":"1","progress":0.287145156476312,"total":739,"current":396}
+{"_e":"metro:bundling:progress","_t":1782884202960,"id":"1","progress":0.2980569758948137,"total":740,"current":404}
+{"_e":"metro:bundling:progress","_t":1782884203061,"id":"1","progress":0.31130985680138906,"total":742,"current":414}
+{"_e":"metro:bundling:progress","_t":1782884203163,"id":"1","progress":0.3156506532547115,"total":744,"current":418}
+{"_e":"metro:bundling:progress","_t":1782884203266,"id":"1","progress":0.33004639430656274,"total":745,"current":428}
+{"_e":"metro:bundling:progress","_t":1782884203378,"id":"1","progress":0.3366481740970574,"total":748,"current":434}
+{"_e":"metro:bundling:progress","_t":1782884203479,"id":"1","progress":0.35392955188881586,"total":748,"current":445}
+{"_e":"metro:bundling:progress","_t":1782884203587,"id":"1","progress":0.3651176612716906,"total":753,"current":455}
+{"_e":"metro:bundling:progress","_t":1782884203689,"id":"1","progress":0.37894839708297196,"total":757,"current":466}
+{"_e":"metro:bundling:progress","_t":1782884203790,"id":"1","progress":0.39330580248263697,"total":759,"current":476}
+{"_e":"metro:bundling:progress","_t":1782884203893,"id":"1","progress":0.40149654336559065,"total":767,"current":486}
+{"_e":"metro:bundling:progress","_t":1782884204004,"id":"1","progress":0.40749409089177424,"total":777,"current":496}
+{"_e":"metro:bundling:progress","_t":1782884204104,"id":"1","progress":0.41733886756989585,"total":791,"current":511}
+{"_e":"metro:bundling:progress","_t":1782884204204,"id":"1","progress":0.42306823087869255,"total":801,"current":521}
+{"_e":"metro:bundling:progress","_t":1782884204304,"id":"1","progress":0.42306823087869255,"total":824,"current":530}
+{"_e":"metro:bundling:progress","_t":1782884204409,"id":"1","progress":0.4243053019246523,"total":829,"current":540}
+{"_e":"metro:bundling:progress","_t":1782884204509,"id":"1","progress":0.4243053019246523,"total":837,"current":544}
+{"_e":"metro:bundling:progress","_t":1782884204609,"id":"1","progress":0.42667892869031426,"total":842,"current":550}
+{"_e":"metro:bundling:progress","_t":1782884204710,"id":"1","progress":0.43258281290942435,"total":856,"current":563}
+{"_e":"metro:bundling:progress","_t":1782884204812,"id":"1","progress":0.43258281290942435,"total":877,"current":574}
+{"_e":"metro:bundling:progress","_t":1782884204918,"id":"1","progress":0.43699370560575196,"total":891,"current":589}
+{"_e":"metro:bundling:progress","_t":1782884205032,"id":"1","progress":0.43699370560575196,"total":935,"current":599}
+{"_e":"metro:bundling:progress","_t":1782884205139,"id":"1","progress":0.43699370560575196,"total":943,"current":611}
+{"_e":"metro:bundling:progress","_t":1782884205242,"id":"1","progress":0.43699370560575196,"total":1006,"current":622}
+{"_e":"metro:bundling:progress","_t":1782884205366,"id":"1","progress":0.43699370560575196,"total":1012,"current":627}
+{"_e":"metro:bundling:progress","_t":1782884205467,"id":"1","progress":0.43699370560575196,"total":1014,"current":639}
+{"_e":"metro:bundling:progress","_t":1782884205573,"id":"1","progress":0.43699370560575196,"total":1014,"current":661}
+{"_e":"metro:bundling:progress","_t":1782884205674,"id":"1","progress":0.4392310649750096,"total":1020,"current":676}
+{"_e":"metro:bundling:progress","_t":1782884205781,"id":"1","progress":0.45232218377547107,"total":1020,"current":686}
+{"_e":"metro:bundling:progress","_t":1782884205885,"id":"1","progress":0.46870854081909674,"total":1021,"current":699}
+{"_e":"metro:bundling:progress","_t":1782884205984,"id":"1","progress":0.46870854081909674,"total":1030,"current":705}
+{"_e":"metro:bundling:progress","_t":1782884206087,"id":"1","progress":0.4858076505333669,"total":1033,"current":720}
+{"_e":"metro:bundling:progress","_t":1782884206189,"id":"1","progress":0.5052817362480312,"total":1034,"current":735}
+{"_e":"metro:bundling:progress","_t":1782884206290,"id":"1","progress":0.5121664032127536,"total":1041,"current":745}
+{"_e":"metro:bundling:progress","_t":1782884206390,"id":"1","progress":0.5251399303181746,"total":1046,"current":758}
+{"_e":"metro:bundling:progress","_t":1782884206494,"id":"1","progress":0.5334863944956476,"total":1046,"current":764}
+{"_e":"metro:bundling:progress","_t":1782884206595,"id":"1","progress":0.5447173791444417,"total":1046,"current":772}
+{"_e":"metro:bundling:progress","_t":1782884206695,"id":"1","progress":0.5468658950527359,"total":1048,"current":775}
+{"_e":"metro:bundling:progress","_t":1782884206795,"id":"1","progress":0.547656168423175,"total":1054,"current":780}
+{"_e":"metro:bundling:progress","_t":1782884206896,"id":"1","progress":0.547656168423175,"total":1068,"current":789}
+{"_e":"metro:bundling:progress","_t":1782884207006,"id":"1","progress":0.5558793359673907,"total":1073,"current":800}
+{"_e":"metro:bundling:progress","_t":1782884207109,"id":"1","progress":0.5621525096608004,"total":1079,"current":809}
+{"_e":"metro:bundling:progress","_t":1782884207210,"id":"1","progress":0.5778815157750343,"total":1080,"current":821}
+{"_e":"metro:bundling:progress","_t":1782884207317,"id":"1","progress":0.5984066270102946,"total":1082,"current":837}
+{"_e":"metro:bundling:progress","_t":1782884207419,"id":"1","progress":0.6141616979519963,"total":1091,"current":855}
+{"_e":"metro:bundling:progress","_t":1782884207521,"id":"1","progress":0.6231165049846368,"total":1092,"current":862}
+{"_e":"metro:bundling:progress","_t":1782884207621,"id":"1","progress":0.635328482766227,"total":1094,"current":872}
+{"_e":"metro:bundling:progress","_t":1782884207727,"id":"1","progress":0.6502223140495869,"total":1100,"current":887}
+{"_e":"metro:bundling:progress","_t":1782884207827,"id":"1","progress":0.6527590880743747,"total":1109,"current":896}
+{"_e":"metro:bundling:progress","_t":1782884207927,"id":"1","progress":0.6682180334868796,"total":1112,"current":909}
+{"_e":"metro:bundling:progress","_t":1782884208030,"id":"1","progress":0.6855603852300927,"total":1122,"current":929}
+{"_e":"metro:bundling:progress","_t":1782884208138,"id":"1","progress":0.6905375917476692,"total":1136,"current":944}
+{"_e":"metro:bundling:progress","_t":1782884208241,"id":"1","progress":0.7022498704150705,"total":1142,"current":957}
+{"_e":"metro:bundling:progress","_t":1782884208344,"id":"1","progress":0.7162037337197994,"total":1145,"current":969}
+{"_e":"metro:bundling:progress","_t":1782884208445,"id":"1","progress":0.7385488453690815,"total":1145,"current":984}
+{"_e":"metro:bundling:progress","_t":1782884208547,"id":"1","progress":0.7557485218953732,"total":1148,"current":998}
+{"_e":"metro:bundling:progress","_t":1782884208648,"id":"1","progress":0.7557485218953732,"total":1164,"current":1009}
+{"_e":"metro:bundling:progress","_t":1782884208762,"id":"1","progress":0.757241797758381,"total":1171,"current":1019}
+{"_e":"metro:bundling:progress","_t":1782884208862,"id":"1","progress":0.7678511921861533,"total":1180,"current":1034}
+{"_e":"metro:bundling:progress","_t":1782884208972,"id":"1","progress":0.7678511921861533,"total":1210,"current":1039}
+{"_e":"metro:bundling:progress","_t":1782884209074,"id":"1","progress":0.7678511921861533,"total":1212,"current":1049}
+{"_e":"metro:bundling:progress","_t":1782884209177,"id":"1","progress":0.7678511921861533,"total":1213,"current":1056}
+{"_e":"metro:bundling:progress","_t":1782884209279,"id":"1","progress":0.7678511921861533,"total":1221,"current":1066}
+{"_e":"metro:bundling:progress","_t":1782884209387,"id":"1","progress":0.7767638305908321,"total":1222,"current":1077}
+{"_e":"metro:bundling:progress","_t":1782884209486,"id":"1","progress":0.7802300565553509,"total":1234,"current":1090}
+{"_e":"metro:bundling:progress","_t":1782884209587,"id":"1","progress":0.7845308112396209,"total":1234,"current":1093}
+{"_e":"metro:bundling:progress","_t":1782884209688,"id":"1","progress":0.7861299152584046,"total":1235,"current":1095}
+{"_e":"metro:bundling:progress","_t":1782884209796,"id":"1","progress":0.7894853599400775,"total":1238,"current":1100}
+{"_e":"metro:bundling:progress","_t":1782884209900,"id":"1","progress":0.7929888160231925,"total":1242,"current":1106}
+{"_e":"metro:bundling:progress","_t":1782884210002,"id":"1","progress":0.793302385211071,"total":1244,"current":1108}
+{"_e":"metro:bundling:progress","_t":1782884210103,"id":"1","progress":0.7955097464681112,"total":1249,"current":1114}
+{"_e":"metro:bundling:progress","_t":1782884210203,"id":"1","progress":0.8012328197225513,"total":1249,"current":1118}
+{"_e":"metro:bundling:progress","_t":1782884210308,"id":"1","progress":0.80856064,"total":1250,"current":1124}
+{"_e":"metro:bundling:progress","_t":1782884210409,"id":"1","progress":0.8102875654543783,"total":1252,"current":1127}
+{"_e":"metro:bundling:progress","_t":1782884210511,"id":"1","progress":0.8120108157882018,"total":1254,"current":1130}
+{"_e":"metro:bundling:progress","_t":1782884210611,"id":"1","progress":0.81401131328654,"total":1258,"current":1135}
+{"_e":"metro:bundling:progress","_t":1782884210714,"id":"1","progress":0.8213340516983044,"total":1259,"current":1141}
+{"_e":"metro:bundling:progress","_t":1782884210815,"id":"1","progress":0.8259220524727363,"total":1261,"current":1146}
+{"_e":"metro:bundling:progress","_t":1782884210923,"id":"1","progress":0.8259220524727363,"total":1268,"current":1149}
+{"_e":"metro:bundling:progress","_t":1782884211027,"id":"1","progress":0.8259220524727363,"total":1277,"current":1156}
+{"_e":"metro:bundling:progress","_t":1782884211128,"id":"1","progress":0.8259220524727363,"total":1283,"current":1161}
+{"_e":"metro:bundling:progress","_t":1782884211242,"id":"1","progress":0.8259220524727363,"total":1285,"current":1165}
+{"_e":"metro:bundling:progress","_t":1782884211376,"id":"1","progress":0.8259220524727363,"total":1285,"current":1166}
+{"_e":"metro:bundling:progress","_t":1782884211529,"id":"1","progress":0.8259220524727363,"total":1290,"current":1169}
+{"_e":"metro:bundling:progress","_t":1782884211631,"id":"1","progress":0.8259220524727363,"total":1308,"current":1184}
+{"_e":"metro:bundling:progress","_t":1782884211750,"id":"1","progress":0.8259220524727363,"total":1326,"current":1187}
+{"_e":"metro:bundling:progress","_t":1782884211825,"id":"1","progress":0.8259220524727363,"total":1326,"current":1188}
+{"_e":"metro:bundling:progress","_t":1782884211928,"id":"1","progress":0.8259220524727363,"total":1329,"current":1190}
+{"_e":"metro:bundling:progress","_t":1782884212035,"id":"1","progress":0.8259220524727363,"total":1353,"current":1196}
+{"_e":"metro:bundling:progress","_t":1782884212142,"id":"1","progress":0.8259220524727363,"total":1353,"current":1198}
+{"_e":"metro:bundling:progress","_t":1782884212283,"id":"1","progress":0.8259220524727363,"total":1353,"current":1199}
+{"_e":"metro:bundling:progress","_t":1782884212383,"id":"1","progress":0.8259220524727363,"total":1362,"current":1203}
+{"_e":"metro:bundling:progress","_t":1782884212523,"id":"1","progress":0.8259220524727363,"total":1362,"current":1204}
+{"_e":"metro:bundling:progress","_t":1782884212641,"id":"1","progress":0.8259220524727363,"total":1363,"current":1207}
+{"_e":"metro:bundling:progress","_t":1782884212745,"id":"1","progress":0.8259220524727363,"total":1365,"current":1213}
+{"_e":"metro:bundling:progress","_t":1782884212858,"id":"1","progress":0.8259220524727363,"total":1372,"current":1219}
+{"_e":"metro:bundling:progress","_t":1782884212970,"id":"1","progress":0.8259220524727363,"total":1377,"current":1226}
+{"_e":"metro:bundling:progress","_t":1782884213070,"id":"1","progress":0.8259220524727363,"total":1385,"current":1239}
+{"_e":"metro:bundling:progress","_t":1782884213171,"id":"1","progress":0.8259220524727363,"total":1388,"current":1251}
+{"_e":"metro:bundling:progress","_t":1782884213291,"id":"1","progress":0.8259220524727363,"total":1394,"current":1259}
+{"_e":"metro:bundling:progress","_t":1782884213399,"id":"1","progress":0.8259220524727363,"total":1398,"current":1262}
+{"_e":"metro:bundling:progress","_t":1782884213500,"id":"1","progress":0.8304710796744174,"total":1398,"current":1274}
+{"_e":"metro:bundling:progress","_t":1782884213607,"id":"1","progress":0.8440933769353829,"total":1403,"current":1289}
+{"_e":"metro:bundling:progress","_t":1782884213713,"id":"1","progress":0.8520710059171599,"total":1404,"current":1296}
+{"_e":"metro:bundling:progress","_t":1782884213814,"id":"1","progress":0.8606474089127595,"total":1411,"current":1309}
+{"_e":"metro:bundling:progress","_t":1782884213914,"id":"1","progress":0.8606474089127595,"total":1414,"current":1311}
+{"_e":"metro:bundling:progress","_t":1782884214020,"id":"1","progress":0.8609320014644422,"total":1414,"current":1312}
+{"_e":"metro:bundling:progress","_t":1782884214122,"id":"1","progress":0.8609320014644422,"total":1421,"current":1317}
+{"_e":"metro:bundling:progress","_t":1782884214253,"id":"1","progress":0.8609320014644422,"total":1426,"current":1320}
+{"_e":"metro:bundling:progress","_t":1782884214360,"id":"1","progress":0.8609320014644422,"total":1443,"current":1325}
+{"_e":"metro:bundling:progress","_t":1782884214475,"id":"1","progress":0.8609320014644422,"total":1449,"current":1331}
+{"_e":"metro:bundling:progress","_t":1782884214597,"id":"1","progress":0.8609320014644422,"total":1449,"current":1334}
+{"_e":"metro:bundling:progress","_t":1782884214696,"id":"1","progress":0.8609320014644422,"total":1454,"current":1340}
+{"_e":"metro:bundling:progress","_t":1782884214799,"id":"1","progress":0.8609320014644422,"total":1455,"current":1344}
+{"_e":"metro:bundling:progress","_t":1782884214899,"id":"1","progress":0.8609320014644422,"total":1474,"current":1350}
+{"_e":"metro:bundling:progress","_t":1782884215000,"id":"1","progress":0.8609320014644422,"total":1477,"current":1355}
+{"_e":"metro:bundling:progress","_t":1782884215108,"id":"1","progress":0.8609320014644422,"total":1479,"current":1363}
+{"_e":"metro:bundling:progress","_t":1782884215210,"id":"1","progress":0.8609320014644422,"total":1479,"current":1368}
+{"_e":"metro:bundling:progress","_t":1782884215316,"id":"1","progress":0.8609320014644422,"total":1483,"current":1371}
+{"_e":"metro:bundling:progress","_t":1782884215416,"id":"1","progress":0.862690398945299,"total":1489,"current":1383}
+{"_e":"metro:bundling:progress","_t":1782884215521,"id":"1","progress":0.8694470979071823,"total":1495,"current":1394}
+{"_e":"metro:bundling:progress","_t":1782884215624,"id":"1","progress":0.8694470979071823,"total":1512,"current":1403}
+{"_e":"metro:bundling:progress","_t":1782884215724,"id":"1","progress":0.8694470979071823,"total":1519,"current":1411}
+{"_e":"metro:bundling:progress","_t":1782884215833,"id":"1","progress":0.8694470979071823,"total":1522,"current":1415}
+{"_e":"metro:bundling:progress","_t":1782884215936,"id":"1","progress":0.8694470979071823,"total":1530,"current":1421}
+{"_e":"metro:bundling:progress","_t":1782884216043,"id":"1","progress":0.8750907292164226,"total":1534,"current":1435}
+{"_e":"metro:bundling:progress","_t":1782884216152,"id":"1","progress":0.8763107928246151,"total":1534,"current":1436}
+{"_e":"metro:bundling:progress","_t":1782884216276,"id":"1","progress":0.8763107928246151,"total":1547,"current":1439}
+{"_e":"metro:bundling:progress","_t":1782884216382,"id":"1","progress":0.8763107928246151,"total":1552,"current":1443}
+{"_e":"metro:bundling:progress","_t":1782884216484,"id":"1","progress":0.8763107928246151,"total":1556,"current":1451}
+{"_e":"metro:bundling:progress","_t":1782884216601,"id":"1","progress":0.8763107928246151,"total":1557,"current":1456}
+{"_e":"metro:bundling:progress","_t":1782884216680,"id":"1","progress":0.8763107928246151,"total":1557,"current":1457}
+{"_e":"metro:bundling:progress","_t":1782884216878,"id":"1","progress":0.8768752714758261,"total":1557,"current":1458}
+{"_e":"metro:bundling:progress","_t":1782884216988,"id":"1","progress":0.879282614945907,"total":1557,"current":1460}
+{"_e":"metro:bundling:progress","_t":1782884217107,"id":"1","progress":0.8828998176342447,"total":1557,"current":1463}
+{"_e":"metro:bundling:progress","_t":1782884217210,"id":"1","progress":0.8853154110819474,"total":1557,"current":1465}
+{"_e":"metro:bundling:progress","_t":1782884217319,"id":"1","progress":0.887734304520699,"total":1557,"current":1467}
+{"_e":"metro:bundling:progress","_t":1782884217419,"id":"1","progress":0.8938622307985123,"total":1558,"current":1473}
+{"_e":"metro:bundling:progress","_t":1782884217519,"id":"1","progress":0.8999408411758599,"total":1558,"current":1478}
+{"_e":"metro:bundling:progress","_t":1782884217619,"id":"1","progress":0.9084855011444514,"total":1558,"current":1485}
+{"_e":"metro:bundling:progress","_t":1782884217721,"id":"1","progress":0.9159471564760027,"total":1560,"current":1493}
+{"_e":"metro:bundling:progress","_t":1782884217823,"id":"1","progress":0.9261145132395218,"total":1567,"current":1508}
+{"_e":"metro:bundling:progress","_t":1782884217923,"id":"1","progress":0.9261145132395218,"total":1587,"current":1517}
+{"_e":"metro:bundling:progress","_t":1782884218027,"id":"1","progress":0.9261145132395218,"total":1597,"current":1523}
+{"_e":"metro:bundling:progress","_t":1782884218132,"id":"1","progress":0.9261145132395218,"total":1597,"current":1525}
+{"_e":"metro:bundling:progress","_t":1782884218237,"id":"1","progress":0.9261145132395218,"total":1598,"current":1532}
+{"_e":"metro:bundling:progress","_t":1782884218340,"id":"1","progress":0.9275208685450055,"total":1598,"current":1539}
+{"_e":"metro:bundling:progress","_t":1782884218457,"id":"1","progress":0.9335574349037675,"total":1598,"current":1544}
+{"_e":"metro:bundling:progress","_t":1782884218564,"id":"1","progress":0.9335574349037675,"total":1612,"current":1555}
+{"_e":"metro:bundling:progress","_t":1782884218665,"id":"1","progress":0.9335574349037675,"total":1614,"current":1559}
+{"_e":"metro:bundling:progress","_t":1782884218765,"id":"1","progress":0.9335574349037675,"total":1628,"current":1572}
+{"_e":"metro:bundling:progress","_t":1782884218877,"id":"1","progress":0.9335574349037675,"total":1644,"current":1582}
+{"_e":"metro:bundling:progress","_t":1782884218978,"id":"1","progress":0.9335574349037675,"total":1654,"current":1590}
+{"_e":"metro:bundling:progress","_t":1782884219086,"id":"1","progress":0.9335574349037675,"total":1668,"current":1597}
+{"_e":"metro:bundling:progress","_t":1782884219186,"id":"1","progress":0.9335574349037675,"total":1676,"current":1606}
+{"_e":"metro:bundling:progress","_t":1782884219287,"id":"1","progress":0.9335574349037675,"total":1683,"current":1624}
+{"_e":"metro:bundling:progress","_t":1782884219389,"id":"1","progress":0.9335574349037675,"total":1691,"current":1633}
+{"_e":"metro:bundling:progress","_t":1782884219492,"id":"1","progress":0.9335574349037675,"total":1702,"current":1641}
+{"_e":"metro:bundling:progress","_t":1782884219600,"id":"1","progress":0.9342554673592418,"total":1705,"current":1648}
+{"_e":"metro:bundling:progress","_t":1782884219699,"id":"1","progress":0.9342554673592418,"total":1719,"current":1655}
+{"_e":"metro:bundling:progress","_t":1782884219800,"id":"1","progress":0.9371049965207451,"total":1721,"current":1666}
+{"_e":"metro:bundling:progress","_t":1782884219901,"id":"1","progress":0.9371049965207451,"total":1734,"current":1676}
+{"_e":"metro:bundling:progress","_t":1782884220010,"id":"1","progress":0.9371049965207451,"total":1745,"current":1686}
+{"_e":"metro:bundling:progress","_t":1782884220123,"id":"1","progress":0.9371049965207451,"total":1752,"current":1694}
+{"_e":"metro:bundling:progress","_t":1782884220229,"id":"1","progress":0.9371049965207451,"total":1753,"current":1696}
+{"_e":"metro:bundling:progress","_t":1782884220334,"id":"1","progress":0.9416841132097352,"total":1757,"current":1705}
+{"_e":"metro:bundling:progress","_t":1782884220436,"id":"1","progress":0.9440828346206401,"total":1763,"current":1713}
+{"_e":"metro:bundling:progress","_t":1782884220543,"id":"1","progress":0.9454295489696762,"total":1771,"current":1722}
+{"_e":"metro:bundling:progress","_t":1782884220669,"id":"1","progress":0.9454295489696762,"total":1784,"current":1732}
+{"_e":"metro:bundling:progress","_t":1782884220776,"id":"1","progress":0.9454295489696762,"total":1794,"current":1744}
+{"_e":"metro:bundling:progress","_t":1782884220882,"id":"1","progress":0.9569943289224953,"total":1794,"current":1755}
+{"_e":"metro:bundling:progress","_t":1782884220984,"id":"1","progress":0.9734231160725272,"total":1794,"current":1770}
+{"_e":"metro:bundling:progress","_t":1782884221086,"id":"1","progress":0.9823012345679013,"total":1800,"current":1784}
+{"_e":"metro:bundling:progress","_t":1782884221200,"id":"1","progress":0.9944552366336057,"total":1801,"current":1796}
+{"_e":"metro:bundling:progress","_t":1782884221314,"id":"1","progress":0.9988904300438162,"total":1802,"current":1801}
+{"_e":"metro:bundling:progress","_t":1782884221451,"id":"1","progress":0.999,"total":1802,"current":1802}
+{"_e":"metro:bundling:progress","_t":1782884221570,"id":"1","progress":0.999,"total":1813,"current":1813}
+{"_e":"metro:bundling:done","_t":1782884222024,"id":"1","total":1813,"ms":31679.5729}
+{"_e":"metro:client_log","_t":1782884226734,"level":"log","data":["API Base URL:","http://192.168.1.2:3001/api"]}
+{"_e":"metro:client_log","_t":1782884226998,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782884226998,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782884226998,"level":"log","data":["Stored auth check:","{\"hasToken\": false, \"hasUserData\": false, \"hasUserType\": false}"]}
+{"_e":"metro:client_log","_t":1782884227604,"level":"warn","data":["InteractionManager has been deprecated and will be removed in a future release. Please refactor long tasks into smaller ones, and  use 'requestIdleCallback' instead."]}
+{"_e":"metro:client_log","_t":1782884236015,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782884236059,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782884236060,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782884236060,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782884236060,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782884236486,"level":"log","data":["API Response: 200 /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782884236540,"level":"error","data":["The action 'NAVIGATE' with payload {\"name\":\"Home\"} was not handled by any navigator.\n\nDo you have a screen named 'Home'?\n\nIf you're trying to navigate to a screen in a nested navigator, see https://reactnavigation.org/docs/nesting-navigators#navigating-to-a-screen-in-a-nested-navigator.\n\nIf you're using conditional rendering, navigation will happen automatically and you shouldn't navigate manually, see.\n\nThis is a development-only warning and won't be shown in production."]}
+{"_e":"metro:client_log","_t":1782884284246,"level":"error","data":["[TypeError: undefined is not a function]"]}
+{"_e":"metro:client_log","_t":1782884306208,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782884309867,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782884311578,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782884311921,"level":"log","data":["API Request: GET /orders"]}
+{"_e":"metro:client_log","_t":1782884311967,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/orders"]}
+{"_e":"metro:client_log","_t":1782884311967,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782884313009,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782884314256,"level":"log","data":["API Response: 200 /orders"]}
+{"_e":"metro:client_log","_t":1782884318666,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782884342901,"level":"error","data":["The action 'NAVIGATE' with payload {\"name\":\"About\"} was not handled by any navigator.\n\nDo you have a screen named 'About'?\n\nIf you're trying to navigate to a screen in a nested navigator, see https://reactnavigation.org/docs/nesting-navigators#navigating-to-a-screen-in-a-nested-navigator.\n\nIf you're using conditional rendering, navigation will happen automatically and you shouldn't navigate manually, see.\n\nThis is a development-only warning and won't be shown in production."]}
+{"_e":"metro:client_log","_t":1782884345698,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782884346909,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782884349665,"level":"error","data":["The action 'NAVIGATE' with payload {\"name\":\"Login\"} was not handled by any navigator.\n\nDo you have a screen named 'Login'?\n\nIf you're trying to navigate to a screen in a nested navigator, see https://reactnavigation.org/docs/nesting-navigators#navigating-to-a-screen-in-a-nested-navigator.\n\nIf you're using conditional rendering, navigation will happen automatically and you shouldn't navigate manually, see.\n\nThis is a development-only warning and won't be shown in production."]}
+{"_e":"metro:client_log","_t":1782884349755,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782884349814,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:bundling:started","_t":1782884351819,"id":"k","platform":"android","environment":null,"entry":"Mobile\\node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:progress","_t":1782884351819,"id":"k","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782884351920,"id":"k","total":1,"ms":100.8287}
+{"_e":"metro:client_log","_t":1782884356594,"level":"log","data":["API Base URL:","http://192.168.1.2:3001/api"]}
+{"_e":"metro:client_log","_t":1782884356644,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782884356645,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782884356718,"level":"log","data":["Stored auth check:","{\"hasToken\": false, \"hasUserData\": false, \"hasUserType\": false}"]}
+{"_e":"metro:client_log","_t":1782884357110,"level":"warn","data":["InteractionManager has been deprecated and will be removed in a future release. Please refactor long tasks into smaller ones, and  use 'requestIdleCallback' instead."]}
+{"_e":"metro:client_log","_t":1782884396211,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782884396235,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782884396235,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782884396235,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782884396235,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782884401734,"level":"log","data":["API Response: 200 /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782884401899,"level":"error","data":["The action 'NAVIGATE' with payload {\"name\":\"Home\"} was not handled by any navigator.\n\nDo you have a screen named 'Home'?\n\nIf you're trying to navigate to a screen in a nested navigator, see https://reactnavigation.org/docs/nesting-navigators#navigating-to-a-screen-in-a-nested-navigator.\n\nIf you're using conditional rendering, navigation will happen automatically and you shouldn't navigate manually, see.\n\nThis is a development-only warning and won't be shown in production."]}
+{"_e":"metro:client_log","_t":1782884409602,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:bundling:started","_t":1782885252390,"id":"v","platform":"android","environment":null,"entry":"Mobile\\node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:progress","_t":1782885252390,"id":"v","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782885252489,"id":"v","total":1,"ms":99.5748}
+{"_e":"metro:client_log","_t":1782885257193,"level":"log","data":["API Base URL:","http://192.168.1.2:3001/api"]}
+{"_e":"metro:client_log","_t":1782885257252,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782885257252,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782885257312,"level":"log","data":["Stored auth check:","{\"hasToken\": true, \"hasUserData\": true, \"hasUserType\": true}"]}
+{"_e":"metro:client_log","_t":1782885259817,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782885262814,"level":"error","data":["The action 'NAVIGATE' with payload {\"name\":\"Login\"} was not handled by any navigator.\n\nDo you have a screen named 'Login'?\n\nIf you're trying to navigate to a screen in a nested navigator, see https://reactnavigation.org/docs/nesting-navigators#navigating-to-a-screen-in-a-nested-navigator.\n\nIf you're using conditional rendering, navigation will happen automatically and you shouldn't navigate manually, see.\n\nThis is a development-only warning and won't be shown in production."]}
+{"_e":"metro:client_log","_t":1782885262872,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782885262917,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:bundling:started","_t":1782885265701,"id":"y","platform":"android","environment":null,"entry":"Mobile\\node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:progress","_t":1782885265701,"id":"y","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782885265803,"id":"y","total":1,"ms":101.4745}
+{"_e":"metro:client_log","_t":1782885270585,"level":"log","data":["API Base URL:","http://192.168.1.2:3001/api"]}
+{"_e":"metro:client_log","_t":1782885270632,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782885270632,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782885270715,"level":"log","data":["Stored auth check:","{\"hasToken\": false, \"hasUserData\": false, \"hasUserType\": false}"]}
+{"_e":"metro:client_log","_t":1782885271107,"level":"warn","data":["InteractionManager has been deprecated and will be removed in a future release. Please refactor long tasks into smaller ones, and  use 'requestIdleCallback' instead."]}
+{"_e":"metro:client_log","_t":1782885389408,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782885389457,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782885389457,"level":"log","data":["Stored auth check:","{\"hasToken\": false, \"hasUserData\": false, \"hasUserType\": false}"]}
+{"_e":"metro:client_log","_t":1782885452304,"level":"log","data":["API Base URL:","http://192.168.1.2:3001/api"]}
+{"_e":"metro:client_log","_t":1782885452478,"level":"log","data":["Stored auth check:","{\"hasToken\": false, \"hasUserData\": false, \"hasUserType\": false}"]}
+{"_e":"metro:client_log","_t":1782885548801,"level":"error","data":["[Error: A navigator can only contain 'Screen', 'Group' or 'React.Fragment' as its direct children (found '`n      '). To render this component in the navigator, pass it in the 'component' prop to 'Screen'.]"]}
+{"_e":"metro:client_log","_t":1782885565903,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782885565970,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782885565970,"level":"log","data":["Stored auth check:","{\"hasToken\": false, \"hasUserData\": false, \"hasUserType\": false}"]}
+{"_e":"metro:client_log","_t":1782885565970,"level":"error","data":["[Error: A navigator can only contain 'Screen', 'Group' or 'React.Fragment' as its direct children (found '`n      '). To render this component in the navigator, pass it in the 'component' prop to 'Screen'.]"]}
+{"_e":"metro:client_log","_t":1782885596511,"level":"error","data":["[Error: expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Learn more at https://docs.expo.dev/develop/development-builds/introduction/.]"]}
+{"_e":"metro:client_log","_t":1782885612546,"level":"error","data":["[Error: expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Learn more at https://docs.expo.dev/develop/development-builds/introduction/.]"]}
+{"_e":"metro:client_log","_t":1782885644836,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782885644900,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782885644901,"level":"log","data":["Stored auth check:","{\"hasToken\": false, \"hasUserData\": false, \"hasUserType\": false}"]}
+{"_e":"metro:client_log","_t":1782885644901,"level":"error","data":["[Error: A navigator can only contain 'Screen', 'Group' or 'React.Fragment' as its direct children (found '`n      '). To render this component in the navigator, pass it in the 'component' prop to 'Screen'.]"]}
+{"_e":"metro:client_log","_t":1782885730017,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782885730083,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782885730083,"level":"log","data":["Stored auth check:","{\"hasToken\": false, \"hasUserData\": false, \"hasUserType\": false}"]}
+{"_e":"metro:client_log","_t":1782885730083,"level":"error","data":["[Error: A navigator can only contain 'Screen', 'Group' or 'React.Fragment' as its direct children (found '`n      '). To render this component in the navigator, pass it in the 'component' prop to 'Screen'.]"]}
+{"_e":"metro:client_log","_t":1782885772885,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782885772931,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782885772931,"level":"log","data":["Stored auth check:","{\"hasToken\": false, \"hasUserData\": false, \"hasUserType\": false}"]}
+{"_e":"metro:client_log","_t":1782885877918,"level":"error","data":["[Error: A navigator can only contain 'Screen', 'Group' or 'React.Fragment' as its direct children (found '`n      '). To render this component in the navigator, pass it in the 'component' prop to 'Screen'.]"]}
+{"_e":"metro:client_log","_t":1782885911152,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782885911211,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782885911211,"level":"log","data":["Stored auth check:","{\"hasToken\": false, \"hasUserData\": false, \"hasUserType\": false}"]}
+{"_e":"metro:client_log","_t":1782886149624,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782886149672,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782886149672,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886149672,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886149672,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782886149721,"level":"error","data":["API Response Error:","{\"message\": \"Invalid username or password\", \"success\": false}"]}
+{"_e":"metro:client_log","_t":1782886149721,"level":"error","data":["Error details:","{\"code\": \"ERR_BAD_REQUEST\", \"message\": \"Request failed with status code 401\", \"response\": {\"message\": \"Invalid username or password\", \"success\": false}, \"status\": 401, \"url\": \"/auth/customer/login\"}"]}
+{"_e":"metro:client_log","_t":1782886149768,"level":"log","data":["Token expired, cleared auth data"]}
+{"_e":"metro:client_log","_t":1782886149768,"level":"error","data":["Error during login:","[AxiosError: Request failed with status code 401]"]}
+{"_e":"metro:client_log","_t":1782886149768,"level":"error","data":["Login error:","[AxiosError: Request failed with status code 401]"]}
+{"_e":"metro:client_log","_t":1782886188475,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782886188520,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782886188521,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886188521,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886188521,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782886188684,"level":"log","data":["API Response: 200 /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886189076,"level":"log","data":["API Request: GET /dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782886189288,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782886189289,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782886189333,"level":"log","data":["API Response: 200 /dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782886189333,"level":"log","data":["API Request: GET /public/inventory"]}
+{"_e":"metro:client_log","_t":1782886189333,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/public/inventory"]}
+{"_e":"metro:client_log","_t":1782886189333,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782886189591,"level":"log","data":["API Response: 200 /public/inventory"]}
+{"_e":"metro:client_log","_t":1782886189633,"level":"log","data":["Inventory data for dashboard:","55","items"]}
+{"_e":"metro:client_log","_t":1782886189633,"level":"log","data":["Dashboard inventory metrics:","{\"lowStockProducts\": 4, \"replenishmentPending\": 0, \"totalProducts\": 55, \"totalUnits\": 27901}"]}
+{"_e":"metro:client_log","_t":1782886191656,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782886195847,"level":"error","data":["The action 'RESET' with payload {\"index\":0,\"routes\":[{\"name\":\"Auth\"}]} was not handled by any navigator.\n\nThis is a development-only warning and won't be shown in production."]}
+{"_e":"metro:client_log","_t":1782886228715,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782886228760,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782886228761,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886228761,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886228761,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782886228761,"level":"error","data":["API Response Error:","{\"message\": \"Invalid username or password\", \"success\": false}"]}
+{"_e":"metro:client_log","_t":1782886228761,"level":"error","data":["Error details:","{\"code\": \"ERR_BAD_REQUEST\", \"message\": \"Request failed with status code 401\", \"response\": {\"message\": \"Invalid username or password\", \"success\": false}, \"status\": 401, \"url\": \"/auth/customer/login\"}"]}
+{"_e":"metro:client_log","_t":1782886228761,"level":"log","data":["Token expired, cleared auth data"]}
+{"_e":"metro:client_log","_t":1782886228761,"level":"error","data":["Error during login:","[AxiosError: Request failed with status code 401]"]}
+{"_e":"metro:client_log","_t":1782886228761,"level":"error","data":["Login error:","[AxiosError: Request failed with status code 401]"]}
+{"_e":"metro:client_log","_t":1782886241711,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782886241760,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782886241761,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886241761,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886241761,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782886241821,"level":"log","data":["API Response: 200 /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886241882,"level":"error","data":["[ReferenceError: Property 'CustomerSettingsStack' doesn't exist]"]}
+{"_e":"metro:bundling:started","_t":1782886472360,"id":"1p","platform":"android","environment":null,"entry":"Mobile\\node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:progress","_t":1782886472360,"id":"1p","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782886472473,"id":"1p","total":1,"ms":112.8127}
+{"_e":"root:init","_t":1782886497307,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782886497326,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782886497336,"mode":"development","files":[],"env":{}}
+{"_e":"devserver:start","_t":1782886499281,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782886501282,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782886517213,"atlas":false,"workers":3,"host":"::","port":8081}
+{"_e":"metro:bundling:started","_t":1782886530925,"id":"1","platform":"android","environment":null,"entry":"Mobile\\node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:progress","_t":1782886530925,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782886530930,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782886531139,"id":"1","progress":0.03628117913832199,"total":21,"current":4}
+{"_e":"metro:bundling:progress","_t":1782886531365,"id":"1","progress":0.03628117913832199,"total":22,"current":4}
+{"_e":"metro:bundling:progress","_t":1782886531814,"id":"1","progress":0.03628117913832199,"total":112,"current":5}
+{"_e":"metro:bundling:progress","_t":1782886531936,"id":"1","progress":0.03628117913832199,"total":186,"current":11}
+{"_e":"metro:bundling:progress","_t":1782886532115,"id":"1","progress":0.03628117913832199,"total":216,"current":19}
+{"_e":"metro:bundling:progress","_t":1782886532220,"id":"1","progress":0.03628117913832199,"total":250,"current":27}
+{"_e":"metro:bundling:progress","_t":1782886532322,"id":"1","progress":0.03628117913832199,"total":287,"current":42}
+{"_e":"metro:bundling:progress","_t":1782886532423,"id":"1","progress":0.11982248520710058,"total":364,"current":126}
+{"_e":"metro:bundling:progress","_t":1782886532523,"id":"1","progress":0.13834770969660917,"total":492,"current":183}
+{"_e":"metro:bundling:progress","_t":1782886532623,"id":"1","progress":0.15546878518985632,"total":596,"current":235}
+{"_e":"metro:bundling:progress","_t":1782886532725,"id":"1","progress":0.1762415450338199,"total":636,"current":267}
+{"_e":"metro:bundling:progress","_t":1782886532824,"id":"1","progress":0.21902400000000002,"total":750,"current":351}
+{"_e":"metro:bundling:progress","_t":1782886532927,"id":"1","progress":0.3112743043330036,"total":846,"current":472}
+{"_e":"metro:bundling:progress","_t":1782886533027,"id":"1","progress":0.36977796831424004,"total":939,"current":571}
+{"_e":"metro:bundling:progress","_t":1782886533128,"id":"1","progress":0.39496008373822433,"total":1012,"current":636}
+{"_e":"metro:bundling:progress","_t":1782886533230,"id":"1","progress":0.567104104835923,"total":1061,"current":799}
+{"_e":"metro:bundling:progress","_t":1782886533330,"id":"1","progress":0.6818120653571192,"total":1182,"current":976}
+{"_e":"metro:bundling:progress","_t":1782886533430,"id":"1","progress":0.7706736180424304,"total":1302,"current":1143}
+{"_e":"metro:bundling:progress","_t":1782886533530,"id":"1","progress":0.8169896788608768,"total":1342,"current":1213}
+{"_e":"metro:bundling:progress","_t":1782886533630,"id":"1","progress":0.8169896788608768,"total":1477,"current":1324}
+{"_e":"metro:bundling:progress","_t":1782886533731,"id":"1","progress":0.8247605164514785,"total":1568,"current":1424}
+{"_e":"metro:bundling:progress","_t":1782886533831,"id":"1","progress":0.889752318082599,"total":1604,"current":1513}
+{"_e":"metro:bundling:progress","_t":1782886533931,"id":"1","progress":0.9394082840236686,"total":1690,"current":1638}
+{"_e":"metro:bundling:progress","_t":1782886534049,"id":"1","progress":0.9394082840236686,"total":1806,"current":1745}
+{"_e":"metro:bundling:progress","_t":1782886534158,"id":"1","progress":0.999,"total":1876,"current":1876}
+{"_e":"metro:bundling:done","_t":1782886534298,"id":"1","total":1876,"ms":3373.399}
+{"_e":"metro:bundling:started","_t":1782886632376,"id":"2","platform":"android","environment":null,"entry":"Mobile\\node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:progress","_t":1782886632376,"id":"2","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782886632378,"id":"2","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782886632500,"id":"2","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782886635723,"id":"2","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782886635933,"id":"2","total":1,"ms":3557.2202}
+{"_e":"metro:bundling:started","_t":1782886661224,"id":"3","platform":"android","environment":null,"entry":"Mobile\\node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:progress","_t":1782886661224,"id":"3","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782886661320,"id":"3","total":1,"ms":96.3483}
+{"_e":"metro:bundling:started","_t":1782886667057,"id":"4","platform":"android","environment":null,"entry":"Mobile\\node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:progress","_t":1782886667057,"id":"4","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782886667178,"id":"4","total":1,"ms":120.7879}
+{"_e":"metro:bundling:started","_t":1782886762626,"id":"5","platform":"android","environment":null,"entry":"Mobile\\node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:progress","_t":1782886762626,"id":"5","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782886762627,"id":"5","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782886762730,"id":"5","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782886763064,"id":"5","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782886763390,"id":"5","total":1,"ms":763.7783}
+{"_e":"metro:client_log","_t":1782886768535,"level":"log","data":["API Base URL:","http://192.168.1.2:3001/api"]}
+{"_e":"metro:client_log","_t":1782886768600,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782886768600,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782886768669,"level":"log","data":["Stored auth check:","{\"hasToken\": true, \"hasUserData\": true, \"hasUserType\": true}"]}
+{"_e":"metro:client_log","_t":1782886768739,"level":"error","data":["[ReferenceError: Property 'CustomerSettingsStack' doesn't exist]"]}
+{"_e":"metro:client_log","_t":1782886800153,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782886800220,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782886800223,"level":"log","data":["Stored auth check:","{\"hasToken\": true, \"hasUserData\": true, \"hasUserType\": true}"]}
+{"_e":"metro:client_log","_t":1782886805825,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782886806126,"level":"warn","data":["InteractionManager has been deprecated and will be removed in a future release. Please refactor long tasks into smaller ones, and  use 'requestIdleCallback' instead."]}
+{"_e":"metro:client_log","_t":1782886832337,"level":"log","data":["API Request: PUT /customer/profile"]}
+{"_e":"metro:client_log","_t":1782886832398,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/customer/profile"]}
+{"_e":"metro:client_log","_t":1782886832398,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782886832462,"level":"error","data":["API Response Error:","{\"message\": \"Failed to update profile\", \"success\": false}"]}
+{"_e":"metro:client_log","_t":1782886832557,"level":"error","data":["Error details:","{\"code\": \"ERR_BAD_RESPONSE\", \"message\": \"Request failed with status code 500\", \"response\": {\"message\": \"Failed to update profile\", \"success\": false}, \"status\": 500, \"url\": \"/customer/profile\"}"]}
+{"_e":"metro:client_log","_t":1782886832558,"level":"error","data":["Error updating customer:","[AxiosError: Request failed with status code 500]"]}
+{"_e":"metro:client_log","_t":1782886832558,"level":"error","data":["Error updating profile:","[AxiosError: Request failed with status code 500]"]}
+{"_e":"metro:client_log","_t":1782886869413,"level":"warn","data":["[expo-image-picker] `ImagePicker.MediaTypeOptions` have been deprecated. Use `ImagePicker.MediaType` or an array of `ImagePicker.MediaType` instead."]}
+{"_e":"metro:client_log","_t":1782886885806,"level":"log","data":["API Request: PUT /customer/profile"]}
+{"_e":"metro:client_log","_t":1782886885873,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/customer/profile"]}
+{"_e":"metro:client_log","_t":1782886885873,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782886885873,"level":"error","data":["API Response Error:","{\"message\": \"Failed to update profile\", \"success\": false}"]}
+{"_e":"metro:client_log","_t":1782886885873,"level":"error","data":["Error details:","{\"code\": \"ERR_BAD_RESPONSE\", \"message\": \"Request failed with status code 500\", \"response\": {\"message\": \"Failed to update profile\", \"success\": false}, \"status\": 500, \"url\": \"/customer/profile\"}"]}
+{"_e":"metro:client_log","_t":1782886885873,"level":"error","data":["Error updating customer:","[AxiosError: Request failed with status code 500]"]}
+{"_e":"metro:client_log","_t":1782886885873,"level":"error","data":["Error updating profile:","[AxiosError: Request failed with status code 500]"]}
+{"_e":"metro:client_log","_t":1782886888420,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782886894324,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782886901836,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782886904232,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782886906693,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782886915528,"level":"error","data":["[Error: expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Learn more at https://docs.expo.dev/develop/development-builds/introduction/.]"]}
+{"_e":"metro:client_log","_t":1782886935436,"level":"error","data":["[Error: expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Learn more at https://docs.expo.dev/develop/development-builds/introduction/.]"]}
+{"_e":"metro:client_log","_t":1782886969346,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `nativeEvent` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969347,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `type` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969347,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `target` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969347,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `currentTarget` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969348,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `eventPhase` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969349,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `bubbles` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969349,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `cancelable` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969349,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `timeStamp` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969355,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `defaultPrevented` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969356,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `isTrusted` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969356,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `touchHistory` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969361,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `isDefaultPrevented` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969361,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `isPropagationStopped` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969361,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `preventDefault` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886969527,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `stopPropagation` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970551,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `nativeEvent` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970556,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `type` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970556,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `target` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970556,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `currentTarget` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970559,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `eventPhase` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970559,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `bubbles` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970566,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `cancelable` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970566,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `timeStamp` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970566,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `defaultPrevented` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970572,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the property `isTrusted` on a released/nullified synthetic event. This is set to null. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970572,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `touchHistory` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970580,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `isDefaultPrevented` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970580,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `isPropagationStopped` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970580,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `preventDefault` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886970586,"level":"error","data":["This synthetic event is reused for performance reasons. If you're seeing this, you're accessing the method `stopPropagation` on a released/nullified synthetic event. This is a no-op function. If you must keep the original synthetic event around, use event.persist(). See https://react.dev/link/event-pooling for more information."]}
+{"_e":"metro:client_log","_t":1782886978538,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782886980698,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782886990663,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782886990706,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782886990706,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886990706,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886990706,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782886990956,"level":"log","data":["API Response: 200 /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782886992249,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782886993907,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887010151,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887093116,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887114459,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887126944,"level":"log","data":["API Base URL:","http://192.168.1.2:3001/api"]}
+{"_e":"metro:client_log","_t":1782887127034,"level":"log","data":["Stored auth check:","{\"hasToken\": false, \"hasUserData\": false, \"hasUserType\": false}"]}
+{"_e":"metro:client_log","_t":1782887133802,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782887133864,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782887133864,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887133864,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887133864,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887134045,"level":"log","data":["API Response: 200 /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887134315,"level":"log","data":["API Request: GET /dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782887134372,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782887134372,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887134422,"level":"log","data":["API Response: 200 /dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782887134471,"level":"log","data":["API Request: GET /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887134471,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/public/inventory"]}
+{"_e":"metro:client_log","_t":1782887134471,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887134609,"level":"log","data":["API Response: 200 /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887134720,"level":"log","data":["Inventory data for dashboard:","55","items"]}
+{"_e":"metro:client_log","_t":1782887134720,"level":"log","data":["Dashboard inventory metrics:","{\"lowStockProducts\": 4, \"replenishmentPending\": 0, \"totalProducts\": 55, \"totalUnits\": 27901}"]}
+{"_e":"metro:client_log","_t":1782887136218,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887138610,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887141232,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887141538,"level":"log","data":["API Request: GET /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887141582,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/public/inventory"]}
+{"_e":"metro:client_log","_t":1782887141582,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887141689,"level":"log","data":["API Response: 200 /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887188778,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887189016,"level":"log","data":["API Request: GET /orders"]}
+{"_e":"metro:client_log","_t":1782887189114,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/orders"]}
+{"_e":"metro:client_log","_t":1782887189150,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887190348,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887190470,"level":"error","data":["Text strings must be rendered within a <Text> component."]}
+{"_e":"metro:client_log","_t":1782887190623,"level":"log","data":["API Request: GET /customers"]}
+{"_e":"metro:client_log","_t":1782887190623,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/customers"]}
+{"_e":"metro:client_log","_t":1782887190623,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887191674,"level":"log","data":["API Response: 200 /customers"]}
+{"_e":"metro:client_log","_t":1782887192288,"level":"log","data":["API Response: 200 /orders"]}
+{"_e":"metro:client_log","_t":1782887194835,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887194997,"level":"warn","data":["\"file-pdf\" is not a valid icon name for family \"material-community\""]}
+{"_e":"metro:client_log","_t":1782887196690,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887230460,"level":"log","data":["API Request: GET /dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782887230553,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782887230553,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887230553,"level":"log","data":["Stored auth check:","{\"hasToken\": true, \"hasUserData\": true, \"hasUserType\": true}"]}
+{"_e":"metro:client_log","_t":1782887230790,"level":"log","data":["API Response: 200 /dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782887230969,"level":"log","data":["API Request: GET /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887230969,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/public/inventory"]}
+{"_e":"metro:client_log","_t":1782887230969,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887231324,"level":"log","data":["API Response: 200 /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887231370,"level":"log","data":["Inventory data for dashboard:","55","items"]}
+{"_e":"metro:client_log","_t":1782887231370,"level":"log","data":["Dashboard inventory metrics:","{\"lowStockProducts\": 4, \"replenishmentPending\": 0, \"totalProducts\": 55, \"totalUnits\": 27901}"]}
+{"_e":"metro:client_log","_t":1782887237387,"level":"log","data":["API Request: GET /dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782887237446,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782887237446,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887237496,"level":"log","data":["API Response: 200 /dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782887237496,"level":"log","data":["API Request: GET /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887237496,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/public/inventory"]}
+{"_e":"metro:client_log","_t":1782887237496,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887237663,"level":"log","data":["API Response: 200 /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887237718,"level":"log","data":["Inventory data for dashboard:","55","items"]}
+{"_e":"metro:client_log","_t":1782887237718,"level":"log","data":["Dashboard inventory metrics:","{\"lowStockProducts\": 4, \"replenishmentPending\": 0, \"totalProducts\": 55, \"totalUnits\": 27901}"]}
+{"_e":"metro:client_log","_t":1782887300211,"level":"log","data":["API Request: GET /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887300303,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/public/inventory"]}
+{"_e":"metro:client_log","_t":1782887300303,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887300343,"level":"log","data":["API Response: 200 /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887311554,"level":"log","data":["API Request: GET /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887311750,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/public/inventory"]}
+{"_e":"metro:client_log","_t":1782887311750,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887312085,"level":"log","data":["API Response: 200 /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887332034,"level":"log","data":["API Request: GET /dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782887332035,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782887332035,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887332036,"level":"log","data":["Stored auth check:","{\"hasToken\": true, \"hasUserData\": true, \"hasUserType\": true}"]}
+{"_e":"metro:client_log","_t":1782887332094,"level":"log","data":["API Response: 200 /dashboard/analytics"]}
+{"_e":"metro:client_log","_t":1782887332333,"level":"log","data":["API Request: GET /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887332333,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/public/inventory"]}
+{"_e":"metro:client_log","_t":1782887332333,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887332459,"level":"log","data":["API Response: 200 /public/inventory"]}
+{"_e":"metro:client_log","_t":1782887332475,"level":"log","data":["Inventory data for dashboard:","55","items"]}
+{"_e":"metro:client_log","_t":1782887332475,"level":"log","data":["Dashboard inventory metrics:","{\"lowStockProducts\": 4, \"replenishmentPending\": 0, \"totalProducts\": 55, \"totalUnits\": 27901}"]}
+{"_e":"metro:client_log","_t":1782887360561,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887371058,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782887371109,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782887371109,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887371110,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887371110,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887371169,"level":"error","data":["API Response Error:","{\"message\": \"Invalid username or password\", \"success\": false}"]}
+{"_e":"metro:client_log","_t":1782887371225,"level":"error","data":["Error details:","{\"code\": \"ERR_BAD_REQUEST\", \"message\": \"Request failed with status code 401\", \"response\": {\"message\": \"Invalid username or password\", \"success\": false}, \"status\": 401, \"url\": \"/auth/customer/login\"}"]}
+{"_e":"metro:client_log","_t":1782887371225,"level":"log","data":["Token expired, cleared auth data"]}
+{"_e":"metro:client_log","_t":1782887371225,"level":"error","data":["Error during login:","[AxiosError: Request failed with status code 401]"]}
+{"_e":"metro:client_log","_t":1782887371225,"level":"error","data":["Login error:","[AxiosError: Request failed with status code 401]"]}
+{"_e":"metro:client_log","_t":1782887377932,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782887377995,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782887377995,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887377995,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887377995,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887378057,"level":"log","data":["API Response: 200 /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887379626,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887414188,"level":"log","data":["API Request: PUT /customer/profile"]}
+{"_e":"metro:client_log","_t":1782887414237,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/customer/profile"]}
+{"_e":"metro:client_log","_t":1782887414237,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887414308,"level":"error","data":["API Response Error:","{\"message\": \"Failed to update profile\", \"success\": false}"]}
+{"_e":"metro:client_log","_t":1782887414369,"level":"error","data":["Error details:","{\"code\": \"ERR_BAD_RESPONSE\", \"message\": \"Request failed with status code 500\", \"response\": {\"message\": \"Failed to update profile\", \"success\": false}, \"status\": 500, \"url\": \"/customer/profile\"}"]}
+{"_e":"metro:client_log","_t":1782887414370,"level":"error","data":["Error updating customer:","[AxiosError: Request failed with status code 500]"]}
+{"_e":"metro:client_log","_t":1782887414370,"level":"error","data":["Error updating profile:","[AxiosError: Request failed with status code 500]"]}
+{"_e":"metro:client_log","_t":1782887453365,"level":"warn","data":["[expo-image-picker] `ImagePicker.MediaTypeOptions` have been deprecated. Use `ImagePicker.MediaType` or an array of `ImagePicker.MediaType` instead."]}
+{"_e":"metro:client_log","_t":1782887469546,"level":"warn","data":["[expo-image-picker] `ImagePicker.MediaTypeOptions` have been deprecated. Use `ImagePicker.MediaType` or an array of `ImagePicker.MediaType` instead."]}
+{"_e":"metro:client_log","_t":1782887485703,"level":"log","data":["API Request: PUT /customer/profile"]}
+{"_e":"metro:client_log","_t":1782887485755,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/customer/profile"]}
+{"_e":"metro:client_log","_t":1782887485755,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887485755,"level":"error","data":["API Response Error:","{\"message\": \"Failed to update profile\", \"success\": false}"]}
+{"_e":"metro:client_log","_t":1782887485755,"level":"error","data":["Error details:","{\"code\": \"ERR_BAD_RESPONSE\", \"message\": \"Request failed with status code 500\", \"response\": {\"message\": \"Failed to update profile\", \"success\": false}, \"status\": 500, \"url\": \"/customer/profile\"}"]}
+{"_e":"metro:client_log","_t":1782887485755,"level":"error","data":["Error updating customer:","[AxiosError: Request failed with status code 500]"]}
+{"_e":"metro:client_log","_t":1782887485755,"level":"error","data":["Error updating profile:","[AxiosError: Request failed with status code 500]"]}
+{"_e":"metro:client_log","_t":1782887501634,"level":"error","data":["The action 'NAVIGATE' with payload {\"name\":\"CreateGift\"} was not handled by any navigator.\n\nDo you have a screen named 'CreateGift'?\n\nIf you're trying to navigate to a screen in a nested navigator, see https://reactnavigation.org/docs/nesting-navigators#navigating-to-a-screen-in-a-nested-navigator.\n\nIf you're using conditional rendering, navigation will happen automatically and you shouldn't navigate manually, see.\n\nThis is a development-only warning and won't be shown in production."]}
+{"_e":"metro:client_log","_t":1782887502713,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887507075,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887511715,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887514431,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887516622,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887516772,"level":"log","data":["API Request: GET /orders"]}
+{"_e":"metro:client_log","_t":1782887516833,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/orders"]}
+{"_e":"metro:client_log","_t":1782887516833,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887519155,"level":"log","data":["API Response: 200 /orders"]}
+{"_e":"metro:client_log","_t":1782887519410,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887521203,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887540079,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887547206,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887548658,"level":"error","data":["The action 'NAVIGATE' with payload {\"name\":\"OrderTracking\",\"params\":{\"orderId\":\"TEST-FAST-002\"}} was not handled by any navigator.\n\nDo you have a screen named 'OrderTracking'?\n\nIf you're trying to navigate to a screen in a nested navigator, see https://reactnavigation.org/docs/nesting-navigators#navigating-to-a-screen-in-a-nested-navigator.\n\nIf you're using conditional rendering, navigation will happen automatically and you shouldn't navigate manually, see.\n\nThis is a development-only warning and won't be shown in production."]}
+{"_e":"metro:client_log","_t":1782887582203,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887583043,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887770022,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887787197,"level":"log","data":["API Request: PUT /customer/profile"]}
+{"_e":"metro:client_log","_t":1782887787246,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/customer/profile"]}
+{"_e":"metro:client_log","_t":1782887787246,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887787246,"level":"error","data":["API Response Error:","{\"message\": \"Failed to update profile\", \"success\": false}"]}
+{"_e":"metro:client_log","_t":1782887787246,"level":"error","data":["Error details:","{\"code\": \"ERR_BAD_RESPONSE\", \"message\": \"Request failed with status code 500\", \"response\": {\"message\": \"Failed to update profile\", \"success\": false}, \"status\": 500, \"url\": \"/customer/profile\"}"]}
+{"_e":"metro:client_log","_t":1782887787246,"level":"error","data":["Error updating customer:","[AxiosError: Request failed with status code 500]"]}
+{"_e":"metro:client_log","_t":1782887787310,"level":"error","data":["Error updating profile:","[AxiosError: Request failed with status code 500]"]}
+{"_e":"metro:bundling:started","_t":1782887810004,"id":"1t","platform":"android","environment":null,"entry":"Mobile\\node_modules\\expo\\AppEntry.js"}
+{"_e":"metro:bundling:progress","_t":1782887810005,"id":"1t","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782887810189,"id":"1t","total":1,"ms":184.5023}
+{"_e":"metro:client_log","_t":1782887815845,"level":"log","data":["API Base URL:","http://192.168.1.2:3001/api"]}
+{"_e":"metro:client_log","_t":1782887815900,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782887815900,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782887816006,"level":"log","data":["Stored auth check:","{\"hasToken\": true, \"hasUserData\": true, \"hasUserType\": true}"]}
+{"_e":"metro:client_log","_t":1782887834192,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887857895,"level":"log","data":["API Request: PUT /customer/profile"]}
+{"_e":"metro:client_log","_t":1782887858110,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/customer/profile"]}
+{"_e":"metro:client_log","_t":1782887858110,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887858252,"level":"log","data":["API Response: 200 /customer/profile"]}
+{"_e":"metro:client_log","_t":1782887858302,"level":"log","data":["API Request: POST /customer/profile-picture"]}
+{"_e":"metro:client_log","_t":1782887858303,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/customer/profile-picture"]}
+{"_e":"metro:client_log","_t":1782887858303,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887858478,"level":"log","data":["API Response: 200 /customer/profile-picture"]}
+{"_e":"metro:client_log","_t":1782887862512,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887863028,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887863356,"level":"warn","data":["InteractionManager has been deprecated and will be removed in a future release. Please refactor long tasks into smaller ones, and  use 'requestIdleCallback' instead."]}
+{"_e":"metro:client_log","_t":1782887864719,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887897420,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782887897467,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782887897467,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887897467,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887897467,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887897569,"level":"log","data":["API Response: 200 /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887898738,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887898999,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887908455,"level":"log","data":["API Request: PUT /customer/profile"]}
+{"_e":"metro:client_log","_t":1782887908510,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/customer/profile"]}
+{"_e":"metro:client_log","_t":1782887908510,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887908556,"level":"log","data":["API Response: 200 /customer/profile"]}
+{"_e":"metro:client_log","_t":1782887908601,"level":"log","data":["API Request: POST /customer/profile-picture"]}
+{"_e":"metro:client_log","_t":1782887908601,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/customer/profile-picture"]}
+{"_e":"metro:client_log","_t":1782887908601,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887908711,"level":"log","data":["API Response: 200 /customer/profile-picture"]}
+{"_e":"metro:client_log","_t":1782887916268,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887916710,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887918925,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887920934,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887934463,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782887934511,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782887934511,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887934511,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887934511,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887934578,"level":"log","data":["API Response: 200 /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887935932,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887956523,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}
+{"_e":"metro:client_log","_t":1782887970225,"level":"log","data":["API Request: PUT /customer/change-password"]}
+{"_e":"metro:client_log","_t":1782887970273,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/customer/change-password"]}
+{"_e":"metro:client_log","_t":1782887970273,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887970419,"level":"log","data":["API Response: 200 /customer/change-password"]}
+{"_e":"metro:client_log","_t":1782887983130,"level":"log","data":["SplashScreen starting..."]}
+{"_e":"metro:client_log","_t":1782887983178,"level":"log","data":["SplashScreen - AppNavigator will handle navigation based on auth state"]}
+{"_e":"metro:client_log","_t":1782887983178,"level":"log","data":["API Request: POST /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887983178,"level":"log","data":["Full URL: http://192.168.1.2:3001/api/auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782887983178,"level":"log","data":["Platform:","android"]}
+{"_e":"metro:client_log","_t":1782887983295,"level":"log","data":["API Response: 200 /auth/customer/login"]}
+{"_e":"metro:client_log","_t":1782888257125,"level":"warn","data":["Passing an object as the argument to 'navigate' is deprecated. Use 'navigate(name, params, options)' instead."]}

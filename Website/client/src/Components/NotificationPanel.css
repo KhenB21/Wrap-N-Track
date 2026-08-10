@@ -495,171 +495,170 @@
   }
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .notification-panel {
-    background: #1f2937;
-    color: #f9fafb;
-    border-color: #374151;
-  }
-  
-  .notification-panel-header {
-    background: linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(31, 41, 55, 0.95) 100%);
-    border-bottom-color: #374151;
-  }
-  
-  .notification-panel-header h3 {
-    color: #f9fafb;
-  }
-  
-  .mark-all-read-btn {
-    background: rgba(55, 65, 81, 0.6);
-    color: #d1d5db;
-    border-color: rgba(75, 85, 99, 0.5);
-  }
-  
-  .mark-all-read-btn:hover {
-    background: rgba(75, 85, 99, 0.8);
-    border-color: rgba(107, 114, 128, 0.6);
-    color: #f9fafb;
-  }
-  
-  .close-btn {
-    background: rgba(55, 65, 81, 0.3);
-    color: #d1d5db;
-  }
-  
-  .close-btn:hover {
-    background: rgba(75, 85, 99, 0.6);
-    color: #f9fafb;
-  }
-  
-  .notification-filters {
-    background: #111827;
-    border-bottom-color: #374151;
-    scrollbar-color: #4b5563 #1f2937;
-  }
-  
-  .notification-filters::-webkit-scrollbar-track {
-    background: #1f2937;
-  }
-  
-  .notification-filters::-webkit-scrollbar-thumb {
-    background: #4b5563;
-  }
-  
-  .notification-filters::-webkit-scrollbar-thumb:hover {
-    background: #6b7280;
-  }
-  
-  .filter-btn {
-    border-color: #4b5563;
-    color: #9ca3af;
-    background: rgba(31, 41, 55, 0.5);
-  }
-  
-  .filter-btn:hover {
-    background: #374151;
-    border-color: #6b7280;
-    color: #d1d5db;
-  }
-  
-  .filter-btn.active {
-    background: rgba(59, 130, 246, 0.8);
-    border-color: rgba(59, 130, 246, 0.8);
-    color: white;
-    font-weight: 600;
-  }
-  
-  .notification-list {
-    background: #1f2937;
-  }
-  
-  .loading-state {
-    color: #9ca3af;
-  }
-  
-  .spinner {
-    border-color: #374151;
-    border-top-color: #3b82f6;
-  }
-  
-  .empty-state {
-    color: #9ca3af;
-  }
-  
-  .empty-icon {
-    opacity: 0.6;
-  }
-  
-  .notification-item {
-    border-bottom-color: #374151;
-    background: #1f2937;
-  }
-  
-  .notification-item:hover {
-    background: #374151;
-  }
-  
-  .notification-item.unread {
-    background: #1e3a8a;
-    border-left-color: #3b82f6;
-  }
-  
-  .notification-item.critical {
-    background: #2d1b1b;
-    border-left-color: #ef4444;
-  }
-  
-  .notification-item.urgent {
-    background: #2d2411;
-    border-left-color: #f59e0b;
-  }
-  
-  .notification-title {
-    color: #f9fafb;
-  }
-  
-  .notification-message {
-    color: #d1d5db;
-  }
-  
-  .notification-time {
-    color: #9ca3af;
-  }
-  
-  .category-header {
-    color: #d1d5db;
-    border-bottom-color: #374151;
-  }
-  
-  .category-count {
-    color: #9ca3af;
-  }
-  
-  .product-count-badge {
-    background: #3730a3;
-    color: #e0e7ff;
-  }
-  
-  .delete-notification-btn {
-    color: #6b7280;
-  }
-  
-  .delete-notification-btn:hover {
-    background: #374151;
-    color: #ef4444;
-  }
-  
-  .priority-badge.critical {
-    background: #2d1b1b;
-    color: #fca5a5;
-    border-color: #7f1d1d;
-  }
-  
-  .priority-badge.urgent {
-    background: #2d2411;
-    color: #fcd34d;
-    border-color: #92400e;
-  }
+/* Dark mode support (driven by the app's body.dark toggle) */
+body.dark .notification-panel {
+  background: #242424;
+  color: #e0e0e0;
+  border-color: #3a3a3a;
+}
+
+body.dark .notification-panel-header {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(42, 42, 42, 0.95) 100%);
+  border-bottom-color: #3a3a3a;
+}
+
+body.dark .notification-panel-header h3 {
+  color: #f3f4f6;
+}
+
+body.dark .mark-all-read-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #d1d5db;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+body.dark .mark-all-read-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #f9fafb;
+}
+
+body.dark .close-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: #d1d5db;
+}
+
+body.dark .close-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #f9fafb;
+}
+
+body.dark .notification-filters {
+  background: #1e1e1e;
+  border-bottom-color: #3a3a3a;
+  scrollbar-color: #4a4a4a #2a2a2a;
+}
+
+body.dark .notification-filters::-webkit-scrollbar-track {
+  background: #2a2a2a;
+}
+
+body.dark .notification-filters::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+}
+
+body.dark .notification-filters::-webkit-scrollbar-thumb:hover {
+  background: #6a6a6a;
+}
+
+body.dark .filter-btn {
+  border-color: #4a4a4a;
+  color: #9a9a9a;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+body.dark .filter-btn:hover {
+  background: #2f2f2f;
+  border-color: #6a6a6a;
+  color: #d1d5db;
+}
+
+body.dark .filter-btn.active {
+  background: rgba(91, 157, 255, 0.85);
+  border-color: rgba(91, 157, 255, 0.85);
+  color: white;
+  font-weight: 600;
+}
+
+body.dark .notification-list {
+  background: #242424;
+}
+
+body.dark .loading-state {
+  color: #9a9a9a;
+}
+
+body.dark .spinner {
+  border-color: #3a3a3a;
+  border-top-color: #5b9dff;
+}
+
+body.dark .empty-state {
+  color: #9a9a9a;
+}
+
+body.dark .empty-icon {
+  opacity: 0.6;
+}
+
+/* Notification rows: keep unread/critical/urgent visually distinct in dark mode too */
+body.dark .notification-item {
+  border-bottom-color: #333333;
+  background: #242424;
+}
+
+body.dark .notification-item:hover {
+  background: #2f2f2f;
+}
+
+body.dark .notification-item.unread {
+  background: #16233d;
+  border-left-color: #5b9dff;
+}
+
+body.dark .notification-item.critical {
+  background: #2d1b1b;
+  border-left-color: #f87171;
+}
+
+body.dark .notification-item.urgent {
+  background: #2d2411;
+  border-left-color: #fbbf24;
+}
+
+body.dark .notification-title {
+  color: #f3f4f6;
+}
+
+body.dark .notification-message {
+  color: #d1d5db;
+}
+
+body.dark .notification-time {
+  color: #9a9a9a;
+}
+
+body.dark .category-header {
+  color: #d1d5db;
+  border-bottom-color: #3a3a3a;
+}
+
+body.dark .category-count {
+  color: #9a9a9a;
+}
+
+body.dark .product-count-badge {
+  background: #3730a3;
+  color: #e0e7ff;
+}
+
+body.dark .delete-notification-btn {
+  color: #7a7a7a;
+}
+
+body.dark .delete-notification-btn:hover {
+  background: #374151;
+  color: #f87171;
+}
+
+body.dark .priority-badge.critical {
+  background: #2d1b1b;
+  color: #fca5a5;
+  border-color: #7f1d1d;
+}
+
+body.dark .priority-badge.urgent {
+  background: #2d2411;
+  color: #fcd34d;
+  border-color: #92400e;
 }

@@ -59,3 +59,119 @@ body.dark textarea:focus {
 }
 
 /* Add more global dark mode styles as needed for common elements */
+
+/* Global Skeleton Loader styles */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite ease-in-out;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+body.dark .skeleton-shimmer {
+  background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-text {
+  height: 16px;
+  width: 100%;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.skeleton-title {
+  height: 24px;
+  width: 60%;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.skeleton-image {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+}
+
+.skeleton-button {
+  height: 36px;
+  width: 100px;
+  display: inline-block;
+}
+
+.skeleton-card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+body.dark .skeleton-card {
+  background: #1e1e1e;
+}
+
+/* react-toastify: used across most employee pages, but its own CSS ships
+   light-only. Overridden globally here since ToastContainer/toast() render
+   the same .Toastify classes regardless of which page mounted them. */
+body.dark .Toastify__toast {
+  background: #242424;
+  color: #e0e0e0;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+body.dark .Toastify__toast--success { background: #123d22; color: #6fdb94; }
+body.dark .Toastify__toast--error { background: #4a1414; color: #ff9c9c; }
+body.dark .Toastify__toast--warning { background: #4a3c00; color: #ffd666; }
+body.dark .Toastify__toast--info { background: #05325c; color: #7ec1ff; }
+body.dark .Toastify__close-button { color: #e0e0e0; opacity: 0.7; }
+body.dark .Toastify__progress-bar { background: rgba(255, 255, 255, 0.4); }
+
+/* react-select: used by SupplierDropdown.js and AddProductModal.js. Its own
+   classNames are prefixed per-usage; these generic suffix selectors catch
+   any instance regardless of prefix. */
+body.dark [class$="-control"] {
+  background-color: #2a2a2a !important;
+  border-color: #3a3a3a !important;
+}
+body.dark [class$="-menu"] {
+  background-color: #2a2a2a !important;
+  border: 1px solid #3a3a3a;
+}
+body.dark [class$="-option"] {
+  background-color: transparent !important;
+  color: #e0e0e0 !important;
+}
+body.dark [class*="-option"]:hover,
+body.dark [class$="-option"][class*="isFocused"] {
+  background-color: #383838 !important;
+}
+body.dark [class$="-singleValue"],
+body.dark [class$="-input"] input {
+  color: #e0e0e0 !important;
+}
+body.dark [class$="-placeholder"] {
+  color: #8a8a8a !important;
+}
+body.dark [class$="-indicatorSeparator"] {
+  background-color: #3a3a3a !important;
+}
+

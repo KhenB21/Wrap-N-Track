@@ -1,0 +1,38 @@
+.status-badge-ui {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tone-success {
+  background: rgba(16, 185, 129, 0.14);
+  color: var(--success);
+}
+
+.tone-warning {
+  background: rgba(245, 158, 11, 0.16);
+  color: var(--warning);
+}
+
+.tone-danger {
+  background: rgba(239, 68, 68, 0.14);
+  color: var(--danger);
+}
+
+.tone-info {
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--brand);
+}
+
+.tone-neutral {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}

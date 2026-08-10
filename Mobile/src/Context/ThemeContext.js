@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+﻿import React, { createContext, useContext, useState, useEffect } from "react";
 import { Appearance } from "react-native";
 
 const ThemeContext = createContext();
@@ -6,6 +6,7 @@ const ThemeContext = createContext();
 export function ThemeProvider({ children }) {
   const colorScheme = Appearance.getColorScheme();
   const [darkMode, setDarkMode] = useState(colorScheme === "dark");
+  const toggleTheme = () => setDarkMode((prev) => !prev);
 
   // Optionally, listen to system changes
   useEffect(() => {
@@ -55,7 +56,7 @@ export function ThemeProvider({ children }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ darkMode, setDarkMode, colors }}>
+    <ThemeContext.Provider value={{ darkMode, setDarkMode, toggleTheme, colors }}>
       {children}
     </ThemeContext.Provider>
   );

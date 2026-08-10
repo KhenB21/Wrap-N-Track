@@ -22,13 +22,11 @@ export default function ReportsHomeScreen() {
     {
       id: 'sales',
       title: 'Sales Reports',
-      description: 'Revenue, orders, and customer analytics',
+      description: 'Revenue, orders, and performance analytics',
       icon: 'chart-line',
       color: '#4CAF50',
       screens: [
         { name: 'SalesReport', title: 'Sales Overview', description: 'Revenue and order statistics' },
-        { name: 'CustomerReport', title: 'Customer Analytics', description: 'Customer behavior and insights' },
-        { name: 'ProductReport', title: 'Product Performance', description: 'Best-selling products and trends' }
       ]
     },
     {
@@ -39,70 +37,11 @@ export default function ReportsHomeScreen() {
       color: '#2196F3',
       screens: [
         { name: 'InventoryReport', title: 'Stock Analysis', description: 'Current stock levels and trends' },
-        { name: 'MovementReport', title: 'Movement Analysis', description: 'Product movement patterns' },
-        { name: 'ReplenishmentReport', title: 'Replenishment', description: 'Reorder suggestions and alerts' }
       ]
     },
-    {
-      id: 'financial',
-      title: 'Financial Reports',
-      description: 'Profitability, costs, and financial metrics',
-      icon: 'currency-usd',
-      color: '#FF9800',
-      screens: [
-        { name: 'ProfitReport', title: 'Profit Analysis', description: 'Revenue vs costs breakdown' },
-        { name: 'CostReport', title: 'Cost Analysis', description: 'Operational cost insights' },
-        { name: 'ROIReport', title: 'ROI Analysis', description: 'Return on investment metrics' }
-      ]
-    },
-    {
-      id: 'operational',
-      title: 'Operational Reports',
-      description: 'Efficiency, performance, and process metrics',
-      icon: 'cog',
-      color: '#9C27B0',
-      screens: [
-        { name: 'EfficiencyReport', title: 'Efficiency Metrics', description: 'Process efficiency analysis' },
-        { name: 'PerformanceReport', title: 'Performance Dashboard', description: 'Key performance indicators' },
-        { name: 'QualityReport', title: 'Quality Metrics', description: 'Quality control and standards' }
-      ]
-    }
   ];
 
-  const quickReports = [
-    {
-      title: 'Today\'s Sales',
-      value: '₱15,420',
-      change: '+12.5%',
-      trend: 'up',
-      icon: 'trending-up',
-      color: '#4CAF50'
-    },
-    {
-      title: 'Low Stock Items',
-      value: '8',
-      change: '-2',
-      trend: 'down',
-      icon: 'alert-circle',
-      color: '#F57C00'
-    },
-    {
-      title: 'Pending Orders',
-      value: '23',
-      change: '+5',
-      trend: 'up',
-      icon: 'clock-outline',
-      color: '#2196F3'
-    },
-    {
-      title: 'Customer Growth',
-      value: '15',
-      change: '+8.2%',
-      trend: 'up',
-      icon: 'account-plus',
-      color: '#9C27B0'
-    }
-  ];
+  const quickReports = [];
 
   const handleReportPress = (screenName) => {
     navigation.navigate(screenName);
@@ -220,59 +159,12 @@ export default function ReportsHomeScreen() {
           </Text>
         </View>
 
-        {/* Quick Reports */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.onBackground }]}>
-            Quick Overview
-          </Text>
-          <View style={styles.quickReportsGrid}>
-            {quickReports.map((report, index) => renderQuickReport(report, index))}
-          </View>
-        </View>
-
         {/* Report Categories */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.onBackground }]}>
             Report Categories
           </Text>
           {reportCategories.map((category) => renderReportCategory(category))}
-        </View>
-
-        {/* Export Options */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.onBackground }]}>
-            Export Options
-          </Text>
-          <Card style={[styles.exportCard, { backgroundColor: theme.colors.surface }]}>
-            <Card.Content>
-              <View style={styles.exportOptions}>
-                <Button
-                  mode="outlined"
-                  icon="file-pdf"
-                  onPress={() => Alert.alert('Export', 'PDF export functionality')}
-                  style={styles.exportButton}
-                >
-                  Export to PDF
-                </Button>
-                <Button
-                  mode="outlined"
-                  icon="file-excel"
-                  onPress={() => Alert.alert('Export', 'Excel export functionality')}
-                  style={styles.exportButton}
-                >
-                  Export to Excel
-                </Button>
-                <Button
-                  mode="outlined"
-                  icon="email"
-                  onPress={() => Alert.alert('Export', 'Email functionality')}
-                  style={styles.exportButton}
-                >
-                  Email Report
-                </Button>
-              </View>
-            </Card.Content>
-          </Card>
         </View>
       </ScrollView>
     </View>

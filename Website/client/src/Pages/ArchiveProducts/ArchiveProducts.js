@@ -101,9 +101,9 @@ function ArchiveProductsContent() {
   };
 
   return (
-    <div className="dashboard-container" style={{ backgroundColor: '#ffffff', height: '100vh', overflow: 'hidden' }}>
+    <div className="dashboard-container" style={{ height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
-      <div className="dashboard-main" style={{ marginLeft: '220px', width: 'calc(100% - 220px)', height: '100vh', backgroundColor: '#ffffff', overflow: 'hidden' }}>
+      <div className="dashboard-main" style={{ marginLeft: '220px', width: 'calc(100% - 220px)', height: '100vh', overflow: 'hidden' }}>
         <TopBar
           lowStockProducts={[]} // Archived products don't need low stock alerts
           searchValue={searchTerm}
@@ -136,35 +136,52 @@ function ArchiveProductsContent() {
               <option value="replenishment">Need Replenishment (0)</option>
             </select>
           </div>
-          {loading ? (
-            <div className="loading-container">Loading archived products...</div>
-          ) : (
-            <div className="inventory-table-container">
-              <div className="inventory-table-wrapper">
-                <table className="inventory-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '60px', textAlign: 'center' }}>Image</th>
-                      <th style={{ width: '100px' }}>SKU</th>
-                      <th style={{ width: '120px' }}>Name</th>
-                      <th style={{ width: '140px' }}>Description</th>
-                      <th style={{ width: '80px', textAlign: 'right' }}>Unit Price</th>
-                      <th style={{ width: '100px' }}>Category</th>
-                      <th style={{ width: '120px' }}>Supplier</th>
-                      <th style={{ width: '100px', textAlign: 'center' }}>Expiration</th>
-                      <th style={{ width: '120px', textAlign: 'center' }}>Last Updated</th>
-                      <th style={{ width: '60px', textAlign: 'center' }}>UOM</th>
-                      <th style={{ width: '80px', textAlign: 'center' }}>Quantity</th>
-                      <th style={{ width: '70px', textAlign: 'center' }}>Ordered</th>
-                      <th style={{ width: '70px', textAlign: 'center' }}>Delivered</th>
-                      <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredProducts.map(product => (
+          <div className="inventory-table-container">
+            <div className="inventory-table-wrapper">
+              <table className="inventory-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '60px', textAlign: 'center' }}>Image</th>
+                    <th style={{ width: '100px' }}>SKU</th>
+                    <th style={{ width: '120px' }}>Name</th>
+                    <th style={{ width: '140px' }}>Description</th>
+                    <th style={{ width: '80px', textAlign: 'right' }}>Unit Price</th>
+                    <th style={{ width: '100px' }}>Category</th>
+                    <th style={{ width: '120px' }}>Supplier</th>
+                    <th style={{ width: '100px', textAlign: 'center' }}>Expiration</th>
+                    <th style={{ width: '120px', textAlign: 'center' }}>Last Updated</th>
+                    <th style={{ width: '60px', textAlign: 'center' }}>UOM</th>
+                    <th style={{ width: '80px', textAlign: 'center' }}>Quantity</th>
+                    <th style={{ width: '70px', textAlign: 'center' }}>Ordered</th>
+                    <th style={{ width: '70px', textAlign: 'center' }}>Delivered</th>
+                    <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, idx) => (
+                      <tr key={idx} style={{ pointerEvents: 'none' }}>
+                        <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer" style={{ width: '30px', height: '30px', borderRadius: '4px', display: 'inline-block' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '100px', height: '16px' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '120px', height: '16px' }} /></td>
+                        <td style={{ textAlign: 'right' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '50px', height: '16px', marginLeft: 'auto' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px' }} /></td>
+                        <td><div className="skeleton-shimmer skeleton-text" style={{ width: '90px', height: '16px' }} /></td>
+                        <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '70px', height: '16px', margin: '0 auto' }} /></td>
+                        <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '100px', height: '16px', margin: '0 auto' }} /></td>
+                        <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px', margin: '0 auto' }} /></td>
+                        <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '50px', height: '16px', margin: '0 auto' }} /></td>
+                        <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px', margin: '0 auto' }} /></td>
+                        <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '40px', height: '16px', margin: '0 auto' }} /></td>
+                        <td style={{ textAlign: 'center' }}><div className="skeleton-shimmer skeleton-text" style={{ width: '80px', height: '16px', margin: '0 auto' }} /></td>
+                      </tr>
+                    ))
+                  ) : (
+                    filteredProducts.map(product => (
                       <tr
                         key={product.sku}
-                        style={{ cursor: 'pointer', opacity: 0.7 }} // Slightly faded to indicate archived status
+                        style={{ cursor: 'pointer', opacity: 0.7 }}
                         onClick={e => handleRowClick(product.sku)}
                         className={
                           Number(product.quantity || 0) <= 300 ? 'low-stock-row' :
@@ -191,14 +208,14 @@ function ArchiveProductsContent() {
                           {product.sku}
                         </td>
                         <td className="ellipsis" title={product.name}>
-                          <s>{product.name}</s> {/* Strikethrough to indicate archived */}
+                          <s>{product.name}</s>
                         </td>
                         <td className="ellipsis" title={product.description}>
-                          <s>{product.description}</s> {/* Strikethrough to indicate archived */}
+                          <s>{product.description}</s>
                         </td>
                         <td style={{ textAlign: 'right' }}>₱{parseFloat(product.unit_price).toFixed(2)}</td>
                         <td className="ellipsis" title={product.category}>
-                          <s>{product.category}</s> {/* Strikethrough to indicate archived */}
+                          <s>{product.category}</s>
                         </td>
                         <td className="ellipsis" title={product.supplier_name || 'No supplier'}>
                           {product.supplier_name ? (
@@ -222,9 +239,8 @@ function ArchiveProductsContent() {
                             : product.uom}
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <div style={{
+                          <div className="archived-quantity-pill" style={{
                             padding: '8px 16px',
-                            backgroundColor: '#f0f0f0',
                             borderRadius: '4px',
                             fontWeight: 'bold',
                             fontSize: '14px',
@@ -253,12 +269,12 @@ function ArchiveProductsContent() {
                           </button>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
           {filteredProducts.length === 0 && !loading && (
             <div className="no-products">
               <p>No archived products found.</p>

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authAPI } from '../services/api';
+import { authAPI, setLogoutHandler } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -10,6 +10,7 @@ const AUTH_ACTIONS = {
   SET_USER: 'SET_USER',
   SET_ERROR: 'SET_ERROR',
   LOGOUT: 'LOGOUT',
+  UPDATE_USER: 'UPDATE_USER',
   CLEAR_ERROR: 'CLEAR_ERROR',
 };
 
@@ -54,6 +55,13 @@ const authReducer = (state, action) => {
     case AUTH_ACTIONS.LOGOUT:
       return {
         ...initialState,
+        loading: false,
+      };
+
+    case AUTH_ACTIONS.UPDATE_USER:
+      return {
+        ...state,
+        user: { ...state.user, ...action.payload },
       };
 
     case AUTH_ACTIONS.CLEAR_ERROR:
@@ -155,10 +163,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Logout function
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       // Clear AsyncStorage
-      await AsyncStorage.multiRemove(['authToken', 'userData', 'userType']);
+      await AsyncStorage.multiRemove(['authToken', 'userData', 'userType', 'profileData']);
       
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     } catch (error) {
@@ -166,6 +174,18 @@ export const AuthProvider = ({ children }) => {
       // Still dispatch logout even if AsyncStorage fails
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
+  }, []);
+
+  // Register logout with the API interceptor so 401s trigger a proper auth reset
+  useEffect(() => {
+    setLogoutHandler(logout);
+  }, [logout]);
+
+  const updateUser = async (userUpdates) => {
+    const updatedUser = { ...(state.user || {}), ...userUpdates };
+    await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+    dispatch({ type: AUTH_ACTIONS.UPDATE_USER, payload: userUpdates });
+    return updatedUser;
   };
 
   // Clear error function
@@ -200,6 +220,7 @@ export const AuthProvider = ({ children }) => {
     // Actions
     login,
     logout,
+    updateUser,
     clearError,
     getUserRole,
     isEmployee,
@@ -223,3 +244,4 @@ export const useAuth = () => {
 };
 
 export default AuthContext;
+

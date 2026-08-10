@@ -76,10 +76,10 @@ const DeliveryTrackingScreen = ({ navigation, route }) => {
         desc: product.desc,
       }
     : {
-        image: product.image,
-        title: product.title,
-        subtitle: product.subtitle,
-        desc: product.desc,
+        image: null,
+        title: "Your Order",
+        subtitle: "",
+        desc: "",
       };
 
   return (
@@ -106,7 +106,13 @@ const DeliveryTrackingScreen = ({ navigation, route }) => {
             },
           ]}
         >
-          <Image source={item.image} style={styles.itemImage} />
+          {item.image ? (
+            <Image source={item.image} style={styles.itemImage} />
+          ) : (
+            <View style={[styles.itemImage, { backgroundColor: "#EDECF3", alignItems: "center", justifyContent: "center" }]}>
+              <MaterialCommunityIcons name="package-variant" size={32} color="#B0B3B8" />
+            </View>
+          )}
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={[styles.itemTitle, { color: colors.text }]}>
               {item.title}

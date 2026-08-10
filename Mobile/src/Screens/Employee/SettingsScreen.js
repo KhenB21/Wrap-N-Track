@@ -5,19 +5,24 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
-  Switch
+  Switch,
+  Platform,
+  PermissionsAndroid
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card, List, Button, Divider } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useAuth } from '../../Context/AuthContext';
 
+const ADMIN_ROLES = ['admin', 'super_admin'];
+
 export default function SettingsScreen({ navigation }) {
   const theme = useTheme();
   const { user, logout } = useAuth();
+  const canManageAccounts = ADMIN_ROLES.includes(user?.role);
   const { darkMode, setDarkMode } = useTheme();
   
-  const [notifications, setNotifications] = useState(true);
+  const [locationEnabled, setLocationEnabled] = useState(false);
   const [autoSync, setAutoSync] = useState(true);
   const [biometric, setBiometric] = useState(false);
 
@@ -32,10 +37,6 @@ export default function SettingsScreen({ navigation }) {
           style: 'destructive',
           onPress: () => {
             logout();
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Auth' }],
-            });
           }
         }
       ]
@@ -43,7 +44,26 @@ export default function SettingsScreen({ navigation }) {
   };
 
   const handleChangePassword = () => {
-    Alert.alert('Change Password', 'Password change functionality would be implemented here');
+    navigation.navigate('ChangePassword');
+  };
+
+  const handleLocationToggle = async (enabled) => {
+    if (!enabled) {
+      setLocationEnabled(false);
+      return;
+    }
+    if (Platform.OS === 'android') {
+      const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+      if (result === PermissionsAndroid.RESULTS.GRANTED) {
+        setLocationEnabled(true);
+      } else {
+        setLocationEnabled(false);
+        Alert.alert('Location Disabled', 'Please allow location access in your mobile system settings.');
+      }
+      return;
+    }
+    Alert.alert('Location Permission', 'Please allow location access in your mobile system settings if prompted.');
+    setLocationEnabled(true);
   };
 
   const handleExportData = () => {
@@ -110,7 +130,7 @@ export default function SettingsScreen({ navigation }) {
           right={() => (
             <Switch
               value={darkMode}
-              onValueChange={toggleDarkMode}
+              onValueChange={setDarkMode}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={darkMode ? '#f5dd4b' : '#f4f3f4'}
             />
@@ -124,22 +144,8 @@ export default function SettingsScreen({ navigation }) {
     <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
       <Card.Content>
         <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-          Notifications
+          Data & Sync
         </Text>
-        
-        <List.Item
-          title="Push Notifications"
-          description="Receive notifications for orders and updates"
-          left={(props) => <List.Icon {...props} icon="bell" />}
-          right={() => (
-            <Switch
-              value={notifications}
-              onValueChange={setNotifications}
-              trackColor={{ false: '#767577', true: '#81b0ff' }}
-              thumbColor={notifications ? '#f5dd4b' : '#f4f3f4'}
-            />
-          )}
-        />
         
         <List.Item
           title="Auto Sync"
@@ -151,6 +157,20 @@ export default function SettingsScreen({ navigation }) {
               onValueChange={setAutoSync}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={autoSync ? '#f5dd4b' : '#f4f3f4'}
+            />
+          )}
+        />
+        
+        <List.Item
+          title="Location Services"
+          description="Allow app to access your location"
+          left={(props) => <List.Icon {...props} icon="map-marker" />}
+          right={() => (
+            <Switch
+              value={locationEnabled}
+              onValueChange={handleLocationToggle}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={locationEnabled ? '#f5dd4b' : '#f4f3f4'}
             />
           )}
         />
@@ -216,6 +236,34 @@ export default function SettingsScreen({ navigation }) {
     </Card>
   );
 
+  const renderManagementSettings = () => (
+    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+      <Card.Content>
+        <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+          Management
+        </Text>
+
+        <List.Item
+          title="Notifications"
+          description="View and manage your notifications"
+          left={(props) => <List.Icon {...props} icon="bell-outline" />}
+          right={(props) => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('Notifications')}
+        />
+
+        {canManageAccounts && (
+          <List.Item
+            title="Account Management"
+            description="Manage employee accounts and roles"
+            left={(props) => <List.Icon {...props} icon="account-cog-outline" />}
+            right={(props) => <List.Icon {...props} icon="chevron-right" />}
+            onPress={() => navigation.navigate('AccountManagement')}
+          />
+        )}
+      </Card.Content>
+    </Card>
+  );
+
   const renderSupportSettings = () => (
     <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
       <Card.Content>
@@ -277,6 +325,9 @@ export default function SettingsScreen({ navigation }) {
 
         {/* Data Settings */}
         {renderDataSettings()}
+
+        {/* Management Settings */}
+        {renderManagementSettings()}
 
         {/* Support Settings */}
         {renderSupportSettings()}

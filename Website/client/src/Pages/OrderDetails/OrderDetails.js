@@ -9,6 +9,8 @@ import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../api';
 import PortalModal from '../../Components/Modal/PortalModal';
+import OrderInvoiceSection from '../Invoices/OrderInvoiceSection';
+import AddOrderModal from './AddOrderModal';
 
 // Add these styles at the top of the file
 const styles = {
@@ -17,8 +19,6 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '16px 24px',
-    background: '#fff',
-    borderBottom: '1px solid #eee',
     boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
   },
   button: {
@@ -47,12 +47,10 @@ const styles = {
     display: 'flex',
     gap: '24px',
     padding: '24px',
-    height: 'calc(100vh - 180px)',
-    background: '#f8f9fa'
+    height: 'calc(100vh - 180px)'
   },
   column: {
     flex: 1,
-    background: '#fff',
     borderRadius: '12px',
     padding: '20px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
@@ -64,21 +62,17 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '20px',
-    paddingBottom: '12px',
-    borderBottom: '2px solid #f0f0f0'
+    paddingBottom: '12px'
   },
   columnTitle: {
     margin: 0,
-    color: '#2c3e50',
     fontSize: '18px',
     fontWeight: 600
   },
   orderCount: {
-    background: '#e9ecef',
     padding: '4px 12px',
     borderRadius: '20px',
     fontSize: '13px',
-    color: '#495057',
     fontWeight: 500
   },
   orderList: {
@@ -98,33 +92,23 @@ const styles = {
     }
   },
   orderCard: {
-    background: '#fff',
-    border: '1px solid #e9ecef',
     borderRadius: '8px',
     padding: '16px',
     marginBottom: '12px',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-      borderColor: '#4a90e2'
-    }
+    transition: 'all 0.2s ease'
   },
   orderName: {
     fontWeight: 600,
-    color: '#2c3e50',
     marginBottom: '4px'
   },
   orderInfo: {
-    color: '#6c757d',
     fontSize: '13px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center'
   },
   modal: {
-    background: '#fff',
     padding: '32px',
     borderRadius: '12px',
     minWidth: '800px',
@@ -134,12 +118,10 @@ const styles = {
   },
   modalHeader: {
     marginBottom: '24px',
-    paddingBottom: '16px',
-    borderBottom: '2px solid #f0f0f0'
+    paddingBottom: '16px'
   },
   modalTitle: {
     margin: 0,
-    color: '#2c3e50',
     fontSize: '24px',
     fontWeight: 600
   },
@@ -151,7 +133,6 @@ const styles = {
     display: 'inline-block'
   },
   orderDetailsModalContainer: {
-    background:'#fff',
     padding:0,
     borderRadius:18,
     minWidth:900,
@@ -168,7 +149,6 @@ const styles = {
   orderDetailsColumnDefault: {
     flex:2,
     padding:'48px 36px 36px 64px',
-    borderRight:'2px solid #e0e0e0',
     minWidth:420,
     display:'flex',
     flexDirection:'column',
@@ -178,7 +158,6 @@ const styles = {
   },
   whatsInsideColumnDefault: {
     flex:1.1,
-    background:'#f8f9fa',
     borderRadius:'0 18px 18px 0',
     padding:'48px 32px 36px 32px',
     display:'flex',
@@ -187,13 +166,11 @@ const styles = {
     minWidth:300,
     maxWidth:340,
     justifyContent:'center',
-    boxShadow:'inset 1px 0 0 #ececec',
     overflowY: 'auto',
     boxSizing: 'border-box',
   },
   whatsInsideColumnLeft: {
     flex:1.1,
-    background:'#f8f9fa',
     borderRadius:'18px 0 0 18px',
     padding:'48px 32px 36px 32px',
     display:'flex',
@@ -201,9 +178,7 @@ const styles = {
     alignItems:'flex-start',
     minWidth:300,
     maxWidth:340,
-    borderRight:'2px solid #e0e0e0',
     justifyContent:'center',
-    boxShadow:'inset -1px 0 0 #ececec',
     overflowY: 'auto',
     boxSizing: 'border-box',
   },
@@ -328,6 +303,8 @@ export default function OrderDetails() {
   const [updatingProducts, setUpdatingProducts] = useState(false);
   const [archivingOrder, setArchivingOrder] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderChallenge, setOrderChallenge] = useState(null);
+  const [orderChallengeInput, setOrderChallengeInput] = useState('');
   const [customerDetails, setCustomerDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -340,36 +317,14 @@ export default function OrderDetails() {
   }, [showModal, form.order_id, selectedOrder]);
 
   // Function definitions (stubs)
-  const handleAddOrder = () => { 
-    console.log('handleAddOrder called'); 
-    setForm({ // Reset form for new order
-      order_id: generateOrderId(), name: '', status: 'Pending', customer_name: '', customer_email: '',
-      customer_phone: '', customer_address_line1: '', customer_address_line2: '', customer_city: '',
-      customer_state: '', customer_zip: '', customer_country: '', total_cost: 0, notes: '', products: []
-    });
+  const handleAddOrder = () => {
     setSelectedOrder(null); // Clear any selected order when adding new
-    setShowModal(true); 
+    setShowModal(true); // AddOrderModal owns/resets its own form state on open
   };
-  const handleFormSubmit = (e) => { e.preventDefault(); console.log('handleFormSubmit called', form); setShowModal(false); /* Add API call here */ };
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm(prevForm => ({ ...prevForm, [name]: type === 'checkbox' ? checked : value }));
     console.log('handleFormChange called', name, value);
-  };
-  const renderProductTable = () => { 
-    console.log('renderProductTable called'); 
-    if (!form.products || form.products.length === 0) {
-        return <tr><td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>No products added yet.</td></tr>;
-    }
-    return form.products.map((product, index) => (
-        <tr key={index}>
-            <td>{product.name}</td>
-            <td>{product.quantity}</td>
-            <td>{product.price}</td>
-            <td>{product.quantity * product.price}</td>
-            <td><button onClick={() => console.log('Remove product stub')}>Remove</button></td>
-        </tr>
-    ));
   };
   const handleProductSelection = (product, quantity) => { console.log('handleProductSelection called', product, quantity); };
   const handleAddProductToOrder = () => { 
@@ -613,6 +568,31 @@ export default function OrderDetails() {
 
   const isToBePacked = selectedOrder && normalizeStatus(selectedOrder.status) === normalizeStatus('To Be Packed');
 
+  const openOrderChallenge = (config) => {
+    setOrderChallengeInput('');
+    setOrderChallenge(config);
+  };
+
+  const closeOrderChallenge = () => {
+    setOrderChallenge(null);
+    setOrderChallengeInput('');
+  };
+
+  const confirmOrderChallenge = async () => {
+    if (!orderChallenge) return;
+    if (orderChallengeInput.trim().toUpperCase() !== orderChallenge.challengeText) {
+      alert(`Please type ${orderChallenge.challengeText} to continue.`);
+      return;
+    }
+
+    try {
+      await orderChallenge.onConfirm();
+      closeOrderChallenge();
+    } catch (error) {
+      console.error('Order challenge action failed:', error);
+    }
+  };
+
 
   return (
     <div className="dashboard-container">
@@ -621,7 +601,7 @@ export default function OrderDetails() {
         <TopBar avatarUrl={getProfilePictureUrl()} />
         
         {/* Action Bar */}
-        <div style={styles.actionBar}>
+        <div className="od-action-bar" style={styles.actionBar}>
           <div style={{ display: 'flex', gap: '12px' }}>
             <button 
               style={{...styles.button, ...styles.primaryButton}} 
@@ -634,91 +614,136 @@ export default function OrderDetails() {
         </div>
 
         {/* Main Order Columns */}
-        <div style={styles.columnsContainer}>
+        <div className="od-columns-container" style={styles.columnsContainer}>
           {/* Pending Orders Column */}
-          <div style={styles.column}>
-            <div style={styles.columnHeader}>
-              <h3 style={styles.columnTitle}>Pending Orders</h3>
-              <span style={styles.orderCount}>{pendingOrders.length}</span>
+          <div className="od-column" style={styles.column}>
+            <div className="od-column-header" style={styles.columnHeader}>
+              <h3 className="od-column-title" style={styles.columnTitle}>Pending Orders</h3>
+              <span className="od-order-count" style={styles.orderCount}>{pendingOrders.length}</span>
             </div>
             <div style={styles.orderList}>
-              {pendingOrders.map(order => (
-                <div 
-                  key={order.order_id} 
-                  style={styles.orderCard}
-                  onClick={() => setSelectedOrderId(order.order_id)}
-                >
-                  <div style={styles.orderName}>{order.name}</div>
-                  <div style={styles.orderInfo}>
-                    <span>{order.order_id}</span>
-                    <span>
-                      ₱{
-                        (order.total_cost && Number(order.total_cost) > 0)
-                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      }
-                    </span>
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="od-order-card" style={{ ...styles.orderCard, pointerEvents: 'none' }}>
+                    <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', marginBottom: '8px' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                      <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
+                      <div className="skeleton-shimmer skeleton-text" style={{ width: '30%', height: '12px' }} />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : pendingOrders.length === 0 ? (
+                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
+              ) : (
+                pendingOrders.map(order => (
+                  <div 
+                    key={order.order_id} 
+                    className="od-order-card"
+                    style={styles.orderCard}
+                    onClick={() => setSelectedOrderId(order.order_id)}
+                  >
+                    <div className="od-order-name" style={styles.orderName}>{order.name}</div>
+                    <div className="od-order-info" style={styles.orderInfo}>
+                      <span>{order.order_id}</span>
+                      <span>
+                        ₱{
+                          (order.total_cost && Number(order.total_cost) > 0)
+                            ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        }
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
           {/* To Be Pack Column */}
-          <div style={styles.column}>
-            <div style={styles.columnHeader}>
-              <h3 style={styles.columnTitle}>To Be Packed</h3>
-              <span style={styles.orderCount}>{toBePackOrders.length}</span>
+          <div className="od-column" style={styles.column}>
+            <div className="od-column-header" style={styles.columnHeader}>
+              <h3 className="od-column-title" style={styles.columnTitle}>To Be Packed</h3>
+              <span className="od-order-count" style={styles.orderCount}>{toBePackOrders.length}</span>
             </div>
             <div style={styles.orderList}>
-              {toBePackOrders.map(order => (
-                <div 
-                  key={order.order_id} 
-                  style={styles.orderCard}
-                  onClick={() => setSelectedOrderId(order.order_id)}
-                >
-                  <div style={styles.orderName}>{order.name}</div>
-                  <div style={styles.orderInfo}>
-                    <span>{order.order_id}</span>
-                    <span>
-                      ₱{
-                        (order.total_cost && Number(order.total_cost) > 0)
-                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      }
-                    </span>
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="od-order-card" style={{ ...styles.orderCard, pointerEvents: 'none' }}>
+                    <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', marginBottom: '8px' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                      <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
+                      <div className="skeleton-shimmer skeleton-text" style={{ width: '30%', height: '12px' }} />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : toBePackOrders.length === 0 ? (
+                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
+              ) : (
+                toBePackOrders.map(order => (
+                  <div 
+                    key={order.order_id} 
+                    className="od-order-card"
+                    style={styles.orderCard}
+                    onClick={() => setSelectedOrderId(order.order_id)}
+                  >
+                    <div className="od-order-name" style={styles.orderName}>{order.name}</div>
+                    <div className="od-order-info" style={styles.orderInfo}>
+                      <span>{order.order_id}</span>
+                      <span>
+                        ₱{
+                          (order.total_cost && Number(order.total_cost) > 0)
+                            ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        }
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
           {/* Ready to Deliver Column */}
-          <div style={styles.column}>
-            <div style={styles.columnHeader}>
-              <h3 style={styles.columnTitle}>Ready for Delivery</h3>
-              <span style={styles.orderCount}>{readyToDeliverOrders.length}</span>
+          <div className="od-column" style={styles.column}>
+            <div className="od-column-header" style={styles.columnHeader}>
+              <h3 className="od-column-title" style={styles.columnTitle}>Ready for Delivery</h3>
+              <span className="od-order-count" style={styles.orderCount}>{readyToDeliverOrders.length}</span>
             </div>
             <div style={styles.orderList}>
-              {readyToDeliverOrders.map(order => (
-                <div 
-                  key={order.order_id} 
-                  style={styles.orderCard}
-                  onClick={() => setSelectedOrderId(order.order_id)}
-                >
-                  <div style={styles.orderName}>{order.name}</div>
-                  <div style={styles.orderInfo}>
-                    <span>{order.order_id}</span>
-                    <span>
-                      ₱{
-                        (order.total_cost && Number(order.total_cost) > 0)
-                          ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      }
-                    </span>
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="od-order-card" style={{ ...styles.orderCard, pointerEvents: 'none' }}>
+                    <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', marginBottom: '8px' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                      <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
+                      <div className="skeleton-shimmer skeleton-text" style={{ width: '30%', height: '12px' }} />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : readyToDeliverOrders.length === 0 ? (
+                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
+              ) : (
+                readyToDeliverOrders.map(order => (
+                  <div 
+                    key={order.order_id} 
+                    className="od-order-card"
+                    style={styles.orderCard}
+                    onClick={() => setSelectedOrderId(order.order_id)}
+                  >
+                    <div className="od-order-name" style={styles.orderName}>{order.name}</div>
+                    <div className="od-order-info" style={styles.orderInfo}>
+                      <span>{order.order_id}</span>
+                      <span>
+                        ₱{
+                          (order.total_cost && Number(order.total_cost) > 0)
+                            ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        }
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -726,125 +751,22 @@ export default function OrderDetails() {
         {/* More modal removed */}
 
         {/* Modal for Add Order */}
-        {showModal && (
-          <PortalModal onClose={() => setShowModal(false)}>
-            <div role="dialog" aria-modal="true" style={{background:'#fff',padding:20,borderRadius:12,width:'100%',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 6px 40px rgba(0,0,0,0.18)'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-                <h2 style={{margin:0,fontSize:22,fontWeight:700}}>Add Order</h2>
-                <button type="button" onClick={() => setShowModal(false)} aria-label="Close" style={{background:'transparent',border:'none',fontSize:28,lineHeight:1,color:'#666',cursor:'pointer',padding:6,borderRadius:6}}>&times;</button>
-              </div>
-              <form onSubmit={handleFormSubmit} style={{display:'flex',flexDirection:'row',gap:24,alignItems:'flex-start',flexWrap:'wrap'}}>
-                {/* Left: Order Details */}
-                <div style={{flex:'1 1 420px',minWidth:0}}>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>
-                      Order ID
-                      <input 
-                        name="order_id" 
-                        value={form.order_id} 
-                        readOnly 
-                        className="modal-input" 
-                        style={{backgroundColor: '#f8f9fa'}}
-                      />
-                    </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Name<input name="name" value={form.name} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Status
-                      <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">
-                        <option value="">Select status</option>
-                        <option value="Pending">Pending</option>
-                        <option value="To be pack">To be pack</option>
-                        <option value="Ready to ship">Ready to ship</option>
-                        <option value="En Route">En Route</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Invoice">Invoice</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
-                    </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Package Name
-                      <select name="package_name" value={form.package_name} onChange={handleFormChange} required className="modal-input">
-                        <option value="">Select package</option>
-                        <option value="Carlo">Carlo</option>
-                        <option value="Custom">Custom</option>
-                      </select>
-                    </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Expected Delivery<input name="expected_delivery" type="date" value={form.expected_delivery} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Shipped To (Receiver name) <input name="shipped_to" value={form.shipped_to} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Shipping Address<input name="shipping_address" value={form.shipping_address} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Telephone<input name="telephone" value={form.telephone} onChange={handleFormChange} className="modal-input" placeholder="(optional)" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Cellphone<input name="cellphone" value={form.cellphone} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Email Address<input name="email_address" value={form.email_address} onChange={handleFormChange} required className="modal-input" /></label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Total Cost
-                      <input 
-                        name="total_cost" 
-                        type="number" 
-                        step="0.01" 
-                        value={form.total_cost} 
-                        readOnly 
-                        className="modal-input" 
-                        style={{backgroundColor:'#f5f5f5'}}
-                      />
-                    </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Payment Type
-                      <select name="payment_type" value={form.payment_type} onChange={handleFormChange} className="modal-input" required>
-                        <option value="">Select payment type</option>
-                        <option value="50% paid">50% paid</option>
-                        <option value="70% paid">70% paid</option>
-                        <option value="100% Paid">100% Paid</option>
-                      </select>
-                    </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Payment Method
-                      <select name="payment_method" value={form.payment_method} onChange={handleFormChange} className="modal-input" required>
-                        <option value="">Select payment method</option>
-                        <option value="Cash">Cash</option>
-                        <option value="Online Banking">Online Banking</option>
-                        <option value="E-Wallet">E-Wallet</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                      </select>
-                    </label>
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6}}>Account Name<input name="account_name" value={form.account_name} onChange={handleFormChange} className="modal-input" /></label>
-                    {/* Remarks - span both columns */}
-                    <label style={{fontWeight:500,display:'flex',flexDirection:'column',gap:6,gridColumn:'1 / span 2'}}>Remarks<input name="remarks" value={form.remarks} onChange={handleFormChange} className="modal-input" /></label>
-                  </div>
-                  {/* Form buttons */}
-                  <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:24}}>
-                    <button type="button" onClick={()=>setShowModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}>Cancel</button>
-                    <button type="submit" style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#6c63ff',color:'#fff',fontWeight:600,cursor:'pointer'}}>Save</button>
-                  </div>
-                </div>
-                {/* Right: Products Section */}
-                <div style={{flex:'1 1 420px',minWidth:0}}>
-                  <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
-                  <div style={{maxHeight:400,overflowY:'auto',marginBottom:18,border:'1px solid #eee',borderRadius:8,padding:16}}>
-                    {renderProductTable()}
-                  </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
-                    <div style={{fontWeight:500}}>
-                      Total Estimated Profit: ₱{
-                        inventory.reduce((total, item) => {
-                          const quantity = Number(productSelection[item.sku] || 0);
-                          const margin = Number(profitMargins[item.sku] || 0);
-                          const unitPrice = Number(item.unit_price || 0);
-                          return total + (unitPrice * quantity * (margin / 100));
-                        }, 0).toFixed(2)
-                      }
-                    </div>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </PortalModal>
-        )}
+        <AddOrderModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          inventory={inventory}
+          onCreated={fetchOrders}
+        />
 
         {/* Modal for Add Product to Order */}
         {showProductModal && (
           <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'#0008',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <div className="modal" style={{background:'#fff',padding:32,borderRadius:12,minWidth:700,maxWidth:900,width:'90vw',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
-              <h2 style={{marginBottom:20}}>Add Products to Order</h2>
+            <div className="modal" style={{padding:32,borderRadius:12,minWidth:700,maxWidth:900,width:'90vw',boxShadow:'0 4px 32px rgba(0,0,0,0.12)'}}>
+              <h2 className="modal-title" style={{marginBottom:20}}>Add Products to Order</h2>
               <div style={{maxHeight:400,overflowY:'auto',marginBottom:18}}>
-                <table style={{width:'100%',borderCollapse:'collapse'}}>
+                <table className="od-product-table" style={{width:'100%',borderCollapse:'collapse'}}>
                   <thead>
-                    <tr style={{background:'#f8f8f8'}}>
+                    <tr className="od-product-table-head-row">
                       <th style={{textAlign:'left',padding:'8px'}}>Image</th>
                       <th style={{textAlign:'left',padding:'8px'}}>Name</th>
                       <th style={{textAlign:'right',padding:'8px'}}>Unit Price</th>
@@ -874,7 +796,8 @@ export default function OrderDetails() {
                               max={100}
                               value={profitMargins[item.sku] || ''} 
                               onChange={e => setProfitMargins(pm => ({...pm, [item.sku]: e.target.value}))} 
-                              style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
+                              className="od-small-input"
+                              style={{width:60,padding:'4px'}}
                             />
                           </td>
                           <td style={{padding:'8px',textAlign:'right'}}>
@@ -887,7 +810,8 @@ export default function OrderDetails() {
                               max={item.quantity} 
                               value={productSelection[item.sku] || ''} 
                               onChange={e => handleProductSelection(item.sku, e.target.value)} 
-                              style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} 
+                              className="od-small-input"
+                              style={{width:60,padding:'4px'}}
                             />
                           </td>
                         </tr>
@@ -908,9 +832,9 @@ export default function OrderDetails() {
                   }
                 </div>
               </div>
-              {productError && <div style={{color:'red',marginBottom:8}}>{productError}</div>}
+              {productError && <div className="od-form-error" style={{marginBottom:8}}>{productError}</div>}
               <div style={{display:'flex',justifyContent:'flex-end',gap:10}}>
-                <button type="button" onClick={()=>setShowProductModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',background:'#fff',cursor:'pointer'}}>Cancel</button>
+                <button type="button" className="modal-close-btn" onClick={()=>setShowProductModal(false)} style={{padding:'7px 18px',borderRadius:6,border:'1px solid #bbb',cursor:'pointer'}}>Cancel</button>
                 <button type="button" onClick={handleAddProductToOrder} style={{padding:'7px 18px',borderRadius:6,border:'none',background:'#6c63ff',color:'#fff',fontWeight:600,cursor:'pointer'}} disabled={placingOrder}>{placingOrder ? 'Placing...' : 'Place Order'}</button>
               </div>
             </div>
@@ -921,7 +845,6 @@ export default function OrderDetails() {
         {showEditModal && (
           <div className={`modal-backdrop${showCompleteConfirm ? ' order-details-modal-dim' : ''}`} style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
             <div className="modal" style={{
-              background:'#fff',
               borderRadius:16,
               maxWidth:1400,
               width:'99vw',
@@ -939,14 +862,12 @@ export default function OrderDetails() {
                 alignItems:'center',
                 justifyContent:'space-between',
                 padding:'28px 36px 18px 36px',
-                borderBottom:'1.5px solid #ececec',
-                background:'#fff',
                 position:'sticky',
                 top:0,
                 zIndex:2
               }}>
-                <h2 className="modal-title" style={{fontSize:28,fontWeight:700,margin:0,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50'}}>Edit Order</h2>
-                <button className="modal-close" type="button" onClick={() => setShowEditModal(false)} style={{fontSize:28,color:'#aaa',background:'none',border:'none',borderRadius:'50%',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'color 0.2s, background 0.2s'}}>&times;</button>
+                <h2 className="modal-title" style={{fontSize:28,fontWeight:700,margin:0,fontFamily:'Cormorant Garamond,serif'}}>Edit Order</h2>
+                <button className="modal-close" type="button" onClick={() => setShowEditModal(false)} style={{fontSize:28,background:'none',border:'none',borderRadius:'50%',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'color 0.2s, background 0.2s'}}>&times;</button>
               </div>
               <form onSubmit={handleEditOrderSubmit} style={{
                 display:'flex',
@@ -955,8 +876,7 @@ export default function OrderDetails() {
                 alignItems:'stretch',
                 height:'100%',
                 minHeight:400,
-                overflow:'visible',
-                background:'#fff'
+                overflow:'visible'
               }}>
                 {/* Left: Order Details */}
                 <div style={{
@@ -1088,7 +1008,8 @@ export default function OrderDetails() {
                                     max={100}
                                     value={profitMargins[item.sku] || ''} 
                                     onChange={e => setProfitMargins(pm => ({...pm, [item.sku]: e.target.value}))} 
-                                    style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc',textAlign:'right'}} 
+                                    className="od-small-input"
+                                    style={{width:60,padding:'4px',textAlign:'right'}}
                                   />
                                 </td>
                                 <td style={{padding:'8px',textAlign:'right'}}>
@@ -1101,7 +1022,8 @@ export default function OrderDetails() {
                                     max={item.quantity} 
                                     value={productSelection[item.sku] || ''} 
                                     onChange={e => handleProductSelection(item.sku, e.target.value)} 
-                                    style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc',textAlign:'right'}} 
+                                    className="od-small-input"
+                                    style={{width:60,padding:'4px',textAlign:'right'}}
                                   />
                                 </td>
                               </tr>
@@ -1160,7 +1082,7 @@ export default function OrderDetails() {
                         <td style={{padding:'8px'}}>{item.name}</td>
                         <td style={{padding:'8px',textAlign:'right'}}>{item.quantity}</td>
                         <td style={{padding:'8px',textAlign:'right'}}>
-                          <input type="number" min={0} max={item.quantity} value={editingProducts[item.sku]||''} onChange={e => setEditingProducts(ps => ({...ps, [item.sku]: e.target.value}))} style={{width:60,padding:'4px',borderRadius:4,border:'1px solid #ccc'}} />
+                          <input type="number" min={0} max={item.quantity} value={editingProducts[item.sku]||''} onChange={e => setEditingProducts(ps => ({...ps, [item.sku]: e.target.value}))} className="od-small-input" style={{width:60,padding:'4px'}} />
                         </td>
                       </tr>
                     ))}
@@ -1226,13 +1148,7 @@ export default function OrderDetails() {
               <div style={{marginBottom:18, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Contact Number:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.cellphone || '-'}</span></div>
               <div style={{marginBottom:18, fontSize:18}}>
                 <span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Total Number of Boxes:</span> 
-                <span style={{fontWeight:400, marginLeft:6}}>{
-                  (selectedOrder.order_quantity && selectedOrder.order_quantity > 0)
-                    ? selectedOrder.order_quantity
-                    : (selectedOrder.products && selectedOrder.products.length > 0 && selectedOrder.products[0].quantity > 0)
-                      ? selectedOrder.products[0].quantity
-                      : '-'
-                }</span>
+                <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.order_quantity ?? selectedOrder.total_boxes ?? '-'}</span>
               </div>
               <div style={{marginBottom:18, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Date of Event:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.expected_delivery ? (new Date(selectedOrder.expected_delivery).toLocaleDateString('en-US')) : '-'}</span></div>
               <div style={{marginBottom:18, fontSize:18}}>
@@ -1282,7 +1198,8 @@ export default function OrderDetails() {
                   )}
                 </div>
               )}
-              
+              <OrderInvoiceSection order={selectedOrder} />
+
               {/* Action Buttons */}
               <div style={{display:'flex',gap:18,marginTop:8, justifyContent:'center', alignItems:'center'}}>
                 <button 
@@ -1377,30 +1294,37 @@ export default function OrderDetails() {
                       return;
                     }
 
-                    if (window.confirm(confirmMessage)) {
-                      setLoading(true);
-                      try {
-                        const encodedOrderId = encodeURIComponent(orderIdToUse);
-                        console.log(`Attempting to update order ${orderIdToUse} (encoded: ${encodedOrderId}) to status ${newStatus} with payload:`, payload);
-                        const response = await api.put(
-                          `/api/orders/${encodedOrderId}`,
-                          payload
-                        );
-                        if (response.data) {
-                          alert(`Order ${selectedOrder.order_id} status updated to ${newStatus}.`);
-                          fetchOrders(); // Refresh all orders from the backend
-                          setSelectedOrderId(null); // Close modal
-                        } else {
-                          console.error("Update successful but no data returned", response);
-                          alert("Order status updated, but an issue occurred fetching new data. Please refresh.");
+                    openOrderChallenge({
+                      title: newStatus === 'To Be Packed' ? 'Confirm Order' : 'Confirm Delivery',
+                      message: confirmMessage,
+                      challengeText: 'CONFIRM',
+                      orderId: orderIdToUse,
+                      nextStatus: newStatus,
+                      onConfirm: async () => {
+                        setLoading(true);
+                        try {
+                          const encodedOrderId = encodeURIComponent(orderIdToUse);
+                          console.log(`Attempting to update order ${orderIdToUse} (encoded: ${encodedOrderId}) to status ${newStatus} with payload:`, payload);
+                          const response = await api.put(
+                            `/api/orders/${encodedOrderId}`,
+                            payload
+                          );
+                          if (response.data) {
+                            alert(`Order ${selectedOrder.order_id} status updated to ${newStatus}.`);
+                            fetchOrders(); // Refresh all orders from the backend
+                            setSelectedOrderId(null); // Close modal
+                          } else {
+                            console.error("Update successful but no data returned", response);
+                            alert("Order status updated, but an issue occurred fetching new data. Please refresh.");
+                          }
+                        } catch (error) {
+                          console.error(`Failed to update order status to ${newStatus}:`, error.response || error);
+                          alert(`Failed to update order status. ${error.response?.data?.error || error.message}`);
+                        } finally {
+                          setLoading(false);
                         }
-                      } catch (error) {
-                        console.error(`Failed to update order status to ${newStatus}:`, error.response || error);
-                        alert(`Failed to update order status. ${error.response?.data?.error || error.message}`);
-                      } finally {
-                        setLoading(false);
                       }
-                    }
+                    });
                   }}>
                   {normalizeStatus(selectedOrder.status) === normalizeStatus('To Be Packed') ? 'Confirm Delivery' : 'Confirm Order'}
                 </button>
@@ -1467,23 +1391,23 @@ export default function OrderDetails() {
 
           return (
             <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <div style={styles.orderDetailsModalContainer}>
-                <button onClick={()=>setSelectedOrderId(null)} className="order-modal-close" style={{position:'absolute',top:24,right:32,fontSize:28,color:'#222',background:'none',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2}}>&times;</button>
+              <div className="od-details-modal" style={styles.orderDetailsModalContainer}>
+                <button onClick={()=>setSelectedOrderId(null)} className="od-modal-close" style={{position:'absolute',top:24,right:32,fontSize:28,background:'none',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2}}>&times;</button>
                 {isToBePacked ? (
                   <>
-                    <div style={styles.whatsInsideColumnLeft}>
+                    <div className="od-whats-inside od-whats-inside-left" style={styles.whatsInsideColumnLeft}>
                       {WhatsInsideSectionJSX}
                     </div>
-                    <div style={styles.orderDetailsColumnRight}>
+                    <div className="od-details-column od-details-column-plain" style={styles.orderDetailsColumnRight}>
                       {OrderDetailsSectionJSX}
                     </div>
                   </>
                 ) : (
                   <>
-                    <div style={styles.orderDetailsColumnDefault}>
+                    <div className="od-details-column" style={styles.orderDetailsColumnDefault}>
                       {OrderDetailsSectionJSX}
                     </div>
-                    <div style={styles.whatsInsideColumnDefault}>
+                    <div className="od-whats-inside" style={styles.whatsInsideColumnDefault}>
                       {WhatsInsideSectionJSX}
                     </div>
                   </>
@@ -1492,6 +1416,81 @@ export default function OrderDetails() {
             </div>
           )}
         )()}
+        {orderChallenge && (
+          <div
+            className="modal-backdrop"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(15, 23, 42, 0.56)',
+              zIndex: 4000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 20
+            }}
+          >
+            <div
+              style={{
+                width: 'min(520px, 96vw)',
+                background: '#fff',
+                borderRadius: 10,
+                boxShadow: '0 20px 70px rgba(15,23,42,0.25)',
+                overflow: 'hidden'
+              }}
+            >
+              <div style={{ padding: '22px 24px', borderBottom: '1px solid #e5e7eb' }}>
+                <h2 style={{ margin: 0, color: '#2c3e50', fontSize: 24 }}>{orderChallenge.title}</h2>
+                <p style={{ margin: '8px 0 0', color: '#64748b', lineHeight: 1.45 }}>{orderChallenge.message}</p>
+              </div>
+              <div style={{ padding: 24 }}>
+                <div style={{ marginBottom: 12, color: '#334155', fontWeight: 700 }}>
+                  Type <span style={{ color: '#111827' }}>{orderChallenge.challengeText}</span> to continue.
+                </div>
+                <input
+                  value={orderChallengeInput}
+                  onChange={(e) => setOrderChallengeInput(e.target.value)}
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 6,
+                    padding: '11px 12px',
+                    fontSize: 16
+                  }}
+                  placeholder={orderChallenge.challengeText}
+                />
+                <div style={{ marginTop: 12, color: '#64748b', fontSize: 13 }}>
+                  Order ID: {orderChallenge.orderId} | New status: {orderChallenge.nextStatus}
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '0 24px 22px' }}>
+                <button
+                  style={{ ...styles.button, ...styles.secondaryButton }}
+                  onClick={closeOrderChallenge}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  style={{
+                    ...styles.button,
+                    background: orderChallengeInput.trim().toUpperCase() === orderChallenge.challengeText ? '#1f9d55' : '#94a3b8',
+                    color: '#fff'
+                  }}
+                  onClick={confirmOrderChallenge}
+                  disabled={loading || orderChallengeInput.trim().toUpperCase() !== orderChallenge.challengeText}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

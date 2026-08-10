@@ -1,4 +1,5 @@
 import "./App.css";
+import "./styles/design-system.css";
 import Dashboard from "./Pages/Dashboard/Dashboard";
 import Login from "./Pages/Login/Login";
 import OrderDetails from "./Pages/OrderDetails/OrderDetails";
@@ -9,6 +10,8 @@ import SupplierDetails from "./Pages/SupplierDetails/SupplierDetails";
 import SupplierForm from "./Pages/SupplierDetails/SupplierForm";
 import UserDetails from "./Pages/UserDetails/UserDetails";
 import Inventory from "./Pages/Inventory/Inventory";
+import Invoices from "./Pages/Invoices/Invoices";
+import DeliveryTracking from "./Pages/DeliveryTracking/DeliveryTracking";
 import UserManagement from "./Pages/UserManagement/UserManagement";
 import AccountManagement from "./Pages/AccountManagement/AccountManagement";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
@@ -33,12 +36,16 @@ import EricMarielPreview from "./Pages/CustomerPOV/EricMarielPreview";
 import DanielPreview from "./Pages/CustomerPOV/EricMarielPreview";
 import CustomerBespoke from "./Pages/CustomerBespoke";
 import CustomerAboutUs from "./Pages/CustomerAboutUs.js/CustomerAboutUs";
+import BundleDetails from "./Pages/CustomerPOV/BundleDetails";
+import ShowcaseGallery from "./Pages/ShowcaseGallery/ShowcaseGallery";
 import CustomerRegister from "./Pages/CustomerPOV/CustomerRegister";
 import CustomerLogIn from "./Pages/CustomerPOV/CustomerLogIn";
 import CustomerUserDetails from "./Pages/CustomerPOV/CustomerUserDetails";
 import CustomerVerify from "./Pages/CustomerPOV/CustomerVerify";
 import Forbidden403 from "./Pages/Forbidden403";
 import { AuthProvider } from "./Context/AuthContext";
+import { ThemeProvider } from "./Context/ThemeContext";
+import { MobileNavProvider } from "./Context/MobileNavContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { CartProvider } from "./Context/CartContext";
 import CustomerCart from "./Pages/CustomerPOV/CustomerCart";
@@ -53,10 +60,12 @@ import KhenTestDataGenerator from "./Components/KhenTestDataGenerator";
 
 function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
     <NotificationProvider>
     <CartProvider>
     <Router>
+      <MobileNavProvider>
       <Routes>
         <Route path="/" element={<CustomerHome />} />
         <Route path="/employee-dashboard" element={<Dashboard />} />
@@ -76,6 +85,8 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/user-details" element={<UserDetails />} />
         <Route path="/inventory" element={<Inventory />} />
+        <Route path="/invoices" element={<Invoices />} />
+        <Route path="/delivery-tracking" element={<DeliveryTracking />} />
         <Route path="/archive-products" element={<ArchiveProducts />} />
         <Route path="/reports/inventory" element={<InventoryReport />} />
         <Route path="/reports/sales" element={<SalesReport />} />
@@ -95,6 +106,8 @@ function App() {
 
         <Route path="/bespoke" element={<CustomerBespoke />} />
         <Route path="/about" element={<CustomerAboutUs />} />
+        <Route path="/showcase/:id" element={<BundleDetails />} />
+        <Route path="/showcase-gallery" element={<ShowcaseGallery />} />
         <Route path="/customer-register" element={<CustomerRegister />} />
         <Route path="/customer-login" element={<CustomerLogIn />} />
         <Route path="/customer-user-details" element={<CustomerUserDetails />} />
@@ -114,10 +127,12 @@ function App() {
         <Route path="*" element={<NotFound404 />} />
 
       </Routes>
+      </MobileNavProvider>
     </Router>
     </CartProvider>
     </NotificationProvider>
     </AuthProvider>
+    </ThemeProvider>
   );
 }
 

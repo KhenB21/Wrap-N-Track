@@ -1,19 +1,37 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 // Base URL for the web server API
-// Using deployed DigitalOcean static app server
 const getBaseURL = () => {
-  // Always use production server (deployed on DigitalOcean)
-  return 'https://staticwrapntrack-b3akc.ondigitalocean.app/wrap-n-track-website-server/api';
-  
-  // Uncomment below to use local server for development
-  // if (Platform.OS === 'android') {
-  //   return 'http://192.168.1.14:3001/api';
-  // } else {
-  //   return 'http://localhost:3001/api';
-  // }
+  // For web platform (react-native-web) — use window.location.hostname to detect
+  // if the app is accessed from a real device over LAN (e.g. Samsung S10+ at 192.168.1.100:8081)
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const webHost = window.location.hostname;
+    if (webHost && webHost !== 'localhost' && webHost !== '127.0.0.1') {
+      // Real device accessing via LAN IP — use same IP for API
+      return `http://${webHost}:3001/api`;
+    }
+    // Local web dev
+    return 'http://localhost:3001/api';
+  }
+
+  // When using Expo Go on a real Android phone (e.g. Samsung S10+ via QR code),
+  // extract the dev machine's LAN IP from Constants (e.g., 192.168.1.100:8081 -> 192.168.1.100)
+  const hostUri = Constants?.manifest?.hostUri || Constants?.expoConfig?.hostUri || '';
+  const host = hostUri.split(':')[0];
+
+  if (Platform.OS === 'android') {
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      // Real Android device connected via Expo Go (QR code / LAN tunnel)
+      return `http://${host}:3001/api`;
+    }
+    // Android emulator: 10.0.2.2 routes to host machine's localhost
+    return 'http://10.0.2.2:3001/api';
+  }
+  // iOS simulator
+  return 'http://localhost:3001/api';
 };
 
 const BASE_URL = getBaseURL();
@@ -21,10 +39,20 @@ const BASE_URL = getBaseURL();
 // Log the base URL for debugging
 console.log('API Base URL:', BASE_URL);
 
+// Same host as BASE_URL, just ws(s):// and /ws instead of http(s):// and /api —
+// keeps the WebSocket URL in lockstep with wherever the REST API actually is,
+// so real-time inventory sync (see InventoryContext) doesn't need its own
+// host-detection logic.
+export const getWsUrl = () => BASE_URL.replace(/^http/, 'ws').replace(/\/api\/?$/, '') + '/ws';
+
+// Logout handler — set by AuthContext so the interceptor can trigger a proper logout
+let _logoutHandler = null;
+export const setLogoutHandler = (fn) => { _logoutHandler = fn; };
+
 // Create axios instance with default config
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 30000, // Increased timeout for production server
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -37,7 +65,6 @@ api.interceptors.request.use(
     console.log(`Full URL: ${config.baseURL}${config.url}`);
     console.log('Platform:', Platform.OS);
     
-    // Add auth token if available
     try {
       const token = await AsyncStorage.getItem('authToken');
       if (token) {
@@ -71,14 +98,16 @@ api.interceptors.response.use(
       url: error.config?.url
     });
     
-    // Handle 401 Unauthorized - token expired or invalid
     if (error.response?.status === 401) {
-      try {
-        // Clear stored auth data
-        await AsyncStorage.multiRemove(['authToken', 'userData', 'userType']);
-        console.log('Token expired, cleared auth data');
-      } catch (storageError) {
-        console.error('Error clearing auth data:', storageError);
+      if (_logoutHandler) {
+        _logoutHandler();
+      } else {
+        try {
+          await AsyncStorage.multiRemove(['authToken', 'userData', 'userType']);
+          console.log('Token expired, cleared auth data');
+        } catch (storageError) {
+          console.error('Error clearing auth data:', storageError);
+        }
       }
     }
     
@@ -86,7 +115,6 @@ api.interceptors.response.use(
   }
 );
 
-// Helper function to try multiple URLs
 const tryMultipleUrls = async (endpoint, urls) => {
   for (const url of urls) {
     try {
@@ -102,40 +130,40 @@ const tryMultipleUrls = async (endpoint, urls) => {
     } catch (error) {
       console.log(`Failed with URL: ${url}${endpoint}`, error.message);
       if (url === urls[urls.length - 1]) {
-        // Last URL failed, throw the error
         throw error;
       }
     }
   }
 };
 
-// API endpoints
 export const inventoryAPI = {
-  // Get all inventory items (using public endpoint)
   getInventory: async () => {
     try {
-      const response = await api.get('/public/inventory');
-      // Backend returns array directly
+      const response = await api.get('/inventory');
       return response.data;
     } catch (error) {
       console.error('Error fetching inventory:', error);
       throw error;
     }
   },
-
-  // Get all inventory items (using public endpoint) - alias
   getAllInventory: async () => {
     try {
-      const response = await api.get('/public/inventory');
-      // Backend returns array directly
+      const response = await api.get('/inventory');
       return response.data;
     } catch (error) {
       console.error('Error fetching inventory:', error);
       throw error;
     }
   },
-
-  // Get inventory by category
+  getInventoryItems: async () => {
+    try {
+      const response = await api.get('/inventory');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching inventory items:', error);
+      throw error;
+    }
+  },
   getInventoryByCategory: async (category) => {
     try {
       const response = await api.get(`/inventory?category=${category}`);
@@ -145,8 +173,6 @@ export const inventoryAPI = {
       throw error;
     }
   },
-
-  // Get single inventory item by SKU
   getInventoryItem: async (sku) => {
     try {
       const response = await api.get(`/inventory/${sku}`);
@@ -156,8 +182,25 @@ export const inventoryAPI = {
       throw error;
     }
   },
-
-  // Search inventory items
+  getInventoryItemById: async (id) => {
+    try {
+      const response = await api.get(`/inventory/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching inventory item by id:', error);
+      throw error;
+    }
+  },
+  scanInventoryCode: async (code) => {
+    try {
+      const encodedCode = encodeURIComponent(String(code || '').trim());
+      const response = await api.get(`/inventory/scan/${encodedCode}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error scanning inventory code:', error);
+      throw error;
+    }
+  },
   searchInventory: async (query) => {
     try {
       const response = await api.get(`/inventory?search=${query}`);
@@ -167,8 +210,6 @@ export const inventoryAPI = {
       throw error;
     }
   },
-
-  // Add/Update inventory item (employee only)
   addInventoryItem: async (itemData) => {
     try {
       const response = await api.post('/inventory', itemData);
@@ -178,8 +219,6 @@ export const inventoryAPI = {
       throw error;
     }
   },
-
-  // Update inventory item
   updateInventoryItem: async (sku, itemData) => {
     try {
       const response = await api.put(`/inventory/${sku}`, itemData);
@@ -189,8 +228,6 @@ export const inventoryAPI = {
       throw error;
     }
   },
-
-  // Adjust stock levels
   adjustStock: async (sku, adjustment) => {
     try {
       const response = await api.put(`/inventory/${sku}/adjust`, adjustment);
@@ -200,8 +237,6 @@ export const inventoryAPI = {
       throw error;
     }
   },
-
-  // Delete inventory item
   deleteProduct: async (sku) => {
     try {
       const response = await api.delete(`/inventory/${sku}`);
@@ -211,22 +246,36 @@ export const inventoryAPI = {
       throw error;
     }
   },
-
-  // Add stock to existing product
-  addStock: async (sku, quantity) => {
+  addStock: async (sku, quantity, reason = '') => {
     try {
-      const response = await api.put(`/inventory/${sku}/add-stock`, { quantity });
+      const response = await api.post('/inventory/add-stock', { sku, quantity, reason });
       return response.data;
     } catch (error) {
       console.error('Error adding stock:', error);
       throw error;
     }
+  },
+  stockIn: async (productId, quantity, reason = '', source = 'manual') => {
+    try {
+      const response = await api.post('/inventory/add-stock', { sku: productId, quantity, reason, source });
+      return response.data;
+    } catch (error) {
+      console.error('Error adding stock:', error);
+      throw error;
+    }
+  },
+  stockOut: async (productId, quantity, reason = '', source = 'manual') => {
+    try {
+      const response = await api.post('/inventory/stock-out', { sku: productId, quantity, reason, source });
+      return response.data;
+    } catch (error) {
+      console.error('Error removing stock:', error);
+      throw error;
+    }
   }
 };
 
-// Cart API endpoints
 export const cartAPI = {
-  // Add item to cart
   addToCart: async (item) => {
     try {
       const response = await api.post('/cart/add', item);
@@ -236,8 +285,6 @@ export const cartAPI = {
       throw error;
     }
   },
-
-  // Get cart items
   getCartItems: async () => {
     try {
       const response = await api.get('/cart');
@@ -247,8 +294,6 @@ export const cartAPI = {
       throw error;
     }
   },
-
-  // Update cart item quantity
   updateCartItem: async (sku, quantity) => {
     try {
       const response = await api.put(`/cart/${sku}`, { quantity });
@@ -258,8 +303,6 @@ export const cartAPI = {
       throw error;
     }
   },
-
-  // Remove item from cart
   removeFromCart: async (sku) => {
     try {
       const response = await api.delete(`/cart/${sku}`);
@@ -269,8 +312,6 @@ export const cartAPI = {
       throw error;
     }
   },
-
-  // Clear cart
   clearCart: async () => {
     try {
       const response = await api.delete('/cart');
@@ -280,8 +321,6 @@ export const cartAPI = {
       throw error;
     }
   },
-
-  // Checkout cart
   checkout: async (checkoutData) => {
     try {
       const response = await api.post('/cart/checkout', checkoutData);
@@ -293,9 +332,7 @@ export const cartAPI = {
   }
 };
 
-// Order API endpoints
 export const orderAPI = {
-  // Create order
   createOrder: async (orderData) => {
     try {
       const response = await api.post('/orders', orderData);
@@ -305,20 +342,15 @@ export const orderAPI = {
       throw error;
     }
   },
-
-  // Get user orders (returns array directly)
   getUserOrders: async () => {
     try {
       const response = await api.get('/orders');
-      // Backend returns array directly, not wrapped in success/data
       return response.data;
     } catch (error) {
       console.error('Error fetching orders:', error);
       throw error;
     }
   },
-
-  // Get order by ID
   getOrder: async (orderId) => {
     try {
       const response = await api.get(`/orders/${orderId}`);
@@ -328,24 +360,22 @@ export const orderAPI = {
       throw error;
     }
   },
-
-  // Update order status
-  updateOrderStatus: async (orderId, status) => {
+  updateOrderStatus: async (orderId, status, extra = {}) => {
     try {
-      const response = await api.put(`/orders/${orderId}`, { status });
+      const response = await api.put(`/order-management/orders/${orderId}/status`, {
+        status,
+        notes: extra.notes,
+        payment_method: extra.payment_method,
+      });
       return response.data;
     } catch (error) {
       console.error('Error updating order status:', error);
       throw error;
     }
   },
-
-  // Get order history
   getOrderHistory: async (filters) => {
     try {
-      const response = await api.get('/orders/history', {
-        params: filters
-      });
+      const response = await api.get('/orders/history', { params: filters });
       return response.data;
     } catch (error) {
       console.error('Error fetching order history:', error);
@@ -354,23 +384,16 @@ export const orderAPI = {
   }
 };
 
-// Auth API endpoints
 export const authAPI = {
-  // Login (unified for both customers and employees)
   login: async (username, password) => {
     try {
-      const response = await api.post('/auth/customer/login', {
-        username,
-        password
-      });
+      const response = await api.post('/auth/customer/login', { username, password });
       return response.data;
     } catch (error) {
       console.error('Error during login:', error);
       throw error;
     }
   },
-
-  // Customer registration
   register: async (userData) => {
     try {
       const response = await api.post('/auth/customer/register', userData);
@@ -380,8 +403,6 @@ export const authAPI = {
       throw error;
     }
   },
-
-  // Email verification
   verifyEmail: async (token) => {
     try {
       const response = await api.post('/auth/customer/verify', { token });
@@ -391,38 +412,53 @@ export const authAPI = {
       throw error;
     }
   },
-
-  // Logout (client-side only, server doesn't need logout endpoint)
   logout: async () => {
-    // This is handled client-side by clearing the token
     return { success: true };
   },
-
-  // Verify token
   verifyToken: async (token) => {
     try {
       const response = await api.get('/auth/verify', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers: { Authorization: `Bearer ${token}` }
       });
       return response.data;
     } catch (error) {
       console.error('Error verifying token:', error);
       throw error;
     }
+  },
+  changeCustomerPassword: async (currentPassword, newPassword) => {
+    try {
+      const response = await api.put('/customer/change-password', { currentPassword, newPassword });
+      return response.data;
+    } catch (error) {
+      console.error('Error changing customer password:', error);
+      throw error;
+    }
+  },
+  changeEmployeePassword: async (currentPassword, newPassword) => {
+    try {
+      const response = await api.put('/user/change-password', { currentPassword, newPassword });
+      return response.data;
+    } catch (error) {
+      console.error('Error changing employee password:', error);
+      throw error;
+    }
+  },
+  changePasswordWithCurrent: async (username, currentPassword, newPassword) => {
+    try {
+      const response = await api.post('/auth/change-password-with-current', { username, currentPassword, newPassword });
+      return response.data;
+    } catch (error) {
+      console.error('Error changing password:', error);
+      throw error;
+    }
   }
 };
 
-// Dashboard API endpoints
 export const dashboardAPI = {
-  // Get dashboard data
   getDashboardData: async (month = new Date().getMonth() + 1, year = new Date().getFullYear()) => {
     try {
-      const response = await api.get('/dashboard/analytics', {
-        params: { month, year }
-      });
-      // Handle nested data structure from backend
+      const response = await api.get('/dashboard/analytics', { params: { month, year } });
       if (response.data && response.data.success !== false) {
         return response.data.data || response.data;
       }
@@ -432,12 +468,9 @@ export const dashboardAPI = {
       throw error;
     }
   },
-
-  // Get available months
   getAvailableMonths: async () => {
     try {
       const response = await api.get('/dashboard/available-months');
-      // Handle nested data structure
       if (response.data && response.data.success !== false) {
         return response.data.data || response.data;
       }
@@ -447,13 +480,9 @@ export const dashboardAPI = {
       throw error;
     }
   },
-
-  // Get sales reports
   getSalesReports: async (dateRange) => {
     try {
-      const response = await api.get('/sales-reports', {
-        params: dateRange
-      });
+      const response = await api.get('/sales-reports', { params: dateRange });
       if (response.data && response.data.success !== false) {
         return response.data.data || response.data;
       }
@@ -463,8 +492,6 @@ export const dashboardAPI = {
       throw error;
     }
   },
-
-  // Get inventory reports
   getInventoryReports: async () => {
     try {
       const response = await api.get('/inventory-reports');
@@ -479,21 +506,16 @@ export const dashboardAPI = {
   }
 };
 
-// Customer API endpoints
 export const customerAPI = {
-  // Get all customers (returns array directly)
   getCustomers: async () => {
     try {
       const response = await api.get('/customers');
-      // Backend returns array directly
       return response.data;
     } catch (error) {
       console.error('Error fetching customers:', error);
       throw error;
     }
   },
-
-  // Get customer by ID
   getCustomer: async (customerId) => {
     try {
       const response = await api.get(`/customers/${customerId}`);
@@ -503,22 +525,64 @@ export const customerAPI = {
       throw error;
     }
   },
-
-  // Update customer
-  updateCustomer: async (customerId, data) => {
+  addCustomer: async (data) => {
+    try {
+      const response = await api.post('/customers', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error adding customer:', error);
+      throw error;
+    }
+  },
+  updateManagedCustomer: async (customerId, data) => {
     try {
       const response = await api.put(`/customers/${customerId}`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating managed customer:', error);
+      throw error;
+    }
+  },
+  deleteCustomer: async (customerId) => {
+    try {
+      const response = await api.delete(`/customers/${customerId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      throw error;
+    }
+  },
+  updateCustomer: async (customerId, data) => {
+    try {
+      const response = await api.put('/customer/profile', data);
       return response.data;
     } catch (error) {
       console.error('Error updating customer:', error);
       throw error;
     }
+  },
+  uploadProfilePicture: async (imageUri) => {
+    try {
+      const formData = new FormData();
+      const filename = imageUri.split('/').pop() || 'profile.jpg';
+      const extension = filename.split('.').pop() || 'jpg';
+      formData.append('profilePicture', {
+        uri: imageUri,
+        name: filename,
+        type: `image/${extension === 'jpg' ? 'jpeg' : extension}`,
+      });
+      const response = await api.post('/customer/profile-picture', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      throw error;
+    }
   }
 };
 
-// Supplier API endpoints
 export const supplierAPI = {
-  // Get all suppliers
   getSuppliers: async () => {
     try {
       const response = await api.get('/suppliers');
@@ -528,8 +592,6 @@ export const supplierAPI = {
       throw error;
     }
   },
-
-  // Get supplier by ID
   getSupplier: async (supplierId) => {
     try {
       const response = await api.get(`/suppliers/${supplierId}`);
@@ -539,8 +601,6 @@ export const supplierAPI = {
       throw error;
     }
   },
-
-  // Add supplier
   addSupplier: async (data) => {
     try {
       const response = await api.post('/suppliers', data);
@@ -550,8 +610,6 @@ export const supplierAPI = {
       throw error;
     }
   },
-
-  // Update supplier
   updateSupplier: async (supplierId, data) => {
     try {
       const response = await api.put(`/suppliers/${supplierId}`, data);
@@ -560,46 +618,199 @@ export const supplierAPI = {
       console.error('Error updating supplier:', error);
       throw error;
     }
+  },
+  deleteSupplier: async (supplierId) => {
+    try {
+      const response = await api.delete(`/suppliers/${supplierId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting supplier:', error);
+      throw error;
+    }
   }
 };
 
+export const customerOrderAPI = {
+  getMyOrders: async () => {
+    try {
+      const response = await api.get('/customer-orders/orders');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching customer orders:', error);
+      throw error;
+    }
+  },
+  getMyOrder: async (orderId) => {
+    try {
+      const response = await api.get(`/customer-orders/orders/${orderId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching customer order:', error);
+      throw error;
+    }
+  },
+  getOrderTracking: async (orderId) => {
+    try {
+      const response = await api.get(`/customer-orders/tracking/${orderId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching order tracking:', error);
+      throw error;
+    }
+  },
+};
 
+export const invoiceAPI = {
+  getOrderInvoices: async (orderId) => {
+    try {
+      const response = await api.get(`/orders/${orderId}/invoices`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching order invoices:', error);
+      throw error;
+    }
+  },
+  getInvoice: async (invoiceId) => {
+    try {
+      const response = await api.get(`/invoices/${invoiceId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching invoice:', error);
+      throw error;
+    }
+  },
+  getPdfUrl: () => `${BASE_URL.replace('/api', '')}/api`,
+};
 
-
-// Notification API endpoints
 export const notificationAPI = {
-  // Get notifications
   getNotifications: async () => {
-    try {
-      const response = await api.get('/notifications');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      throw error;
-    }
+    const response = await api.get('/notifications');
+    return response.data;
   },
-
-  // Mark notification as read
+  getUnreadCount: async () => {
+    const response = await api.get('/notifications/unread-count');
+    return response.data;
+  },
   markAsRead: async (notificationId) => {
-    try {
-      const response = await api.put(`/notifications/${notificationId}/read`);
-      return response.data;
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-      throw error;
-    }
+    const response = await api.put(`/notifications/${notificationId}/read`);
+    return response.data;
   },
-
-  // Mark all notifications as read
   markAllAsRead: async () => {
-    try {
-      const response = await api.put('/notifications/read-all');
-      return response.data;
-    } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-      throw error;
-    }
-  }
+    const response = await api.put('/notifications/mark-all-read');
+    return response.data;
+  },
+};
+
+export const deliveryAPI = {
+  getDeliveries: async (filters = {}) => {
+    const response = await api.get('/deliveries', { params: filters });
+    return response.data;
+  },
+  getDelivery: async (orderId) => {
+    const response = await api.get(`/deliveries/${encodeURIComponent(orderId)}`);
+    return response.data;
+  },
+  getDeliveryHistory: async (orderId) => {
+    const response = await api.get(`/deliveries/${encodeURIComponent(orderId)}/history`);
+    return response.data;
+  },
+  getDeliveryModes: async () => {
+    const response = await api.get('/deliveries/modes');
+    return response.data;
+  },
+  updateDelivery: async (orderId, data) => {
+    const response = await api.patch(`/deliveries/${encodeURIComponent(orderId)}`, data);
+    return response.data;
+  },
+  uploadProof: async (orderId, imageUri) => {
+    const formData = new FormData();
+    const filename = imageUri.split('/').pop() || 'proof.jpg';
+    const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
+    formData.append('proof', {
+      uri: imageUri,
+      name: filename,
+      type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+    });
+    const response = await api.post(
+      `/deliveries/${encodeURIComponent(orderId)}/proof`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data;
+  },
+};
+
+export const accountManagementAPI = {
+  getUsers: async (params = {}) => {
+    const response = await api.get('/account-management/users', { params });
+    return response.data;
+  },
+  getUser: async (userId) => {
+    const response = await api.get(`/account-management/users/${userId}`);
+    return response.data;
+  },
+  createUser: async (data) => {
+    const response = await api.post('/account-management/users', data);
+    return response.data;
+  },
+  updateUser: async (userId, data) => {
+    const response = await api.put(`/account-management/users/${userId}`, data);
+    return response.data;
+  },
+  archiveUser: async (userId) => {
+    const response = await api.patch(`/account-management/users/${userId}/archive`);
+    return response.data;
+  },
+  restoreUser: async (userId) => {
+    const response = await api.patch(`/account-management/users/${userId}/restore`);
+    return response.data;
+  },
+  resetPassword: async (userId, newPassword) => {
+    const response = await api.patch(`/account-management/users/${userId}/reset-password`, { newPassword });
+    return response.data;
+  },
+};
+
+// Mirrors Website/server/routes/sales-reports.js — same endpoints the Web
+// Sales Overview page (SalesReport.js) uses, so Mobile shows identical figures.
+export const salesReportsAPI = {
+  getOverview: async (startDate, endDate) => {
+    const response = await api.get('/sales-reports/overview', { params: { startDate, endDate } });
+    return response.data;
+  },
+  getTopProducts: async (startDate, endDate, limit = 8) => {
+    const response = await api.get('/sales-reports/top-products', { params: { startDate, endDate, limit } });
+    return response.data;
+  },
+  getTrends: async (startDate, endDate, groupBy = 'day') => {
+    const response = await api.get('/sales-reports/trends', { params: { startDate, endDate, groupBy } });
+    return response.data;
+  },
+  getRecent: async (limit = 10) => {
+    const response = await api.get('/sales-reports/recent', { params: { limit } });
+    return response.data;
+  },
+};
+
+// Mirrors Website/server/routes/inventory-reports.js — same endpoints the Web
+// Inventory Report page (InventoryReport.js) uses.
+export const inventoryReportsAPI = {
+  getSummary: async () => {
+    const response = await api.get('/inventory-reports/summary');
+    return response.data;
+  },
+  getLowStock: async () => {
+    const response = await api.get('/inventory-reports/low-stock');
+    return response.data;
+  },
+  getExpiring: async () => {
+    const response = await api.get('/inventory-reports/expiring');
+    return response.data;
+  },
+  getCategoryBreakdown: async () => {
+    const response = await api.get('/inventory-reports/category-breakdown');
+    return response.data;
+  },
 };
 
 export default api;

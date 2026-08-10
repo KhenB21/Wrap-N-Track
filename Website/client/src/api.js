@@ -4,7 +4,7 @@ import axios from 'axios';
 
 // For local development, use localhost if no environment variable is set
 const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const defaultURL = isLocalDev ? 'http://localhost:3001' : 'https://wrapntracwebservice-2g22j.ondigitalocean.app';
+const defaultURL = isLocalDev ? 'http://localhost:3001' : 'https://wrap-n-track-server.onrender.com';
 
 const baseURL = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || defaultURL;
 

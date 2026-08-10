@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Dimensions
+  Dimensions,
+  Linking
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, Chip, Avatar, Divider } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useFocusEffect } from '@react-navigation/native';
+import { customerAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -30,28 +32,25 @@ export default function CustomerDetailScreen({ navigation }) {
     }
   }, [initialCustomer?.customer_id]);
 
+  // Re-fetch on focus so returning from AddEditCustomerScreen (e.g. after
+  // toggling Active/Inactive) shows the saved state, not the stale param.
+  useFocusEffect(
+    useCallback(() => {
+      if (initialCustomer?.customer_id) {
+        fetchCustomerDetails();
+      }
+    }, [initialCustomer?.customer_id])
+  );
+
   const fetchCustomerDetails = async () => {
     try {
       setLoading(true);
-      // Mock data - replace with actual API call
-      const mockOrders = [
-        {
-          order_id: 'ORD-001',
-          order_date: '2024-01-15T10:30:00Z',
-          status: 'Completed',
-          total_cost: 5000
-        },
-        {
-          order_id: 'ORD-002',
-          order_date: '2024-01-20T14:45:00Z',
-          status: 'Order Shipped Out',
-          total_cost: 3500
-        }
-      ];
-      setOrders(mockOrders);
+      const latestCustomer = await customerAPI.getCustomer(initialCustomer.customer_id);
+      setCustomer(latestCustomer);
+      setOrders(latestCustomer.orders || []);
     } catch (error) {
       console.error('Error fetching customer details:', error);
-      Alert.alert('Error', 'Failed to fetch customer details');
+      Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to fetch customer details');
     } finally {
       setLoading(false);
     }
@@ -73,53 +72,64 @@ export default function CustomerDetailScreen({ navigation }) {
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Success', 'Customer deleted successfully');
-            navigation.goBack();
+          onPress: async () => {
+            try {
+              await customerAPI.deleteCustomer(customer.customer_id);
+              Alert.alert('Success', 'Customer deleted successfully');
+              navigation.goBack();
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to delete customer');
+            }
           }
         }
       ]
     );
   };
 
+  const customerPhone = customer.cellphone || customer.phone_number;
+
   const handleCall = () => {
-    if (customer.phone_number) {
-      Alert.alert(
-        'Call Customer',
-        `Call ${customer.name} at ${customer.phone_number}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Call', 
-            onPress: () => {
-              Alert.alert('Call', 'Phone call functionality would be implemented here');
-            }
-          }
-        ]
-      );
-    } else {
+    if (!customerPhone) {
       Alert.alert('No Phone Number', 'Customer phone number is not available');
+      return;
     }
+    Alert.alert(
+      'Call Customer',
+      `Call ${customer.name} at ${customerPhone}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Call',
+          onPress: () => {
+            Linking.openURL(`tel:${customerPhone}`).catch(() =>
+              Alert.alert('Error', 'Unable to open the phone dialer on this device')
+            );
+          }
+        }
+      ]
+    );
   };
 
   const handleEmail = () => {
-    if (customer.email_address) {
-      Alert.alert(
-        'Email Customer',
-        `Send email to ${customer.name} at ${customer.email_address}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Email', 
-            onPress: () => {
-              Alert.alert('Email', 'Email functionality would be implemented here');
-            }
-          }
-        ]
-      );
-    } else {
+    if (!customer.email_address) {
       Alert.alert('No Email', 'Customer email address is not available');
+      return;
     }
+    Alert.alert(
+      'Email Customer',
+      `Send email to ${customer.name} at ${customer.email_address}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Email',
+          onPress: () => {
+            Linking.openURL(`mailto:${customer.email_address}`).catch(() =>
+              Alert.alert('Error', 'No email app is available on this device')
+            );
+          }
+        }
+      ]
+    );
   };
 
   const formatCurrency = (amount) => {
@@ -171,8 +181,13 @@ export default function CustomerDetailScreen({ navigation }) {
               {customer.email_address}
             </Text>
             <Text style={[styles.customerPhone, { color: theme.colors.onSurfaceVariant }]}>
-              {customer.phone_number || 'No phone number'}
+              {customerPhone || 'No phone number'}
             </Text>
+            {customer.address ? (
+              <Text style={[styles.customerPhone, { color: theme.colors.onSurfaceVariant }]} numberOfLines={2}>
+                {customer.address}
+              </Text>
+            ) : null}
             <Chip
               mode="outlined"
               style={[

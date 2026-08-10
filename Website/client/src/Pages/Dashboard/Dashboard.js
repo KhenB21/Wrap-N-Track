@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../../Components/Sidebar/Sidebar";
-import TopBar from "../../Components/TopBar";
+import AppShell from "../../Components/AppShell";
 import withEmployeeAuth from "../../Components/withEmployeeAuth";
 import api from '../../api';
 import "./Dashboard.css";
@@ -175,8 +174,16 @@ function Dashboard() {
     0
   );
   const lowStockProducts = safeInventory.filter(
-    (item) => Number(item.quantity || 0) <= 300
+    (item) => Number(item.quantity || 0) > 0 && Number(item.quantity || 0) <= Number(item.reorder_level || 0)
   ).length;
+  const outOfStockProducts = safeInventory.filter(
+    (item) => Number(item.quantity || 0) <= 0
+  ).length;
+  const recentlyUpdatedItems = safeInventory.filter((item) => {
+    const updated = new Date(item.updated_at || item.last_updated);
+    if (Number.isNaN(updated.getTime())) return false;
+    return Date.now() - updated.getTime() <= 7 * 24 * 60 * 60 * 1000;
+  }).length;
 
   // Helper to classify order status into dashboard buckets
   const classifyStatus = (status) => {
@@ -197,196 +204,202 @@ function Dashboard() {
   const outForDeliveryCount = orderHistory.reduce((acc, o) => classifyStatus(o.status) === 'outForDelivery' ? acc + 1 : acc, 0);
 
   return (
-    <div className="dashboard-container">
-      <Sidebar />
-      <div className="dashboard-main">
-        <TopBar 
-          lowStockProducts={inventory.filter(item => Number(item.quantity || 0) <= 300)}
-        />
-        {/* Inventory Overview */}
-        <div className="dashboard-content">
-          <h3>Inventory Overview</h3>
-          <div className="dashboard-cards-row">
-            <div className="dashboard-card card-red" onClick={handleTotalProductsClick} style={{ cursor: 'pointer' }}>
-              <div className="card-title">Total Products</div>
-              <div className="card-value">
-                {loading ? "..." : totalProducts}
-              </div>
-            </div>
-            <div className="dashboard-card card-orange" onClick={handleTotalUnitsClick} style={{ cursor: 'pointer' }}>
-              <div className="card-title">Total Product Units</div>
-              <div className="card-value">
-                {loading ? "..." : totalProductUnits.toLocaleString()}
-              </div>
-            </div>
-            <div className="dashboard-card card-green" onClick={handleLowStockClick} style={{ cursor: 'pointer' }}>
-              <div className="card-title">Low in Stock</div>
-              <div className="card-value card-low">
-                {loading ? "..." : lowStockProducts}
-              </div>
-            </div>
-            <div className="dashboard-card card-blue" onClick={handleReplenishmentClick} style={{ cursor: 'pointer' }}>
-              <div className="card-title">Replenishment Pending</div>
-              <div className="card-value">
-                {loading ? "..." : inventory.filter(item => Number(item.quantity || 0) <= 0).length}
-              </div>
-            </div>
-          </div>
+    <AppShell lowStockProducts={inventory.filter(item => Number(item.quantity || 0) > 0 && Number(item.quantity || 0) <= Number(item.reorder_level || 0))}>
+      <header className="ui-page-header">
+        <div className="ui-page-header-text">
+          <h1 className="ui-page-title">Dashboard</h1>
         </div>
+      </header>
 
-        {/* Sales Overview */}
-        <div className="dashboard-section">
-          <h3>
-            Sales Overview <span className="dashboard-month">
-              {dashboardData?.monthName || 'Loading...'}
-            </span>
-          </h3>
-          <div className="dashboard-cards-row">
-            <div className="dashboard-card">
-              <div className="card-title">Total Revenue</div>
-              <div className="card-value">
-                {loadingAnalytics ? "..." : `₱${(dashboardData?.salesOverview?.total_revenue || 0).toLocaleString()}`}
-              </div>
-            </div>
-            <div className="dashboard-card">
-              <div className="card-title">Total Orders</div>
-              <div className="card-value">
-                {loadingAnalytics ? "..." : (dashboardData?.salesOverview?.total_orders || 0).toLocaleString()}
-              </div>
-            </div>
-            <div className="dashboard-card">
-              <div className="card-title">Total Units Sold</div>
-              <div className="card-value">
-                {loadingAnalytics ? "..." : (dashboardData?.salesOverview?.total_units_sold || 0).toLocaleString()}
-              </div>
-            </div>
-            <div className="dashboard-card">
-              <div className="card-title">Total Customers</div>
-              <div className="card-value">
-                {loadingAnalytics ? "..." : (dashboardData?.salesOverview?.total_customers || 0).toLocaleString()}
-              </div>
+      {/* Inventory Overview */}
+      <div className="dashboard-content ui-fade-in">
+        <h3>Inventory Overview</h3>
+        <div className="dashboard-cards-row">
+          <div className="dashboard-card ui-card ui-card-hover card-red" onClick={handleTotalProductsClick} style={{ cursor: 'pointer' }}>
+            <div className="card-title">Total Products</div>
+            <div className="card-value">
+              {loading ? <span className="skeleton-value"></span> : totalProducts}
             </div>
           </div>
-        </div>
-
-        {/* Lower Section: Sales Activity, Top Selling Products, Recent Activity */}
-        <div className="dashboard-lower">
-          <div className="dashboard-activity">
-            <h4>Sales Activity</h4>
-            <div className="activity-list">
-              <div className="activity-card activity-red">
-                <div>To be Packed</div>
-                <div className="activity-value">
-                  {loadingAnalytics ? '...' : (dashboardData?.salesActivity?.toBePack || 0)}
-                </div>
-                <span className="activity-icon">📦</span>
-              </div>
-              <div className="activity-card activity-orange">
-                <div>To be Shipped</div>
-                <div className="activity-value">
-                  {loadingAnalytics ? '...' : (dashboardData?.salesActivity?.toBeShipped || 0)}
-                </div>
-                <span className="activity-icon">🛒</span>
-              </div>
-              <div className="activity-card activity-green">
-                <div>Out for Delivery</div>
-                <div className="activity-value">
-                  {loadingAnalytics ? '...' : (dashboardData?.salesActivity?.outForDelivery || 0)}
-                </div>
-                <span className="activity-icon">🚚</span>
-              </div>
+          <div className="dashboard-card ui-card ui-card-hover card-orange" onClick={handleTotalUnitsClick} style={{ cursor: 'pointer' }}>
+            <div className="card-title">Total Product Units</div>
+            <div className="card-value">
+              {loading ? <span className="skeleton-value skeleton-wide"></span> : totalProductUnits.toLocaleString()}
             </div>
           </div>
-
-          <div className="dashboard-top-selling">
-            <div className="top-selling-header">
-              <h4>Top Selling Products</h4>
-              <div className="month-year-selector">
-                <select 
-                  value={selectedMonth} 
-                  onChange={(e) => handleMonthYearChange(parseInt(e.target.value), selectedYear)}
-                  className="month-select"
-                >
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                    <option key={month} value={month}>
-                      {new Date(0, month - 1).toLocaleString('default', { month: 'long' })}
-                    </option>
-                  ))}
-                </select>
-                <select 
-                  value={selectedYear} 
-                  onChange={(e) => handleMonthYearChange(selectedMonth, parseInt(e.target.value))}
-                  className="year-select"
-                >
-                  {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
+          <div className="dashboard-card ui-card ui-card-hover card-green" onClick={handleLowStockClick} style={{ cursor: 'pointer' }}>
+            <div className="card-title">Low in Stock</div>
+            <div className="card-value card-low">
+              {loading ? <span className="skeleton-value"></span> : lowStockProducts}
             </div>
-            <ol className="top-selling-list">
-              {loadingAnalytics ? (
-                <li>Loading...</li>
-              ) : dashboardData?.topSellingProducts?.length > 0 ? (
-                dashboardData.topSellingProducts.map((product, index) => (
-                  <li key={product.sku}>
-                    <span className="product-bar" style={{
-                      backgroundColor: index === 0 ? '#4CAF50' : 
-                                     index === 1 ? '#8BC34A' : 
-                                     index === 2 ? '#CDDC39' : 
-                                     index === 3 ? '#FFC107' : '#FF9800'
-                    }}></span>
-                    {product.name}{" "}
-                    <span className="units">{product.units_sold} units</span>
-                  </li>
-                ))
-              ) : (
-                <li>No sales data for this period</li>
-              )}
-            </ol>
           </div>
-
-          <div className="dashboard-recent-activity">
-            <h4>Recent Activity</h4>
-            <div className="recent-activity-list">
-              {loadingAnalytics ? (
-                <div className="recent-activity-item">Loading...</div>
-              ) : dashboardData?.recentActivity?.length > 0 ? (
-                dashboardData.recentActivity.map((order, index) => (
-                  <div key={order.order_id || index} className="recent-activity-item">
-                    <img
-                      className="activity-avatar"
-                      src={order.archived_by_profile_picture 
-                        ? `data:image/jpeg;base64,${order.archived_by_profile_picture}` 
-                        : "/placeholder-profile.svg"
-                      }
-                      alt={order.archived_by_name || "User"}
-                      onError={(e) => {
-                        e.target.src = "/placeholder-profile.svg";
-                      }}
-                    />
-                    <div>
-                      <div>
-                        <b>{order.archived_by_name || order.customer_name || "Unknown User"}</b> placed an order:{" "}
-                        <span className="activity-link">#{order.order_id}</span>
-                      </div>
-                      <div className="activity-time">
-                        {order.order_date 
-                          ? new Date(order.order_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                          : "Unknown time"
-                        }
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="recent-activity-item">No recent activity found</div>
-              )}
+          <div className="dashboard-card ui-card ui-card-hover card-blue" onClick={handleReplenishmentClick} style={{ cursor: 'pointer' }}>
+            <div className="card-title">Out of Stock</div>
+            <div className="card-value">
+              {loading ? <span className="skeleton-value"></span> : outOfStockProducts}
+            </div>
+          </div>
+          <div className="dashboard-card ui-card ui-card-hover card-orange" onClick={handleTotalProductsClick} style={{ cursor: 'pointer' }}>
+            <div className="card-title">Recently Updated</div>
+            <div className="card-value">
+              {loading ? <span className="skeleton-value"></span> : recentlyUpdatedItems}
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Sales Overview */}
+      <div className="dashboard-section ui-fade-in">
+        <h3>
+          Sales Overview <span className="dashboard-month">
+            {dashboardData?.monthName || 'Loading...'}
+          </span>
+        </h3>
+        <div className="dashboard-cards-row">
+          <div className="dashboard-card ui-card ui-card-hover">
+            <div className="card-title">Total Revenue</div>
+            <div className="card-value">
+              {loadingAnalytics ? <span className="skeleton-value skeleton-wide"></span> : `₱${(dashboardData?.salesOverview?.total_revenue || 0).toLocaleString()}`}
+            </div>
+          </div>
+          <div className="dashboard-card ui-card ui-card-hover">
+            <div className="card-title">Total Orders</div>
+            <div className="card-value">
+              {loadingAnalytics ? <span className="skeleton-value"></span> : (dashboardData?.salesOverview?.total_orders || 0).toLocaleString()}
+            </div>
+          </div>
+          <div className="dashboard-card ui-card ui-card-hover">
+            <div className="card-title">Total Units Sold</div>
+            <div className="card-value">
+              {loadingAnalytics ? <span className="skeleton-value"></span> : (dashboardData?.salesOverview?.total_units_sold || 0).toLocaleString()}
+            </div>
+          </div>
+          <div className="dashboard-card ui-card ui-card-hover">
+            <div className="card-title">Total Customers</div>
+            <div className="card-value">
+              {loadingAnalytics ? <span className="skeleton-value"></span> : (dashboardData?.salesOverview?.total_customers || 0).toLocaleString()}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Lower Section: Sales Activity, Top Selling Products, Recent Activity */}
+      <div className="dashboard-lower ui-fade-in">
+        <div className="dashboard-activity ui-card">
+          <h4>Sales Activity</h4>
+          <div className="activity-list">
+            <div className="activity-card activity-red">
+              <div>To be Packed</div>
+              <div className="activity-value">
+                {loadingAnalytics ? <span className="skeleton-value skeleton-narrow"></span> : (dashboardData?.salesActivity?.toBePack || 0)}
+              </div>
+              <span className="activity-icon">📦</span>
+            </div>
+            <div className="activity-card activity-orange">
+              <div>To be Shipped</div>
+              <div className="activity-value">
+                {loadingAnalytics ? <span className="skeleton-value skeleton-narrow"></span> : (dashboardData?.salesActivity?.toBeShipped || 0)}
+              </div>
+              <span className="activity-icon">🛒</span>
+            </div>
+            <div className="activity-card activity-green">
+              <div>Out for Delivery</div>
+              <div className="activity-value">
+                {loadingAnalytics ? <span className="skeleton-value skeleton-narrow"></span> : (dashboardData?.salesActivity?.outForDelivery || 0)}
+              </div>
+              <span className="activity-icon">🚚</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="dashboard-top-selling ui-card">
+          <div className="top-selling-header">
+            <h4>Top Selling Products</h4>
+            <div className="month-year-selector">
+              <select
+                value={selectedMonth}
+                onChange={(e) => handleMonthYearChange(parseInt(e.target.value), selectedYear)}
+                className="month-select"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                  <option key={month} value={month}>
+                    {new Date(0, month - 1).toLocaleString('default', { month: 'long' })}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={selectedYear}
+                onChange={(e) => handleMonthYearChange(selectedMonth, parseInt(e.target.value))}
+                className="year-select"
+              >
+                {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <ol className="top-selling-list">
+            {loadingAnalytics ? (
+              <li>Loading...</li>
+            ) : dashboardData?.topSellingProducts?.length > 0 ? (
+              dashboardData.topSellingProducts.map((product, index) => (
+                <li key={product.sku}>
+                  <span className="product-bar" style={{
+                    backgroundColor: index === 0 ? '#4CAF50' :
+                                   index === 1 ? '#8BC34A' :
+                                   index === 2 ? '#CDDC39' :
+                                   index === 3 ? '#FFC107' : '#FF9800'
+                  }}></span>
+                  {product.name}{" "}
+                  <span className="units">{product.units_sold} units</span>
+                </li>
+              ))
+            ) : (
+              <li>No sales data for this period</li>
+            )}
+          </ol>
+        </div>
+
+        <div className="dashboard-recent-activity ui-card">
+          <h4>Recent Activity</h4>
+          <div className="recent-activity-list">
+            {loadingAnalytics ? (
+              <div className="recent-activity-item">Loading...</div>
+            ) : dashboardData?.recentActivity?.length > 0 ? (
+              dashboardData.recentActivity.map((order, index) => (
+                <div key={order.order_id || index} className="recent-activity-item">
+                  <img
+                    className="activity-avatar"
+                    src={order.archived_by_profile_picture
+                      ? `data:image/jpeg;base64,${order.archived_by_profile_picture}`
+                      : "/placeholder-profile.svg"
+                    }
+                    alt={order.archived_by_name || "User"}
+                    onError={(e) => {
+                      e.target.src = "/placeholder-profile.svg";
+                    }}
+                  />
+                  <div>
+                    <div>
+                      <b>{order.archived_by_name || order.customer_name || "Unknown User"}</b> placed an order:{" "}
+                      <span className="activity-link">#{order.order_id}</span>
+                    </div>
+                    <div className="activity-time">
+                      {order.order_date
+                        ? new Date(order.order_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : "Unknown time"
+                      }
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="recent-activity-item">No recent activity found</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </AppShell>
   );
 }
 

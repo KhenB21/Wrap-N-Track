@@ -2,6 +2,17 @@ const express = require('express');
 const router = express.Router();
 // Centralized pool import
 const pool = require('../config/db');
+const verifyJwt = require('../middleware/verifyJwt');
+const requireRole = require('../middleware/requireRole');
+
+const STAFF_SUPPLIER_ORDER_ROLES = ['operations_manager', 'sales_manager', 'super_admin', 'admin', 'director'];
+const SUPPLIER_ORDER_STATUSES = ['Waiting', 'Pending', 'Ordered', 'In Transit', 'Received', 'Cancelled'];
+
+// PostgreSQL "relation does not exist" (table not yet migrated)
+const isTableMissing = (err) => err.code === '42P01';
+
+router.use(verifyJwt());
+router.use(requireRole(STAFF_SUPPLIER_ORDER_ROLES));
 
 // Get all supplier orders
 router.get('/', async (req, res) => {
@@ -14,6 +25,7 @@ router.get('/', async (req, res) => {
     `);
     res.json(result.rows);
   } catch (error) {
+    if (isTableMissing(error)) return res.json([]);
     console.error('Error fetching supplier orders:', error);
     res.status(500).json({ message: 'Error fetching supplier orders' });
   }
@@ -31,6 +43,7 @@ router.get('/supplier/:supplierId', async (req, res) => {
     `, [req.params.supplierId]);
     res.json(result.rows);
   } catch (error) {
+    if (isTableMissing(error)) return res.json([]);
     console.error('Error fetching supplier orders:', error);
     res.status(500).json({ message: 'Error fetching supplier orders' });
   }
@@ -41,6 +54,9 @@ router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
     const { supplier_id, status, order_date, expected_delivery, remarks, items } = req.body;
+    if (!SUPPLIER_ORDER_STATUSES.includes(status)) {
+      return res.status(400).json({ message: 'Invalid supplier delivery status' });
+    }
     
     console.log('Creating order with items:', JSON.stringify(items, null, 2));
 
@@ -94,6 +110,7 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     await client.query('ROLLBACK');
+    if (isTableMissing(error)) return res.status(503).json({ error: 'Supplier orders feature is not yet available on this server.' });
     console.error('Error creating order:', error);
     res.status(500).json({ error: 'Error creating order' });
   } finally {
@@ -109,6 +126,10 @@ router.put('/:orderId', async (req, res) => {
     remarks,
     items
   } = req.body;
+
+  if (!SUPPLIER_ORDER_STATUSES.includes(status)) {
+    return res.status(400).json({ message: 'Invalid supplier delivery status' });
+  }
 
   const client = await pool.connect();
   try {
@@ -260,8 +281,8 @@ router.put('/:orderId', async (req, res) => {
 
     res.json({ ...orderResult.rows[0], items: itemsResult.rows });
   } catch (error) {
-    // Rollback in case of error
     await client.query('ROLLBACK');
+    if (isTableMissing(error)) return res.status(503).json({ message: 'Supplier orders feature is not yet available.' });
     console.error('Error updating supplier order:', error);
     res.status(500).json({ message: 'Error updating supplier order' });
   } finally {
@@ -293,8 +314,8 @@ router.delete('/:orderId', async (req, res) => {
 
     res.json({ message: 'Order deleted successfully' });
   } catch (error) {
-    // Rollback in case of error
     await client.query('ROLLBACK');
+    if (isTableMissing(error)) return res.status(503).json({ message: 'Supplier orders feature is not yet available.' });
     console.error('Error deleting supplier order:', error);
     res.status(500).json({ message: 'Error deleting supplier order' });
   } finally {
@@ -314,6 +335,7 @@ router.get('/history/supplier/:supplierId', async (req, res) => {
     `, [req.params.supplierId]);
     res.json(result.rows);
   } catch (error) {
+    if (isTableMissing(error)) return res.json([]);
     console.error('Error fetching supplier order history:', error);
     res.status(500).json({ message: 'Error fetching supplier order history' });
   }
@@ -323,7 +345,7 @@ router.get('/history/supplier/:supplierId', async (req, res) => {
 router.get('/history/:orderId/items', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
+      SELECT
         sohi.*,
         i.name as product_name,
         i.image_data,
@@ -341,6 +363,7 @@ router.get('/history/:orderId/items', async (req, res) => {
 
     res.json(items);
   } catch (error) {
+    if (isTableMissing(error)) return res.json([]);
     console.error('Error fetching supplier order history items:', error);
     res.status(500).json({ message: 'Error fetching supplier order history items' });
   }
@@ -359,6 +382,7 @@ router.get('/:orderId/items', async (req, res) => {
     console.log('Query result:', result.rows);
     res.json(result.rows);
   } catch (error) {
+    if (isTableMissing(error)) return res.json([]);
     console.error('Error fetching supplier order items:', error);
     res.status(500).json({ message: 'Error fetching supplier order items' });
   }

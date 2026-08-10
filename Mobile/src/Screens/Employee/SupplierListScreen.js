@@ -12,9 +12,10 @@ import {
   TextInput
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button } from 'react-native-paper';
+import { Button, Chip } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import { supplierAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -34,7 +35,6 @@ export default function SupplierListScreen() {
   const [selectedSuppliers, setSelectedSuppliers] = useState(new Set());
   const [showFilters, setShowFilters] = useState(false);
 
-  // Mock data - replace with actual API call
   useEffect(() => {
     fetchSuppliers();
   }, []);
@@ -42,48 +42,21 @@ export default function SupplierListScreen() {
   const fetchSuppliers = async () => {
     try {
       setLoading(true);
-      // Mock data - replace with actual API call
-      const mockSuppliers = [
-        {
-          supplier_id: '1',
-          name: 'ABC Packaging Supplies',
-          contact_person: 'John Smith',
-          cellphone: '+63 912 345 6789',
-          telephone: '+63 2 123 4567',
-          email_address: 'john@abcpkg.com',
-          street_address: '123 Main Street',
-          barangay: 'Barangay 1',
-          city_municipality: 'Quezon City',
-          province: 'Metro Manila',
-          type_of_supplies: 'Packaging Materials',
-          description: 'Leading supplier of packaging materials',
-          reliability_score: 4.5,
-          total_products: 25,
-          last_order_date: '2024-01-15T10:30:00Z'
-        },
-        {
-          supplier_id: '2',
-          name: 'XYZ Gift Wrapping Co.',
-          contact_person: 'Jane Doe',
-          cellphone: '+63 917 654 3210',
-          telephone: '+63 2 234 5678',
-          email_address: 'jane@xyzgifts.com',
-          street_address: '456 Business Ave',
-          barangay: 'Barangay 2',
-          city_municipality: 'Makati City',
-          province: 'Metro Manila',
-          type_of_supplies: 'Gift Wrapping',
-          description: 'Specialized in gift wrapping materials',
-          reliability_score: 4.2,
-          total_products: 18,
-          last_order_date: '2024-01-20T14:45:00Z'
-        }
-      ];
-      setSuppliers(mockSuppliers);
-      setFilteredSuppliers(mockSuppliers);
+      const response = await supplierAPI.getSuppliers();
+      const suppliersData = Array.isArray(response) ? response : (response.suppliers || response.data || []);
+      const normalizedSuppliers = suppliersData.map((supplier) => ({
+        ...supplier,
+        type_of_supplies: supplier.type_of_supplies || supplier.description || 'Other',
+        reliability_score: Number(supplier.reliability_score || 5),
+        total_products: Number(supplier.total_products || 0),
+      }));
+      setSuppliers(normalizedSuppliers);
+      setFilteredSuppliers(normalizedSuppliers);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
-      Alert.alert('Error', 'Failed to fetch suppliers');
+      Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to fetch suppliers');
+      setSuppliers([]);
+      setFilteredSuppliers([]);
     } finally {
       setLoading(false);
     }
@@ -119,10 +92,10 @@ export default function SupplierListScreen() {
     // Search filter
     if (query) {
       filtered = filtered.filter(supplier =>
-        supplier.name.toLowerCase().includes(query.toLowerCase()) ||
-        supplier.contact_person.toLowerCase().includes(query.toLowerCase()) ||
-        supplier.email_address.toLowerCase().includes(query.toLowerCase()) ||
-        supplier.type_of_supplies.toLowerCase().includes(query.toLowerCase())
+        (supplier.name || '').toLowerCase().includes(query.toLowerCase()) ||
+        (supplier.contact_person || '').toLowerCase().includes(query.toLowerCase()) ||
+        (supplier.email_address || '').toLowerCase().includes(query.toLowerCase()) ||
+        (supplier.type_of_supplies || '').toLowerCase().includes(query.toLowerCase())
       );
     }
 
@@ -171,8 +144,14 @@ export default function SupplierListScreen() {
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Success', 'Supplier deleted successfully');
+          onPress: async () => {
+            try {
+              await supplierAPI.deleteSupplier(supplier.supplier_id);
+              Alert.alert('Success', 'Supplier deleted successfully');
+              await fetchSuppliers();
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to delete supplier');
+            }
           }
         }
       ]

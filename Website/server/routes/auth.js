@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -7,7 +7,8 @@ const crypto = require('crypto');
 const multer = require('multer');
 // Use centralized pool from config/db to avoid undefined imports
 const pool = require('../config/db');
-require('dotenv').config();
+const { isValidRegion, isValidCity, isValidBarangay } = require('../data/philippineLocations');
+// dotenv is loaded once at startup in index.js — no second call needed here.
 
 // Configure multer for memory storage
 const upload = multer({
@@ -64,7 +65,68 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
     } : 'No file uploaded'
   });
 
-  const { username, name, email, password, phone_number, address } = req.body;
+  const {
+    username,
+    name,
+    first_name,
+    last_name,
+    email,
+    password,
+    phone_number,
+    house_street_number,
+    region,
+    region_code,
+    city,
+    city_code,
+    barangay,
+    barangay_code,
+    postal_code,
+  } = req.body;
+
+  const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  const phoneRegex = /^\+639\d{9}$/;
+  const postalRegex = /^\d{4}$/;
+  const fullName = (name || [first_name, last_name].filter(Boolean).join(' ')).trim();
+  const generatedAddress = [
+    house_street_number?.trim(),
+    barangay ? `Barangay ${barangay}` : '',
+    city,
+    region,
+    postal_code,
+  ].filter(Boolean).join(', ');
+
+  if (!username?.trim() || !fullName || !password) {
+    return res.status(400).json({ success: false, message: 'Please complete all required account fields.' });
+  }
+
+  if (!emailRegex.test(String(email || '').trim())) {
+    return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
+  }
+
+  if (!phoneRegex.test(String(phone_number || '').trim())) {
+    return res.status(400).json({ success: false, message: 'Please enter a valid Philippine mobile number.' });
+  }
+
+  if (!house_street_number?.trim()) {
+    return res.status(400).json({ success: false, message: 'House / Street Number is required.' });
+  }
+
+  if (!isValidRegion(region_code, region)) {
+    return res.status(400).json({ success: false, message: 'Please select a valid region from the list.' });
+  }
+
+  if (!isValidCity(region_code, city_code, city)) {
+    return res.status(400).json({ success: false, message: 'Please select a valid city from the selected region.' });
+  }
+
+  if (!isValidBarangay(city_code, barangay_code, barangay)) {
+    return res.status(400).json({ success: false, message: 'Please select a valid barangay from the selected city.' });
+  }
+
+  if (!postalRegex.test(String(postal_code || '').trim())) {
+    return res.status(400).json({ success: false, message: 'Postal code must be 4 digits.' });
+  }
+
   let profilePictureData = null;
 
   if (req.file) {
@@ -72,61 +134,67 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
   }
 
   try {
-    // Check if username exists
+    await pool.query(`
+      ALTER TABLE customer_details
+      ADD COLUMN IF NOT EXISTS house_street_number TEXT,
+      ADD COLUMN IF NOT EXISTS region VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS region_code VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS city VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS city_code VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS barangay VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS barangay_code VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS postal_code VARCHAR(4)
+    `);
+
     console.log('Checking if username exists:', username);
     const usernameCheck = await pool.query(
       'SELECT * FROM customer_details WHERE username = $1',
-      [username]
+      [username.trim()]
     );
 
     if (usernameCheck.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username already taken'
-      });
+      return res.status(400).json({ success: false, message: 'Username already taken' });
     }
 
-    // Check if email exists
     console.log('Checking if email exists:', email);
     const emailCheck = await pool.query(
       'SELECT * FROM customer_details WHERE email_address = $1',
-      [email]
+      [email.trim()]
     );
 
     if (emailCheck.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email already registered'
-      });
+      return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    // Hash password
     console.log('Hashing password...');
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // Generate verification code
     console.log('Generating verification code...');
     const verificationCode = generateVerificationCode();
-    verificationCodes.set(email, {
-      code: verificationCode,
-      timestamp: Date.now()
-    });
+    verificationCodes.set(email.trim(), { code: verificationCode, timestamp: Date.now() });
 
-    // Insert new customer
     console.log('Inserting new customer into database...');
     const result = await pool.query(
-      'INSERT INTO customer_details (username, name, email_address, password_hash, is_verified, profile_picture_data, phone_number, address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING customer_id, username, name, email_address, phone_number, address',
-      [username, name, email, passwordHash, false, profilePictureData, phone_number, address]
+      `INSERT INTO customer_details (
+        username, name, email_address, password_hash, is_verified, profile_picture_data,
+        phone_number, address, house_street_number, region, region_code, city, city_code,
+        barangay, barangay_code, postal_code
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      RETURNING customer_id, username, name, email_address, phone_number, address,
+        house_street_number, region, region_code, city, city_code, barangay, barangay_code, postal_code`,
+      [
+        username.trim(), fullName, email.trim(), passwordHash, true, profilePictureData,
+        phone_number.trim(), generatedAddress, house_street_number.trim(), region, region_code,
+        city, city_code, barangay, barangay_code, postal_code
+      ]
     );
 
-    let emailSent = false;
     try {
-      // Send verification email
       console.log('Sending verification email to:', email);
       const mailOptions = {
         from: process.env.EMAIL_USER,
-        to: email,
+        to: email.trim(),
         subject: 'Verify your email address',
         html: `
           <h1>Welcome to Wrap N' Track!</h1>
@@ -135,13 +203,10 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
           <p>This code will expire in 10 minutes.</p>
         `
       };
-
       await transporter.sendMail(mailOptions);
       console.log('Verification email sent successfully');
-      emailSent = true;
     } catch (emailError) {
       console.error('Email sending error:', emailError);
-      // Continue with registration even if email fails
       console.log('Continuing with registration despite email error');
     }
 
@@ -150,16 +215,22 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
 
     res.status(201).json({
       success: true,
-      message: emailSent 
-        ? 'Registration successful. Please check your email for verification code.'
-        : 'Registration successful. Please contact support for verification.',
+      message: 'Registration successful. You can now log in.',
       customer: {
         customer_id: newCustomer.customer_id,
         username: newCustomer.username,
         name: newCustomer.name,
         email: newCustomer.email_address,
         phone_number: newCustomer.phone_number,
-        address: newCustomer.address
+        address: newCustomer.address,
+        house_street_number: newCustomer.house_street_number,
+        region: newCustomer.region,
+        region_code: newCustomer.region_code,
+        city: newCustomer.city,
+        city_code: newCustomer.city_code,
+        barangay: newCustomer.barangay,
+        barangay_code: newCustomer.barangay_code,
+        postal_code: newCustomer.postal_code
       }
     });
 
@@ -167,22 +238,11 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
     console.error('Registration error details:', {
       message: error.message,
       stack: error.stack,
-      emailConfig: {
-        user: process.env.EMAIL_USER,
-        hasPassword: !!process.env.EMAIL_PASSWORD
-      },
-      requestBody: {
-        username: req.body.username,
-        name: req.body.name,
-        email: req.body.email,
-        hasPassword: !!req.body.password
-      },
+      emailConfig: { user: process.env.EMAIL_USER, hasPassword: !!process.env.EMAIL_PASSWORD },
+      requestBody: { username: req.body.username, name: req.body.name, email: req.body.email, hasPassword: !!req.body.password },
       databaseError: error.code === '23505' ? 'Unique constraint violation' : 'Other database error'
     });
-    res.status(500).json({
-      success: false,
-      message: 'Registration failed. Please try again.'
-    });
+    res.status(500).json({ success: false, message: 'Registration failed. Please try again.' });
   }
 });
 
@@ -310,9 +370,6 @@ router.post('/customer/login', async (req, res) => {
       if (!validPassword) {
         return res.status(401).json({ success: false, message: 'Invalid username or password' });
       }
-      if (!customer.is_verified) {
-        return res.status(401).json({ success: false, message: 'Please verify your email before logging in' });
-      }
       const token = jwt.sign({
         customer_id: customer.customer_id,
         username: customer.username,
@@ -329,6 +386,15 @@ router.post('/customer/login', async (req, res) => {
           name: customer.name,
           email: customer.email_address,
           phone_number: customer.phone_number,
+          address: customer.address,
+          house_street_number: customer.house_street_number,
+          region: customer.region,
+          region_code: customer.region_code,
+          city: customer.city,
+          city_code: customer.city_code,
+          barangay: customer.barangay,
+          barangay_code: customer.barangay_code,
+          postal_code: customer.postal_code,
           role: 'customer'
         }
       });
@@ -347,6 +413,11 @@ router.post('/customer/login', async (req, res) => {
     if (!validPassword) {
       return res.status(401).json({ success: false, message: 'Invalid username or password' });
     }
+    const lastLoginResult = await pool.query(
+      'UPDATE users SET last_login = NOW() WHERE user_id = $1 RETURNING last_login',
+      [user.user_id]
+    );
+    user.last_login = lastLoginResult.rows[0].last_login;
     const token = jwt.sign({
       user_id: user.user_id,
       name: user.name,
@@ -445,4 +516,50 @@ router.get('/customer/get-email/:username', async (req, res) => {
   }
 });
 
+
+// Change password from login/forgot-password flow using existing password
+router.post('/change-password-with-current', async (req, res) => {
+  const { username, currentPassword, newPassword } = req.body;
+
+  if (!username || !currentPassword || !newPassword) {
+    return res.status(400).json({ success: false, message: 'Username, existing password, and new password are required' });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ success: false, message: 'New password must be at least 8 characters long' });
+  }
+
+  try {
+    const customerResult = await pool.query('SELECT customer_id, password_hash FROM customer_details WHERE username = $1', [username]);
+    if (customerResult.rows.length > 0) {
+      const customer = customerResult.rows[0];
+      const validPassword = await bcrypt.compare(currentPassword, customer.password_hash);
+      if (!validPassword) {
+        return res.status(400).json({ success: false, message: 'Existing password is incorrect' });
+      }
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await pool.query('UPDATE customer_details SET password_hash = $1 WHERE customer_id = $2', [passwordHash, customer.customer_id]);
+      return res.json({ success: true, message: 'Password changed successfully' });
+    }
+
+    const employeeResult = await pool.query('SELECT user_id, password_hash FROM users WHERE name = $1', [username]);
+    if (employeeResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+
+    const employee = employeeResult.rows[0];
+    const validPassword = await bcrypt.compare(currentPassword, employee.password_hash);
+    if (!validPassword) {
+      return res.status(400).json({ success: false, message: 'Existing password is incorrect' });
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [passwordHash, employee.user_id]);
+    return res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change password with current error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to change password' });
+  }
+});
+
 module.exports = router; 
+
