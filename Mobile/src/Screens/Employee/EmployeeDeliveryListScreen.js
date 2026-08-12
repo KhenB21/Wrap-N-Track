@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Chip } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { deliveryAPI } from '../../services/api';
+import { SkeletonCard } from '../../Components/Skeleton/Skeleton';
 
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
@@ -243,15 +244,23 @@ export default function EmployeeDeliveryListScreen({ navigation }) {
       </View>
 
       {/* List */}
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => String(item.order_id)}
-        renderItem={renderDeliveryCard}
-        ListEmptyComponent={!loading ? renderEmpty : null}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={[styles.list, filtered.length === 0 && styles.listEmpty]}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading && filtered.length === 0 ? (
+        <View style={styles.list}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i} withImage={false} lines={3} style={{ marginBottom: 12 }} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => String(item.order_id)}
+          renderItem={renderDeliveryCard}
+          ListEmptyComponent={renderEmpty}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          contentContainerStyle={[styles.list, filtered.length === 0 && styles.listEmpty]}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }

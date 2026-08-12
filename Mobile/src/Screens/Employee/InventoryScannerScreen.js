@@ -81,6 +81,26 @@ export default function InventoryScannerScreen({ navigation }) {
     }
   };
 
+  const offerAddProduct = (code) => {
+    Alert.alert(
+      'No Product Found',
+      `No product found for this code:\n${code}\n\nAdd it as a new product?`,
+      [
+        { text: 'Scan Again', style: 'cancel', onPress: () => setScanned(false) },
+        {
+          text: 'Add Product',
+          onPress: () => {
+            setScanned(false);
+            navigation.navigate('AddProduct', {
+              initialData: { barcode: code },
+              isEdit: false,
+            });
+          },
+        },
+      ],
+    );
+  };
+
   const lookupCode = async (rawCode, fromScanner = false) => {
     const code = String(rawCode || '').trim();
 
@@ -99,8 +119,7 @@ export default function InventoryScannerScreen({ navigation }) {
       const product = response.item || response.product || response.data;
 
       if (!product) {
-        Alert.alert('No Product Found', 'No product found for this code.');
-        setScanned(false);
+        offerAddProduct(code);
         return;
       }
 
@@ -109,11 +128,14 @@ export default function InventoryScannerScreen({ navigation }) {
         scannedCode: code,
       });
     } catch (error) {
+      if (error.response?.status === 404) {
+        offerAddProduct(code);
+        return;
+      }
+
       const message =
-        error.response?.status === 404
-          ? 'No product found for this code.'
-          : error.response?.data?.message ||
-            'Unable to scan this code right now.';
+        error.response?.data?.message ||
+        'Unable to scan this code right now.';
 
       Alert.alert('Scan Failed', message, [
         {

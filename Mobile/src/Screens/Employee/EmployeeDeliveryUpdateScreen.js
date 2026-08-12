@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, RadioButton } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { deliveryAPI } from '../../services/api';
+import { SkeletonCard, SkeletonText } from '../../Components/Skeleton/Skeleton';
 
 const DELIVERY_STATUSES = [
   'Pending',
@@ -186,9 +187,11 @@ export default function EmployeeDeliveryUpdateScreen({ navigation, route }) {
 
   if (!delivery && loading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }]}>
-        <MaterialCommunityIcons name="loading" size={40} color={theme.colors.primary} />
-        <Text style={{ color: sub, marginTop: 12 }}>Loading...</Text>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={{ padding: 16 }}>
+          <SkeletonText width="50%" height={20} style={{ marginBottom: 12 }} />
+          <SkeletonCard lines={4} />
+        </View>
       </View>
     );
   }

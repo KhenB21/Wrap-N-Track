@@ -5,13 +5,13 @@ import {
   ScrollView,
   StyleSheet,
   Dimensions,
-  ActivityIndicator,
   RefreshControl
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card, Chip } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { salesReportsAPI } from '../../services/api';
+import { SkeletonStatRow, SkeletonCard, SkeletonText } from '../../Components/Skeleton/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -137,9 +137,20 @@ export default function SalesReportScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background }]}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={[styles.loadingText, { color: theme.colors.onBackground }]}>Loading sales data...</Text>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
+          <View style={{ width: 160, height: 26, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.25)' }} />
+          <View style={{ width: 120, height: 14, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.2)', marginTop: 10 }} />
+        </View>
+        <View style={styles.section}>
+          <SkeletonText width={120} height={18} style={{ marginBottom: 16 }} />
+          <SkeletonStatRow count={2} style={{ marginBottom: 12 }} />
+          <SkeletonStatRow count={2} style={{ marginBottom: 12 }} />
+          <SkeletonStatRow count={2} />
+        </View>
+        <View style={{ paddingHorizontal: 16 }}>
+          <SkeletonCard lines={3} />
+        </View>
       </View>
     );
   }

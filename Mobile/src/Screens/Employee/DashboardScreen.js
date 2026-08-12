@@ -14,6 +14,7 @@ import { useTheme } from '../../Context/ThemeContext';
 import { useDashboard } from '../../Context/DashboardContext';
 import { useInventory } from '../../Context/InventoryContext';
 import { useOrders } from '../../Context/OrdersContext';
+import { SkeletonStatRow, SkeletonCard, SkeletonText } from '../../Components/Skeleton/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -145,12 +146,34 @@ export default function DashboardScreen({ navigation }) {
 
   if (loading && !refreshing) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background }]}>
-        <MaterialCommunityIcons name="loading" size={48} color={theme.colors.primary} />
-        <Text style={[styles.loadingText, { color: theme.colors.onBackground }]}>
-          Loading dashboard...
-        </Text>
-      </View>
+      <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
+          <View style={{ width: 140, height: 26, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.25)' }} />
+          <View style={{ width: 100, height: 14, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.2)', marginTop: 10 }} />
+        </View>
+
+        <View style={styles.section}>
+          <SkeletonText width={160} height={18} style={{ marginBottom: 16 }} />
+          <SkeletonStatRow count={2} style={{ marginBottom: 12 }} />
+          <SkeletonStatRow count={2} />
+        </View>
+
+        <View style={styles.section}>
+          <SkeletonText width={140} height={18} style={{ marginBottom: 16 }} />
+          <SkeletonStatRow count={2} style={{ marginBottom: 12 }} />
+          <SkeletonStatRow count={2} />
+        </View>
+
+        <View style={styles.section}>
+          <SkeletonText width={140} height={18} style={{ marginBottom: 16 }} />
+          <SkeletonStatRow count={3} />
+        </View>
+
+        <View style={styles.section}>
+          <SkeletonText width={180} height={18} style={{ marginBottom: 16 }} />
+          <SkeletonCard withImage={false} lines={3} />
+        </View>
+      </ScrollView>
     );
   }
 

@@ -15,6 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { accountManagementAPI } from '../../services/api';
+import { SkeletonCard } from '../../Components/Skeleton/Skeleton';
 
 const ROLES = [
   'admin',
@@ -320,20 +321,28 @@ export default function AccountManagementScreen({ navigation }) {
         </Text>
       </TouchableOpacity>
 
-      <FlatList
-        data={users}
-        keyExtractor={(item) => String(item.user_id)}
-        renderItem={renderUserCard}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={!loading ? (
-          <View style={styles.empty}>
-            <MaterialCommunityIcons name="account-group-outline" size={64} color={theme.colors.outline} />
-            <Text style={[styles.emptyTitle, { color: text }]}>No Users Found</Text>
-          </View>
-        ) : null}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading && users.length === 0 ? (
+        <View style={styles.list}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonCard key={i} lines={2} style={{ marginBottom: 12 }} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={users}
+          keyExtractor={(item) => String(item.user_id)}
+          renderItem={renderUserCard}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <MaterialCommunityIcons name="account-group-outline" size={64} color={theme.colors.outline} />
+              <Text style={[styles.emptyTitle, { color: text }]}>No Users Found</Text>
+            </View>
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* Create/Edit Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>

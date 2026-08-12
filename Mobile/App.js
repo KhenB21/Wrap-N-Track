@@ -13,6 +13,11 @@ import { DashboardProvider } from './src/Context/DashboardContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
 // Theme adapter component to integrate custom theme with React Native Paper
+const AppStatusBar = () => {
+  const { darkMode = false } = useTheme() || {};
+  return <StatusBar style={darkMode ? 'light' : 'dark'} />;
+};
+
 const PaperThemeAdapter = ({ children }) => {
   const { darkMode = false, colors = {} } = useTheme() || {};
   const baseTheme = darkMode ? MD3DarkTheme : MD3LightTheme;
@@ -58,7 +63,7 @@ export default function App() {
                   <OrdersProvider>
                     <ProfileProvider>
                       <NavigationContainer>
-                        <StatusBar style="auto" />
+                        <AppStatusBar />
                         <AppNavigator />
                       </NavigationContainer>
                     </ProfileProvider>

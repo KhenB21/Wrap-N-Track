@@ -14,6 +14,7 @@ import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useOrders } from "../Context/OrdersContext";
 import { useTheme } from "../Context/ThemeContext";
+import { SkeletonCard } from "../Components/Skeleton/Skeleton";
 
 export default function OrderManagementScreen({ navigation }) {
   const {
@@ -353,16 +354,24 @@ export default function OrderManagementScreen({ navigation }) {
       </View>
 
       {/* Orders List */}
-      <FlatList
-        data={filteredOrders}
-        renderItem={renderOrderItem}
-        keyExtractor={(item) => item.order_id || item.id}
-        contentContainerStyle={styles.ordersList}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      />
+      {loading && filteredOrders.length === 0 ? (
+        <View style={styles.ordersList}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonCard key={i} withImage={false} lines={3} style={{ marginBottom: 12 }} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={filteredOrders}
+          renderItem={renderOrderItem}
+          keyExtractor={(item) => item.order_id || item.id}
+          contentContainerStyle={styles.ordersList}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {renderStatusModal()}
     </View>

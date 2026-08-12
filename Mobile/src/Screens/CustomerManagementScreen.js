@@ -14,6 +14,7 @@ import {
 import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../Context/ThemeContext";
+import { SkeletonCard } from "../Components/Skeleton/Skeleton";
 
 export default function CustomerManagementScreen({ navigation }) {
   const { darkMode } = useTheme();
@@ -471,16 +472,24 @@ export default function CustomerManagementScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={filteredCustomers}
-        renderItem={renderCustomerItem}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.customersList}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      />
+      {loading && filteredCustomers.length === 0 ? (
+        <View style={styles.customersList}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonCard key={i} lines={2} style={{ marginBottom: 12 }} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={filteredCustomers}
+          renderItem={renderCustomerItem}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.customersList}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {renderModal()}
     </View>

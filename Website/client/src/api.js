@@ -10,6 +10,12 @@ const baseURL = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_
 
 const api = axios.create({ baseURL });
 
+// Same host as baseURL, just ws(s):// and /ws instead of http(s):// — the
+// backend is a separate Render service from the website's own host, so
+// deriving the WS URL from window.location (as some older call sites did)
+// silently points at the wrong host in production.
+export const getWsUrl = () => baseURL.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws';
+
 // Attach appropriate token automatically (employee/admin token OR customer token) if present.
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token') || localStorage.getItem('customerToken');

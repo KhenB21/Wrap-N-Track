@@ -12,6 +12,7 @@ import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { customerOrderAPI } from "../services/api";
 import { useTheme } from "../Context/ThemeContext";
+import { SkeletonCard } from "../Components/Skeleton/Skeleton";
 
 export default function OrderHistoryScreen({ navigation }) {
   const { darkMode } = useTheme();
@@ -246,7 +247,13 @@ export default function OrderHistoryScreen({ navigation }) {
       </View>
 
       {/* Orders List */}
-      {filteredOrders.length > 0 ? (
+      {loading && orders.length === 0 ? (
+        <View style={styles.ordersList}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i} withImage={false} lines={3} style={{ marginBottom: 16, borderRadius: 12 }} />
+          ))}
+        </View>
+      ) : filteredOrders.length > 0 ? (
         <FlatList
           data={filteredOrders}
           renderItem={renderOrderItem}

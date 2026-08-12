@@ -19,35 +19,13 @@ import {
   ActivityIndicator,
   Vibration,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
-import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../Context/ThemeContext';
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
-const getWsUrl = () => {
-  const hostUri =
-    Constants?.manifest?.hostUri ||
-    Constants?.expoConfig?.hostUri ||
-    '';
-  const host = hostUri.split(':')[0];
-
-  if (Platform.OS === 'android') {
-    const ip =
-      host && host !== 'localhost' && host !== '127.0.0.1'
-        ? host
-        : '10.0.2.2';
-    return `ws://${ip}:3001/ws`;
-  }
-  // iOS simulator / device
-  const ip = host && host !== '' ? host : 'localhost';
-  return `ws://${ip}:3001/ws`;
-};
+import { getWsUrl } from '../../services/api';
 
 // ─── component ───────────────────────────────────────────────────────────────
 

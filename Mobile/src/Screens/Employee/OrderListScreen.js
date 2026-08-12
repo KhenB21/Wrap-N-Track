@@ -16,6 +16,7 @@ import { Button } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useOrders } from '../../Context/OrdersContext';
 import { useNavigation } from '@react-navigation/native';
+import { SkeletonCard } from '../../Components/Skeleton/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -423,17 +424,25 @@ export default function OrderListScreen() {
       {renderStats()}
 
       {/* Order List */}
-      <FlatList
-        data={filteredOrders || []}
-        renderItem={renderOrderItem}
-        keyExtractor={(item) => item?.order_id?.toString() || Math.random().toString()}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={renderEmptyState}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading && (filteredOrders || []).length === 0 ? (
+        <View style={styles.listContainer}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonCard key={i} withImage={false} lines={3} style={{ marginBottom: 12 }} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={filteredOrders || []}
+          renderItem={renderOrderItem}
+          keyExtractor={(item) => item?.order_id?.toString() || Math.random().toString()}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={renderEmptyState}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* Filter Modal */}
       {renderFilterModal()}

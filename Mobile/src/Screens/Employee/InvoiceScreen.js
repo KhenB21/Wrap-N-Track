@@ -13,6 +13,7 @@ import { Card, Chip } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
 import { invoiceAPI } from '../../services/api';
+import { SkeletonCard } from '../../Components/Skeleton/Skeleton';
 
 const STATUS_COLORS = {
   DRAFT: '#9E9E9E',
@@ -152,15 +153,23 @@ export default function InvoiceScreen({ navigation }) {
         </Text>
       </View>
 
-      <FlatList
-        data={invoices}
-        renderItem={renderInvoice}
-        keyExtractor={(item) => String(item.invoice_id)}
-        contentContainerStyle={[styles.list, invoices.length === 0 && styles.listEmpty]}
-        ListEmptyComponent={!loading ? renderEmpty : null}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading && invoices.length === 0 ? (
+        <View style={styles.list}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonCard key={i} withImage={false} lines={2} style={{ marginBottom: 12 }} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={invoices}
+          renderItem={renderInvoice}
+          keyExtractor={(item) => String(item.invoice_id)}
+          contentContainerStyle={[styles.list, invoices.length === 0 && styles.listEmpty]}
+          ListEmptyComponent={renderEmpty}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }

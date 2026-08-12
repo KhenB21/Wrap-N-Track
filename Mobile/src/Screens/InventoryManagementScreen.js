@@ -15,6 +15,7 @@ import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useInventory } from "../Context/InventoryContext";
 import { useTheme } from "../Context/ThemeContext";
+import { SkeletonCard } from "../Components/Skeleton/Skeleton";
 
 export default function InventoryManagementScreen({ navigation }) {
   const {
@@ -490,16 +491,24 @@ export default function InventoryManagementScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={filteredInventory}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.sku}
-        contentContainerStyle={styles.inventoryList}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      />
+      {loading && filteredInventory.length === 0 ? (
+        <View style={styles.inventoryList}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} lines={2} style={{ marginBottom: 12 }} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={filteredInventory}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.sku}
+          contentContainerStyle={styles.inventoryList}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {renderModal()}
     </View>

@@ -5,7 +5,7 @@ import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import withEmployeeAuth from '../../Components/withEmployeeAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
-import api from "../../api";
+import api, { getWsUrl } from "../../api";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import jsPDF from 'jspdf';
@@ -39,7 +39,7 @@ function Inventory() {
 
   // ── Phone Scanner (WebSocket) ──────────────────────────────────────────────
   const [psOpen, setPsOpen] = useState(false);
-  // step: 'setup' | 'connecting' | 'waiting_phone' | 'scan_ready' | 'confirming' | 'applying' | 'success'
+  // step: 'setup' | 'connecting' | 'waiting_phone' | 'scan_ready' | 'not_found' | 'confirming' | 'applying' | 'success'
   const [psStep, setPsStep] = useState('setup');
   const [psAction, setPsAction] = useState('STOCK_IN');
   const [psQty, setPsQty] = useState('');
@@ -49,6 +49,8 @@ function Inventory() {
   const [psProduct, setPsProduct] = useState(null);   // confirmed product
   const [psApplyError, setPsApplyError] = useState('');
   const [psResult, setPsResult] = useState(null);     // { name, sku, previousQty, adjustQty, newQty, action }
+  const [psNotFoundBarcode, setPsNotFoundBarcode] = useState('');
+  const [pendingBarcode, setPendingBarcode] = useState(''); // carries scanned code into AddProductModal
   const psWsRef = useRef(null);
   const psMountedRef = useRef(false);
   const psLookupRef = useRef(null); // avoids stale closure in ws.onmessage
@@ -258,12 +260,7 @@ function Inventory() {
 
   const psConnect = useCallback((token) => {
     if (psWsRef.current) return; // already connecting/connected
-    const hostname = window.location.hostname;
-    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' ||
-      /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
-    const wsUrl = isLocal ? `ws://${hostname}:3001/ws` : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
-
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(getWsUrl());
     psWsRef.current = ws;
 
     ws.onopen = () => {
@@ -321,9 +318,12 @@ function Inventory() {
       setPsApplyError('');
       setPsStep('confirming');
     } catch (err) {
-      const msg = err.response?.status === 404
-        ? 'Product not found. Only registered inventory items can be adjusted.'
-        : err.response?.data?.message || 'Failed to look up product.';
+      if (err.response?.status === 404) {
+        setPsNotFoundBarcode(code);
+        setPsStep('not_found');
+        return;
+      }
+      const msg = err.response?.data?.message || 'Failed to look up product.';
       toast.error(msg);
     }
   }, []);
@@ -338,15 +338,8 @@ function Inventory() {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
     if (!token) return;
 
-    const hostname = window.location.hostname;
-    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' ||
-      /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
-    const wsUrl = isLocal
-      ? `ws://${hostname}:3001/ws`
-      : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
-
     let ws;
-    try { ws = new WebSocket(wsUrl); } catch (_) { return; }
+    try { ws = new WebSocket(getWsUrl()); } catch (_) { return; }
     rtWsRef.current = ws;
 
     ws.onopen = () => {
@@ -563,6 +556,7 @@ function Inventory() {
         
       if (response.data.success) {
         setShowModal(false);
+        setPendingBarcode('');
         await fetchProducts();
         await fetchReorderInsights();
         const successMessage = formData.isUpdate ? 'Product updated successfully!' : 'Product added successfully!';
@@ -916,10 +910,10 @@ function Inventory() {
         </div>
           {showModal && (
             <AddProductModal
-              onClose={() => setShowModal(false)}
+              onClose={() => { setShowModal(false); setPendingBarcode(''); }}
               onAdd={handleAddProduct}
               products={products}
-              initialData={selectedProduct || {}}
+              initialData={selectedProduct || (pendingBarcode ? { barcode: pendingBarcode } : {})}
               isEdit={modalMode === 'edit'}
               isAddStockMode={modalMode === 'addStock'}
             />
@@ -1028,6 +1022,44 @@ function Inventory() {
                     <button className="ps-back-link" onClick={() => setPsStep('waiting_phone')}>
                       ← Change Action / Quantity
                     </button>
+                  </div>
+                )}
+
+                {/* ── Step: Not Found — offer to add as new product ── */}
+                {psStep === 'not_found' && (
+                  <div className="ps-body ps-body--centered">
+                    <p className="ps-scan-label">No product found for this barcode</p>
+                    <p className="ps-scan-sub">
+                      <strong>{psNotFoundBarcode}</strong>
+                      <br />
+                      Add it as a new product using this barcode?
+                    </p>
+                    <div className="button-group">
+                      <button
+                        type="button"
+                        className="submit-btn"
+                        onClick={() => {
+                          setPsNotFoundBarcode('');
+                          setPsStep('scan_ready');
+                        }}
+                      >
+                        No
+                      </button>
+                      <button
+                        type="button"
+                        className="submit-btn primary"
+                        onClick={() => {
+                          setPendingBarcode(psNotFoundBarcode);
+                          setPsNotFoundBarcode('');
+                          setPsOpen(false);
+                          setModalMode('add');
+                          setSelectedProduct(null);
+                          setShowModal(true);
+                        }}
+                      >
+                        Yes, Add Product
+                      </button>
+                    </div>
                   </div>
                 )}
 

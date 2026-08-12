@@ -15,6 +15,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useInventory } from "../Context/InventoryContext";
 import { useCart } from "../Context/CartContext";
 import { useTheme } from "../Context/ThemeContext";
+import { SkeletonProductCard } from "../Components/Skeleton/Skeleton";
 
 const { width } = Dimensions.get("window");
 const itemWidth = (width - 60) / 2; // 2 columns with padding
@@ -145,7 +146,13 @@ export default function ProductCatalogScreen({ navigation, route }) {
         </Text>
       </View>
 
-      {products.length > 0 ? (
+      {loading && products.length === 0 ? (
+        <View style={[styles.productsList, { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }]}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonProductCard key={i} style={{ width: itemWidth, marginRight: 12, marginBottom: 16 }} />
+          ))}
+        </View>
+      ) : products.length > 0 ? (
         <FlatList
           data={products}
           renderItem={renderProduct}

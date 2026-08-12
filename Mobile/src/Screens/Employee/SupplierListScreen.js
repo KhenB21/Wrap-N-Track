@@ -16,6 +16,7 @@ import { Button, Chip } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { supplierAPI } from '../../services/api';
+import { SkeletonCard } from '../../Components/Skeleton/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -328,18 +329,26 @@ export default function SupplierListScreen() {
       </View>
 
       {/* Supplier List */}
-      <FlatList
-        data={filteredSuppliers}
-        renderItem={renderSupplierCard}
-        keyExtractor={(item) => item.supplier_id}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={renderEmptyState}
-        showsVerticalScrollIndicator={false}
-        numColumns={1}
-      />
+      {loading && filteredSuppliers.length === 0 ? (
+        <View style={styles.listContainer}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonCard key={i} withImage={false} lines={3} style={{ marginBottom: 12 }} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={filteredSuppliers}
+          renderItem={renderSupplierCard}
+          keyExtractor={(item) => item.supplier_id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={renderEmptyState}
+          showsVerticalScrollIndicator={false}
+          numColumns={1}
+        />
+      )}
 
       {/* Floating Action Button */}
       <TouchableOpacity

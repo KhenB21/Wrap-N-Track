@@ -12,6 +12,7 @@ import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { customerOrderAPI } from "../services/api";
 import { useTheme } from "../Context/ThemeContext";
+import { SkeletonText, SkeletonCard } from "../Components/Skeleton/Skeleton";
 
 const STEP_ICONS = {
   'order-placed': 'clipboard-text-outline',
@@ -65,9 +66,17 @@ export default function OrderTrackingScreen({ navigation, route }) {
     return (
       <View style={[styles.container, { backgroundColor: bg }]}>
         <Header showBack showCart logoType="image" onBackPress={() => navigation.goBack()} onCartPress={() => navigation.navigate("MyCart")} darkMode={darkMode} />
-        <View style={styles.loadingContainer}>
-          <MaterialCommunityIcons name="loading" size={32} color={sub} />
-          <Text style={[styles.loadingText, { color: sub }]}>Loading tracking...</Text>
+        <View style={styles.scrollView}>
+          <View style={[styles.section, { backgroundColor: card }]}>
+            <SkeletonText width="60%" height={20} style={{ marginBottom: 10 }} />
+            <SkeletonText width="40%" height={13} />
+          </View>
+          <View style={[styles.section, { backgroundColor: card }]}>
+            <SkeletonText width="45%" height={16} style={{ marginBottom: 16 }} />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonCard key={i} lines={1} style={{ marginBottom: 12 }} />
+            ))}
+          </View>
         </View>
       </View>
     );

@@ -11,6 +11,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../Context/ThemeContext';
 import { notificationAPI } from '../../services/api';
+import { SkeletonRow } from '../../Components/Skeleton/Skeleton';
 
 const ICON_MAP = {
   order: 'clipboard-text-outline',
@@ -156,17 +157,25 @@ export default function NotificationsScreen({ navigation }) {
         )}
       </View>
 
-      <FlatList
-        data={notifications}
-        keyExtractor={(item) => String(item.id || item.notification_id)}
-        renderItem={renderItem}
-        ListEmptyComponent={!loading ? renderEmpty : null}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={notifications.length === 0 && styles.emptyContainer}
-        ItemSeparatorComponent={() => (
-          <View style={[styles.separator, { backgroundColor: theme.colors.outline + '33' }]} />
-        )}
-      />
+      {loading && notifications.length === 0 ? (
+        <View style={{ padding: 16 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonRow key={i} columns={2} style={{ marginBottom: 10 }} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => String(item.id || item.notification_id)}
+          renderItem={renderItem}
+          ListEmptyComponent={renderEmpty}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          contentContainerStyle={notifications.length === 0 && styles.emptyContainer}
+          ItemSeparatorComponent={() => (
+            <View style={[styles.separator, { backgroundColor: theme.colors.outline + '33' }]} />
+          )}
+        />
+      )}
     </View>
   );
 }
