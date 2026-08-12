@@ -100,6 +100,19 @@ function ArchiveProductsContent() {
     }
   };
 
+  const handlePermanentDelete = async (sku, name) => {
+    if (window.confirm(`Permanently delete "${name}"? This cannot be undone.`)) {
+      try {
+        await api.delete(`/api/inventory/${sku}/permanent`);
+        await fetchProducts();
+        toast.success('Product permanently deleted.');
+      } catch (err) {
+        const message = err.response?.data?.message || 'Failed to permanently delete product';
+        toast.error(message);
+      }
+    }
+  };
+
   return (
     <div className="dashboard-container" style={{ height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
@@ -255,18 +268,32 @@ function ArchiveProductsContent() {
                         <td style={{ textAlign: 'center' }}>{Number(product.ordered_quantity || 0).toLocaleString()}</td>
                         <td style={{ textAlign: 'center' }}>{Number(product.delivered_quantity || 0).toLocaleString()}</td>
                         <td style={{ textAlign: 'center' }}>
-                          <button
-                            className="action-btn restore"
-                            title="Restore Product"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleRestore(product.sku);
-                            }}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-2 14h-2v-2h2v2zm0-4h-2v-2h2v2zm-4-2h2v2H8v-2zm0 4h2v2H8v-2zm-1.9-6.95l1.45-1.45 1.05 1.05 2.85-2.85 1.45 1.45-4.3 4.3-2.5-2.5z"/>
-                            </svg>
-                          </button>
+                          <div className="archive-action-group">
+                            <button
+                              className="action-btn restore"
+                              title="Restore Product"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleRestore(product.sku);
+                              }}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-2 14h-2v-2h2v2zm0-4h-2v-2h2v2zm-4-2h2v2H8v-2zm0 4h2v2H8v-2zm-1.9-6.95l1.45-1.45 1.05 1.05 2.85-2.85 1.45 1.45-4.3 4.3-2.5-2.5z"/>
+                              </svg>
+                            </button>
+                            <button
+                              className="action-btn delete-permanent"
+                              title="Delete Permanently"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handlePermanentDelete(product.sku, product.name);
+                              }}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M9 3a1 1 0 0 0-1 1v1H4v2h16V5h-4V4a1 1 0 0 0-1-1H9zM6 8l1 12.13A2 2 0 0 0 8.99 22h6.02a2 2 0 0 0 1.99-1.87L18 8H6zm4 2h1.5v9H10v-9zm3.5 0H15v9h-1.5v-9z"/>
+                              </svg>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))

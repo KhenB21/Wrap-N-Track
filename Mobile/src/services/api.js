@@ -3,8 +3,20 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
+// Deployed backend (see Website/server — NOT wrap-n-track.onrender.com, which is
+// the deployed website frontend). Used for any non-dev build (APK/IPA/EAS build),
+// where there's no Metro dev server to derive a LAN IP from.
+const PRODUCTION_API_URL = 'https://wrap-n-track-server.onrender.com/api';
+
 // Base URL for the web server API
 const getBaseURL = () => {
+  // Standalone/production builds (APK, TestFlight, EAS build, etc.) have no
+  // dev server — always point them at the real deployed backend. __DEV__ is
+  // false in any release build, true in Expo Go / `expo start` dev builds.
+  if (!__DEV__) {
+    return PRODUCTION_API_URL;
+  }
+
   // For web platform (react-native-web) — use window.location.hostname to detect
   // if the app is accessed from a real device over LAN (e.g. Samsung S10+ at 192.168.1.100:8081)
   if (Platform.OS === 'web' && typeof window !== 'undefined') {

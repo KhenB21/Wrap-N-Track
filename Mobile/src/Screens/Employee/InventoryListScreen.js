@@ -19,6 +19,7 @@ import { useInventory } from '../../Context/InventoryContext';
 import { useAuth } from '../../Context/AuthContext';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Toast from '../../Components/Toast';
+import { SkeletonCard } from '../../Components/Skeleton/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -475,17 +476,25 @@ export default function InventoryListScreen() {
       </View>
 
       {/* Product List */}
-      <FlatList
-        data={filteredInventory}
-        renderItem={renderProductItem}
-        keyExtractor={(item) => item.sku}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={renderEmptyState}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading && filteredInventory.length === 0 ? (
+        <View style={styles.listContainer}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} lines={2} style={{ marginBottom: 12 }} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={filteredInventory}
+          renderItem={renderProductItem}
+          keyExtractor={(item) => item.sku}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={renderEmptyState}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* Floating Action Button */}
       {canManageInventory && (

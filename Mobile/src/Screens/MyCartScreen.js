@@ -15,6 +15,7 @@ import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCart } from "../Context/CartContext";
 import { useTheme } from "../Context/ThemeContext";
+import { SkeletonCard } from "../Components/Skeleton/Skeleton";
 
 const { width } = Dimensions.get("window");
 
@@ -254,8 +255,14 @@ export default function MyCartScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {cartItems.map((item) => renderItem(item))}
-        {selectedIds.length === 0 && cartItems.length > 0 && (
+        {loading && cartItems.length === 0 ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonCard key={i} lines={3} style={{ marginBottom: 18, borderRadius: 16 }} />
+          ))
+        ) : (
+          cartItems.map((item) => renderItem(item))
+        )}
+        {!loading && selectedIds.length === 0 && cartItems.length > 0 && (
           <Text
             style={{
               textAlign: "center",
@@ -267,7 +274,7 @@ export default function MyCartScreen({ navigation }) {
             Select items to see total and checkout
           </Text>
         )}
-        {cartItems.length === 0 && (
+        {!loading && cartItems.length === 0 && (
           <View style={styles.emptyCartContainer}>
             <MaterialCommunityIcons 
               name="cart-outline" 

@@ -643,8 +643,11 @@ router.post('/', optionalVerifyToken, upload.single('image'), async (req, res) =
     conversion_qty,
     expirable,
     expiration,
-    reorder_level
+    reorder_level,
+    barcode
   } = req.body;
+
+  const barcodeValue = typeof barcode === 'undefined' || (typeof barcode === 'string' && barcode.trim() === '') ? null : String(barcode).trim();
 
   const isUpdateRequested = isUpdate === 'true' || isUpdate === true;
   const expirableBool = toBoolean(expirable);
@@ -695,6 +698,20 @@ router.post('/', optionalVerifyToken, upload.single('image'), async (req, res) =
         });
       }
 
+      if (barcodeValue) {
+        const existingBarcode = await client.query(
+          'SELECT sku FROM inventory_items WHERE (barcode_value = $1 OR qr_value = $1) AND sku != $2 AND is_active = true',
+          [barcodeValue, sku]
+        );
+        if (existingBarcode.rows.length > 0) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            success: false,
+            message: 'This barcode is already assigned to another product.'
+          });
+        }
+      }
+
       const previousQuantity = Number(existingItem.rows[0].quantity || 0);
       const result = await client.query(`
         UPDATE inventory_items
@@ -709,13 +726,12 @@ router.post('/', optionalVerifyToken, upload.single('image'), async (req, res) =
             expirable = $9,
             expiration = $10,
             reorder_level = $11,
-            barcode_value = sku,
-            qr_value = sku,
+            barcode_value = COALESCE($13, barcode_value),
             last_updated = NOW(),
             updated_at = NOW()
         WHERE sku = $12
         RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration, barcode_value, qr_value, reorder_level, created_at, updated_at
-      `, [name, description, category, unitPrice, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, reorderLevel, sku]);
+      `, [name, description, category, unitPrice, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, reorderLevel, sku, barcodeValue]);
 
       await logStockMovement(client, {
         sku,
@@ -748,13 +764,41 @@ router.post('/', optionalVerifyToken, upload.single('image'), async (req, res) =
     }
 
     await client.query(`SELECT pg_advisory_xact_lock(hashtext('inventory_sku_generation'))`);
-    const generatedSku = await generateSku(category, client);
-    const existingItem = await client.query('SELECT sku FROM inventory_items WHERE sku = $1', [generatedSku]);
-    if (existingItem.rows.length > 0) {
+
+    // Generating the same next-sequence SKU every retry (since nothing was
+    // inserted yet to bump the MAX) would make a collision permanent, so this
+    // walks the sequence forward locally until it finds a candidate that's
+    // free on sku AND on barcode_value/qr_value — those unique indexes aren't
+    // scoped to is_active, so an older (even archived) row can still hold a
+    // string equal to a freshly generated SKU.
+    let generatedSku = await generateSku(category, client);
+    let effectiveBarcode = barcodeValue || generatedSku;
+    let attempts = 0;
+    while (attempts < 10) {
+      const collision = await client.query(
+        'SELECT 1 FROM inventory_items WHERE sku = $1 OR barcode_value = $2 OR qr_value = $2 LIMIT 1',
+        [generatedSku, effectiveBarcode]
+      );
+      if (collision.rows.length === 0) break;
+      attempts += 1;
+      const match = generatedSku.match(/^(.*-)(\d{6})$/);
+      if (!match) break;
+      const nextSeq = String(Number(match[2]) + attempts).padStart(6, '0');
+      generatedSku = `${match[1]}${nextSeq}`;
+      effectiveBarcode = barcodeValue || generatedSku;
+    }
+
+    const finalCollision = await client.query(
+      'SELECT 1 FROM inventory_items WHERE sku = $1 OR barcode_value = $2 OR qr_value = $2 LIMIT 1',
+      [generatedSku, effectiveBarcode]
+    );
+    if (finalCollision.rows.length > 0) {
       await client.query('ROLLBACK');
       return res.status(409).json({
         success: false,
-        message: 'Generated SKU already exists. Please try saving again.'
+        message: barcodeValue
+          ? 'This barcode is already assigned to another product.'
+          : 'Could not generate a unique SKU. Please try saving again.'
       });
     }
 
@@ -782,7 +826,7 @@ router.post('/', optionalVerifyToken, upload.single('image'), async (req, res) =
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $14, $15, $13, true, NOW(), NOW(), NOW())
       RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration, barcode_value, qr_value, reorder_level, created_at, updated_at
-    `, [generatedSku, name, description, category, productQuantity, unitPrice, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, reorderLevel, generatedSku, generatedSku]);
+    `, [generatedSku, name, description, category, productQuantity, unitPrice, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, reorderLevel, effectiveBarcode, generatedSku]);
 
     await logStockMovement(client, {
       sku: generatedSku,
@@ -879,8 +923,6 @@ router.put('/:sku', optionalVerifyToken, async (req, res) => {
             expirable = COALESCE($10, expirable),
             expiration = COALESCE($11, expiration),
             reorder_level = COALESCE($12, reorder_level),
-            barcode_value = sku,
-            qr_value = sku,
             last_updated = NOW(),
             updated_at = NOW()
         WHERE sku = $13
@@ -899,8 +941,6 @@ router.put('/:sku', optionalVerifyToken, async (req, res) => {
             uom = COALESCE($8, uom),
             conversion_qty = COALESCE($9, conversion_qty),
             reorder_level = COALESCE($10, reorder_level),
-            barcode_value = sku,
-            qr_value = sku,
             last_updated = NOW(),
             updated_at = NOW()
         WHERE sku = $11
@@ -1027,6 +1067,61 @@ router.patch('/:sku/restore', optionalVerifyToken, async (req, res) => {
       success: false,
       message: 'Failed to restore item'
     });
+  }
+});
+
+// DELETE /api/inventory/:sku/permanent - Permanently remove an archived inventory item
+router.delete('/:sku/permanent', optionalVerifyToken, async (req, res) => {
+  const { sku } = req.params;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+    const existingItem = await client.query('SELECT sku, name, is_active FROM inventory_items WHERE sku = $1', [sku]);
+    if (existingItem.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        message: 'Item not found'
+      });
+    }
+
+    const item = existingItem.rows[0];
+    if (item.is_active) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'Only archived items can be permanently deleted. Archive it first.'
+      });
+    }
+
+    await client.query('DELETE FROM inventory_items WHERE sku = $1', [sku]);
+    await client.query('COMMIT');
+
+    broadcastInventoryArchived({ sku: item.sku, product: { sku: item.sku, name: item.name }, deleted: true, updatedBy: getActorInfo(req) });
+
+    return res.json({
+      success: true,
+      message: 'Item permanently deleted'
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    // Postgres 23503 = foreign_key_violation — the product has order history
+    // (order_products/order_history_products are ON DELETE RESTRICT, by design,
+    // so historical orders never lose their line items) and can't be hard-deleted.
+    if (error.code === '23503') {
+      return res.status(409).json({
+        success: false,
+        message: 'This product can\'t be permanently deleted because it has order history. Keep it archived instead.'
+      });
+    }
+    console.error('Error permanently deleting inventory item:', { sku, error: error.message, stack: error.stack });
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to permanently delete item'
+    });
+  } finally {
+    client.release();
   }
 });
 

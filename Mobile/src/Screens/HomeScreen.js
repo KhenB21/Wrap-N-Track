@@ -18,6 +18,7 @@ import SideMenu from "../Components/SideMenu";
 import { useTheme } from "../Context/ThemeContext";
 import { useInventory } from "../Context/InventoryContext";
 import { useCart } from "../Context/CartContext";
+import { SkeletonProductCard } from "../Components/Skeleton/Skeleton";
 
 const bannerImage = require("../Images/Background/background.png");
 const logo = require("../Images/Logo/pensee-logo-with-name-horizontal.png");
@@ -296,7 +297,20 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
         {/* Product Sections */}
-        {sectionData.map((section, idx) => {
+        {loading && filteredInventory.length === 0 ? (
+          sectionData.map((section) => (
+            <View key={section.title} style={[styles.sectionBlock, { backgroundColor: colors.bg }]}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
+              </View>
+              <View style={styles.productRow}>
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <SkeletonProductCard key={i} style={{ width: (width - 48) / 3, marginHorizontal: 2 }} />
+                ))}
+              </View>
+            </View>
+          ))
+        ) : sectionData.map((section, idx) => {
           const categoryProducts = getProductsByCategory(section.title);
           const isExpanded = expandedSections[section.title];
           let showCount = 3;

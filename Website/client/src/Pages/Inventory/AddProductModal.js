@@ -153,6 +153,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     expirable: initialData.expirable || false,
     expiration: initialData.expiration || '',
     supplier_id: initialData.supplier_id || null,
+    barcode: initialData.barcode || '',
   });
   const [quantityToAdd, setQuantityToAdd] = useState(0);
   const [image, setImage] = useState(null);
@@ -184,6 +185,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         expirable: initialData.expirable || false,
         expiration: initialData.expiration || '',
         supplier_id: initialData.supplier_id || null,
+        barcode: initialData.barcode_value && initialData.barcode_value !== initialData.sku ? initialData.barcode_value : '',
       });
       setCategoryInput(initialData.category || '');
       if (initialData.image_data) {
@@ -210,6 +212,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         expirable: initialData.expirable || false,
         expiration: initialData.expiration || '',
         supplier_id: initialData.supplier_id || null,
+        barcode: initialData.barcode_value && initialData.barcode_value !== initialData.sku ? initialData.barcode_value : '',
       });
       setCategoryInput(initialData.category || '');
       if (initialData.image_data) {
@@ -457,6 +460,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       dataToSend.append('conversion_qty', form.conversion_qty || '');
       dataToSend.append('expirable', form.expirable ? 'true' : 'false');
       dataToSend.append('expiration', form.expiration || '');
+      dataToSend.append('barcode', form.barcode || '');
       dataToSend.append('image', image);
       // If updating, add a flag
       if (isEdit) dataToSend.append('isUpdate', 'true'); 
@@ -474,6 +478,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         conversion_qty: form.conversion_qty,
         expirable: form.expirable,
         expiration: form.expiration,
+        barcode: form.barcode || '',
       };
       // If updating, add the isUpdate flag
       if (isEdit) dataToSend.isUpdate = true;
@@ -591,6 +596,19 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                   <label>SKU
                     <input name="sku" value={form.sku || 'Auto-generated after saving'} disabled />
                   </label>
+
+                  {!isAddStockMode && (
+                    <label>Barcode <span className="optional-tag">optional</span>
+                      <input
+                        name="barcode"
+                        value={form.barcode}
+                        onChange={handleChange}
+                        placeholder="Scan or type the product's own barcode"
+                        className={errors.barcode ? 'error' : ''}
+                      />
+                      {errors.barcode && <span className="error-message">{errors.barcode}</span>}
+                    </label>
+                  )}
 
                   <div className="product-name-input-container">
                     <label htmlFor="name">Product Name</label>

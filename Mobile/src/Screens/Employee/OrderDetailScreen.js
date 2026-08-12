@@ -15,6 +15,7 @@ import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
 import { useOrders } from '../../Context/OrdersContext';
 import { useAuth } from '../../Context/AuthContext';
+import { SkeletonCard, SkeletonText } from '../../Components/Skeleton/Skeleton';
 
 const INVOICE_ROLES = ['operations_manager', 'sales_manager', 'super_admin', 'admin'];
 
@@ -359,13 +360,13 @@ export default function OrderDetailScreen({ navigation }) {
     </View>
   );
 
-  if (loading) {
+  if (loading && !order) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background }]}>
-        <MaterialCommunityIcons name="loading" size={48} color={theme.colors.primary} />
-        <Text style={[styles.loadingText, { color: theme.colors.onBackground }]}>
-          Loading order details...
-        </Text>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={{ padding: 16 }}>
+          <SkeletonText width="50%" height={20} style={{ marginBottom: 12 }} />
+          <SkeletonCard lines={4} />
+        </View>
       </View>
     );
   }

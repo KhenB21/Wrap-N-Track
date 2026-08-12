@@ -5,9 +5,9 @@ import {
   StyleSheet,
   FlatList,
   Dimensions,
-  ActivityIndicator,
 } from 'react-native';
 import ProductCard from './ProductCard';
+import { SkeletonProductCard } from './Skeleton/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -68,9 +68,8 @@ const ProductGrid = ({
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
-        {loading ? 'Loading products...' : emptyMessage}
+        {emptyMessage}
       </Text>
-      {loading && <ActivityIndicator size="large" color={colors.text} />}
     </View>
   );
 
@@ -78,7 +77,13 @@ const ProductGrid = ({
     return (
       <View style={styles.container}>
         {renderHeader()}
-        {renderEmpty()}
+        <View style={[styles.listContent, { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }]}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View key={i} style={styles.productWrapper}>
+              <SkeletonProductCard />
+            </View>
+          ))}
+        </View>
       </View>
     );
   }

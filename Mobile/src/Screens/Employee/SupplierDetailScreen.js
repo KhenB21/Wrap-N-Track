@@ -14,6 +14,7 @@ import { Button, Card, Chip, Divider } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
 import { supplierAPI } from '../../services/api';
+import { SkeletonProfile, SkeletonCard } from '../../Components/Skeleton/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -382,13 +383,13 @@ export default function SupplierDetailScreen({ navigation }) {
     </View>
   );
 
-  if (loading) {
+  if (loading && !supplier) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background }]}>
-        <MaterialCommunityIcons name="loading" size={48} color={theme.colors.primary} />
-        <Text style={[styles.loadingText, { color: theme.colors.onBackground }]}>
-          Loading supplier details...
-        </Text>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={{ padding: 16 }}>
+          <SkeletonProfile />
+          <SkeletonCard lines={3} style={{ marginTop: 12 }} />
+        </View>
       </View>
     );
   }

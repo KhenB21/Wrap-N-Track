@@ -14,6 +14,7 @@ import { Button, Card, Chip, Avatar, Divider } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useRoute, useFocusEffect } from '@react-navigation/native';
 import { customerAPI } from '../../services/api';
+import { SkeletonProfile, SkeletonCard } from '../../Components/Skeleton/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -321,13 +322,13 @@ export default function CustomerDetailScreen({ navigation }) {
     </View>
   );
 
-  if (loading) {
+  if (loading && !customer) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background }]}>
-        <MaterialCommunityIcons name="loading" size={48} color={theme.colors.primary} />
-        <Text style={[styles.loadingText, { color: theme.colors.onBackground }]}>
-          Loading customer details...
-        </Text>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={{ padding: 16 }}>
+          <SkeletonProfile />
+          <SkeletonCard lines={3} style={{ marginTop: 12 }} />
+        </View>
       </View>
     );
   }

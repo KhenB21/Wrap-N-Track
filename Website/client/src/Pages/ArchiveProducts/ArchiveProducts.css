@@ -217,6 +217,21 @@
   background-color: #218838;
 }
 
+.archive-action-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn.delete-permanent {
+  background-color: #dc3545;
+  color: white;
+}
+
+.action-btn.delete-permanent:hover {
+  background-color: #b02a37;
+}
+
 .no-products {
   display: flex;
   justify-content: center;

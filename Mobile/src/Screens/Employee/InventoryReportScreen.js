@@ -5,13 +5,13 @@ import {
   ScrollView,
   StyleSheet,
   Dimensions,
-  ActivityIndicator,
   RefreshControl
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { inventoryReportsAPI } from '../../services/api';
+import { SkeletonStatRow, SkeletonCard, SkeletonText } from '../../Components/Skeleton/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -97,9 +97,16 @@ export default function InventoryReportScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background }]}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={[styles.loadingText, { color: theme.colors.onBackground }]}>Loading inventory data...</Text>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.section}>
+          <SkeletonText width={140} height={18} style={{ marginBottom: 16 }} />
+          <SkeletonStatRow count={2} style={{ marginBottom: 12 }} />
+          <SkeletonStatRow count={2} style={{ marginBottom: 12 }} />
+          <SkeletonStatRow count={1} />
+        </View>
+        <View style={{ paddingHorizontal: 16 }}>
+          <SkeletonCard lines={3} />
+        </View>
       </View>
     );
   }

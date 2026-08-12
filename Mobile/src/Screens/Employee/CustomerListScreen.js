@@ -10,13 +10,13 @@ import {
   Modal,
   Dimensions,
   TextInput,
-  ActivityIndicator
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Avatar } from 'react-native-paper';
 import { useTheme } from '../../Context/ThemeContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { customerAPI } from '../../services/api';
+import { SkeletonCard } from '../../Components/Skeleton/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -44,7 +44,6 @@ export default function CustomerListScreen() {
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [selectedCustomers, setSelectedCustomers] = useState(new Set());
   const [showFilters, setShowFilters] = useState(false);
 
@@ -269,83 +268,6 @@ export default function CustomerListScreen() {
     });
   };
 
-  const renderCustomerCard = ({ item }) => {
-    const isSelected = selectedCustomers.has(item.customer_id);
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.customerCard,
-          { 
-            backgroundColor: theme.colors.surface,
-            borderColor: isSelected ? theme.colors.primary : theme.colors.outline,
-            borderWidth: isSelected ? 2 : 1
-          }
-        ]}
-        onPress={() => handleCustomerPress(item)}
-        onLongPress={() => toggleCustomerSelection(item.customer_id)}
-      >
-        <View style={styles.cardHeader}>
-          <Avatar.Text
-            size={48}
-            label={item.name.charAt(0).toUpperCase()}
-            style={{ backgroundColor: theme.colors.primary }}
-          />
-          <View style={styles.customerInfo}>
-            <Text style={[styles.customerName, { color: theme.colors.onSurface }]}>
-              {item.name}
-            </Text>
-            <Text style={[styles.customerEmail, { color: theme.colors.onSurfaceVariant }]}>
-              {item.email_address}
-            </Text>
-            <Text style={[styles.customerPhone, { color: theme.colors.onSurfaceVariant }]}>
-              {item.phone_number || 'No phone'}
-            </Text>
-          </View>
-          <View style={styles.customerStatus}>
-            <CustomChip
-              mode="outlined"
-              style={[
-                styles.statusChip,
-                { 
-                  backgroundColor: item.status === 'active' ? '#E8F5E8' : '#FFEBEE',
-                  borderColor: item.status === 'active' ? '#4CAF50' : '#F44336'
-                }
-              ]}
-              iconColor={item.status === 'active' ? '#4CAF50' : '#F44336'}
-            >
-              {item.status}
-            </CustomChip>
-          </View>
-        </View>
-
-        <View style={styles.cardFooter}>
-          <View style={styles.customerStats}>
-            <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>
-              Orders: {item.total_orders}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>
-              Spent: {formatCurrency(item.total_spent)}
-            </Text>
-          </View>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
-              onPress={() => handleEditCustomer(item)}
-            >
-              <MaterialCommunityIcons name="pencil" size={16} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#F44336' }]}
-              onPress={() => handleDeleteCustomer(item)}
-            >
-              <MaterialCommunityIcons name="delete" size={16} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
 
   const renderCustomerListItem = ({ item }) => {
     const isSelected = selectedCustomers.has(item.customer_id);
@@ -569,10 +491,12 @@ export default function CustomerListScreen() {
 
   if (loading && customers.length === 0) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background }]}>        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={[styles.loadingText, { color: theme.colors.onBackground }]}>
-          Loading customers...
-        </Text>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.listContainer}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} lines={2} style={{ marginBottom: 12 }} />
+          ))}
+        </View>
       </View>
     );
   }
@@ -594,38 +518,6 @@ export default function CustomerListScreen() {
         >
           <MaterialCommunityIcons name="filter" size={20} color="#fff" />
         </TouchableOpacity>
-      </View>
-
-      {/* View Mode Toggle */}
-      <View style={styles.viewModeContainer}>
-        <View style={styles.viewModeToggle}>
-          <TouchableOpacity
-            style={[
-              styles.viewModeButton,
-              { backgroundColor: viewMode === 'grid' ? theme.colors.primary : 'transparent' }
-            ]}
-            onPress={() => setViewMode('grid')}
-          >
-            <MaterialCommunityIcons 
-              name="view-grid" 
-              size={20} 
-              color={viewMode === 'grid' ? '#fff' : theme.colors.onSurface} 
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.viewModeButton,
-              { backgroundColor: viewMode === 'list' ? theme.colors.primary : 'transparent' }
-            ]}
-            onPress={() => setViewMode('list')}
-          >
-            <MaterialCommunityIcons 
-              name="view-list" 
-              size={20} 
-              color={viewMode === 'list' ? '#fff' : theme.colors.onSurface} 
-            />
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Selection Bar */}
@@ -657,7 +549,7 @@ export default function CustomerListScreen() {
       {/* Customer List */}
       <FlatList
         data={filteredCustomers}
-        renderItem={viewMode === 'grid' ? renderCustomerCard : renderCustomerListItem}
+        renderItem={renderCustomerListItem}
         keyExtractor={(item) => item.customer_id}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -665,8 +557,6 @@ export default function CustomerListScreen() {
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
-        numColumns={viewMode === 'grid' ? 2 : 1}
-        key={viewMode} // Force re-render when view mode changes
       />
 
       {/* Floating Action Button */}
@@ -712,20 +602,6 @@ const styles = StyleSheet.create({
   filterButton: {
     padding: 12,
     borderRadius: 8,
-  },
-  viewModeContainer: {
-    padding: 16,
-    alignItems: 'flex-end',
-  },
-  viewModeToggle: {
-    flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    padding: 2,
-  },
-  viewModeButton: {
-    padding: 8,
-    borderRadius: 6,
   },
   selectionBar: {
     flexDirection: 'row',
@@ -780,21 +656,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 80,
   },
-  customerCard: {
-    flex: 1,
-    margin: 8,
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
   customerInfo: {
     flex: 1,
     marginLeft: 12,
@@ -810,9 +671,6 @@ const styles = StyleSheet.create({
   },
   customerPhone: {
     fontSize: 12,
-  },
-  customerStatus: {
-    alignItems: 'flex-end',
   },
   statusChip: {
     marginBottom: 8,

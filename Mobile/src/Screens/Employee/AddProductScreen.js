@@ -81,7 +81,10 @@ export default function AddProductScreen({ route, navigation }) {
     conversion_qty: initialData?.conversion_qty?.toString() || '',
     supplier_id: initialData?.supplier_id || null,
     expirable: initialData?.expirable || false,
-    expiration: initialData?.expiration || ''
+    expiration: initialData?.expiration || '',
+    barcode: isEdit && initialData?.barcode_value && initialData.barcode_value !== initialData?.sku
+      ? initialData.barcode_value
+      : (initialData?.barcode || '')
   });
   
   const [quantityToAdd, setQuantityToAdd] = useState('0');
@@ -205,7 +208,8 @@ export default function AddProductScreen({ route, navigation }) {
       dataToSend.append('conversion_qty', formData.conversion_qty || '');
       dataToSend.append('expirable', formData.expirable ? 'true' : 'false');
       dataToSend.append('expiration', formData.expiration || '');
-      
+      dataToSend.append('barcode', formData.barcode || '');
+
       if (image) {
         const uriParts = image.uri.split('.');
         const fileType = uriParts[uriParts.length - 1];
@@ -306,6 +310,19 @@ export default function AddProductScreen({ route, navigation }) {
               editable={false}
               style={[styles.input, styles.disabledInput, { color: theme.colors.onSurfaceVariant }]}
             />
+
+            {!isAddStockMode && (
+              <>
+                <Text style={[styles.label, { color: theme.colors.onSurface }]}>Barcode (optional)</Text>
+                <TextInput
+                  value={formData.barcode}
+                  onChangeText={(value) => handleInputChange('barcode', value)}
+                  placeholder="Scan or type the product's own barcode"
+                  placeholderTextColor={theme.colors.onSurfaceVariant}
+                  style={[styles.input, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
+                />
+              </>
+            )}
 
             {/* Product Name */}
             <Text style={[styles.label, { color: theme.colors.onSurface }]}>Product Name *</Text>
