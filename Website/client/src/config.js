@@ -1,7 +1,7 @@
 // Central API / WebSocket configuration.
 // Task: Use REACT_APP_API_URL or fall back to the Render backend.
 // Removed legacy auto same-origin fallback logic to enforce explicit backend usage.
-const FALLBACK_API = 'https://wrap-n-track-server.onrender.com';
+const FALLBACK_API = 'https://api.wrapntrack.xyz';
 const API_URL = process.env.REACT_APP_API_URL || FALLBACK_API;
 
 // WebSocket: allow override, else derive from API host.

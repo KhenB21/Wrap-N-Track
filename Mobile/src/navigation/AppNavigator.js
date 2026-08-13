@@ -37,6 +37,7 @@ import SimpleEmployeeNavigator from './SimpleEmployeeNavigator';
 // Shared screens
 import ItemPreviewScreen from '../Screens/ItemPreviewScreen';
 import CreateGiftScreen from '../Screens/CreateGiftScreen';
+import BundleDetailScreen from '../Screens/BundleDetailScreen';
 import DeliveryTrackingScreen from '../Screens/DeliveryTrackingScreen';
 import OrderedItemsScreen from '../Screens/OrderedItemsScreen';
 import OrderSummaryScreen from '../Screens/OrderSummaryScreen';
@@ -87,7 +88,7 @@ function CustomerTabNavigator() {
               iconName = focused ? 'cart' : 'cart-outline';
               break;
             case 'Orders':
-              iconName = focused ? 'clipboard-list' : 'clipboard-list-outline';
+              iconName = focused ? 'truck-delivery' : 'truck-delivery-outline';
               break;
             case 'Profile':
               iconName = focused ? 'account' : 'account-outline';
@@ -110,7 +111,7 @@ function CustomerTabNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Catalog" component={ProductCatalogScreen} />
       <Tab.Screen name="Cart" component={MyCartScreen} />
-      <Tab.Screen name="Orders" component={OrderHistoryScreen} />
+      <Tab.Screen name="Orders" component={OrderHistoryScreen} options={{ tabBarLabel: 'Deliveries' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
       <Tab.Screen name="Settings" component={CustomerSettingsStack} />
     </Tab.Navigator>
@@ -188,6 +189,7 @@ function MainStackNavigator() {
       <Stack.Screen name="ItemPreview" component={ItemPreviewScreen} />
       <Stack.Screen name="CreateGift" component={CreateGiftScreen} />
       <Stack.Screen name="DeliveryTracking" component={DeliveryTrackingScreen} />
+      <Stack.Screen name="BundleDetail" component={BundleDetailScreen} />
       <Stack.Screen name="OrderedItems" component={OrderedItemsScreen} />
       <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />

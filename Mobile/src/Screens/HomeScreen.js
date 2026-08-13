@@ -18,48 +18,19 @@ import SideMenu from "../Components/SideMenu";
 import { useTheme } from "../Context/ThemeContext";
 import { useInventory } from "../Context/InventoryContext";
 import { useCart } from "../Context/CartContext";
+import { showcaseAPI } from "../services/api";
 import { SkeletonProductCard } from "../Components/Skeleton/Skeleton";
 
 const bannerImage = require("../Images/Background/background.png");
 const logo = require("../Images/Logo/pensee-logo-with-name-horizontal.png");
 
-const weddingProducts = [
-  { title: "ERIC & MARIEL", image: require("../Images/Item/Eric.png"), desc: "Elegant wedding gift set for Eric & Mariel." },
-  { title: "CARLO & ISABELLE", image: require("../Images/Item/carlo.png"), desc: "Personalized keepsake for Carlo & Isabelle." },
-  { title: "CHARLIE", image: require("../Images/Item/Charlie.png"), desc: "Chic and modern wedding box for Charlie." },
-  { title: "WEDDING 4", image: require("../Images/Item/Eric.png"), desc: "Classic wedding gift option 4." },
-  { title: "WEDDING 5", image: require("../Images/Item/carlo.png"), desc: "Classic wedding gift option 5." },
-  { title: "WEDDING 6", image: require("../Images/Item/Charlie.png"), desc: "Classic wedding gift option 6." },
-  { title: "WEDDING 7", image: require("../Images/Item/Eric.png"), desc: "Classic wedding gift option 7." },
-  { title: "WEDDING 8", image: require("../Images/Item/carlo.png"), desc: "Classic wedding gift option 8." },
-  { title: "WEDDING 9", image: require("../Images/Item/Charlie.png"), desc: "Classic wedding gift option 9." },
-  { title: "WEDDING 10", image: require("../Images/Item/Eric.png"), desc: "Classic wedding gift option 10." },
-];
-const corporateProducts = [
-  { title: "LENOVO | AMD", image: require("../Images/Item/Legion.png"), desc: "Premium corporate gift for Lenovo | AMD." },
-  { title: "THE SHEEO SOCIETY", image: require("../Images/Item/Jccm.png"), desc: "Empowering gifts for SHEEO Society." },
-  { title: "MANNERS MAKETH", image: require("../Images/Item/Mannersmaketh.png"), desc: "Sophisticated set for Manners Maketh." },
-  { title: "CORPORATE 4", image: require("../Images/Item/Legion.png"), desc: "Corporate gift option 4." },
-  { title: "CORPORATE 5", image: require("../Images/Item/Jccm.png"), desc: "Corporate gift option 5." },
-  { title: "CORPORATE 6", image: require("../Images/Item/Mannersmaketh.png"), desc: "Corporate gift option 6." },
-  { title: "CORPORATE 7", image: require("../Images/Item/Legion.png"), desc: "Corporate gift option 7." },
-  { title: "CORPORATE 8", image: require("../Images/Item/Jccm.png"), desc: "Corporate gift option 8." },
-];
-const bespokeProducts = [
-  { title: "IN FULL BLOOM", image: require("../Images/Item/Fullbloom.png"), desc: "Floral-inspired bespoke gift." },
-  { title: "SPICED SIPS & SAVORIES", image: require("../Images/Item/Spiced.png"), desc: "A taste of spice and delight." },
-  { title: "TAYLOR SWIFT", image: require("../Images/Item/Taylorswift.png"), desc: "Inspired by Taylor Swift's style." },
-  { title: "BESPOKE 4", image: require("../Images/Item/Fullbloom.png"), desc: "Bespoke gift option 4." },
-  { title: "BESPOKE 5", image: require("../Images/Item/Spiced.png"), desc: "Bespoke gift option 5." },
-  { title: "BESPOKE 6", image: require("../Images/Item/Taylorswift.png"), desc: "Bespoke gift option 6." },
-  { title: "BESPOKE 7", image: require("../Images/Item/Fullbloom.png"), desc: "Bespoke gift option 7." },
-  { title: "BESPOKE 8", image: require("../Images/Item/Spiced.png"), desc: "Bespoke gift option 8." },
-];
-
+// Showcase sections pull live bundles from GET /api/showcase?category=<key> —
+// the same source of truth (showcase_bundles table) employees manage on the
+// website's Showcase Gallery page. No mobile-only/hardcoded product data.
 const sectionData = [
-  { title: "WEDDING", products: weddingProducts },
-  { title: "CORPORATE", products: corporateProducts },
-  { title: "BESPOKE", products: bespokeProducts },
+  { title: "WEDDING", category: "wedding" },
+  { title: "CORPORATE", category: "corporate" },
+  { title: "BESPOKE", category: "bespoke" },
 ];
 
 const bannerData = [
@@ -93,6 +64,34 @@ export default function HomeScreen() {
     setCategoryFilter 
   } = useInventory();
   const { addToCart, totalItems } = useCart();
+
+  const [bundlesByCategory, setBundlesByCategory] = useState({ wedding: [], corporate: [], bespoke: [] });
+  const [bundlesLoading, setBundlesLoading] = useState(true);
+  const [bundlesError, setBundlesError] = useState(null);
+
+  const loadShowcaseBundles = async () => {
+    setBundlesLoading(true);
+    setBundlesError(null);
+    try {
+      const results = await Promise.all(
+        sectionData.map((section) => showcaseAPI.getBundles(section.category))
+      );
+      const next = {};
+      sectionData.forEach((section, idx) => {
+        next[section.category] = results[idx]?.bundles || [];
+      });
+      setBundlesByCategory(next);
+    } catch (error) {
+      console.error("Error loading showcase bundles:", error);
+      setBundlesError("Couldn't load the showcase right now.");
+    } finally {
+      setBundlesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadShowcaseBundles();
+  }, []);
 
   const colors = {
     bg: darkMode ? "#18191A" : "#fff",
@@ -131,7 +130,7 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadInventory();
+    await Promise.all([loadInventory(), loadShowcaseBundles()]);
     setRefreshing(false);
   };
 
@@ -143,24 +142,6 @@ export default function HomeScreen() {
   const handleCategoryPress = (category) => {
     setCategoryFilter(category);
     navigation.navigate('Catalog');
-  };
-
-  const handleAddToCart = async (item) => {
-    try {
-      await addToCart({
-        sku: item.sku,
-        name: item.name,
-        unit_price: item.unit_price,
-        quantity: 1,
-        image_data: item.image_data,
-      });
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-    }
-  };
-
-  const getProductsByCategory = (category) => {
-    return filteredInventory.filter(item => item.category === category).slice(0, 6);
   };
 
   return (
@@ -296,8 +277,8 @@ export default function HomeScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-        {/* Product Sections */}
-        {loading && filteredInventory.length === 0 ? (
+        {/* Showcase Sections (Wedding / Corporate / Bespoke) — live from GET /api/showcase */}
+        {bundlesLoading ? (
           sectionData.map((section) => (
             <View key={section.title} style={[styles.sectionBlock, { backgroundColor: colors.bg }]}>
               <View style={styles.sectionHeader}>
@@ -310,13 +291,21 @@ export default function HomeScreen() {
               </View>
             </View>
           ))
-        ) : sectionData.map((section, idx) => {
-          const categoryProducts = getProductsByCategory(section.title);
+        ) : bundlesError ? (
+          <View style={styles.noProductsContainer}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={32} color={colors.subText} />
+            <Text style={[styles.noProductsText, { color: colors.subText }]}>{bundlesError}</Text>
+            <TouchableOpacity
+              style={[styles.addToCartButton, { backgroundColor: colors.accent, position: 'relative', marginTop: 10, paddingHorizontal: 16, width: 'auto', height: 'auto', paddingVertical: 8, borderRadius: 8 }]}
+              onPress={loadShowcaseBundles}
+            >
+              <Text style={{ color: colors.buttonText, fontWeight: 'bold' }}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : sectionData.map((section) => {
+          const bundles = bundlesByCategory[section.category] || [];
           const isExpanded = expandedSections[section.title];
-          let showCount = 3;
-          if (section.title === "WEDDING") showCount = isExpanded ? 10 : 3;
-          if (section.title === "CORPORATE") showCount = isExpanded ? 8 : 3;
-          if (section.title === "BESPOKE") showCount = isExpanded ? 8 : 3;
+          const showCount = isExpanded ? bundles.length : 3;
 
           return (
             <View
@@ -327,7 +316,7 @@ export default function HomeScreen() {
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
                   {section.title}
                 </Text>
-                {categoryProducts.length > 3 && (
+                {bundles.length > 3 && (
                   <TouchableOpacity
                     onPress={() =>
                       setExpandedSections((prev) => ({
@@ -342,12 +331,12 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-              {categoryProducts.length > 0 ? (
-                chunkArray(categoryProducts.slice(0, showCount), 3).map((row, rowIdx) => (
+              {bundles.length > 0 ? (
+                chunkArray(bundles.slice(0, showCount), 3).map((row, rowIdx) => (
                   <View key={rowIdx} style={styles.productRow}>
-                    {row.map((product) => (
+                    {row.map((bundle) => (
                       <TouchableOpacity
-                        key={product.sku}
+                        key={bundle.id}
                         style={[
                           styles.productCard,
                           {
@@ -357,12 +346,12 @@ export default function HomeScreen() {
                           },
                         ]}
                         onPress={() =>
-                          navigation.navigate("ProductDetail", { product })
+                          navigation.navigate("BundleDetail", { bundleId: bundle.id })
                         }
                       >
-                        {product.image_data ? (
+                        {bundle.cover_image ? (
                           <Image
-                            source={{ uri: `data:image/png;base64,${product.image_data}` }}
+                            source={{ uri: `data:${bundle.cover_image_mime || 'image/jpeg'};base64,${bundle.cover_image}` }}
                             style={[styles.productImage, { opacity: 1 }]}
                             resizeMode="cover"
                           />
@@ -371,18 +360,12 @@ export default function HomeScreen() {
                             <MaterialCommunityIcons name="image" size={32} color={colors.subText} />
                           </View>
                         )}
-                        <Text style={[styles.productName, { color: colors.text }]}>
-                          {product.name}
+                        <Text style={[styles.productName, { color: colors.text }]} numberOfLines={1}>
+                          {bundle.title}
                         </Text>
-                        <Text style={[styles.productDesc, { color: colors.subText }]}>
-                          ₱{parseFloat(product.unit_price).toFixed(2)}
+                        <Text style={[styles.productDesc, { color: colors.subText }]} numberOfLines={2}>
+                          {bundle.description || "Tap to view details"}
                         </Text>
-                        <TouchableOpacity
-                          style={[styles.addToCartButton, { backgroundColor: colors.accent }]}
-                          onPress={() => handleAddToCart(product)}
-                        >
-                          <MaterialCommunityIcons name="cart-plus" size={16} color={colors.buttonText} />
-                        </TouchableOpacity>
                       </TouchableOpacity>
                     ))}
                     {/* Add empty views if row has less than 3 items */}
@@ -401,7 +384,7 @@ export default function HomeScreen() {
               ) : (
                 <View style={styles.noProductsContainer}>
                   <Text style={[styles.noProductsText, { color: colors.subText }]}>
-                    No products in this category yet
+                    No {section.title.toLowerCase()} sets available yet
                   </Text>
                 </View>
               )}

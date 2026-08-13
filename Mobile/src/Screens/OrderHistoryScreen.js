@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  Alert,
 } from "react-native";
 import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -19,7 +18,7 @@ export default function OrderHistoryScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState("all");
+  const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => {
     fetchMyOrders();
@@ -27,43 +26,53 @@ export default function OrderHistoryScreen({ navigation }) {
 
   const fetchMyOrders = async () => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       const data = await customerOrderAPI.getMyOrders();
       setOrders(Array.isArray(data) ? data : (data.orders || []));
     } catch (error) {
-      console.error("Error loading orders:", error);
-      Alert.alert("Error", "Failed to load your orders");
+      console.error("Error loading deliveries:", error);
+      if (error.response?.status === 401) {
+        setErrorMessage("Your session has expired. Please log in again.");
+      } else if (!error.response) {
+        setErrorMessage("Couldn't reach the server. Check your connection and try again.");
+      } else {
+        setErrorMessage("We couldn't load your deliveries right now. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
   };
-
-  const getOrdersByStatus = (status) =>
-    orders.filter((o) => o.status?.toLowerCase() === status.toLowerCase());
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
       await fetchMyOrders();
     } catch (error) {
-      console.error("Error refreshing orders:", error);
+      console.error("Error refreshing deliveries:", error);
     } finally {
       setRefreshing(false);
     }
   };
 
+  // Delivery status (not order status) is what the customer cares about here —
+  // reuses the same `delivery_status` field the website's DeliveryTracking page shows.
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'pending':
         return '#FFA726';
-      case 'confirmed':
+      case 'preparing':
+      case 'ready for delivery':
         return '#42A5F5';
-      case 'processing':
+      case 'awaiting pick-up':
+      case 'out for delivery':
         return '#AB47BC';
-      case 'shipped':
+      case 'sent / shipped':
         return '#66BB6A';
       case 'delivered':
+      case 'picked up':
         return '#4CAF50';
+      case 'failed delivery':
       case 'cancelled':
         return '#EF5350';
       default:
@@ -75,26 +84,23 @@ export default function OrderHistoryScreen({ navigation }) {
     switch (status?.toLowerCase()) {
       case 'pending':
         return 'clock-outline';
-      case 'confirmed':
-        return 'check-circle-outline';
-      case 'processing':
-        return 'cog-outline';
-      case 'shipped':
+      case 'preparing':
+      case 'ready for delivery':
+        return 'package-variant-closed';
+      case 'awaiting pick-up':
+        return 'account-clock-outline';
+      case 'out for delivery':
+      case 'sent / shipped':
         return 'truck-outline';
       case 'delivered':
+      case 'picked up':
         return 'check-circle';
+      case 'failed delivery':
       case 'cancelled':
         return 'close-circle-outline';
       default:
         return 'help-circle-outline';
     }
-  };
-
-  const getFilteredOrders = () => {
-    if (selectedFilter === "all") {
-      return orders;
-    }
-    return getOrdersByStatus(selectedFilter);
   };
 
   const formatDate = (dateString) => {
@@ -125,30 +131,35 @@ export default function OrderHistoryScreen({ navigation }) {
             Order #{item.order_id || item.id}
           </Text>
           <Text style={[styles.orderDate, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-            {formatDate(item.created_at || item.order_date)}
+            {formatDate(item.order_date || item.created_at)}
           </Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.delivery_status) }]}>
           <Text style={styles.statusText}>
-            {item.status?.toUpperCase()}
+            {(item.delivery_status || "Pending").toUpperCase()}
           </Text>
         </View>
       </View>
 
       <View style={styles.orderItems}>
         <Text style={[styles.itemsLabel, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-          Items ({item.items?.length || 0}):
+          Items ({item.products?.length || 0}):
         </Text>
-        {item.items?.slice(0, 2).map((orderItem, index) => (
+        {item.products?.slice(0, 2).map((orderItem, index) => (
           <Text key={index} style={[styles.itemName, { color: darkMode ? "#E4E6EB" : "#222" }]}>
-            • {orderItem.name || orderItem.product_name} (Qty: {orderItem.quantity})
+            • {orderItem.name} (Qty: {orderItem.quantity})
           </Text>
         ))}
-        {item.items?.length > 2 && (
+        {item.products?.length > 2 && (
           <Text style={[styles.moreItems, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-            +{item.items.length - 2} more items
+            +{item.products.length - 2} more items
           </Text>
         )}
+        {item.courier_name ? (
+          <Text style={[styles.itemName, { color: darkMode ? "#B0B3B8" : "#6B6593", marginTop: 4 }]}>
+            Courier: {item.courier_name}{item.tracking_number ? ` · ${item.tracking_number}` : ""}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.orderFooter}>
@@ -157,14 +168,14 @@ export default function OrderHistoryScreen({ navigation }) {
             Total:
           </Text>
           <Text style={[styles.totalAmount, { color: darkMode ? "#fff" : "#222" }]}>
-            ₱{parseFloat(item.total_amount).toFixed(2)}
+            ₱{parseFloat(item.total_cost || 0).toFixed(2)}
           </Text>
         </View>
         <View style={styles.statusIcon}>
-          <MaterialCommunityIcons 
-            name={getStatusIcon(item.status)} 
-            size={20} 
-            color={getStatusColor(item.status)} 
+          <MaterialCommunityIcons
+            name={getStatusIcon(item.delivery_status)}
+            size={20}
+            color={getStatusColor(item.delivery_status)}
           />
         </View>
       </View>
@@ -173,13 +184,13 @@ export default function OrderHistoryScreen({ navigation }) {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <MaterialCommunityIcons 
-        name="package-variant" 
-        size={64} 
-        color={darkMode ? "#B0B3B8" : "#6B6593"} 
+      <MaterialCommunityIcons
+        name="truck-outline"
+        size={64}
+        color={darkMode ? "#B0B3B8" : "#6B6593"}
       />
       <Text style={[styles.emptyText, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-        {selectedFilter === "all" ? "No orders found" : `No ${selectedFilter} orders found`}
+        No deliveries yet
       </Text>
       <TouchableOpacity
         style={[styles.shopButton, { backgroundColor: darkMode ? "#393A3B" : "#6B6593" }]}
@@ -190,17 +201,24 @@ export default function OrderHistoryScreen({ navigation }) {
     </View>
   );
 
-  const filterOptions = [
-    { key: "all", label: "All Orders" },
-    { key: "pending", label: "Pending" },
-    { key: "confirmed", label: "Confirmed" },
-    { key: "processing", label: "Processing" },
-    { key: "shipped", label: "Shipped" },
-    { key: "delivered", label: "Delivered" },
-    { key: "cancelled", label: "Cancelled" },
-  ];
-
-  const filteredOrders = getFilteredOrders();
+  const renderErrorState = () => (
+    <View style={styles.emptyContainer}>
+      <MaterialCommunityIcons
+        name="alert-circle-outline"
+        size={64}
+        color={darkMode ? "#B0B3B8" : "#6B6593"}
+      />
+      <Text style={[styles.emptyText, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
+        {errorMessage}
+      </Text>
+      <TouchableOpacity
+        style={[styles.shopButton, { backgroundColor: darkMode ? "#393A3B" : "#6B6593" }]}
+        onPress={fetchMyOrders}
+      >
+        <Text style={styles.shopButtonText}>Retry</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: darkMode ? "#18191A" : "#F5F4FA" }]}>
@@ -211,51 +229,21 @@ export default function OrderHistoryScreen({ navigation }) {
         onBackPress={() => navigation.goBack()}
         onCartPress={() => navigation.navigate("MyCart")}
         darkMode={darkMode}
+        title="My Deliveries"
       />
 
-      {/* Filter Tabs */}
-      <View style={[styles.filterContainer, { backgroundColor: darkMode ? "#242526" : "#EDECF3" }]}>
-        <FlatList
-          data={filterOptions}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.key}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.filterTab,
-                selectedFilter === item.key && [
-                  styles.filterTabActive,
-                  { backgroundColor: darkMode ? "#393A3B" : "#fff" }
-                ]
-              ]}
-              onPress={() => setSelectedFilter(item.key)}
-            >
-              <Text
-                style={[
-                  styles.filterTabText,
-                  { color: darkMode ? "#E4E6EB" : "#6B6593" },
-                  selectedFilter === item.key && styles.filterTabTextActive
-                ]}
-              >
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={styles.filterList}
-        />
-      </View>
-
-      {/* Orders List */}
+      {/* Deliveries List */}
       {loading && orders.length === 0 ? (
         <View style={styles.ordersList}>
           {Array.from({ length: 4 }).map((_, i) => (
             <SkeletonCard key={i} withImage={false} lines={3} style={{ marginBottom: 16, borderRadius: 12 }} />
           ))}
         </View>
-      ) : filteredOrders.length > 0 ? (
+      ) : errorMessage && orders.length === 0 ? (
+        renderErrorState()
+      ) : orders.length > 0 ? (
         <FlatList
-          data={filteredOrders}
+          data={orders}
           renderItem={renderOrderItem}
           keyExtractor={(item) => item.order_id || item.id}
           contentContainerStyle={styles.ordersList}

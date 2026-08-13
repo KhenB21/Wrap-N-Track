@@ -7,12 +7,13 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
-  Alert,
+  Animated,
 } from "react-native";
 import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCart } from "../Context/CartContext";
 import { useTheme } from "../Context/ThemeContext";
+import Toast from "../Components/Toast";
 
 const { width } = Dimensions.get("window");
 
@@ -21,14 +22,25 @@ export default function ProductDetailScreen({ navigation, route }) {
   const { addToCart } = useCart();
   const { darkMode } = useTheme();
   const [quantity, setQuantity] = useState(1);
+  const [adding, setAdding] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: "" });
+  const bounceAnim = useState(new Animated.Value(1))[0];
 
   const handleAddToCart = async () => {
+    if (adding) return;
+    setAdding(true);
     try {
       const productWithQuantity = { ...product, quantity };
       await addToCart(productWithQuantity);
-      Alert.alert("Success", "Product added to cart!");
+      Animated.sequence([
+        Animated.timing(bounceAnim, { toValue: 1.15, duration: 120, useNativeDriver: true }),
+        Animated.spring(bounceAnim, { toValue: 1, friction: 4, useNativeDriver: true }),
+      ]).start();
+      setToast({ visible: true, message: "Added to cart" });
     } catch (error) {
-      Alert.alert("Error", "Failed to add product to cart. Please try again.");
+      setToast({ visible: true, message: "Failed to add product to cart. Please try again." });
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -142,14 +154,22 @@ export default function ProductDetailScreen({ navigation, route }) {
             ₱{(parseFloat(product.unit_price) * quantity).toFixed(2)}
           </Text>
         </View>
-        <TouchableOpacity
-          style={[styles.addToCartButton, { backgroundColor: darkMode ? "#393A3B" : "#6B6593" }]}
-          onPress={handleAddToCart}
-        >
-          <MaterialCommunityIcons name="cart-plus" size={20} color="#fff" />
-          <Text style={styles.addToCartText}>Add to Cart</Text>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: bounceAnim }] }}>
+          <TouchableOpacity
+            style={[styles.addToCartButton, { backgroundColor: darkMode ? "#393A3B" : "#6B6593", opacity: adding ? 0.7 : 1 }]}
+            onPress={handleAddToCart}
+            disabled={adding}
+          >
+            <MaterialCommunityIcons name={adding ? "check" : "cart-plus"} size={20} color="#fff" />
+            <Text style={styles.addToCartText}>{adding ? "Added" : "Add to Cart"}</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        onHide={() => setToast({ visible: false, message: "" })}
+      />
     </View>
   );
 }
