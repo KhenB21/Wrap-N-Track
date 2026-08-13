@@ -1,6 +1,7 @@
 @font-face {
   font-family: Cinder;
   src: url(../../../public/Assets/Fonts/Cinzel-Regular.ttf);
+  font-display: swap;
 }
 html, body {
   height: 100%;

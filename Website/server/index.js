@@ -10,6 +10,7 @@ const fs = require('fs');
 const WebSocket = require('ws');
 const http = require('http');
 const helmet = require('helmet');
+const compression = require('compression');
 // Load environment variables.
 // On Render (and other PaaS), env vars are injected natively — dotenv is a local-dev convenience only.
 // index.js lives at Website/server/index.js so __dirname IS the server root; .env sits beside it.
@@ -313,6 +314,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use(compression());
 
 // Content Security Policy — tuned for compatibility while blocking risky sources
 app.use(helmet.contentSecurityPolicy({
@@ -332,20 +334,6 @@ app.use(helmet.contentSecurityPolicy({
     blockAllMixedContent: []
   }
 }));
-
-// Echo CORS headers and handle preflight
-app.use((req, res, next) => {
-  const requestOrigin = req.headers.origin;
-  if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
-    if (requestOrigin) res.header('Access-Control-Allow-Origin', requestOrigin);
-    res.header('Vary', 'Origin');
-  }
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
-  next();
-});
 
 // Add a middleware to log all requests
 app.use((req, res, next) => {

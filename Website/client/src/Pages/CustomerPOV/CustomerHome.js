@@ -58,7 +58,10 @@ export default function CustomerHome() {
       {/* Enhanced Hero Section */}
       <section className="pensee-hero-image-section enhanced">
         <div className="pensee-hero-bg-wrapper">
-          <img className="pensee-hero-bg" src="/Assets/Images/HomeBackground.jpg" alt="Gift box background" />
+          <picture>
+            <source srcSet="/Assets/Images/HomeBackground.webp" type="image/webp" />
+            <img className="pensee-hero-bg" src="/Assets/Images/HomeBackground.jpg" alt="Gift box background" fetchpriority="high" />
+          </picture>
           <div className="pensee-hero-gradient-overlay"></div>
         </div>
         <div className="pensee-hero-overlay enhanced">
@@ -85,12 +88,18 @@ export default function CustomerHome() {
             <a href="#contact" className="pensee-highlight-link">GET IN TOUCH →</a>
           </div>
           <div className="pensee-highlight-image">
-            <img src="/Assets/Images/Advocate.png" alt="Thoughtful gifting" />
+            <picture>
+              <source srcSet="/Assets/Images/Advocate.webp" type="image/webp" />
+              <img src="/Assets/Images/Advocate.png" alt="Thoughtful gifting" loading="lazy" />
+            </picture>
           </div>
         </div>
         <div className="pensee-highlight-row reverse">
           <div className="pensee-highlight-image">
-            <img src="/Assets/Images/femaleOwn.png" alt="Female owned" />
+            <picture>
+              <source srcSet="/Assets/Images/femaleOwn.webp" type="image/webp" />
+              <img src="/Assets/Images/femaleOwn.png" alt="Female owned" loading="lazy" />
+            </picture>
           </div>
           <div className="pensee-highlight-text">
             <h2>PENSÉE <em>is</em> FEMALE-OWNED & LED</h2>
@@ -103,7 +112,10 @@ export default function CustomerHome() {
             <p>We believe in the talents of Filipino artisans and entrepreneurs. By shopping small and locally, we not only give them an opportunity to showcase their skills, we also directly contribute to local employment.</p>
           </div>
           <div className="pensee-highlight-image">
-            <img src="/Assets/Images/FilipinoBrands.jpg" alt="Filipino brands" />
+            <picture>
+              <source srcSet="/Assets/Images/FilipinoBrands.webp" type="image/webp" />
+              <img src="/Assets/Images/FilipinoBrands.jpg" alt="Filipino brands" loading="lazy" />
+            </picture>
           </div>
         </div>
       </section>

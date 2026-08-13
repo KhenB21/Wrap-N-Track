@@ -1,62 +1,76 @@
 import "./App.css";
 import "./styles/design-system.css";
-import Dashboard from "./Pages/Dashboard/Dashboard";
-import Login from "./Pages/Login/Login";
-import OrderDetails from "./Pages/OrderDetails/OrderDetails";
-import ProductDetails from "./Pages/ProductDetails/ProductDetails";
-import CustomerDetails from "./Pages/CustomerDetails/CustomerDetails";
-import Customers from "./Pages/Customers/Customers";
-import SupplierDetails from "./Pages/SupplierDetails/SupplierDetails";
-import SupplierForm from "./Pages/SupplierDetails/SupplierForm";
-import UserDetails from "./Pages/UserDetails/UserDetails";
-import Inventory from "./Pages/Inventory/Inventory";
-import Invoices from "./Pages/Invoices/Invoices";
-import DeliveryTracking from "./Pages/DeliveryTracking/DeliveryTracking";
-import UserManagement from "./Pages/UserManagement/UserManagement";
-import AccountManagement from "./Pages/AccountManagement/AccountManagement";
+import { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Register from "./Pages/Register/Register";
-import OrderHistory from "./Pages/OrderHistory/OrderHistory";
-import CustomerPOV from "./Pages/CustomerPOV/CustomerPOV";
-import OrderProcess from "./Pages/CustomerPOV/OrderProcess";
-import CarloPreview from "./Pages/CustomerPOV/CarloPreview";
-import CustomerHome from "./Pages/CustomerPOV/CustomerHome";
-import CustomerCorporate from "./Pages/CustomerCorporate/CustomerCorporate";
-
-import ArchivedOrders from './Pages/ArchivedOrders/ArchivedOrders';
-import ArchiveProducts from './Pages/ArchiveProducts/ArchiveProducts';
-import InventoryReport from './Pages/InventoryReport/InventoryReport';
-import SalesReport from './Pages/SalesReport/SalesReport';
-
-import ForgotPassword from "./Pages/ForgotPassword/ForgotPassword";
-import EmailVerify from "./Pages/EmailVerify/EmailVerify";
-import ResetPassword from "./Pages/ResetPassword/ResetPassword";
-
-import EricMarielPreview from "./Pages/CustomerPOV/EricMarielPreview";
-import DanielPreview from "./Pages/CustomerPOV/EricMarielPreview";
-import CustomerBespoke from "./Pages/CustomerBespoke";
-import CustomerAboutUs from "./Pages/CustomerAboutUs.js/CustomerAboutUs";
-import BundleDetails from "./Pages/CustomerPOV/BundleDetails";
-import ShowcaseGallery from "./Pages/ShowcaseGallery/ShowcaseGallery";
-import CustomerRegister from "./Pages/CustomerPOV/CustomerRegister";
-import CustomerLogIn from "./Pages/CustomerPOV/CustomerLogIn";
-import CustomerUserDetails from "./Pages/CustomerPOV/CustomerUserDetails";
-import CustomerVerify from "./Pages/CustomerPOV/CustomerVerify";
-import Forbidden403 from "./Pages/Forbidden403";
 import { AuthProvider } from "./Context/AuthContext";
 import { ThemeProvider } from "./Context/ThemeContext";
 import { MobileNavProvider } from "./Context/MobileNavContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { CartProvider } from "./Context/CartContext";
-import CustomerCart from "./Pages/CustomerPOV/CustomerCart";
-import CustomerCartWithOrders from "./Pages/CustomerPOV/CustomerCartWithOrders";
-import CustomerOrders from "./Pages/CustomerPOV/CustomerOrders";
-import OrderManagementDashboard from "./Pages/OrderManagement/OrderManagementDashboard";
-import UnauthorizedAccess from "./Pages/UnauthorizedAccess";
-import NotFound404 from "./Pages/NotFound404";
-import SecurityTest from "./Components/SecurityTest";
-import NotFoundTest from "./Components/NotFoundTest";
-import KhenTestDataGenerator from "./Components/KhenTestDataGenerator";
+
+// Route-level code splitting: each page loads on demand instead of all being
+// bundled into one initial JS payload. Keeps heavy, rarely-visited pages
+// (report generation with xlsx/jspdf, barcode printing with bwip-js, employee
+// dashboards) out of the bundle a customer downloads just to view the home page.
+const Dashboard = lazy(() => import("./Pages/Dashboard/Dashboard"));
+const Login = lazy(() => import("./Pages/Login/Login"));
+const OrderDetails = lazy(() => import("./Pages/OrderDetails/OrderDetails"));
+const ProductDetails = lazy(() => import("./Pages/ProductDetails/ProductDetails"));
+const CustomerDetails = lazy(() => import("./Pages/CustomerDetails/CustomerDetails"));
+const Customers = lazy(() => import("./Pages/Customers/Customers"));
+const SupplierDetails = lazy(() => import("./Pages/SupplierDetails/SupplierDetails"));
+const SupplierForm = lazy(() => import("./Pages/SupplierDetails/SupplierForm"));
+const UserDetails = lazy(() => import("./Pages/UserDetails/UserDetails"));
+const Inventory = lazy(() => import("./Pages/Inventory/Inventory"));
+const Invoices = lazy(() => import("./Pages/Invoices/Invoices"));
+const DeliveryTracking = lazy(() => import("./Pages/DeliveryTracking/DeliveryTracking"));
+const UserManagement = lazy(() => import("./Pages/UserManagement/UserManagement"));
+const AccountManagement = lazy(() => import("./Pages/AccountManagement/AccountManagement"));
+const Register = lazy(() => import("./Pages/Register/Register"));
+const OrderHistory = lazy(() => import("./Pages/OrderHistory/OrderHistory"));
+const OrderProcess = lazy(() => import("./Pages/CustomerPOV/OrderProcess"));
+const CarloPreview = lazy(() => import("./Pages/CustomerPOV/CarloPreview"));
+const CustomerHome = lazy(() => import("./Pages/CustomerPOV/CustomerHome"));
+const CustomerPOV = lazy(() => import("./Pages/CustomerPOV/CustomerPOV"));
+const CustomerCorporate = lazy(() => import("./Pages/CustomerCorporate/CustomerCorporate"));
+
+const ArchivedOrders = lazy(() => import('./Pages/ArchivedOrders/ArchivedOrders'));
+const ArchiveProducts = lazy(() => import('./Pages/ArchiveProducts/ArchiveProducts'));
+const InventoryReport = lazy(() => import('./Pages/InventoryReport/InventoryReport'));
+const SalesReport = lazy(() => import('./Pages/SalesReport/SalesReport'));
+
+const ForgotPassword = lazy(() => import("./Pages/ForgotPassword/ForgotPassword"));
+const EmailVerify = lazy(() => import("./Pages/EmailVerify/EmailVerify"));
+const ResetPassword = lazy(() => import("./Pages/ResetPassword/ResetPassword"));
+
+const EricMarielPreview = lazy(() => import("./Pages/CustomerPOV/EricMarielPreview"));
+const DanielPreview = lazy(() => import("./Pages/CustomerPOV/EricMarielPreview"));
+const CustomerBespoke = lazy(() => import("./Pages/CustomerBespoke"));
+const CustomerAboutUs = lazy(() => import("./Pages/CustomerAboutUs.js/CustomerAboutUs"));
+const BundleDetails = lazy(() => import("./Pages/CustomerPOV/BundleDetails"));
+const ShowcaseGallery = lazy(() => import("./Pages/ShowcaseGallery/ShowcaseGallery"));
+const CustomerRegister = lazy(() => import("./Pages/CustomerPOV/CustomerRegister"));
+const CustomerLogIn = lazy(() => import("./Pages/CustomerPOV/CustomerLogIn"));
+const CustomerUserDetails = lazy(() => import("./Pages/CustomerPOV/CustomerUserDetails"));
+const CustomerVerify = lazy(() => import("./Pages/CustomerPOV/CustomerVerify"));
+const Forbidden403 = lazy(() => import("./Pages/Forbidden403"));
+const CustomerCart = lazy(() => import("./Pages/CustomerPOV/CustomerCart"));
+const CustomerCartWithOrders = lazy(() => import("./Pages/CustomerPOV/CustomerCartWithOrders"));
+const CustomerOrders = lazy(() => import("./Pages/CustomerPOV/CustomerOrders"));
+const OrderManagementDashboard = lazy(() => import("./Pages/OrderManagement/OrderManagementDashboard"));
+const UnauthorizedAccess = lazy(() => import("./Pages/UnauthorizedAccess"));
+const NotFound404 = lazy(() => import("./Pages/NotFound404"));
+const SecurityTest = lazy(() => import("./Components/SecurityTest"));
+const NotFoundTest = lazy(() => import("./Components/NotFoundTest"));
+const KhenTestDataGenerator = lazy(() => import("./Components/KhenTestDataGenerator"));
+
+function RouteFallback() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "40vh" }}>
+      Loading…
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -66,6 +80,7 @@ function App() {
     <CartProvider>
     <Router>
       <MobileNavProvider>
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/" element={<CustomerHome />} />
         <Route path="/employee-dashboard" element={<Dashboard />} />
@@ -76,7 +91,7 @@ function App() {
         <Route path="/product/2" element={<EricMarielPreview />} />
         <Route path="/product/3" element={<DanielPreview />} />
         <Route path="/customer-home" element={<CustomerHome />} />
-        
+
         <Route path="/archived-orders" element={<ArchivedOrders />} />
         <Route path="/customer-details" element={<CustomerDetails />} />
         <Route path="/customers" element={<Customers />} />
@@ -122,11 +137,12 @@ function App() {
         <Route path="/404-test" element={<NotFoundTest />} />
         <Route path="/khen-test" element={<KhenTestDataGenerator />} />
         <Route path="/403" element={<Forbidden403 />} />
-        
+
         {/* Catch-all route for 404 - must be last */}
         <Route path="*" element={<NotFound404 />} />
 
       </Routes>
+      </Suspense>
       </MobileNavProvider>
     </Router>
     </CartProvider>
