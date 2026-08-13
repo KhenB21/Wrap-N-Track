@@ -308,7 +308,7 @@ export const cartAPI = {
   },
   updateCartItem: async (sku, quantity) => {
     try {
-      const response = await api.put(`/cart/${sku}`, { quantity });
+      const response = await api.put('/cart/update', { sku, quantity });
       return response.data;
     } catch (error) {
       console.error('Error updating cart item:', error);
@@ -317,7 +317,7 @@ export const cartAPI = {
   },
   removeFromCart: async (sku) => {
     try {
-      const response = await api.delete(`/cart/${sku}`);
+      const response = await api.delete('/cart/remove', { data: { sku } });
       return response.data;
     } catch (error) {
       console.error('Error removing from cart:', error);
@@ -669,6 +669,24 @@ export const customerOrderAPI = {
       console.error('Error fetching order tracking:', error);
       throw error;
     }
+  },
+};
+
+// Mirrors Website/server/routes/showcase.js — same public endpoints the Web
+// customer showcase pages (ShowcasePreview.js/BundleDetails.js) use, so mobile
+// shows the exact bundles employees configure on the website.
+export const showcaseAPI = {
+  getBundles: async (category) => {
+    const response = await api.get('/showcase', category ? { params: { category } } : undefined);
+    return response.data;
+  },
+  getBundle: async (id) => {
+    const response = await api.get(`/showcase/${id}`);
+    return response.data;
+  },
+  getGallery: async (id) => {
+    const response = await api.get(`/showcase/${id}/gallery`);
+    return response.data;
   },
 };
 

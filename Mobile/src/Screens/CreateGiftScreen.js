@@ -19,6 +19,7 @@ import ProductGrid from "../Components/ProductGrid";
 import Toast from "../Components/Toast";
 import CustomAlert from "../Components/CustomAlert";
 import * as ImagePicker from "expo-image-picker";
+import { orderAPI } from "../services/api";
 
 const { width, height } = Dimensions.get("window");
 
@@ -363,8 +364,64 @@ export default function CreateGiftScreen({ navigation }) {
   const [formErrors, setFormErrors] = useState({});
 
   const [alert, setAlert] = useState({ visible: false, message: "" });
+  const [submitting, setSubmitting] = useState(false);
   const showAlert = (msg) => setAlert({ visible: true, message: msg });
   const hideAlert = () => setAlert({ visible: false, message: "" });
+
+  // Mirrors the website's custom-order flow (Website/client/src/Pages/CustomerPOV/OrderProcess.js
+  // and BundleDetails.js OrderModal), which both POST to /api/orders with a `products` line-item
+  // array — same backend endpoint, same payload shape, just built from the mobile step selections.
+  const submitOrder = async () => {
+    if (!validateForm()) return;
+    if (selectedProducts.length === 0) {
+      showAlert("Please select at least one product before submitting.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const products = selectedProducts.map((product) => ({
+        sku: product.sku,
+        quantity: quantities[product.sku] || 1,
+      }));
+
+      const order = await orderAPI.createOrder({
+        account_name: form.name.trim(),
+        name: form.name.trim(),
+        shipped_to: form.name.trim(),
+        order_date: today,
+        expected_delivery: form.deliveryDate || today,
+        status: "Pending",
+        payment_method: "Cash",
+        payment_type: "Full Payment",
+        shipping_address: form.shippingLocation.trim(),
+        cellphone: form.contact.trim(),
+        email_address: form.email.trim(),
+        order_quantity: Number(form.quantity) || products.length,
+        products,
+      });
+
+      if (order?.success === false) {
+        throw new Error(order.message || "Failed to submit order");
+      }
+
+      showAlert("Order submitted! We will contact you soon.");
+      setTimeout(() => {
+        hideAlert();
+        navigation.navigate("Home");
+      }, 2000);
+    } catch (err) {
+      console.error("Error submitting custom gift order:", err);
+      showAlert(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "Unable to submit your order. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const toggleSelect = (selectedArray, setSelectedArray, id) => {
     setSelectedArray((prev) =>
@@ -551,19 +608,12 @@ export default function CreateGiftScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
-                style={[styles.box, { backgroundColor: colors.accent }]}
-                onPress={() => {
-                  if (validateForm()) {
-                    showAlert("Order submitted! we will contact you soon.");
-                    setTimeout(() => {
-                      hideAlert();
-                      navigation.navigate("Home");
-                    }, 2000);
-                  }
-                }}
+                style={[styles.box, { backgroundColor: colors.accent, opacity: submitting ? 0.6 : 1 }]}
+                onPress={submitOrder}
+                disabled={submitting}
               >
                 <Text style={{ color: "#fff", textAlign: "center" }}>
-                  Submit Order
+                  {submitting ? "Submitting…" : "Submit Order"}
                 </Text>
               </TouchableOpacity>
             </View>

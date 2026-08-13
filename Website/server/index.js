@@ -276,6 +276,9 @@ const upload = multer({
 // --- CORS configuration (hardened) ---
 // Build the allowed origins list once. If CORS_ORIGIN env var exists, it overrides defaults.
 const allowedOrigins = (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)) || [
+  // Production custom domain
+  'https://wrapntrack.xyz',
+  'https://www.wrapntrack.xyz',
   // Production deployed frontend (Render)
   'https://wrap-n-track.onrender.com',
   // Development local React

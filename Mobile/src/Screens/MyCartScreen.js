@@ -259,6 +259,21 @@ export default function MyCartScreen({ navigation }) {
           Array.from({ length: 3 }).map((_, i) => (
             <SkeletonCard key={i} lines={3} style={{ marginBottom: 18, borderRadius: 16 }} />
           ))
+        ) : error && cartItems.length === 0 ? (
+          <View style={styles.emptyCartContainer}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={56} color={subText} />
+            <Text style={[styles.emptyCartText, { color: subText }]}>
+              We couldn't load your cart. Please try again.
+            </Text>
+            <TouchableOpacity
+              style={[styles.shopNowButton, { backgroundColor: accent }]}
+              onPress={() => { clearError?.(); loadCartItems(); }}
+            >
+              <Text style={[styles.shopNowText, { color: darkMode ? "#000" : "#fff" }]}>
+                Retry
+              </Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           cartItems.map((item) => renderItem(item))
         )}
@@ -302,6 +317,7 @@ export default function MyCartScreen({ navigation }) {
           </Text>
           <TouchableOpacity
             style={[styles.buyNowBarBtn, { backgroundColor: buyNowBg }]}
+            onPress={() => navigation.navigate("Checkout", { selectedItems: selectedCartItems })}
           >
             <Text style={[styles.buyNowBarText, { color: "#fff" }]}>
               BUY NOW

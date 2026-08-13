@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   TextInput,
   RefreshControl,
   Dimensions,
+  Animated,
 } from "react-native";
 import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -16,6 +17,7 @@ import { useInventory } from "../Context/InventoryContext";
 import { useCart } from "../Context/CartContext";
 import { useTheme } from "../Context/ThemeContext";
 import { SkeletonProductCard } from "../Components/Skeleton/Skeleton";
+import Toast from "../Components/Toast";
 
 const { width } = Dimensions.get("window");
 const itemWidth = (width - 60) / 2; // 2 columns with padding
@@ -33,9 +35,13 @@ export default function ProductCatalogScreen({ navigation, route }) {
   const { addToCart } = useCart();
   const { darkMode } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: "" });
+  const addingSkuRef = useRef(null);
+  const [addingSku, setAddingSku] = useState(null);
+  const bounceAnims = useRef({}).current;
 
   // Filter products by category if specified
-  const products = category 
+  const products = category
     ? filteredInventory.filter(item => item.category === category)
     : filteredInventory;
 
@@ -50,12 +56,29 @@ export default function ProductCatalogScreen({ navigation, route }) {
     }
   };
 
+  const getBounceAnim = (sku) => {
+    if (!bounceAnims[sku]) bounceAnims[sku] = new Animated.Value(1);
+    return bounceAnims[sku];
+  };
+
   const handleAddToCart = async (product) => {
+    if (addingSkuRef.current === product.sku) return;
+    addingSkuRef.current = product.sku;
+    setAddingSku(product.sku);
     try {
       await addToCart(product);
-      // You could add a success message here
+      const anim = getBounceAnim(product.sku);
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1.3, duration: 120, useNativeDriver: true }),
+        Animated.spring(anim, { toValue: 1, friction: 4, useNativeDriver: true }),
+      ]).start();
+      setToast({ visible: true, message: `${product.name} added to cart` });
     } catch (error) {
       console.error("Error adding to cart:", error);
+      setToast({ visible: true, message: "Couldn't add item to cart. Please try again." });
+    } finally {
+      addingSkuRef.current = null;
+      setAddingSku(null);
     }
   };
 
@@ -63,7 +86,7 @@ export default function ProductCatalogScreen({ navigation, route }) {
     <TouchableOpacity
       style={[
         styles.productCard,
-        { 
+        {
           backgroundColor: darkMode ? "#242526" : "#fff",
           borderColor: darkMode ? "#393A3B" : "#EDECF3",
         }
@@ -91,12 +114,19 @@ export default function ProductCatalogScreen({ navigation, route }) {
         <Text style={[styles.productPrice, { color: darkMode ? "#fff" : "#222" }]}>
           ₱{parseFloat(item.unit_price).toFixed(2)}
         </Text>
-        <TouchableOpacity
-          style={[styles.addToCartButton, { backgroundColor: darkMode ? "#393A3B" : "#6B6593" }]}
-          onPress={() => handleAddToCart(item)}
-        >
-          <MaterialCommunityIcons name="cart-plus" size={16} color="#fff" />
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: getBounceAnim(item.sku) }] }}>
+          <TouchableOpacity
+            style={[styles.addToCartButton, { backgroundColor: darkMode ? "#393A3B" : "#6B6593" }]}
+            onPress={() => handleAddToCart(item)}
+            disabled={addingSku === item.sku}
+          >
+            <MaterialCommunityIcons
+              name={addingSku === item.sku ? "check" : "cart-plus"}
+              size={16}
+              color="#fff"
+            />
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </TouchableOpacity>
   );
@@ -184,6 +214,11 @@ export default function ProductCatalogScreen({ navigation, route }) {
           )}
         </View>
       )}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        onHide={() => setToast({ visible: false, message: "" })}
+      />
     </View>
   );
 }

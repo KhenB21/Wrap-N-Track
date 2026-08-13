@@ -7,9 +7,14 @@ const verifyJwt = require('../middleware/verifyJwt')();
 // GET /api/notifications - Get user notifications
 router.get('/', verifyJwt, async (req, res) => {
   try {
+    // Notifications are only created for employee accounts (user_id). Customer
+    // tokens carry customer_id instead, so there is nothing to fetch for them.
+    if (!req.user.user_id) {
+      return res.json({ success: true, notifications: [] });
+    }
     const { limit = 50, offset = 0 } = req.query;
     const notifications = await NotificationService.getUserNotifications(req.user.user_id, limit, offset);
-    
+
     res.json({
       success: true,
       notifications
@@ -26,8 +31,11 @@ router.get('/', verifyJwt, async (req, res) => {
 // GET /api/notifications/unread-count - Get unread notification count
 router.get('/unread-count', verifyJwt, async (req, res) => {
   try {
+    if (!req.user.user_id) {
+      return res.json({ success: true, count: 0 });
+    }
     const count = await NotificationService.getUnreadCount(req.user.user_id);
-    
+
     res.json({
       success: true,
       count
