@@ -26,20 +26,20 @@ router.get('/overview', async (req, res) => {
           SUM(op.quantity) as total_quantity
         FROM orders o
         LEFT JOIN order_products op ON o.order_id = op.order_id
-        WHERE o.order_date BETWEEN $1 AND $2
+        WHERE o.order_date::date BETWEEN $1 AND $2
         GROUP BY o.order_id, o.name, o.total_cost, o.status, o.total_profit_estimation
       )
-      SELECT 
-        COALESCE(SUM(CASE 
-          WHEN status IN ('Order Received', 'Completed') 
-          THEN total_cost 
-          ELSE 0 
+      SELECT
+        COALESCE(SUM(CASE
+          WHEN status IN ('Order Received', 'Completed')
+          THEN total_cost
+          ELSE 0
         END), 0) as total_revenue,
         COUNT(*) as total_orders,
-        COALESCE(SUM(CASE 
-          WHEN status IN ('Order Received', 'Completed') 
-          THEN total_quantity 
-          ELSE 0 
+        COALESCE(SUM(CASE
+          WHEN status IN ('Order Received', 'Completed')
+          THEN total_quantity
+          ELSE 0
         END), 0) as total_units_sold,
         COALESCE(SUM(total_profit_estimation), 0) as total_profit,
         COUNT(DISTINCT name) as total_customers
@@ -55,7 +55,7 @@ router.get('/overview', async (req, res) => {
         status,
         COUNT(*) as count
       FROM orders
-      WHERE order_date BETWEEN $1 AND $2
+      WHERE order_date::date BETWEEN $1 AND $2
       GROUP BY status
       ORDER BY count DESC
     `, [defaultStartDate, defaultEndDate]);
@@ -74,7 +74,7 @@ router.get('/overview', async (req, res) => {
         FROM invoices i
         WHERE i.order_id = o.order_id::text AND i.status <> 'CANCELLED'
       ) pay ON true
-      WHERE o.order_date BETWEEN $1 AND $2
+      WHERE o.order_date::date BETWEEN $1 AND $2
         AND o.status <> 'Cancelled'
     `, [defaultStartDate, defaultEndDate]);
 
@@ -97,14 +97,14 @@ router.get('/overview', async (req, res) => {
           SUM(op.quantity) as total_quantity
         FROM orders o
         LEFT JOIN order_products op ON o.order_id = op.order_id
-        WHERE o.order_date BETWEEN $1 AND $2
+        WHERE o.order_date::date BETWEEN $1 AND $2
         GROUP BY o.order_id, o.name, o.total_cost, o.status, o.total_profit_estimation
       )
-      SELECT 
-        COALESCE(SUM(CASE 
-          WHEN status IN ('Order Received', 'Completed') 
-          THEN total_cost 
-          ELSE 0 
+      SELECT
+        COALESCE(SUM(CASE
+          WHEN status IN ('Order Received', 'Completed')
+          THEN total_cost
+          ELSE 0
         END), 0) as total_revenue,
         COUNT(*) as total_orders,
         COALESCE(SUM(total_profit_estimation), 0) as total_profit
@@ -195,7 +195,7 @@ router.get('/top-products', async (req, res) => {
         JOIN orders o ON op.order_id = o.order_id
         JOIN inventory_items i ON op.sku = i.sku
         WHERE o.status IN ('Order Received', 'Completed')
-        AND o.order_date BETWEEN $1 AND $2
+        AND o.order_date::date BETWEEN $1 AND $2
         GROUP BY op.sku
       )
       SELECT 
@@ -250,7 +250,7 @@ router.get('/customer-analysis', async (req, res) => {
           MAX(o.order_date) as last_order_date,
           MIN(o.order_date) as first_order_date
         FROM orders o
-        WHERE o.order_date BETWEEN $1 AND $2
+        WHERE o.order_date::date BETWEEN $1 AND $2
         GROUP BY o.name, o.email_address, o.telephone
       )
       SELECT 
@@ -279,7 +279,7 @@ router.get('/customer-analysis', async (req, res) => {
         AVG(o.total_cost) as avg_order_value,
         SUM(o.total_cost) as total_revenue
       FROM orders o
-      WHERE o.order_date BETWEEN $1 AND $2
+      WHERE o.order_date::date BETWEEN $1 AND $2
     `, [defaultStartDate, defaultEndDate]);
 
     res.json({
@@ -340,7 +340,7 @@ router.get('/trends', async (req, res) => {
         SUM(o.total_profit_estimation) as profit,
         COUNT(DISTINCT o.name) as unique_customers
       FROM orders o
-      WHERE o.order_date BETWEEN $1 AND $2
+      WHERE o.order_date::date BETWEEN $1 AND $2
       GROUP BY ${dateFormat}
       ORDER BY period ASC
     `, [defaultStartDate, defaultEndDate]);

@@ -161,13 +161,27 @@ export default function OrderInvoiceSection({ order }) {
             <div className="order-invoice-row-top">
               <div>
                 <div className="invoice-number">{invoice.invoice_number}</div>
-                <div>{labelForType(invoice.invoice_type)}</div>
-                <div>{invoiceAmountLabel(invoice)}: <strong>{peso(invoice.invoice_amount)}</strong></div>
-                <div className="invoice-balance-cell">Remaining Balance: <strong>{peso(invoice.remaining_balance_amount)}</strong></div>
-                <div>Amount Paid: <strong>{peso(invoice.amount_paid)}</strong></div>
-                <div>Payment Status: <strong>{invoice.payment_status || '-'}</strong></div>
+                <div className="invoice-type-label">{labelForType(invoice.invoice_type)}</div>
               </div>
               <StatusBadge status={invoice.status} />
+            </div>
+            <div className="order-invoice-stats">
+              <div className="order-invoice-stat">
+                <span>{invoiceAmountLabel(invoice)}</span>
+                <strong>{peso(invoice.invoice_amount)}</strong>
+              </div>
+              <div className="order-invoice-stat">
+                <span>Remaining Balance</span>
+                <strong className="invoice-balance-cell">{peso(invoice.remaining_balance_amount)}</strong>
+              </div>
+              <div className="order-invoice-stat">
+                <span>Amount Paid</span>
+                <strong>{peso(invoice.amount_paid)}</strong>
+              </div>
+              <div className="order-invoice-stat">
+                <span>Payment Status</span>
+                <strong>{invoice.payment_status || '-'}</strong>
+              </div>
             </div>
             <div className="order-invoice-actions">
               <button className="invoice-btn" onClick={() => openInvoicePdf(invoice)}>Download PDF</button>
