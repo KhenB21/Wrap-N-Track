@@ -102,7 +102,7 @@ const styles = {
     fontSize: '16px',
     '&:focus': {
       outline: 'none',
-      borderColor: '#4a90e2'
+      borderColor: '#696a8f'
     }
   },
   select: {
@@ -114,12 +114,12 @@ const styles = {
     background: '#fff',
     '&:focus': {
       outline: 'none',
-      borderColor: '#4a90e2'
+      borderColor: '#696a8f'
     }
   },
   button: {
     padding: '12px 32px',
-    background: '#4a90e2',
+    background: '#3f444b',
     color: '#fff',
     border: 'none',
     borderRadius: '6px',
@@ -128,7 +128,7 @@ const styles = {
     cursor: 'pointer',
     transition: 'background 0.3s ease',
     '&:hover': {
-      background: '#357abd'
+      background: '#696a8f'
     }
   }
 };
@@ -434,12 +434,65 @@ export default function OrderProcess() {
   const customizationOptions = getAvailableProductsForCategory('customization') || [];
   const othersOptions = getAvailableProductsForCategory('others') || [];
 
+  const MIN_LEAD_DAYS = 14; // 2 weeks minimum — hard block below this
+  const RECOMMENDED_LEAD_DAYS = 21; // 3 weeks recommended — soft warning between min and this
+
+  const [dateErrors, setDateErrors] = useState({ weddingDate: '', expectedDeliveryDate: '' });
+  const [dateWarning, setDateWarning] = useState('');
+
+  // Validates wedding/delivery dates against the "order 2-3 weeks ahead" guideline.
+  // Returns hard-block errors (unrealistic dates) separately from a soft lead-time warning.
+  const validateOrderDates = (weddingDateStr, deliveryDateStr) => {
+    const errors = { weddingDate: '', expectedDeliveryDate: '' };
+    let warning = '';
+
+    if (!weddingDateStr && !deliveryDateStr) {
+      return { errors, warning };
+    }
+
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (weddingDateStr) {
+      const wedding = new Date(`${weddingDateStr}T00:00:00`);
+      const daysToWedding = Math.round((wedding - today) / MS_PER_DAY);
+
+      if (daysToWedding < 0) {
+        errors.weddingDate = 'Wedding date cannot be in the past.';
+      } else if (daysToWedding < MIN_LEAD_DAYS) {
+        errors.weddingDate = `That's only ${daysToWedding} day${daysToWedding === 1 ? '' : 's'} away. We need at least ${MIN_LEAD_DAYS} days (2 weeks) to prepare your order — please choose a later date or contact us directly for rush orders.`;
+      } else if (daysToWedding < RECOMMENDED_LEAD_DAYS) {
+        warning = `Heads up: your wedding is ${daysToWedding} days away. We recommend ordering ${RECOMMENDED_LEAD_DAYS}+ days (3 weeks) ahead for the best results.`;
+      }
+    }
+
+    if (deliveryDateStr) {
+      const delivery = new Date(`${deliveryDateStr}T00:00:00`);
+      if (delivery < today) {
+        errors.expectedDeliveryDate = 'Delivery date cannot be in the past.';
+      } else if (weddingDateStr) {
+        const wedding = new Date(`${weddingDateStr}T00:00:00`);
+        if (delivery > wedding) {
+          errors.expectedDeliveryDate = 'Delivery date should be on or before your wedding date.';
+        }
+      }
+    }
+
+    return { errors, warning };
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      if (name === 'weddingDate' || name === 'expectedDeliveryDate') {
+        const { errors, warning } = validateOrderDates(updated.weddingDate, updated.expectedDeliveryDate);
+        setDateErrors(errors);
+        setDateWarning(warning);
+      }
+      return updated;
+    });
   };
 
   const handlePackagingSelect = (option) => {
@@ -552,6 +605,19 @@ export default function OrderProcess() {
     // If not on step 4, just move to next step
     if (currentStep < 4) {
       handleNextStep();
+      return;
+    }
+
+    // Block submission on unrealistic dates (past dates, insufficient lead time,
+    // or delivery scheduled after the wedding itself)
+    const { errors: finalDateErrors, warning: finalDateWarning } = validateOrderDates(
+      formData.weddingDate,
+      formData.expectedDeliveryDate
+    );
+    setDateErrors(finalDateErrors);
+    setDateWarning(finalDateWarning);
+    if (finalDateErrors.weddingDate || finalDateErrors.expectedDeliveryDate) {
+      toast.error(finalDateErrors.weddingDate || finalDateErrors.expectedDeliveryDate);
       return;
     }
 
@@ -987,7 +1053,7 @@ export default function OrderProcess() {
                     right: "-10px",
                     width: "24px",
                     height: "24px",
-                    backgroundColor: "#e74c3c",
+                    backgroundColor: "#b0413e",
                     borderRadius: "50%",
                     display: "flex",
                     alignItems: "center",
@@ -1193,7 +1259,7 @@ export default function OrderProcess() {
                 onClick={handleCloseModal}
                 style={{
                   padding: "8px 16px",
-                  backgroundColor: "#e74c3c",
+                  backgroundColor: "#b0413e",
                   color: "white",
                   border: "none",
                   borderRadius: "6px",
@@ -1798,14 +1864,14 @@ export default function OrderProcess() {
 
                 {/* Important Guidelines */}
                 <div style={{
-                  background: "#d4edda",
+                  background: "#eef1e9",
                   borderRadius: "12px",
                   padding: "25px",
-                  border: "2px solid #28a745"
+                  border: "2px solid #7f9c7a"
                 }}>
                   <h3 style={{
                     fontSize: "1.3rem",
-                    color: "#155724",
+                    color: "#3d5c42",
                     marginBottom: "15px",
                     display: "flex",
                     alignItems: "center",
@@ -1814,7 +1880,7 @@ export default function OrderProcess() {
                     ✨ Important Guidelines
                   </h3>
                   <ul style={{
-                    color: "#155724",
+                    color: "#3d5c42",
                     lineHeight: "1.8",
                     paddingLeft: "20px",
                     margin: 0
@@ -1830,14 +1896,14 @@ export default function OrderProcess() {
 
                 {/* Tips Section */}
                 <div style={{
-                  background: "#fff3cd",
+                  background: "#f4ecd8",
                   borderRadius: "12px",
                   padding: "25px",
-                  border: "2px solid #ffc107"
+                  border: "2px solid #b8945a"
                 }}>
                   <h3 style={{
                     fontSize: "1.3rem",
-                    color: "#856404",
+                    color: "#6b4f23",
                     marginBottom: "15px",
                     display: "flex",
                     alignItems: "center",
@@ -1846,7 +1912,7 @@ export default function OrderProcess() {
                     💡 Pro Tips
                   </h3>
                   <ul style={{
-                    color: "#856404",
+                    color: "#6b4f23",
                     lineHeight: "1.8",
                     paddingLeft: "20px",
                     margin: 0
@@ -1867,17 +1933,19 @@ export default function OrderProcess() {
                       ...styles.button,
                       fontSize: "1.2rem",
                       padding: "15px 40px",
-                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                      boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
+                      background: "#3f444b",
+                      boxShadow: "0 4px 15px rgba(63, 68, 75, 0.3)",
                       transition: "all 0.3s ease"
                     }}
                     onMouseEnter={(e) => {
                       e.target.style.transform = "translateY(-2px)";
-                      e.target.style.boxShadow = "0 6px 20px rgba(102, 126, 234, 0.6)";
+                      e.target.style.background = "#696a8f";
+                      e.target.style.boxShadow = "0 6px 20px rgba(63, 68, 75, 0.35)";
                     }}
                     onMouseLeave={(e) => {
                       e.target.style.transform = "translateY(0)";
-                      e.target.style.boxShadow = "0 4px 15px rgba(102, 126, 234, 0.4)";
+                      e.target.style.background = "#3f444b";
+                      e.target.style.boxShadow = "0 4px 15px rgba(63, 68, 75, 0.3)";
                     }}
                   >
                     Get Started - Choose Your Packaging →
@@ -1888,7 +1956,7 @@ export default function OrderProcess() {
           )}
           {currentStep === 1 && (
             <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
-              <div style={{backgroundColor: "#2ECC71", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
+              <div style={{backgroundColor: "#5b8266", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
                 <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
               </div>
 
@@ -1932,7 +2000,7 @@ export default function OrderProcess() {
                         right: "-10px",
                         width: "24px",
                         height: "24px",
-                        backgroundColor: "#2ECC71",
+                        backgroundColor: "#5b8266",
                         borderRadius: "50%",
                         display: "flex",
                         alignItems: "center",
@@ -1981,23 +2049,23 @@ export default function OrderProcess() {
               {user && ['admin', 'business_developer', 'creatives', 'director', 'sales_manager'].includes(user.role) && (
                 <div style={{
                   width: "100%",
-                  backgroundColor: "#fff3cd",
-                  border: "1px solid #ffeaa7",
+                  backgroundColor: "#f4ecd8",
+                  border: "1px solid #d9c393",
                   borderRadius: "8px",
                   padding: "20px",
                   marginBottom: "20px"
                 }}>
-                  <h3 style={{ margin: "0 0 15px 0", color: "#856404" }}>
+                  <h3 style={{ margin: "0 0 15px 0", color: "#6b4f23" }}>
                     🔧 Staff: Manage Available Products
                   </h3>
-                  <p style={{ margin: "0 0 15px 0", color: "#856404", fontSize: "14px" }}>
+                  <p style={{ margin: "0 0 15px 0", color: "#6b4f23", fontSize: "14px" }}>
                     Select which products from inventory should be available for customers to choose from.
                   </p>
                   <button
                     type="button"
                     onClick={() => setShowProductSelection(true)}
                     style={{
-                      backgroundColor: "#ff6b35",
+                      backgroundColor: "#696a8f",
                       color: "white",
                       border: "none",
                       padding: "10px 20px",
@@ -2014,7 +2082,7 @@ export default function OrderProcess() {
                     onClick={saveAvailableInventory}
                     style={{
                       marginLeft: "10px",
-                      backgroundColor: "#198754",
+                      backgroundColor: "#5b8266",
                       color: "white",
                       border: "none",
                       padding: "10px 20px",
@@ -2206,7 +2274,7 @@ export default function OrderProcess() {
                 
               </div>
 
-              <div style={{backgroundColor: "#2ECC71", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
+              <div style={{backgroundColor: "#5b8266", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
                 <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
               </div>
               
@@ -2256,7 +2324,7 @@ export default function OrderProcess() {
                             right: "-10px",
                             width: "24px",
                             height: "24px",
-                            backgroundColor: "#2ECC71",
+                            backgroundColor: "#5b8266",
                             borderRadius: "50%",
                             display: "flex",
                             alignItems: "center",
@@ -2339,7 +2407,7 @@ export default function OrderProcess() {
                             right: "-10px",
                             width: "24px",
                             height: "24px",
-                            backgroundColor: "#2ECC71",
+                            backgroundColor: "#5b8266",
                             borderRadius: "50%",
                             display: "flex",
                             alignItems: "center",
@@ -2423,7 +2491,7 @@ export default function OrderProcess() {
                             right: "-10px",
                             width: "24px",
                             height: "24px",
-                            backgroundColor: "#2ECC71",
+                            backgroundColor: "#5b8266",
                             borderRadius: "50%",
                             display: "flex",
                             alignItems: "center",
@@ -2505,7 +2573,7 @@ export default function OrderProcess() {
                             right: "-10px",
                             width: "24px",
                             height: "24px",
-                            backgroundColor: "#2ECC71",
+                            backgroundColor: "#5b8266",
                             borderRadius: "50%",
                             display: "flex",
                             alignItems: "center",
@@ -2575,7 +2643,7 @@ export default function OrderProcess() {
                             right: "-10px",
                             width: "24px",
                             height: "24px",
-                            backgroundColor: "#2ECC71",
+                            backgroundColor: "#5b8266",
                             borderRadius: "50%",
                             display: "flex",
                             alignItems: "center",
@@ -2645,7 +2713,7 @@ export default function OrderProcess() {
                             right: "-10px",
                             width: "24px",
                             height: "24px",
-                            backgroundColor: "#2ECC71",
+                            backgroundColor: "#5b8266",
                             borderRadius: "50%",
                             display: "flex",
                             alignItems: "center",
@@ -2715,7 +2783,7 @@ export default function OrderProcess() {
                             right: "-10px",
                             width: "24px",
                             height: "24px",
-                            backgroundColor: "#2ECC71",
+                            backgroundColor: "#5b8266",
                             borderRadius: "50%",
                             display: "flex",
                             alignItems: "center",
@@ -2749,7 +2817,7 @@ export default function OrderProcess() {
           )}
           {currentStep === 3 && (
             <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
-              <div style={{backgroundColor: "#2ECC71", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
+              <div style={{backgroundColor: "#5b8266", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
                 <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
               </div>
 
@@ -2793,7 +2861,7 @@ export default function OrderProcess() {
                         right: "-10px",
                         width: "24px",
                         height: "24px",
-                        backgroundColor: "#2ECC71",
+                        backgroundColor: "#5b8266",
                         borderRadius: "50%",
                         display: "flex",
                         alignItems: "center",
@@ -2833,9 +2901,26 @@ export default function OrderProcess() {
                     name="weddingDate"
                     value={formData.weddingDate}
                     onChange={handleInputChange}
-                    style={styles.input}
+                    style={{
+                      ...styles.input,
+                      borderColor: dateErrors.weddingDate ? '#b0413e' : styles.input.border?.split(' ')[2] || '#ddd'
+                    }}
+                    min={new Date().toISOString().split('T')[0]}
                     required
                   />
+                  {dateErrors.weddingDate && (
+                    <p style={{ color: '#b0413e', fontSize: '13px', marginTop: '6px', lineHeight: '1.4' }}>
+                      {dateErrors.weddingDate}
+                    </p>
+                  )}
+                  {!dateErrors.weddingDate && dateWarning && (
+                    <p style={{ color: '#6b4f23', background: '#f4ecd8', border: '1px solid #d9c393', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', marginTop: '6px', lineHeight: '1.4' }}>
+                      ⚠️ {dateWarning}
+                    </p>
+                  )}
+                  <p style={{ color: '#6c757d', fontSize: '12px', marginTop: '6px' }}>
+                    Lead Time: please order at least 2–3 weeks before your wedding date for best results.
+                  </p>
                 </div>
 
                 <div style={styles.formGroup}>
@@ -2845,9 +2930,19 @@ export default function OrderProcess() {
                     name="expectedDeliveryDate"
                     value={formData.expectedDeliveryDate}
                     onChange={handleInputChange}
-                    style={styles.input}
+                    style={{
+                      ...styles.input,
+                      borderColor: dateErrors.expectedDeliveryDate ? '#b0413e' : styles.input.border?.split(' ')[2] || '#ddd'
+                    }}
+                    min={new Date().toISOString().split('T')[0]}
+                    max={formData.weddingDate || undefined}
                     required
                   />
+                  {dateErrors.expectedDeliveryDate && (
+                    <p style={{ color: '#b0413e', fontSize: '13px', marginTop: '6px', lineHeight: '1.4' }}>
+                      {dateErrors.expectedDeliveryDate}
+                    </p>
+                  )}
                 </div>
 
                 <div style={styles.formGroup}>
@@ -2968,11 +3063,11 @@ export default function OrderProcess() {
                   placeholder="Enter 6-digit code"
                   style={{width:'100%',padding:12,border:'1px solid #ddd',borderRadius:6,marginBottom:8,fontSize:16,letterSpacing:4,textAlign:'center'}}
                 />
-                {otpError && <div style={{color:'red',marginBottom:8}}>{otpError}</div>}
+                {otpError && <div style={{color:'#b0413e',marginBottom:8}}>{otpError}</div>}
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8}}>
-                  <button onClick={handleVerifyAndPlaceOrder} style={{padding:'10px 18px',background:'#27ae60',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:700}}>Verify & Place Order</button>
+                  <button onClick={handleVerifyAndPlaceOrder} style={{padding:'10px 18px',background:'#3f444b',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:700}}>Verify & Place Order</button>
                   <div style={{textAlign:'right'}}>
-                    <button onClick={handleResendOtp} disabled={resendCountdown > 0} style={{padding:'8px 12px',background:resendCountdown>0? '#ddd' : '#4a90e2',color:resendCountdown>0? '#888' : '#fff',border:'none',borderRadius:6,cursor:resendCountdown>0? 'not-allowed' : 'pointer'}}>
+                    <button onClick={handleResendOtp} disabled={resendCountdown > 0} style={{padding:'8px 12px',background:resendCountdown>0? '#ddd' : '#696a8f',color:resendCountdown>0? '#888' : '#fff',border:'none',borderRadius:6,cursor:resendCountdown>0? 'not-allowed' : 'pointer'}}>
                       {resendCountdown>0 ? `Resend (${resendCountdown}s)` : 'Resend OTP'}
                     </button>
                   </div>
@@ -3057,7 +3152,7 @@ export default function OrderProcess() {
                   style={{
                     padding: "8px 16px",
                     border: "none",
-                    background: modalCategory === category.key ? "#ff6b35" : "transparent",
+                    background: modalCategory === category.key ? "#696a8f" : "transparent",
                     color: modalCategory === category.key ? "white" : "#666",
                     borderRadius: "6px 6px 0 0",
                     cursor: "pointer",
@@ -3119,11 +3214,11 @@ export default function OrderProcess() {
                           }));
                         }}
                         style={{
-                          border: `2px solid ${selectedInventoryProducts[modalCategory]?.includes(product.sku) ? "#ff6b35" : "#ddd"}`,
+                          border: `2px solid ${selectedInventoryProducts[modalCategory]?.includes(product.sku) ? "#696a8f" : "#ddd"}`,
                           borderRadius: "8px",
                           padding: "15px",
                           cursor: "pointer",
-                          backgroundColor: selectedInventoryProducts[modalCategory]?.includes(product.sku) ? "#fff3cd" : "white",
+                          backgroundColor: selectedInventoryProducts[modalCategory]?.includes(product.sku) ? "#f4ecd8" : "white",
                           transition: "all 0.2s ease",
                           position: "relative"
                         }}
@@ -3159,7 +3254,7 @@ export default function OrderProcess() {
                           margin: 0,
                           fontSize: "12px",
                           fontWeight: "600",
-                          color: "#27ae60"
+                          color: "#5b8266"
                         }}>
                           ₱{product.unit_price}
                         </p>
@@ -3168,7 +3263,7 @@ export default function OrderProcess() {
                             position: "absolute",
                             top: "10px",
                             right: "10px",
-                            backgroundColor: "#ff6b35",
+                            backgroundColor: "#696a8f",
                             color: "white",
                             borderRadius: "50%",
                             width: "20px",
@@ -3204,7 +3299,7 @@ export default function OrderProcess() {
                 <button
                   onClick={clearSelectedInventoryProducts}
                   style={{
-                    backgroundColor: "#dc3545",
+                    backgroundColor: "#b0413e",
                     color: "white",
                     border: "none",
                     padding: "12px 24px",
@@ -3219,7 +3314,7 @@ export default function OrderProcess() {
                 <button
                   onClick={() => setShowProductSelection(false)}
                   style={{
-                    backgroundColor: "#ff6b35",
+                    backgroundColor: "#696a8f",
                     color: "white",
                     border: "none",
                     padding: "12px 24px",
