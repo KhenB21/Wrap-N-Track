@@ -1,0 +1,27 @@
+PENSÉE GIFTING STUDIO — AVAILABLE INVENTORY (upload as Knowledge in Zapier chatbot)
+Last updated: 2026-08-17. Re-export and re-upload this file whenever stock changes.
+
+CATEGORY: Beverages
+- Artisan Tea — ₱300.00
+- Local Coffee — ₱500.00
+- Loose-leaf Tea — ₱500.00
+
+CATEGORY: Face & Body / Cosmetics
+- Aromatherapy — ₱100.00
+- Pomades — ₱60.00
+
+CATEGORY: Food
+- Palapa Seasoning — ₱200.00
+
+CATEGORY: Kitchenware
+- Beer Mug — ₱500.00
+
+CATEGORY: Packaging (Boxes)
+- Blanc Box — ₱499.97
+- Premium Box — ₱500.00
+- Signature Box — ₱120.00
+
+NOTES:
+- No color variants (e.g., blue, pink) are currently tracked for any item.
+- No "sweets" category currently exists in inventory.
+- Prices listed are per single unit/item, not per finished gift box.

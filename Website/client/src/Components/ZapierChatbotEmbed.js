@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 
 // Embeds the Zapier Interfaces chatbot globally when mounted
 // Usage: <ZapierChatbotEmbed chatbotId="cmg83d0pp004cmxd6eyag8jfi" isPopup />
-export default function ZapierChatbotEmbed({ chatbotId = 'cmg83d0pp004cmxd6eyag8jfi', isPopup = true }) {
+export default function ZapierChatbotEmbed({ chatbotId = 'cmsw6ivzl00437q29npj4ylh3', isPopup = true }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
