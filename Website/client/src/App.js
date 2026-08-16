@@ -33,6 +33,7 @@ const CarloPreview = lazy(() => import("./Pages/CustomerPOV/CarloPreview"));
 const CustomerHome = lazy(() => import("./Pages/CustomerPOV/CustomerHome"));
 const CustomerPOV = lazy(() => import("./Pages/CustomerPOV/CustomerPOV"));
 const CustomerCorporate = lazy(() => import("./Pages/CustomerCorporate/CustomerCorporate"));
+const MobileChatbotEmbed = lazy(() => import("./Pages/MobileChatbotEmbed/MobileChatbotEmbed"));
 
 const ArchivedOrders = lazy(() => import('./Pages/ArchivedOrders/ArchivedOrders'));
 const ArchiveProducts = lazy(() => import('./Pages/ArchiveProducts/ArchiveProducts'));
@@ -121,6 +122,7 @@ function App() {
 
         <Route path="/bespoke" element={<CustomerBespoke />} />
         <Route path="/about" element={<CustomerAboutUs />} />
+        <Route path="/mobile-chatbot" element={<MobileChatbotEmbed />} />
         <Route path="/showcase/:id" element={<BundleDetails />} />
         <Route path="/showcase-gallery" element={<ShowcaseGallery />} />
         <Route path="/customer-register" element={<CustomerRegister />} />
