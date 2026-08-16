@@ -18,6 +18,7 @@ import { useCart } from "../Context/CartContext";
 import { useTheme } from "../Context/ThemeContext";
 import { SkeletonProductCard } from "../Components/Skeleton/Skeleton";
 import Toast from "../Components/Toast";
+import { inventoryAPI } from "../services/api";
 
 const { width } = Dimensions.get("window");
 const itemWidth = (width - 60) / 2; // 2 columns with padding
@@ -31,6 +32,7 @@ export default function ProductCatalogScreen({ navigation, route }) {
     setSearchQuery,
     loadInventory,
     clearError,
+    lastRealtimeEvent,
   } = useInventory();
   const { addToCart } = useCart();
   const { darkMode } = useTheme();
@@ -39,16 +41,52 @@ export default function ProductCatalogScreen({ navigation, route }) {
   const addingSkuRef = useRef(null);
   const [addingSku, setAddingSku] = useState(null);
   const bounceAnims = useRef({}).current;
+  const [availableSkus, setAvailableSkus] = useState(null);
+
+  useEffect(() => {
+    loadInventory();
+  }, []);
+
+  const fetchAvailableSkus = async () => {
+    try {
+      const data = await inventoryAPI.getAvailableInventory();
+      const skus = new Set(
+        Object.values(data.available || {}).flat().map(p => p.sku)
+      );
+      setAvailableSkus(skus);
+    } catch (error) {
+      console.error("Error fetching available inventory:", error);
+      setAvailableSkus(new Set());
+    }
+  };
+
+  useEffect(() => {
+    fetchAvailableSkus();
+  }, []);
+
+  // Staff clicking "Save Available Products" on the website broadcasts this
+  // over the shared WS connection — refetch immediately instead of only
+  // picking up the change on next app reload.
+  useEffect(() => {
+    if (lastRealtimeEvent?.type === 'available_inventory_updated') {
+      fetchAvailableSkus();
+    }
+  }, [lastRealtimeEvent]);
+
+  // Only show products staff have marked available (matches Website order page)
+  const availableInventory = availableSkus
+    ? filteredInventory.filter(item => availableSkus.has(item.sku))
+    : [];
 
   // Filter products by category if specified
   const products = category
-    ? filteredInventory.filter(item => item.category === category)
-    : filteredInventory;
+    ? availableInventory.filter(item => item.category === category)
+    : availableInventory;
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await loadInventory();
+      await Promise.all([loadInventory(), fetchAvailableSkus()]);
     } catch (error) {
       console.error("Error refreshing inventory:", error);
     } finally {
@@ -176,7 +214,7 @@ export default function ProductCatalogScreen({ navigation, route }) {
         </Text>
       </View>
 
-      {loading && products.length === 0 ? (
+      {(loading || availableSkus === null) && products.length === 0 ? (
         <View style={[styles.productsList, { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }]}>
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonProductCard key={i} style={{ width: itemWidth, marginRight: 12, marginBottom: 16 }} />

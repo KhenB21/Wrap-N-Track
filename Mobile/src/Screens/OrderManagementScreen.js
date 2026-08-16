@@ -66,17 +66,26 @@ export default function OrderManagementScreen({ navigation }) {
     setShowStatusModal(true);
   };
 
+  // Real order lifecycle statuses (see Website/server/routes/order-management.js
+  // validStatuses) — this screen previously used a made-up pending/confirmed/
+  // processing/shipped/delivered/cancelled vocabulary that never matched an
+  // actual order.status value, so the filter tabs (exact-match against
+  // order.status) and the status-update modal silently never worked.
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'pending':
+      case 'order placed':
         return '#FFA726';
-      case 'confirmed':
+      case 'order paid':
         return '#42A5F5';
-      case 'processing':
-        return '#AB47BC';
-      case 'shipped':
+      case 'to be packed':
+        return '#FFCA28';
+      case 'ready for delivery':
+        return '#42A5F5';
+      case 'order shipped out':
         return '#66BB6A';
-      case 'delivered':
+      case 'order received':
+      case 'completed':
         return '#4CAF50';
       case 'cancelled':
         return '#EF5350';
@@ -88,14 +97,18 @@ export default function OrderManagementScreen({ navigation }) {
   const getStatusIcon = (status) => {
     switch (status?.toLowerCase()) {
       case 'pending':
+      case 'order placed':
         return 'clock-outline';
-      case 'confirmed':
-        return 'check-circle-outline';
-      case 'processing':
-        return 'cog-outline';
-      case 'shipped':
+      case 'order paid':
+        return 'credit-card-outline';
+      case 'to be packed':
+        return 'package-variant';
+      case 'ready for delivery':
+        return 'package-variant-closed';
+      case 'order shipped out':
         return 'truck-outline';
-      case 'delivered':
+      case 'order received':
+      case 'completed':
         return 'check-circle';
       case 'cancelled':
         return 'close-circle-outline';
@@ -235,7 +248,7 @@ export default function OrderManagementScreen({ navigation }) {
               <Text style={[styles.statusLabel, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
                 Select New Status:
               </Text>
-              {['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].map((status) => (
+              {['Order Placed', 'Order Paid', 'To Be Packed', 'Ready for Delivery', 'Order Shipped Out', 'Order Received', 'Completed', 'Cancelled'].map((status) => (
                 <TouchableOpacity
                   key={status}
                   style={[
@@ -246,18 +259,18 @@ export default function OrderManagementScreen({ navigation }) {
                   onPress={() => setNewStatus(status)}
                 >
                   <View style={styles.statusOptionContent}>
-                    <MaterialCommunityIcons 
-                      name={getStatusIcon(status)} 
-                      size={20} 
-                      color={newStatus === status ? "#fff" : (darkMode ? "#E4E6EB" : "#222")} 
+                    <MaterialCommunityIcons
+                      name={getStatusIcon(status)}
+                      size={20}
+                      color={newStatus === status ? "#fff" : (darkMode ? "#E4E6EB" : "#222")}
                     />
                     <Text style={[
                       styles.statusOptionText,
-                      { 
+                      {
                         color: newStatus === status ? "#fff" : (darkMode ? "#E4E6EB" : "#222")
                       }
                     ]}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                      {status}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -290,12 +303,14 @@ export default function OrderManagementScreen({ navigation }) {
 
   const filterOptions = [
     { key: "all", label: "All Orders" },
-    { key: "pending", label: "Pending" },
-    { key: "confirmed", label: "Confirmed" },
-    { key: "processing", label: "Processing" },
-    { key: "shipped", label: "Shipped" },
-    { key: "delivered", label: "Delivered" },
-    { key: "cancelled", label: "Cancelled" },
+    { key: "Order Placed", label: "Order Placed" },
+    { key: "Order Paid", label: "Order Paid" },
+    { key: "To Be Packed", label: "To Be Packed" },
+    { key: "Ready for Delivery", label: "Ready for Delivery" },
+    { key: "Order Shipped Out", label: "Shipped Out" },
+    { key: "Order Received", label: "Received" },
+    { key: "Completed", label: "Completed" },
+    { key: "Cancelled", label: "Cancelled" },
   ];
 
   const filteredOrders = getFilteredOrders();

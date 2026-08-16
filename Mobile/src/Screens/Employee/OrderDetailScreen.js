@@ -15,6 +15,7 @@ import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
 import { useOrders } from '../../Context/OrdersContext';
 import { useAuth } from '../../Context/AuthContext';
+import { invoiceAPI } from '../../services/api';
 import { SkeletonCard, SkeletonText } from '../../Components/Skeleton/Skeleton';
 
 const INVOICE_ROLES = ['operations_manager', 'sales_manager', 'super_admin', 'admin'];
@@ -30,6 +31,7 @@ export default function OrderDetailScreen({ navigation }) {
   const { user } = useAuth();
   const [order, setOrder] = useState(initialOrder);
   const [loading, setLoading] = useState(false);
+  const [downloadingInvoices, setDownloadingInvoices] = useState(false);
   const canViewInvoice = INVOICE_ROLES.includes(user?.role);
 
   useEffect(() => {
@@ -107,6 +109,65 @@ export default function OrderDetailScreen({ navigation }) {
 
   const handleStatusUpdate = () => {
     navigation.navigate('OrderStatusUpdate', { order });
+  };
+
+  const INVOICE_TYPE_LABELS = {
+    DOWN_PAYMENT: 'Down Payment Invoice',
+    REMAINING_BALANCE: 'Remaining Balance Invoice',
+  };
+
+  const downloadInvoice = async (invoice) => {
+    setDownloadingInvoices(true);
+    try {
+      const label = INVOICE_TYPE_LABELS[invoice.invoice_type] || invoice.invoice_type;
+      await invoiceAPI.downloadInvoicePdf(invoice.id, `${label} - ${invoice.invoice_number}`);
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      Alert.alert('Error', 'Failed to download invoice PDF. Please try again.');
+    } finally {
+      setDownloadingInvoices(false);
+    }
+  };
+
+  // Downloads the order's invoice PDF directly instead of navigating to a list
+  // screen — mobile-only behavior; the website keeps its invoice list UI. An
+  // order can have both a Down Payment and a Remaining Balance invoice, so
+  // when both exist, let the user pick which one to download.
+  const handleDownloadInvoices = async () => {
+    if (downloadingInvoices) return;
+    setDownloadingInvoices(true);
+    try {
+      const data = await invoiceAPI.getOrderInvoices(order.order_id);
+      const invoices = Array.isArray(data) ? data : (data.invoices || []);
+
+      if (invoices.length === 0) {
+        setDownloadingInvoices(false);
+        Alert.alert('No Invoices', 'No invoices have been generated for this order yet.');
+        return;
+      }
+
+      if (invoices.length === 1) {
+        await downloadInvoice(invoices[0]);
+        return;
+      }
+
+      setDownloadingInvoices(false);
+      Alert.alert(
+        'Select Invoice',
+        'Which invoice would you like to download?',
+        [
+          ...invoices.map((invoice) => ({
+            text: INVOICE_TYPE_LABELS[invoice.invoice_type] || invoice.invoice_type,
+            onPress: () => downloadInvoice(invoice),
+          })),
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    } catch (error) {
+      console.error('Error downloading invoices:', error);
+      Alert.alert('Error', 'Failed to load invoices. Please try again.');
+      setDownloadingInvoices(false);
+    }
   };
 
   const handleCallCustomer = () => {
@@ -343,9 +404,11 @@ export default function OrderDetailScreen({ navigation }) {
       {canViewInvoice && (
         <Button
           mode="outlined"
-          onPress={() => navigation.navigate('InvoiceScreen', { orderId: order.order_id })}
+          onPress={handleDownloadInvoices}
           style={styles.actionButton}
           icon="file-document-outline"
+          loading={downloadingInvoices}
+          disabled={downloadingInvoices}
         >
           Invoices
         </Button>

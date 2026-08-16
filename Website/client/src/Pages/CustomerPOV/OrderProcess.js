@@ -1549,6 +1549,63 @@ export default function OrderProcess() {
     );
   };
 
+  // Staff-only "Manage Available Products" panel. Previously only rendered
+  // on the Contents step (currentStep === 2); now shared across every step
+  // so staff can curate availability from Packaging, Contents, Customization,
+  // and the Finalize step too.
+  const renderStaffProductPanel = () => (
+    user && ['admin', 'business_developer', 'creatives', 'director', 'sales_manager'].includes(user.role) && (
+      <div style={{
+        width: "100%",
+        backgroundColor: "#f4ecd8",
+        border: "1px solid #d9c393",
+        borderRadius: "8px",
+        padding: "20px",
+        marginBottom: "20px"
+      }}>
+        <h3 style={{ margin: "0 0 15px 0", color: "#6b4f23" }}>
+          🔧 Staff: Manage Available Products
+        </h3>
+        <p style={{ margin: "0 0 15px 0", color: "#6b4f23", fontSize: "14px" }}>
+          Select which products from inventory should be available for customers to choose from.
+        </p>
+        <button
+          type="button"
+          onClick={() => setShowProductSelection(true)}
+          style={{
+            backgroundColor: "#696a8f",
+            color: "white",
+            border: "none",
+            padding: "10px 20px",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontSize: "14px",
+            fontWeight: "600"
+          }}
+        >
+          📦 Manage Available Products
+        </button>
+        <button
+          type="button"
+          onClick={saveAvailableInventory}
+          style={{
+            marginLeft: "10px",
+            backgroundColor: "#5b8266",
+            color: "white",
+            border: "none",
+            padding: "10px 20px",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontSize: "14px",
+            fontWeight: "600"
+          }}
+        >
+          💾 Save Available Products
+        </button>
+      </div>
+    )
+  );
+
   return (
     <div style={styles.container}>
       <ToastContainer />
@@ -1687,8 +1744,9 @@ export default function OrderProcess() {
           {/* Step Forms */}
           {currentStep === 0 && (
             <div style={{...styles.form, width: "100%", padding: "40px"}}>
+              {renderStaffProductPanel()}
               <div style={{display: "flex", flexDirection: "column", gap: "30px"}}>
-                
+
                 {/* Welcome Section */}
                 <div style={{textAlign: "center", marginBottom: "20px"}}>
                   <h2 style={{
@@ -1956,6 +2014,7 @@ export default function OrderProcess() {
           )}
           {currentStep === 1 && (
             <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
+              {renderStaffProductPanel()}
               <div style={{backgroundColor: "#5b8266", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
                 <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
               </div>
@@ -2045,57 +2104,7 @@ export default function OrderProcess() {
           {currentStep === 2 && (
             <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
 
-              {/* Employee Product Management Interface */}
-              {user && ['admin', 'business_developer', 'creatives', 'director', 'sales_manager'].includes(user.role) && (
-                <div style={{
-                  width: "100%",
-                  backgroundColor: "#f4ecd8",
-                  border: "1px solid #d9c393",
-                  borderRadius: "8px",
-                  padding: "20px",
-                  marginBottom: "20px"
-                }}>
-                  <h3 style={{ margin: "0 0 15px 0", color: "#6b4f23" }}>
-                    🔧 Staff: Manage Available Products
-                  </h3>
-                  <p style={{ margin: "0 0 15px 0", color: "#6b4f23", fontSize: "14px" }}>
-                    Select which products from inventory should be available for customers to choose from.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowProductSelection(true)}
-                    style={{
-                      backgroundColor: "#696a8f",
-                      color: "white",
-                      border: "none",
-                      padding: "10px 20px",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "600"
-                    }}
-                  >
-                    📦 Manage Available Products
-                  </button>
-                  <button
-                    type="button"
-                    onClick={saveAvailableInventory}
-                    style={{
-                      marginLeft: "10px",
-                      backgroundColor: "#5b8266",
-                      color: "white",
-                      border: "none",
-                      padding: "10px 20px",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "600"
-                    }}
-                  >
-                    💾 Save Available Products
-                  </button>
-                </div>
-              )}
+              {renderStaffProductPanel()}
 
               {/* Content Categories */}
               <div style={styles.steps}>
@@ -2817,6 +2826,7 @@ export default function OrderProcess() {
           )}
           {currentStep === 3 && (
             <form style={{...styles.form, width: "100%"}} onSubmit={handleSubmit}>
+              {renderStaffProductPanel()}
               <div style={{backgroundColor: "#5b8266", width: "fit-content", padding: "10px", borderRadius: "5px", marginBottom: "20px"}}>
                 <p style={{fontSize: "14px", fontWeight: "600", color: "#f0f0f0"}}>You may select multiple options</p>
               </div>
@@ -2892,7 +2902,9 @@ export default function OrderProcess() {
             </form>
           )}
           {currentStep === 4 && (
-            <form style={{...styles.form, width: "100%", display: "flex", flexDirection: "row", gap: "50px"}} onSubmit={handleSubmit}>
+            <>
+              {renderStaffProductPanel()}
+              <form style={{...styles.form, width: "100%", display: "flex", flexDirection: "row", gap: "50px"}} onSubmit={handleSubmit}>
               <div style={{width: "50%"}}>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Wedding Date</label>
@@ -3043,8 +3055,9 @@ export default function OrderProcess() {
                 </div>
               </div>
             </form>
+            </>
           )}
-          
+
           {renderModal()}
           {/* OTP Modal */}
           {otpModalVisible && (

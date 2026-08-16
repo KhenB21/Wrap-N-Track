@@ -12,14 +12,16 @@ import {
   TextInput,
   RefreshControl,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Header from "../Components/Header";
 import { useTheme } from "../Context/ThemeContext";
+import { useAuth } from "../Context/AuthContext";
 import { useInventory } from "../Context/InventoryContext";
 import ProductGrid from "../Components/ProductGrid";
 import Toast from "../Components/Toast";
 import CustomAlert from "../Components/CustomAlert";
-import * as ImagePicker from "expo-image-picker";
-import { orderAPI } from "../services/api";
+import DatePickerModal from "../Components/DatePickerModal";
+import { orderAPI, inventoryAPI } from "../services/api";
 
 const { width, height } = Dimensions.get("window");
 
@@ -41,47 +43,75 @@ const GIFT_STEPS = [
 
 export default function CreateGiftScreen({ navigation }) {
   const { darkMode } = useTheme();
-  const { 
-    filteredInventory, 
-    selectedProducts, 
-    quantities,
-    loading, 
+  const { user } = useAuth();
+  const {
+    inventory,
+    selectedProducts,
+    loading,
     error,
-    toggleProduct, 
-    updateQuantity,
-    setCategoryFilter,
+    toggleProduct,
     loadInventory,
-    getTotalSelectedItems,
-    getTotalPrice,
     addProduct,
-    removeProduct
+    removeProduct,
+    lastRealtimeEvent,
   } = useInventory();
-  
+
   const [step, setStep] = useState(1);
-  const [customProduct, setCustomProduct] = useState({ name: "", image: null });
+  const [availableSkus, setAvailableSkus] = useState(null);
 
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  // Filter inventory by category when step changes
+  // Load the full inventory once on mount. Screens must trigger this
+  // themselves — InventoryContext doesn't auto-fetch on mount — otherwise
+  // every step shows an empty grid until a manual pull-to-refresh.
   useEffect(() => {
-    const currentStep = GIFT_STEPS.find(s => s.id === step);
-    if (currentStep && currentStep.category) {
-      setCategoryFilter(currentStep.category);
-    } else {
-      setCategoryFilter(null);
-    }
-  }, [step]); // Remove setCategoryFilter from dependencies to prevent infinite loop
+    loadInventory();
+  }, []);
 
-  // Debug: Log inventory state changes
+  // Only show products staff have marked available — same curated set the
+  // Website's OrderProcess page and the mobile Catalog use, so "Create Mine"
+  // never offers products staff haven't published for customers yet.
+  const fetchAvailableSkus = async () => {
+    try {
+      const data = await inventoryAPI.getAvailableInventory();
+      const skus = new Set(
+        Object.values(data.available || {}).flat().map(p => p.sku)
+      );
+      setAvailableSkus(skus);
+    } catch (err) {
+      console.error("Error fetching available inventory:", err);
+      setAvailableSkus(new Set());
+    }
+  };
+
   useEffect(() => {
-    console.log('Inventory state changed:', {
-      loading,
-      error,
-      inventoryCount: filteredInventory.length,
-      selectedCount: selectedProducts.length
-    });
-  }, [loading, error, filteredInventory.length, selectedProducts.length]);
+    fetchAvailableSkus();
+  }, []);
+
+  // Staff clicking "Save Available Products" on the website broadcasts this
+  // over the shared WS connection — refetch immediately instead of only
+  // picking up the change on next app reload.
+  useEffect(() => {
+    if (lastRealtimeEvent?.type === 'available_inventory_updated') {
+      fetchAvailableSkus();
+    }
+  }, [lastRealtimeEvent]);
+
+  // Products for the current step, filtered locally from the already-loaded
+  // full inventory. Filtering client-side (instead of round-tripping through
+  // context dispatch + a useEffect keyed on `step`) avoids the one-frame lag
+  // where the previous category's items were still visible after switching
+  // steps.
+  const currentStepMeta = GIFT_STEPS.find(s => s.id === step);
+  const availableInventory = React.useMemo(() => {
+    if (!availableSkus) return [];
+    return inventory.filter(item => availableSkus.has(item.sku));
+  }, [inventory, availableSkus]);
+  const currentStepProducts = React.useMemo(() => {
+    if (!currentStepMeta || !currentStepMeta.category) return availableInventory;
+    return availableInventory.filter(item => item.category === currentStepMeta.category);
+  }, [availableInventory, currentStepMeta?.category]);
 
   // Create "None" option for all steps except packaging (step 1)
   const getNoneOption = () => ({
@@ -95,15 +125,14 @@ export default function CreateGiftScreen({ navigation }) {
     isNoneOption: true
   });
 
-  // Add "None" option to filtered inventory for all steps except packaging
+  // Add "None" option to the current step's products for all steps except packaging
   const getInventoryWithNoneOption = () => {
-    const currentStep = GIFT_STEPS.find(s => s.id === step);
-    const shouldShowNone = currentStep && currentStep.category && step !== 1; // Skip packaging step
-    
+    const shouldShowNone = currentStepMeta && currentStepMeta.category && step !== 1; // Skip packaging step
+
     if (shouldShowNone) {
-      return [getNoneOption(), ...filteredInventory];
+      return [getNoneOption(), ...currentStepProducts];
     }
-    return filteredInventory;
+    return currentStepProducts;
   };
 
   // Custom toggle function to handle "None" option
@@ -176,31 +205,30 @@ export default function CreateGiftScreen({ navigation }) {
     }).start();
   };
 
-  // Animate step change
+  // Animate step change. Kept short so the Next/Back buttons feel immediate
+  // rather than requiring a second tap while the fade is still mid-flight.
   const animateStepChange = (nextStep) => {
+    setStep(nextStep);
+    fadeAnim.setValue(0);
     Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 250,
+      toValue: 1,
+      duration: 180,
       useNativeDriver: true,
-    }).start(() => {
-      setStep(nextStep);
-      fadeAnim.setValue(0);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 350,
-        useNativeDriver: true,
-      }).start();
-    });
+    }).start();
   };
 
   const colors = {
     bg: darkMode ? "#18191A" : "#fff",
     card: darkMode ? "#232323" : "#fff",
     text: darkMode ? "#F5F5F7" : "#111",
+    secondaryText: darkMode ? "#B0B0B0" : "#6B6593",
+    price: darkMode ? "#4CAF50" : "#27ae60",
     accent: darkMode ? "#444" : "#6B6593", // neutral gray for dark mode accent
     border: darkMode ? "#393A3B" : "#C7C5D1",
     box: darkMode ? "#232323" : "#F5F5F7",
     selected: darkMode ? "#333" : "#B6B3C6", // slightly lighter for selected
+    inputBg: darkMode ? "#232323" : "#fff",
+    inputBorder: darkMode ? "#393A3B" : "#C7C5D1",
   };
 
   // Render product selection step
@@ -235,14 +263,12 @@ export default function CreateGiftScreen({ navigation }) {
           products={getInventoryWithNoneOption()}
           onProductSelect={handleProductToggle}
           selectedProducts={selectedProducts}
-          quantities={quantities}
-          onQuantityChange={updateQuantity}
           darkMode={darkMode}
-          showQuantity={true}
-          loading={loading}
+          showQuantity={false}
+          loading={loading || availableSkus === null}
           title={currentStep.title}
           emptyMessage={`No ${currentStep.category?.toLowerCase() || 'products'} available`}
-          onRefresh={loadInventory}
+          onRefresh={() => { loadInventory(); fetchAvailableSkus(); }}
           currentCategory={currentStep.category}
         />
 
@@ -279,85 +305,138 @@ export default function CreateGiftScreen({ navigation }) {
     );
   };
 
-  // Render order summary step
-  const renderOrderSummary = () => (
-    <Animated.View style={{ opacity: fadeAnim, width: "100%", flex: 1 }}>
-      <Text style={[styles.stepTitle, { color: colors.text }]}>
-        Review Your Order
-      </Text>
-      
-      <ScrollView style={styles.orderSummary}>
-        <View style={styles.summarySection}>
+  // Review Order step. Every selected product ships at the same quantity —
+  // the "Number of Orders" set below — rather than a per-product stepper.
+  const renderOrderSummary = () => {
+    const orderQuantity = Math.max(1, parseInt(form.quantity, 10) || 1);
+    const grandTotal = selectedBoxes.reduce((sum, item) => sum + item.price * orderQuantity, 0);
+
+    const setOrderQuantity = (next) => {
+      const clamped = Math.max(1, next);
+      setForm((f) => ({ ...f, quantity: String(clamped) }));
+      validateForm("quantity", String(clamped));
+    };
+
+    return (
+      <Animated.View style={{ opacity: fadeAnim, width: "100%", flex: 1 }}>
+        <Text style={[styles.stepTitle, { color: colors.text }]}>
+          Review Your Order
+        </Text>
+
+        <ScrollView style={styles.orderSummary} showsVerticalScrollIndicator={false}>
+          <View style={[styles.quantityCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.quantityCardLabel, { color: colors.text }]}>Number of Orders</Text>
+              <Text style={[styles.quantityCardHint, { color: colors.secondaryText }]}>
+                Applied to every selected product below
+              </Text>
+            </View>
+            <View style={styles.quantityStepper}>
+              <TouchableOpacity
+                style={[styles.stepperButton, { backgroundColor: colors.accent }]}
+                onPress={() => setOrderQuantity(orderQuantity - 1)}
+              >
+                <Text style={styles.stepperButtonText}>−</Text>
+              </TouchableOpacity>
+              <TextInput
+                style={[styles.stepperInput, { color: colors.text, borderColor: colors.border }]}
+                value={form.quantity}
+                onChangeText={(v) => {
+                  setForm((f) => ({ ...f, quantity: v.replace(/[^0-9]/g, "") }));
+                  validateForm("quantity", v);
+                }}
+                keyboardType="numeric"
+                textAlign="center"
+              />
+              <TouchableOpacity
+                style={[styles.stepperButton, { backgroundColor: colors.accent }]}
+                onPress={() => setOrderQuantity(orderQuantity + 1)}
+              >
+                <Text style={styles.stepperButtonText}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          {formErrors.quantity ? (
+            <Text style={{ color: "#ff4444", fontSize: 13, marginBottom: 12 }}>{formErrors.quantity}</Text>
+          ) : null}
+
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Selected Items ({getTotalSelectedItems()})
+            Selected Items ({selectedBoxes.length})
           </Text>
-          {selectedBoxes.map((item, index) => (
-            <View key={item.id} style={[styles.summaryItem, { backgroundColor: colors.card }]}>
+
+          {selectedBoxes.map((item) => (
+            <View key={item.id} style={[styles.summaryItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Image source={item.image} style={styles.summaryImage} />
               <View style={styles.summaryDetails}>
-                <Text style={[styles.summaryName, { color: colors.text }]}>
+                <Text style={[styles.summaryName, { color: colors.text }]} numberOfLines={2}>
                   {item.label}
                 </Text>
                 <Text style={[styles.summaryQuantity, { color: colors.secondaryText }]}>
-                  Quantity: {item.quantity}
-                </Text>
-                <Text style={[styles.summaryPrice, { color: colors.price }]}>
-                  ₱{item.price} each
+                  ₱{item.price.toFixed(2)} × {orderQuantity}
                 </Text>
               </View>
               <Text style={[styles.summaryTotal, { color: colors.price }]}>
-                ₱{(item.price * item.quantity).toFixed(2)}
+                ₱{(item.price * orderQuantity).toFixed(2)}
               </Text>
             </View>
           ))}
+
+          <View style={[styles.totalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.totalRow}>
+              <Text style={[styles.totalRowLabel, { color: colors.secondaryText }]}>Items</Text>
+              <Text style={[styles.totalRowValue, { color: colors.text }]}>{selectedBoxes.length}</Text>
+            </View>
+            <View style={styles.totalRow}>
+              <Text style={[styles.totalRowLabel, { color: colors.secondaryText }]}>Orders (each product)</Text>
+              <Text style={[styles.totalRowValue, { color: colors.text }]}>{orderQuantity}</Text>
+            </View>
+            <View style={[styles.totalRow, styles.totalRowFinal, { borderTopColor: colors.border }]}>
+              <Text style={[styles.totalLabel, { color: colors.text }]}>Total</Text>
+              <Text style={[styles.totalLabel, { color: colors.price }]}>₱{grandTotal.toFixed(2)}</Text>
+            </View>
+          </View>
+        </ScrollView>
+
+        <View style={styles.navigationButtons}>
+          <TouchableOpacity
+            style={[
+              styles.navButton,
+              { backgroundColor: colors.accent, flex: 1, marginRight: 8 },
+            ]}
+            onPress={() => animateStepChange(8)}
+          >
+            <Text style={{ color: "#fff", textAlign: "center" }}>Back</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.navButton,
+              { backgroundColor: colors.accent, flex: 1, marginLeft: 8 },
+            ]}
+            onPress={() => animateStepChange(10)}
+          >
+            <Text style={{ color: "#fff", textAlign: "center" }}>Continue</Text>
+          </TouchableOpacity>
         </View>
+      </Animated.View>
+    );
+  };
 
-        <View style={styles.totalSection}>
-          <Text style={[styles.totalLabel, { color: colors.text }]}>
-            Total: ₱{getTotalPrice().toFixed(2)}
-          </Text>
-        </View>
-      </ScrollView>
-
-      <View style={styles.navigationButtons}>
-        <TouchableOpacity
-          style={[
-            styles.navButton,
-            { backgroundColor: colors.accent, flex: 1, marginRight: 8 },
-          ]}
-          onPress={() => animateStepChange(8)}
-        >
-          <Text style={{ color: "#fff", textAlign: "center" }}>Back</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.navButton,
-            { backgroundColor: colors.accent, flex: 1, marginLeft: 8 },
-          ]}
-          onPress={() => animateStepChange(9)}
-        >
-          <Text style={{ color: "#fff", textAlign: "center" }}>Continue</Text>
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
-  );
-
-  // Get selected products for display
+  // Get selected products for display. Quantity is uniform across products —
+  // set in the Review Order step, not per product.
   const selectedBoxes = selectedProducts.map(product => ({
     id: product.sku,
     label: product.name,
     image: product.image_data ? { uri: `data:image/jpeg;base64,${product.image_data}` } : require("../Images/Item/Eric.png"),
-    quantity: quantities[product.sku] || 1,
     price: product.unit_price,
   }));
 
+  // Name/email/contact come from the logged-in customer's account — no need
+  // to ask again. Shipping location still defaults to the account address
+  // but stays editable, since a gift order may ship somewhere else.
   const [form, setForm] = useState({
-    name: "",
-    email: "",
-    contact: "",
-    quantity: "",
-    shippingLocation: "",
+    quantity: "1",
+    shippingLocation: user?.address || "",
     deliveryDate: "",
   });
 
@@ -365,6 +444,7 @@ export default function CreateGiftScreen({ navigation }) {
 
   const [alert, setAlert] = useState({ visible: false, message: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const showAlert = (msg) => setAlert({ visible: true, message: msg });
   const hideAlert = () => setAlert({ visible: false, message: "" });
 
@@ -381,24 +461,26 @@ export default function CreateGiftScreen({ navigation }) {
     setSubmitting(true);
     try {
       const today = new Date().toISOString().slice(0, 10);
+      const orderQuantity = Math.max(1, parseInt(form.quantity, 10) || 1);
       const products = selectedProducts.map((product) => ({
         sku: product.sku,
-        quantity: quantities[product.sku] || 1,
+        quantity: orderQuantity,
       }));
 
       const order = await orderAPI.createOrder({
-        account_name: form.name.trim(),
-        name: form.name.trim(),
-        shipped_to: form.name.trim(),
+        account_name: user?.name || "",
+        name: user?.name || "",
+        shipped_to: user?.name || "",
         order_date: today,
         expected_delivery: form.deliveryDate || today,
         status: "Pending",
+        package_name: "Custom Gift Box",
         payment_method: "Cash",
         payment_type: "Full Payment",
         shipping_address: form.shippingLocation.trim(),
-        cellphone: form.contact.trim(),
-        email_address: form.email.trim(),
-        order_quantity: Number(form.quantity) || products.length,
+        cellphone: user?.phone_number || "",
+        email_address: user?.email || "",
+        order_quantity: orderQuantity,
         products,
       });
 
@@ -409,7 +491,7 @@ export default function CreateGiftScreen({ navigation }) {
       showAlert("Order submitted! We will contact you soon.");
       setTimeout(() => {
         hideAlert();
-        navigation.navigate("Home");
+        navigation.navigate("CustomerTabs", { screen: "Home" });
       }, 2000);
     } catch (err) {
       console.error("Error submitting custom gift order:", err);
@@ -432,15 +514,6 @@ export default function CreateGiftScreen({ navigation }) {
   const validateForm = (field, value) => {
     let errors = { ...formErrors };
 
-    if (field === "name" || !field) {
-      errors.name = form.name.trim() ? "" : "Name is required";
-    }
-    if (field === "email" || !field) {
-      errors.email = /\S+@\S+\.\S+/.test(form.email) ? "" : "Invalid email";
-    }
-    if (field === "contact" || !field) {
-      errors.contact = form.contact.trim().length >= 7 ? "" : "Contact is too short";
-    }
     if (field === "quantity" || !field) {
       errors.quantity = Number(form.quantity) > 0 ? "" : "Enter a valid quantity";
     }
@@ -478,62 +551,18 @@ export default function CreateGiftScreen({ navigation }) {
               Complete Your Order
             </Text>
             <View style={{ gap: 14 }}>
+              <View style={[styles.accountCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.accountCardTitle, { color: colors.text }]}>Ordering as</Text>
+                <Text style={[styles.accountCardName, { color: colors.text }]}>{user?.name || "—"}</Text>
+                <Text style={[styles.accountCardDetail, { color: colors.secondaryText }]}>{user?.email || "—"}</Text>
+                <Text style={[styles.accountCardDetail, { color: colors.secondaryText }]}>{user?.phone_number || "—"}</Text>
+                <TouchableOpacity onPress={() => navigation.navigate("CustomerTabs", { screen: "Profile" })}>
+                  <Text style={styles.accountCardEdit}>Wrong details? Edit profile</Text>
+                </TouchableOpacity>
+              </View>
               <TextInput
-                style={styles.input}
-                placeholder="Name"
-                value={form.name}
-                onChangeText={(v) => {
-                  setForm((f) => ({ ...f, name: v }));
-                  validateForm("name", v);
-                }}
-                onBlur={() => validateForm("name")}
-              />
-              {formErrors.name ? (
-                <Text style={{ color: "red", fontSize: 13 }}>{formErrors.name}</Text>
-              ) : null}
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                value={form.email}
-                onChangeText={(v) => {
-                  setForm((f) => ({ ...f, email: v }));
-                  validateForm("email", v);
-                }}
-                onBlur={() => validateForm("email")}
-              />
-              {formErrors.email ? (
-                <Text style={{ color: "red", fontSize: 13 }}>{formErrors.email}</Text>
-              ) : null}
-              <TextInput
-                style={styles.input}
-                placeholder="Contact Number"
-                value={form.contact}
-                onChangeText={(v) => {
-                  setForm((f) => ({ ...f, contact: v }));
-                  validateForm("contact", v);
-                }}
-                onBlur={() => validateForm("contact")}
-                keyboardType="phone-pad"
-              />
-              {formErrors.contact ? (
-                <Text style={{ color: "red", fontSize: 13 }}>{formErrors.contact}</Text>
-              ) : null}
-              <TextInput
-                style={styles.input}
-                placeholder="Order Quantity"
-                value={form.quantity}
-                onChangeText={(v) => {
-                  setForm((f) => ({ ...f, quantity: v }));
-                  validateForm("quantity", v);
-                }}
-                onBlur={() => validateForm("quantity")}
-                keyboardType="numeric"
-              />
-              {formErrors.quantity ? (
-                <Text style={{ color: "red", fontSize: 13 }}>{formErrors.quantity}</Text>
-              ) : null}
-              <TextInput
-                style={styles.input}
+                style={[styles.input, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}
+                placeholderTextColor={colors.secondaryText}
                 placeholder="Shipping Location"
                 value={form.shippingLocation}
                 onChangeText={(v) => {
@@ -545,67 +574,37 @@ export default function CreateGiftScreen({ navigation }) {
               {formErrors.shippingLocation ? (
                 <Text style={{ color: "red", fontSize: 13 }}>{formErrors.shippingLocation}</Text>
               ) : null}
-              <TextInput
-                style={styles.input}
-                placeholder="Date of Delivery"
-                value={form.deliveryDate}
-                onChangeText={(v) => {
-                  setForm((f) => ({ ...f, deliveryDate: v }));
-                  validateForm("deliveryDate", v);
-                }}
-                onBlur={() => validateForm("deliveryDate")}
-              />
+              <TouchableOpacity
+                style={[
+                  styles.input,
+                  styles.dateInputButton,
+                  { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
+                ]}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={{ color: form.deliveryDate ? colors.text : colors.secondaryText, fontSize: 16 }}>
+                  {form.deliveryDate || "Select delivery date"}
+                </Text>
+                <MaterialCommunityIcons name="calendar-outline" size={20} color={colors.secondaryText} />
+              </TouchableOpacity>
               {formErrors.deliveryDate ? (
                 <Text style={{ color: "red", fontSize: 13 }}>{formErrors.deliveryDate}</Text>
               ) : null}
-              {/* Add My Own Product section here */}
-              <View style={{ marginVertical: 16 }}>
-                <Text
-                  style={{ fontWeight: "bold", fontSize: 16, marginBottom: 8 }}
-                >
-                  Add My Own Product
+              <DatePickerModal
+                visible={showDatePicker}
+                onClose={() => setShowDatePicker(false)}
+                selectedDate={form.deliveryDate || null}
+                onSelect={(iso) => {
+                  setForm((f) => ({ ...f, deliveryDate: iso }));
+                  validateForm("deliveryDate", iso);
+                }}
+                darkMode={darkMode}
+              />
+              <View style={[styles.contactCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.contactCardText, { color: colors.secondaryText }]}>
+                  If you wish to add your own product, contact{' '}
+                  <Text style={styles.contactCardEmail}>penseegiftingstudio@gmail.com</Text>
                 </Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Product Name"
-                  value={customProduct.name}
-                  onChangeText={(v) => setCustomProduct((p) => ({ ...p, name: v }))}
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.box,
-                    { backgroundColor: colors.box, alignItems: "center", marginTop: 8 },
-                  ]}
-                  onPress={async () => {
-                    let result = await ImagePicker.launchImageLibraryAsync({
-                      mediaTypes: ["images"],
-                      allowsEditing: true,
-                      aspect: [1, 1],
-                      quality: 0.5,
-                    });
-                    if (!result.canceled) {
-                      setCustomProduct((p) => ({
-                        ...p,
-                        image: result.assets[0].uri,
-                      }));
-                    }
-                  }}
-                >
-                  <Text style={{ color: colors.text }}>
-                    {customProduct.image ? "Change Image" : "Add Image"}
-                  </Text>
-                  {customProduct.image && (
-                    <Image
-                      source={{ uri: customProduct.image }}
-                      style={{
-                        width: 60,
-                        height: 60,
-                        marginTop: 8,
-                        borderRadius: 8,
-                      }}
-                    />
-                  )}
-                </TouchableOpacity>
               </View>
               <TouchableOpacity
                 style={[styles.box, { backgroundColor: colors.accent, opacity: submitting ? 0.6 : 1 }]}
@@ -702,7 +701,7 @@ export default function CreateGiftScreen({ navigation }) {
         message={alert.message}
         onClose={() => {
           hideAlert();
-          navigation.navigate("Home");
+          navigation.navigate("CustomerTabs", { screen: "Home" });
         }}
       />
     </View>
@@ -817,14 +816,56 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "#C7C5D1",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: "#111",
-    r: "#fff",
-    backgroundColor: "#fff",
     width: "100%",
+  },
+  dateInputButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  accountCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+  },
+  accountCardTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  accountCardName: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  accountCardDetail: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  accountCardEdit: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B6593',
+    marginTop: 8,
+  },
+  contactCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginVertical: 16,
+  },
+  contactCardText: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  contactCardEmail: {
+    fontWeight: '700',
+    color: '#6B6593',
   },
   // New styles for inventory integration
   errorContainer: {
@@ -870,42 +911,105 @@ const styles = StyleSheet.create({
   summaryItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    marginBottom: 8,
-    borderRadius: 8,
+    padding: 14,
+    marginBottom: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
     elevation: 1,
   },
   summaryImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 12,
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    marginRight: 14,
+    backgroundColor: '#EDECF3',
   },
   summaryDetails: {
     flex: 1,
   },
   summaryName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     marginBottom: 4,
   },
   summaryQuantity: {
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  summaryPrice: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
   },
   summaryTotal: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  quantityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  quantityCardLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  quantityCardHint: {
+    fontSize: 12,
+  },
+  quantityStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  stepperButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  stepperInput: {
+    width: 48,
+    height: 36,
+    borderWidth: 1,
+    borderRadius: 8,
     fontSize: 16,
     fontWeight: '700',
   },
-  totalSection: {
+  totalCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  totalRowLabel: {
+    fontSize: 13,
+  },
+  totalRowValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  totalRowFinal: {
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    paddingTop: 16,
-    alignItems: 'center',
+    marginTop: 4,
+    paddingTop: 12,
+    marginBottom: 0,
   },
   totalLabel: {
     fontSize: 20,

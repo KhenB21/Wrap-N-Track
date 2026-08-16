@@ -23,15 +23,19 @@ export default function OrderStatusUpdateScreen({ navigation }) {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Mobile-only status list, per request — narrower than the website's full
+  // set (no Pending/Cancelled here). "Sent / Shipped" is shown as the label
+  // but still submits the real order.status value "Order Shipped Out", since
+  // that's the only valid status server-side for this stage (Sent / Shipped
+  // is otherwise only a delivery_status value, not an order status).
   const statusOptions = [
     { value: 'Order Placed', label: 'Order Placed', icon: 'clipboard-text' },
     { value: 'Order Paid', label: 'Order Paid', icon: 'credit-card' },
     { value: 'To Be Packed', label: 'To Be Packed', icon: 'package-variant-closed' },
-    { value: 'Order Shipped Out', label: 'Order Shipped Out', icon: 'truck-delivery' },
     { value: 'Ready for Delivery', label: 'Ready for Delivery', icon: 'truck' },
+    { value: 'Order Shipped Out', label: 'Sent / Shipped', icon: 'truck-delivery' },
     { value: 'Order Received', label: 'Order Received', icon: 'check-circle' },
     { value: 'Completed', label: 'Completed', icon: 'check-circle' },
-    { value: 'Cancelled', label: 'Cancelled', icon: 'close-circle' }
   ];
 
   const paymentMethods = [

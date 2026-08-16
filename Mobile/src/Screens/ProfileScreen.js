@@ -4,7 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useProfile } from "../Context/ProfileContext";
 import { useAuth } from "../Context/AuthContext";
 import { useTheme } from "../Context/ThemeContext";
-import { customerAPI } from "../services/api";
+import { customerAPI, accountManagementAPI } from "../services/api";
 import { regions, citiesByRegion, getBarangaysForCity } from "../data/philippineLocations";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import Header from "../Components/Header";
@@ -165,8 +165,10 @@ export default function ProfileScreen() {
       }
       let savedAvatar = avatar;
       let uploadedProfilePictureBase64 = result.profile?.profile_picture_base64;
-      if (!isEmployee() && avatarChanged && avatar && !avatar.startsWith("http") && !avatar.startsWith("data:")) {
-        const uploadResult = await customerAPI.uploadProfilePicture(avatar);
+      if (avatarChanged && avatar && !avatar.startsWith("http") && !avatar.startsWith("data:")) {
+        const uploadResult = isEmployee()
+          ? await accountManagementAPI.uploadOwnProfilePicture(avatar)
+          : await customerAPI.uploadProfilePicture(avatar);
         uploadedProfilePictureBase64 = uploadResult.profile_picture_data || uploadResult.profile_picture_base64 || uploadedProfilePictureBase64;
         if (uploadedProfilePictureBase64) {
           savedAvatar = `data:image/jpeg;base64,${uploadedProfilePictureBase64}`;

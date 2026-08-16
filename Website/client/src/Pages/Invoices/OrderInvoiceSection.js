@@ -60,7 +60,7 @@ function DownPaymentConfirmModal({ orderTotal, downPayment, remainingBalance, on
   );
 }
 
-export default function OrderInvoiceSection({ order }) {
+export default function OrderInvoiceSection({ order, onInvoicesChange }) {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState(null);
@@ -88,6 +88,10 @@ export default function OrderInvoiceSection({ order }) {
   useEffect(() => {
     fetchInvoices();
   }, [fetchInvoices]);
+
+  useEffect(() => {
+    if (onInvoicesChange) onInvoicesChange(invoices);
+  }, [invoices, onInvoicesChange]);
 
   const generateDownPayment = async () => {
     if (!orderTotal || orderTotal <= 0) {

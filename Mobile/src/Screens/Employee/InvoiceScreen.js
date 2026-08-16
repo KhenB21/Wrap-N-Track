@@ -73,7 +73,7 @@ export default function InvoiceScreen({ navigation }) {
         <View style={styles.invoiceHeader}>
           <View style={styles.invoiceInfo}>
             <Text style={[styles.invoiceId, { color: theme.colors.primary }]}>
-              Invoice #{item.invoice_id}
+              Invoice #{item.id}
             </Text>
             <Text style={[styles.invoiceType, { color: theme.colors.onSurfaceVariant }]}>
               {TYPE_LABELS[item.invoice_type] || item.invoice_type}
@@ -163,7 +163,7 @@ export default function InvoiceScreen({ navigation }) {
         <FlatList
           data={invoices}
           renderItem={renderInvoice}
-          keyExtractor={(item) => String(item.invoice_id)}
+          keyExtractor={(item) => String(item.id)}
           contentContainerStyle={[styles.list, invoices.length === 0 && styles.listEmpty]}
           ListEmptyComponent={renderEmpty}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}

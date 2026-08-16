@@ -509,6 +509,32 @@ router.put('/:order_id', async (req, res) => {
     const currentNorm = normalize(existingOrder.status);
     const statusHasDeducted = ['tobepack','readyfordeliver','readyfordelivery','enroute','completed'].includes(currentNorm);
 
+    // Block To Be Packed -> Ready for Delivery until the Delivery Tracking
+    // page has actually recorded how this order is shipping (mode, and for
+    // non-pickup orders, courier + tracking number/link). Mirrors the same
+    // check the OrderDetails "Confirm Order" button runs client-side, but
+    // enforced here too so it can't be bypassed via a direct API call.
+    const requestedNorm = normalize(status);
+    if (requestedNorm === 'readyfordelivery' && currentNorm !== 'readyfordeliver' && currentNorm !== 'readyfordelivery') {
+      const isPickupDelivery = existingOrder.delivery_type === 'PICKUP'
+        || existingOrder.delivery_method === 'Customer Pick-up';
+      const hasDeliveryMethod = !!existingOrder.delivery_method;
+      const hasCourierInfo = !!existingOrder.courier_name
+        && (
+          !!existingOrder.tracking_number
+          || (existingOrder.tracking_link_available && !!existingOrder.tracking_link)
+          || !!existingOrder.tracking_unavailable_message
+        );
+      const deliveryInfoComplete = hasDeliveryMethod && (isPickupDelivery || hasCourierInfo);
+
+      if (!deliveryInfoComplete) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: 'Delivery tracking info must be filled out (via Delivery Tracking) before this order can move to Ready for Delivery.'
+        });
+      }
+    }
+
     // If we are replacing products, first restore inventory only if it was previously deducted
     const existingLinesResult = await client.query('SELECT line_id, sku, quantity FROM order_products WHERE order_id = $1', [order_id]);
     const existingLines = existingLinesResult.rows;
@@ -698,8 +724,10 @@ router.put('/:order_id', async (req, res) => {
 
     await client.query('COMMIT');
 
+    const updatedOrderRow = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order_id]);
+
     const payload = {
-      ...existingOrderResult.rows[0],
+      ...updatedOrderRow.rows[0],
       // Overwrite total_cost with recomputed value
       total_cost: newTotalCost,
       products: newLines.rows.map(r => ({
@@ -786,13 +814,13 @@ router.delete('/:order_id', async (req, res) => {
     };
     const normalizedDBStatus = normalizeDBStatus(currentStatus);
 
-    if (normalizedDBStatus !== 'pending' && normalizedDBStatus !== 'tobepack') {
+    if (normalizedDBStatus !== 'pending' && normalizedDBStatus !== 'orderplaced' && normalizedDBStatus !== 'tobepack' && normalizedDBStatus !== 'tobepacked') {
       await client.query('ROLLBACK');
       return res.status(403).json({ success: false, message: 'Order cannot be cancelled. Only orders with status "Pending" or "To Be Pack" can be cancelled.' });
     }
 
     // If order was already deducted ('To Be Pack' and beyond), restock. If still 'Pending', skip restock.
-    const wasDeducted = ['tobepack','readyfordeliver','readyfordelivery','enroute','completed'].includes(normalizedDBStatus);
+    const wasDeducted = ['tobepack','tobepacked','readyfordeliver','readyfordelivery','enroute','completed'].includes(normalizedDBStatus);
     if (wasDeducted) {
       console.log(`[CancelOrder-${order_id}] Order was deducted (status=${currentStatus}). Restocking inventory before cancelling.`);
       // Fetch products for the order
@@ -827,10 +855,11 @@ router.delete('/:order_id', async (req, res) => {
       console.log(`[CancelOrder-${order_id}] Order is Pending. No inventory was deducted; skipping restock.`);
     }
 
-    // Update the order status to 'Cancelled'
+    // Update the order status to 'Cancelled' (also reflect it in delivery_status,
+    // which is the field the customer-facing mobile app displays)
     console.log(`[CancelOrder-${order_id}] Updating order status to 'Cancelled'.`);
     await client.query(
-      "UPDATE orders SET status = 'Cancelled' WHERE order_id = $1",
+      "UPDATE orders SET status = 'Cancelled', delivery_status = 'Cancelled' WHERE order_id = $1",
       [order_id]
     );
 
@@ -935,7 +964,7 @@ router.post('/backfill-total-costs', async (req, res) => {
 router.get('/archived', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT * FROM orders 
+      SELECT * FROM orders
       WHERE status IN ('Completed', 'Cancelled')
       ORDER BY order_date DESC
     `);
@@ -943,6 +972,61 @@ router.get('/archived', async (req, res) => {
   } catch (error) {
     console.error('Error fetching archived orders:', error);
     res.status(500).json({ message: 'Failed to fetch archived orders' });
+  }
+});
+
+// Get a single order's full details (used by the mobile Employee order detail
+// screen — orderAPI.getOrder()). Must stay below every other literal
+// single-segment GET route above (/gift-details, /archived, etc.) since
+// this catch-all :order_id pattern would otherwise shadow them.
+router.get('/:order_id', async (req, res) => {
+  const { order_id } = req.params;
+  try {
+    let orderResult = await pool.query(
+      'SELECT *, false AS archived FROM orders WHERE order_id = $1',
+      [order_id]
+    );
+    let productsQuery = `
+      SELECT op.sku, i.name AS product_name, i.description, op.quantity,
+             (i.unit_price * op.quantity) AS total_price
+      FROM order_products op
+      JOIN inventory_items i ON op.sku = i.sku
+      WHERE op.order_id = $1
+    `;
+
+    // Not in the live table — it may have been archived (Completed/Cancelled).
+    if (orderResult.rows.length === 0) {
+      orderResult = await pool.query(
+        'SELECT *, true AS archived FROM order_history WHERE order_id = $1',
+        [order_id]
+      );
+      productsQuery = `
+        SELECT ohp.sku, i.name AS product_name, i.description, ohp.quantity,
+               (ohp.unit_price * ohp.quantity) AS total_price
+        FROM order_history_products ohp
+        JOIN inventory_items i ON ohp.sku = i.sku
+        WHERE ohp.order_id = $1
+      `;
+    }
+
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const productsResult = await pool.query(productsQuery, [order_id]);
+    const order = orderResult.rows[0];
+
+    res.json({
+      success: true,
+      order: {
+        ...order,
+        customer_name: order.customer_name || order.name,
+        products: productsResult.rows,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching order:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch order' });
   }
 });
 

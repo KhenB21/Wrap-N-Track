@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
+const { broadcastAvailableInventoryUpdate } = require('../broadcast');
 
 // Minimal inline verifyToken (same pattern used in other route files)
 const verifyToken = (req, res, next) => {
@@ -97,6 +98,7 @@ router.put('/', async (req, res) => {
       }
     }
     await client.query('COMMIT');
+    broadcastAvailableInventoryUpdate();
     res.json({ success: true });
   } catch (err) {
     await client.query('ROLLBACK');

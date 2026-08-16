@@ -26,6 +26,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
   const { darkMode } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [tracking, setTracking] = useState(null);
+  const [confirmingReceipt, setConfirmingReceipt] = useState(false);
 
   useEffect(() => {
     if (orderId) {
@@ -52,6 +53,34 @@ export default function OrderTrackingScreen({ navigation, route }) {
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const confirmReceived = () => {
+    Alert.alert(
+      "Order Received",
+      "Confirming marks this order as completed. Have you received it?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes, mark as received",
+          onPress: async () => {
+            setConfirmingReceipt(true);
+            try {
+              await customerOrderAPI.markOrderReceived(orderId);
+              await loadTracking();
+            } catch (error) {
+              console.error("Error marking order as received:", error);
+              Alert.alert(
+                "Error",
+                error?.response?.data?.message || "Failed to mark order as received. Please try again."
+              );
+            } finally {
+              setConfirmingReceipt(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const getStepColor = (completed) => completed ? '#6B6593' : (darkMode ? '#393A3B' : '#EDECF3');
@@ -93,7 +122,9 @@ export default function OrderTrackingScreen({ navigation, route }) {
         {/* Order Header */}
         <View style={[styles.section, { backgroundColor: card }]}>
           <View style={styles.orderHeader}>
-            <Text style={[styles.orderId, { color: text }]}>Order #{tracking.orderId}</Text>
+            <Text style={[styles.orderId, { color: text }]} numberOfLines={1}>
+              Order {tracking.orderId}
+            </Text>
             <View style={[styles.statusBadge, { backgroundColor: '#6B6593' }]}>
               <Text style={styles.statusText}>{currentStage?.toUpperCase().replace(/-/g, ' ')}</Text>
             </View>
@@ -152,6 +183,21 @@ export default function OrderTrackingScreen({ navigation, route }) {
             </View>
           </View>
         )}
+
+        {tracking.deliveryStatus === 'Sent / Shipped' && currentStage !== 'Order Received' && (
+          <View style={[styles.section, { backgroundColor: card }]}>
+            <TouchableOpacity
+              style={[styles.receivedButton, { opacity: confirmingReceipt ? 0.6 : 1 }]}
+              onPress={confirmReceived}
+              disabled={confirmingReceipt}
+            >
+              <MaterialCommunityIcons name="check-circle-outline" size={20} color="#fff" />
+              <Text style={styles.receivedButtonText}>
+                {confirmingReceipt ? "Confirming…" : "Order Received"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -186,16 +232,21 @@ const styles = StyleSheet.create({
   },
   orderHeader: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
+    rowGap: 8,
+    columnGap: 8,
     marginBottom: 8,
   },
   orderId: {
-    fontSize: 18,
+    flexShrink: 1,
+    fontSize: 16,
     fontFamily: 'serif',
     fontWeight: 'bold',
   },
   statusBadge: {
+    flexShrink: 0,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -336,5 +387,20 @@ const styles = StyleSheet.create({
     fontFamily: 'serif',
     marginTop: 4,
     lineHeight: 20,
+  },
+  receivedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4CAF50',
+    borderRadius: 10,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  receivedButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: 'serif',
+    fontWeight: 'bold',
   },
 });

@@ -459,9 +459,10 @@ router.get('/tracking/:orderId', async (req, res) => {
     if (customerId) {
       // Customer access - only their orders
       result = await pool.query(`
-        SELECT 
+        SELECT
           o.order_id,
           o.status,
+          COALESCE(o.delivery_status, 'Pending') AS delivery_status,
           o.order_placed_at,
           o.order_paid_at,
           o.order_shipped_at,
@@ -475,9 +476,10 @@ router.get('/tracking/:orderId', async (req, res) => {
     } else {
       // Employee access - any order
       result = await pool.query(`
-        SELECT 
+        SELECT
           o.order_id,
           o.status,
+          COALESCE(o.delivery_status, 'Pending') AS delivery_status,
           o.order_placed_at,
           o.order_paid_at,
           o.order_shipped_at,
@@ -488,6 +490,51 @@ router.get('/tracking/:orderId', async (req, res) => {
         FROM orders o
         WHERE o.order_id = $1
       `, [orderId]);
+    }
+
+    // If not found in active orders, check archived orders (order_history)
+    if (result.rows.length === 0) {
+      if (customerId) {
+        result = await pool.query(`
+          SELECT
+            oh.order_id,
+            oh.status,
+            COALESCE(oh.delivery_status, 'Pending') AS delivery_status,
+            oh.archived_at as order_placed_at,
+            oh.archived_at as order_paid_at,
+            oh.archived_at as order_shipped_at,
+            oh.archived_at as order_received_at,
+            oh.expected_delivery,
+            oh.shipping_address,
+            oh.total_cost
+          FROM order_history oh
+          LEFT JOIN customer_details cd ON cd.customer_id = $2
+          WHERE oh.order_id = $1 AND (
+            oh.customer_id = $2
+            OR (oh.customer_id IS NULL AND (
+              oh.email_address = cd.email_address
+              OR oh.name = cd.name
+              OR oh.cellphone = cd.phone_number
+            ))
+          )
+        `, [orderId, customerId]);
+      } else {
+        result = await pool.query(`
+          SELECT
+            oh.order_id,
+            oh.status,
+            COALESCE(oh.delivery_status, 'Pending') AS delivery_status,
+            oh.archived_at as order_placed_at,
+            oh.archived_at as order_paid_at,
+            oh.archived_at as order_shipped_at,
+            oh.archived_at as order_received_at,
+            oh.expected_delivery,
+            oh.shipping_address,
+            oh.total_cost
+          FROM order_history oh
+          WHERE oh.order_id = $1
+        `, [orderId]);
+      }
     }
 
     if (result.rows.length === 0) {
@@ -506,6 +553,7 @@ router.get('/tracking/:orderId', async (req, res) => {
       tracking: {
         orderId: order.order_id,
         currentStage: trackingStage,
+        deliveryStatus: order.delivery_status,
         steps: trackingSteps,
         expectedDelivery: order.expected_delivery,
         shippingAddress: order.shipping_address,
@@ -518,6 +566,172 @@ router.get('/tracking/:orderId', async (req, res) => {
       success: false,
       message: 'Failed to fetch order tracking'
     });
+  }
+});
+
+// PATCH /api/customer-orders/orders/:orderId/receive - Customer taps "Order Received", which
+// completes the order (not an intermediate "Order Received" status — Completed is the actual
+// terminal state, same as when staff close out an order). Only available once the order has
+// actually shipped, and only for the order's own customer.
+//
+// Updates `orders` directly (rather than the update_order_status() DB function from migration 023,
+// which assigns its varchar parameter straight into `status` — now an enum column — and 400s on
+// any call), then archives to order_history the same way orders.js's PUT /:order_id route does for
+// any other Completed/Cancelled transition, so this order doesn't end up in an inconsistent
+// still-in-`orders`-but-Completed state that the rest of the app doesn't expect.
+router.patch('/orders/:orderId/receive', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { orderId } = req.params;
+    const customerId = req.user.customer_id;
+
+    if (!customerId) {
+      return res.status(403).json({ success: false, message: 'Only customers can confirm receipt of an order' });
+    }
+
+    const orderResult = await client.query(
+      'SELECT * FROM orders WHERE order_id = $1 AND customer_id = $2',
+      [orderId, customerId]
+    );
+
+    if (orderResult.rows.length === 0) {
+      // Not in the live table — check whether it's already been archived
+      // (completed/cancelled) so the error is meaningful instead of a bare 404.
+      // Some archived orders have a NULL customer_id (placed before customer_id
+      // linking existed), so fall back to matching by email/name/phone against
+      // this customer's own profile — same rule the tracking endpoint uses.
+      const archivedResult = await client.query(
+        `SELECT oh.status
+         FROM order_history oh
+         LEFT JOIN customer_details cd ON cd.customer_id = $2
+         WHERE oh.order_id = $1 AND (
+           oh.customer_id = $2
+           OR (oh.customer_id IS NULL AND (
+             oh.email_address = cd.email_address
+             OR oh.name = cd.name
+             OR oh.cellphone = cd.phone_number
+           ))
+         )`,
+        [orderId, customerId]
+      );
+      if (archivedResult.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `This order is already ${archivedResult.rows[0].status.toLowerCase()} — there's nothing left to confirm.`
+        });
+      }
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const order = orderResult.rows[0];
+    const currentStatus = order.status;
+    if (order.delivery_status !== 'Sent / Shipped') {
+      return res.status(400).json({
+        success: false,
+        message: 'This order is not yet out for delivery, so it cannot be marked as received.'
+      });
+    }
+
+    await client.query('BEGIN');
+
+    await client.query(
+      `INSERT INTO order_status_history (order_id, old_status, new_status, updated_by, notes)
+       VALUES ($1, $2, 'Completed', NULL, 'Marked received by customer')`,
+      [orderId, currentStatus]
+    );
+
+    await client.query(
+      `INSERT INTO delivery_status_history (order_id, status, remarks, delivery_method, delivery_mode_id, delivery_type, courier_name, tracking_number, tracking_link, proof_image_url, updated_by)
+       VALUES ($1, 'Delivered', 'Marked received by customer', $2, $3, $4, $5, $6, $7, $8, NULL)`,
+      [
+        orderId,
+        order.delivery_method || null,
+        order.delivery_mode_id || null,
+        order.delivery_type || null,
+        order.courier_name || null,
+        order.tracking_number || null,
+        order.tracking_link || null,
+        order.proof_image_url || null,
+      ]
+    );
+
+    await client.query(
+      `INSERT INTO order_history (
+        order_id, customer_name, name, shipped_to, order_date, expected_delivery,
+        status, shipping_address, total_cost, payment_type, payment_method,
+        account_name, remarks, telephone, cellphone, email_address, archived_by,
+        customer_id,
+        delivery_status, delivery_method, delivery_mode_id, delivery_type, courier_name,
+        tracking_number, tracking_link, tracking_link_available, tracking_unavailable_message,
+        proof_image_url, proof_uploaded_by, proof_uploaded_at,
+        sent_at, picked_up_at, delivered_at, delivery_remarks,
+        delivery_updated_by, delivery_updated_at, order_quantity
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,
+        $19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37)`,
+      [
+        order.order_id,
+        order.name || 'Customer',
+        order.name || 'Customer',
+        order.shipped_to || order.name || 'Customer',
+        order.order_date,
+        order.expected_delivery,
+        'Completed',
+        order.shipping_address || 'Unknown Address',
+        order.total_cost || 0,
+        order.payment_type || 'Pending',
+        order.payment_method || 'Pending',
+        order.account_name || null,
+        order.remarks || null,
+        order.telephone || null,
+        order.cellphone || null,
+        order.email_address || null,
+        null,
+        order.customer_id || null,
+        'Delivered',
+        order.delivery_method || null,
+        order.delivery_mode_id || null,
+        order.delivery_type || null,
+        order.courier_name || null,
+        order.tracking_number || null,
+        order.tracking_link || null,
+        order.tracking_link_available,
+        order.tracking_unavailable_message || null,
+        order.proof_image_url || null,
+        order.proof_uploaded_by || null,
+        order.proof_uploaded_at || null,
+        order.sent_at || null,
+        order.picked_up_at || null,
+        order.delivered_at || new Date(),
+        order.delivery_remarks || null,
+        order.delivery_updated_by || null,
+        order.delivery_updated_at || null,
+        order.order_quantity != null ? order.order_quantity : null,
+      ]
+    );
+
+    const pricedResult = await client.query(
+      'SELECT op.sku, op.quantity, i.unit_price FROM order_products op JOIN inventory_items i ON op.sku = i.sku WHERE op.order_id = $1',
+      [orderId]
+    );
+    for (const row of pricedResult.rows) {
+      await client.query(
+        'INSERT INTO order_history_products (order_id, sku, quantity, unit_price) VALUES ($1,$2,$3,$4)',
+        [orderId, row.sku, row.quantity, row.unit_price]
+      );
+    }
+
+    await client.query('DELETE FROM order_products WHERE order_id = $1', [orderId]);
+    await client.query('DELETE FROM orders WHERE order_id = $1', [orderId]);
+
+    await client.query('COMMIT');
+
+    res.json({ success: true, message: 'Order marked as completed', status: 'Completed' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error marking order as received:', error);
+    res.status(500).json({ success: false, message: 'Failed to mark order as received' });
+  } finally {
+    client.release();
   }
 });
 

@@ -265,6 +265,7 @@ export default function OrderDetails() {
   const location = useLocation();
 
   // State variables
+  const [selectedOrderInvoices, setSelectedOrderInvoices] = useState([]);
   const [pendingOrders, setPendingOrders] = useState([]);
   const [toBePackOrders, setToBePackOrders] = useState([]);
   const [readyToDeliverOrders, setReadyToDeliverOrders] = useState([]);
@@ -422,7 +423,7 @@ export default function OrderDetails() {
     }
 
     const normalizedStatus = normalizeStatus(selectedOrder.status);
-    if (normalizedStatus !== 'pending' && normalizedStatus !== 'tobepacked') {
+    if (normalizedStatus !== 'pending' && normalizedStatus !== 'orderplaced' && normalizedStatus !== 'tobepacked') {
       alert('Only orders with status "Pending" or "To Be Packed" can be cancelled.');
       return;
     }
@@ -494,7 +495,7 @@ export default function OrderDetails() {
         // Potentially set an error state to display to the user
       } else {
         console.log('Processing orders into categories...');
-        setPendingOrders(allOrders.filter(o => normalizeStatus(o.status) === 'pending'));
+        setPendingOrders(allOrders.filter(o => ['pending', 'orderplaced'].includes(normalizeStatus(o.status))));
         setToBePackOrders(allOrders.filter(o => normalizeStatus(o.status) === 'tobepacked'));
         setReadyToDeliverOrders(allOrders.filter(o => normalizeStatus(o.status) === 'readyfordelivery' || normalizeStatus(o.status) === 'confirmed'));
         setEnRouteOrders(allOrders.filter(o => normalizeStatus(o.status) === 'enroute'));
@@ -548,6 +549,10 @@ export default function OrderDetails() {
       setCustomerDetails(null); // Clear if no selected order or no email
     }
   }, [selectedOrder, fetchCustomerDetails]);
+
+  useEffect(() => {
+    setSelectedOrderInvoices([]);
+  }, [selectedOrderId]);
 
   useEffect(() => {
     if (selectedOrderId) {
@@ -1235,7 +1240,7 @@ export default function OrderDetails() {
                   )}
                 </div>
               )}
-              <OrderInvoiceSection order={selectedOrder} />
+              <OrderInvoiceSection order={selectedOrder} onInvoicesChange={setSelectedOrderInvoices} />
 
               {/* Action Buttons */}
               <div style={{display:'flex',gap:18,marginTop:20,paddingTop:24,borderTop:'1px solid var(--border)', justifyContent:'center', alignItems:'center'}}>
@@ -1246,31 +1251,59 @@ export default function OrderDetails() {
                 >
                   Edit Order
                 </button>
-                <button 
+                <button
                   className="delete-btn"
                   style={{ ...styles.button, border: '1.5px solid var(--danger)', color: 'var(--danger)', background: 'var(--surface)', marginRight: 16 }}
                   onClick={handleCancelPendingOrder}
                 >
                   Cancel Order
                 </button>
-                {(normalizeStatus(selectedOrder.status) === normalizeStatus('pending') || normalizeStatus(selectedOrder.status) === normalizeStatus('To Be Packed')) && (
                 <button
+                  style={{ ...styles.button, border: '1.5px solid var(--brand)', color: 'var(--brand)', background: 'var(--surface)', marginRight: 16 }}
+                  onClick={() => navigate(`/delivery-tracking?orderId=${encodeURIComponent(selectedOrder.order_id)}`)}
+                >
+                  Delivery Tracking
+                </button>
+                {(() => {
+                  const normalizedSelectedStatus = normalizeStatus(selectedOrder.status);
+                  const isPendingLike = normalizedSelectedStatus === 'pending' || normalizedSelectedStatus === 'orderplaced';
+                  const isToBePackedStatus = normalizedSelectedStatus === normalizeStatus('To Be Packed');
+                  if (!isPendingLike && !isToBePackedStatus) return null;
+
+                  const downPaymentInvoice = selectedOrderInvoices.find(
+                    (inv) => inv.invoice_type === 'DOWN_PAYMENT' && inv.status !== 'CANCELLED'
+                  );
+                  const remainingBalanceInvoice = selectedOrderInvoices.find(
+                    (inv) => inv.invoice_type === 'REMAINING_BALANCE' && inv.status !== 'CANCELLED'
+                  );
+                  const invoicesReady = !!downPaymentInvoice && downPaymentInvoice.status === 'PAID'
+                    && !!remainingBalanceInvoice && remainingBalanceInvoice.status === 'PAID';
+                  const blockedByInvoices = isPendingLike && !invoicesReady;
+
+                  return (
+                <button
+                  disabled={blockedByInvoices}
+                  title={blockedByInvoices ? 'Generate the down payment and remaining balance invoices and mark both as paid before moving this order to To Be Packed.' : undefined}
                   style={{
                     padding: '12px 24px',
                     fontSize: '15px',
                     fontWeight: 700,
-                    backgroundColor: '#2ecc71', // Common green color for now
+                    backgroundColor: blockedByInvoices ? '#a5d6b7' : '#2ecc71',
                     color: 'white',
                     border: 'none',
                     borderRadius: '8px',
-                    cursor: 'pointer',
+                    cursor: blockedByInvoices ? 'not-allowed' : 'pointer',
                     transition: 'background-color 0.3s ease, transform 0.1s ease',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                     letterSpacing: '0.02em'
                   }}
-                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#27ae60'}
-                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2ecc71'}
+                  onMouseOver={(e) => { if (!blockedByInvoices) e.currentTarget.style.backgroundColor = '#27ae60'; }}
+                  onMouseOut={(e) => { if (!blockedByInvoices) e.currentTarget.style.backgroundColor = '#2ecc71'; }}
                   onClick={async () => {
+                    if (blockedByInvoices) {
+                      alert('Both the down payment and remaining balance invoices must be generated and marked as paid before this order can move to To Be Packed.');
+                      return;
+                    }
                     if (!selectedOrder) {
                       console.error("Action Error: selectedOrder is missing.", selectedOrder);
                       alert("Error: Order details are not available.");
@@ -1299,10 +1332,35 @@ export default function OrderDetails() {
                       let payload = { products: lightweightProducts }; // Use lightweight products
 
                     if (currentStatus === normalizeStatus('To Be Packed')) {
+                      // Delivery tracking info (mode, courier, tracking number/link) is filled
+                      // separately on the Delivery Tracking page. Don't let an order move to
+                      // Ready for Delivery until that's been done, or the customer sees a
+                      // "Ready for Delivery" order with no way to know how it's actually shipping.
+                      const isPickupDelivery = selectedOrder.delivery_type === 'PICKUP'
+                        || selectedOrder.delivery_method === 'Customer Pick-up';
+                      const hasDeliveryMethod = !!selectedOrder.delivery_method;
+                      const hasCourierInfo = !!selectedOrder.courier_name
+                        && (
+                          !!selectedOrder.tracking_number
+                          || (selectedOrder.tracking_link_available && !!selectedOrder.tracking_link)
+                          || !!selectedOrder.tracking_unavailable_message
+                        );
+                      const deliveryInfoComplete = hasDeliveryMethod && (isPickupDelivery || hasCourierInfo);
+
+                      if (!deliveryInfoComplete) {
+                        alert(
+                          'Delivery tracking info is not filled out yet for this order. ' +
+                          'Go to Delivery Tracking and set the delivery mode' +
+                          (isPickupDelivery ? '' : ', courier, and tracking number/link') +
+                          ' before confirming.'
+                        );
+                        return;
+                      }
+
                       newStatus = 'Ready for Delivery';
                       confirmMessage = 'This order will be marked as Ready for Delivery. Proceed?';
                       payload.status = newStatus;
-                    } else if (currentStatus === 'pending') {
+                    } else if (currentStatus === 'pending' || currentStatus === 'orderplaced') {
                       newStatus = 'To Be Packed';
                       confirmMessage = 'Are you sure you want to confirm this order? This will finalize the details and prepare it for processing.';
                       // For pending, send all relevant fields from selectedOrder that can be updated.
@@ -1365,7 +1423,8 @@ export default function OrderDetails() {
                   }}>
                   {normalizeStatus(selectedOrder.status) === normalizeStatus('To Be Packed') ? 'Confirm Delivery' : 'Confirm Order'}
                 </button>
-              )}
+                  );
+                })()}
               {(normalizeStatus(selectedOrder.status) === normalizeStatus('Ready for Delivery') || normalizeStatus(selectedOrder.status) === normalizeStatus('ready for deliver') || normalizeStatus(selectedOrder.status) === normalizeStatus('confirmed')) && (
                 <button
                   style={{ padding:'12px 24px', fontSize:15, fontWeight:700, background:'#4caf50', color:'#fff', border:'none', borderRadius:8, cursor:'pointer' }}

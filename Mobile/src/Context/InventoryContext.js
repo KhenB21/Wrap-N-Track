@@ -270,6 +270,11 @@ export const InventoryProvider = ({ children }) => {
       ) {
         rtLoadRef.current?.();
         setLastRealtimeEvent(msg);
+      } else if (msg.type === 'available_inventory_updated') {
+        // No raw-inventory refetch needed here — screens that care about the
+        // curated availability set (Catalog, Create Mine) watch
+        // lastRealtimeEvent themselves and re-fetch /available-inventory.
+        setLastRealtimeEvent(msg);
       } else if (msg.type === 'ping') {
         try { ws.send(JSON.stringify({ type: 'pong' })); } catch (_) {}
       }

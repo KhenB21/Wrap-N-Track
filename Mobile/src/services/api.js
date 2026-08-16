@@ -2,6 +2,37 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+// downloadAsync isn't on the new File/Directory API in this SDK version yet —
+// the legacy subpath keeps the same function working without a deprecation throw.
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+
+// Self-contained ArrayBuffer -> base64 encoder — deliberately not using
+// global.btoa (not guaranteed present under Hermes) or any external package.
+const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let result = '';
+  let i = 0;
+  for (; i + 2 < bytes.length; i += 3) {
+    result += BASE64_CHARS[bytes[i] >> 2];
+    result += BASE64_CHARS[((bytes[i] & 3) << 4) | (bytes[i + 1] >> 4)];
+    result += BASE64_CHARS[((bytes[i + 1] & 15) << 2) | (bytes[i + 2] >> 6)];
+    result += BASE64_CHARS[bytes[i + 2] & 63];
+  }
+  const remaining = bytes.length - i;
+  if (remaining === 1) {
+    result += BASE64_CHARS[bytes[i] >> 2];
+    result += BASE64_CHARS[(bytes[i] & 3) << 4];
+    result += '==';
+  } else if (remaining === 2) {
+    result += BASE64_CHARS[bytes[i] >> 2];
+    result += BASE64_CHARS[((bytes[i] & 3) << 4) | (bytes[i + 1] >> 4)];
+    result += BASE64_CHARS[(bytes[i + 1] & 15) << 2];
+    result += '=';
+  }
+  return result;
+}
 
 // Deployed backend (see Website/server — NOT wrap-n-track.onrender.com, which is
 // the deployed website frontend). Used for any non-dev build (APK/IPA/EAS build),
@@ -47,6 +78,7 @@ const getBaseURL = () => {
 };
 
 const BASE_URL = getBaseURL();
+export { BASE_URL };
 
 // Log the base URL for debugging
 console.log('API Base URL:', BASE_URL);
@@ -149,6 +181,15 @@ const tryMultipleUrls = async (endpoint, urls) => {
 };
 
 export const inventoryAPI = {
+  getAvailableInventory: async () => {
+    try {
+      const response = await api.get('/available-inventory');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching available inventory:', error);
+      throw error;
+    }
+  },
   getInventory: async () => {
     try {
       const response = await api.get('/inventory');
@@ -326,7 +367,7 @@ export const cartAPI = {
   },
   clearCart: async () => {
     try {
-      const response = await api.delete('/cart');
+      const response = await api.delete('/cart/clear');
       return response.data;
     } catch (error) {
       console.error('Error clearing cart:', error);
@@ -365,7 +406,7 @@ export const orderAPI = {
   },
   getOrder: async (orderId) => {
     try {
-      const response = await api.get(`/orders/${orderId}`);
+      const response = await api.get(`/orders/${encodeURIComponent(orderId)}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching order:', error);
@@ -374,7 +415,7 @@ export const orderAPI = {
   },
   updateOrderStatus: async (orderId, status, extra = {}) => {
     try {
-      const response = await api.put(`/order-management/orders/${orderId}/status`, {
+      const response = await api.put(`/order-management/orders/${encodeURIComponent(orderId)}/status`, {
         status,
         notes: extra.notes,
         payment_method: extra.payment_method,
@@ -654,7 +695,7 @@ export const customerOrderAPI = {
   },
   getMyOrder: async (orderId) => {
     try {
-      const response = await api.get(`/customer-orders/orders/${orderId}`);
+      const response = await api.get(`/customer-orders/orders/${encodeURIComponent(orderId)}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching customer order:', error);
@@ -663,10 +704,19 @@ export const customerOrderAPI = {
   },
   getOrderTracking: async (orderId) => {
     try {
-      const response = await api.get(`/customer-orders/tracking/${orderId}`);
+      const response = await api.get(`/customer-orders/tracking/${encodeURIComponent(orderId)}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching order tracking:', error);
+      throw error;
+    }
+  },
+  markOrderReceived: async (orderId) => {
+    try {
+      const response = await api.patch(`/customer-orders/orders/${encodeURIComponent(orderId)}/receive`);
+      return response.data;
+    } catch (error) {
+      console.error('Error marking order as received:', error);
       throw error;
     }
   },
@@ -693,7 +743,7 @@ export const showcaseAPI = {
 export const invoiceAPI = {
   getOrderInvoices: async (orderId) => {
     try {
-      const response = await api.get(`/orders/${orderId}/invoices`);
+      const response = await api.get(`/orders/${encodeURIComponent(orderId)}/invoices`);
       return response.data;
     } catch (error) {
       console.error('Error fetching order invoices:', error);
@@ -710,6 +760,46 @@ export const invoiceAPI = {
     }
   },
   getPdfUrl: () => `${BASE_URL.replace('/api', '')}/api`,
+  // Downloads an invoice PDF to local storage and opens the OS share sheet
+  // (Save to Files / open in a PDF viewer / etc). Used by the mobile "Invoices"
+  // button so tapping it downloads the PDF directly instead of navigating to
+  // a list screen — the website keeps the list + per-invoice download UI.
+  //
+  // Deliberately avoids both FileSystem.downloadAsync (its custom `headers`
+  // option isn't reliably applied on Android in this SDK, so an auth-gated
+  // request can silently save the error body instead of the PDF) and
+  // fetch()+Blob+FileReader (RN's Blob/FileReader shims are flaky here —
+  // "undefined is not a function" on readAsDataURL). Fetching the bytes via
+  // the existing authenticated axios instance as an arraybuffer, then
+  // base64-encoding them by hand, sidesteps both.
+  downloadInvoicePdf: async (invoiceId, fileNameHint) => {
+    const safeName = (fileNameHint || `invoice-${invoiceId}`).replace(/[^a-zA-Z0-9_.-]/g, '_');
+    const fileUri = `${FileSystem.cacheDirectory}${safeName}.pdf`;
+
+    const response = await api.get(`/invoices/${invoiceId}/pdf`, {
+      responseType: 'arraybuffer',
+    });
+
+    const contentType = response.headers?.['content-type'] || '';
+    if (!contentType.includes('application/pdf')) {
+      throw new Error('Server did not return a PDF file');
+    }
+
+    const base64Data = arrayBufferToBase64(response.data);
+
+    await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'application/pdf',
+        dialogTitle: fileNameHint || 'Invoice PDF',
+      });
+    }
+
+    return fileUri;
+  },
 };
 
 export const notificationAPI = {
@@ -798,6 +888,28 @@ export const accountManagementAPI = {
   resetPassword: async (userId, newPassword) => {
     const response = await api.patch(`/account-management/users/${userId}/reset-password`, { newPassword });
     return response.data;
+  },
+  // Self-service upload for the logged-in staff user's own picture.
+  // Mirrors customerAPI.uploadProfilePicture but hits /account/profile-picture,
+  // which targets req.user.user_id instead of a route param.
+  uploadOwnProfilePicture: async (imageUri) => {
+    try {
+      const formData = new FormData();
+      const filename = imageUri.split('/').pop() || 'profile.jpg';
+      const extension = filename.split('.').pop() || 'jpg';
+      formData.append('profilePicture', {
+        uri: imageUri,
+        name: filename,
+        type: `image/${extension === 'jpg' ? 'jpeg' : extension}`,
+      });
+      const response = await api.patch('/account/profile-picture', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading staff profile picture:', error);
+      throw error;
+    }
   },
 };
 
