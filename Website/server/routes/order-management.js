@@ -72,7 +72,7 @@ router.get('/orders', requireRole(['admin', 'sales_manager', 'assistant_sales', 
       LEFT JOIN users u ON o.status_updated_by = u.user_id
       LEFT JOIN customer_details cd ON o.customer_id = cd.customer_id
       ${whereClause}
-      ORDER BY o.order_date DESC, o.created_at DESC
+      ORDER BY o.order_date DESC, o.order_placed_at DESC
       LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
     `;
 
@@ -150,17 +150,36 @@ router.put('/orders/:orderId/status', requireRole(['admin', 'super_admin', 'oper
       });
     }
 
-    // Update order status using the function
-    const updateResult = await pool.query(
-      'SELECT update_order_status($1, $2, $3, $4) as success',
-      [orderId, status, updatedBy, notes]
-    );
-
-    if (!updateResult.rows[0].success) {
-      return res.status(400).json({
-        success: false,
-        message: 'Failed to update order status'
-      });
+    // Update order status directly rather than via the update_order_status()
+    // DB function (migration 023) — that function assigns its VARCHAR
+    // parameter straight into `status`, which is now an enum column, and
+    // 500s on every call. A plain parameterized UPDATE doesn't hit this
+    // (node-pg's extended query protocol handles the varchar->enum cast
+    // automatically when going directly against the table).
+    const oldStatus = orderResult.rows[0].status;
+    if (oldStatus !== status) {
+      // $1 (assigned into the enum `status` column) and $4 (plain-text CASE
+      // comparisons) both hold the same `status` value — kept as separate
+      // parameters because Postgres won't reconcile a single placeholder used
+      // both as an enum value and under an explicit ::text cast in the same
+      // statement ("inconsistent types deduced for parameter $1").
+      await pool.query(
+        `UPDATE orders
+         SET status = $1,
+             status_updated_by = $2,
+             status_updated_at = CURRENT_TIMESTAMP,
+             order_placed_at = CASE WHEN $4 = 'Order Placed' THEN CURRENT_TIMESTAMP ELSE order_placed_at END,
+             order_paid_at = CASE WHEN $4 = 'Order Paid' THEN CURRENT_TIMESTAMP ELSE order_paid_at END,
+             order_shipped_at = CASE WHEN $4 = 'Order Shipped Out' THEN CURRENT_TIMESTAMP ELSE order_shipped_at END,
+             order_received_at = CASE WHEN $4 = 'Order Received' THEN CURRENT_TIMESTAMP ELSE order_received_at END
+         WHERE order_id = $3`,
+        [status, updatedBy, orderId, status]
+      );
+      await pool.query(
+        `INSERT INTO order_status_history (order_id, old_status, new_status, updated_by, notes)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [orderId, oldStatus, status, updatedBy, notes || null]
+      );
     }
 
     // Update payment method if provided

@@ -170,20 +170,25 @@ router.get('/analytics', async (req, res) => {
     
     console.log('Final sales activity:', salesActivity);
 
-    // Get recent activity (last 5 orders)
+    // Get recent activity (last 5 orders for the selected month/year)
     const recentActivity = await pool.query(`
-      SELECT 
-        o.order_id,
-        o.name as customer_name,
-        o.order_date,
-        o.status,
-        o.name as archived_by_name,
-        NULL as archived_by_profile_picture,
-        o.order_date as archived_at
-      FROM orders o
-      ORDER BY o.order_date DESC
+      SELECT * FROM (
+        SELECT DISTINCT ON (o.order_id)
+          o.order_id,
+          o.name as customer_name,
+          o.order_date,
+          o.status,
+          o.name as archived_by_name,
+          NULL as archived_by_profile_picture,
+          o.order_date as archived_at
+        FROM orders o
+        WHERE DATE_PART('month', o.order_date) = $1
+        AND DATE_PART('year', o.order_date) = $2
+        ORDER BY o.order_id, o.order_date DESC
+      ) deduped
+      ORDER BY order_date DESC
       LIMIT 5
-    `);
+    `, [targetMonth, targetYear]);
 
     res.json({
       success: true,

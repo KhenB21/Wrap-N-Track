@@ -676,7 +676,7 @@ router.post('/orders/:orderId/invoices/remaining-balance', verifyJwt(), staffOnl
   createInvoice(req, res, 'REMAINING_BALANCE');
 });
 
-router.patch('/invoices/:id/status', staffOnly, async (req, res) => {
+router.patch('/invoices/:id/status', verifyJwt(), staffOnly, async (req, res) => {
   const client = await pool.connect();
   try {
     const { status } = req.body || {};
@@ -715,7 +715,7 @@ router.patch('/invoices/:id/status', staffOnly, async (req, res) => {
   }
 });
 
-router.patch('/invoices/:id/mark-paid', staffOnly, proofUpload.single('payment_proof'), async (req, res) => {
+router.patch('/invoices/:id/mark-paid', verifyJwt(), staffOnly, proofUpload.single('payment_proof'), async (req, res) => {
   const client = await pool.connect();
   let uploadedProof = null;
   try {

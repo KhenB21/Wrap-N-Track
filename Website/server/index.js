@@ -74,6 +74,7 @@ const authRouter = require('./routes/auth');
 const customerRoutes = require('./routes/customer');
 const employeeRouter = require('./routes/employee');
 const accountManagementRouter = require('./routes/accountManagement');
+const accountRouter = require('./routes/account');
 const cartRouter = require('./routes/cart');
 const orderManagementRouter = require('./routes/order-management');
 const customerOrdersRouter = require('./routes/customer-orders');
@@ -430,6 +431,8 @@ app.use('/api/employee', verifyJwt, requireRole(['admin','business_developer','c
 
 // Account Management routes (Admin only)
 app.use('/api/account-management', accountManagementRouter);
+// Self-service account routes (any authenticated staff user, own row only)
+app.use('/api/account', verifyJwt, accountRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/order-management', orderManagementRouter);
 app.use('/api/customer-orders', customerOrdersRouter);

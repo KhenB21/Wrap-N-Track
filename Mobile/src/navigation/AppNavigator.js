@@ -174,6 +174,28 @@ function EmployeeTabNavigator() {
   );
 }
 
+// Customer Stack Navigator (wraps tabs so detail/tracking screens are reachable)
+function CustomerStackNavigator() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="CustomerTabs" component={CustomerTabNavigator} />
+      <Stack.Screen name="ItemPreview" component={ItemPreviewScreen} />
+      <Stack.Screen name="CreateGift" component={CreateGiftScreen} />
+      <Stack.Screen name="DeliveryTracking" component={DeliveryTrackingScreen} />
+      <Stack.Screen name="BundleDetail" component={BundleDetailScreen} />
+      <Stack.Screen name="OrderedItems" component={OrderedItemsScreen} />
+      <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
+      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+      <Stack.Screen name="Checkout" component={CheckoutScreen} />
+      <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
+    </Stack.Navigator>
+  );
+}
+
 // Main Stack Navigator
 function MainStackNavigator() {
   return (
@@ -218,7 +240,7 @@ export default function AppNavigator() {
 
   // Show customer screens if customer
   if (userType === 'customer') {
-    return <CustomerTabNavigator />;
+    return <CustomerStackNavigator />;
   }
 
   // Show employee screens if employee (default)

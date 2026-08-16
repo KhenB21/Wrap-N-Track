@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import withEmployeeAuth from '../../Components/withEmployeeAuth';
@@ -298,6 +299,8 @@ function DeliveryModal({ delivery, modes, onClose, onSaved }) {
 
 function DeliveryTracking() {
   const { checkPermission } = usePermissions();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [deliveries, setDeliveries] = useState([]);
   const [modes, setModes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -361,6 +364,19 @@ function DeliveryTracking() {
       setSelectedDelivery(delivery);
     }
   };
+
+  // Deep-link support: Order Details' "Confirm Delivery" / delivery-tracking
+  // button navigates here as /delivery-tracking?orderId=..., so that specific
+  // order's modal opens automatically instead of staff having to search for it.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const orderId = params.get('orderId');
+    if (orderId) {
+      openDelivery({ order_id: orderId });
+      navigate('/delivery-tracking', { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   const modeOptions = useMemo(() => {
     const fromRows = deliveries.map((delivery) => delivery.delivery_method).filter(Boolean);

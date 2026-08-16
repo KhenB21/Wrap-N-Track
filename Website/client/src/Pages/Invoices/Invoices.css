@@ -312,15 +312,49 @@
 .order-invoice-row {
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 8px;
-  padding: 12px;
+  padding: 14px 16px;
   background: var(--surface-muted, #fafafa);
 }
 
 .order-invoice-row-top {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
+  margin-bottom: 12px;
+}
+
+.invoice-type-label {
+  color: var(--text-muted, #64748b);
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.order-invoice-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px 16px;
   margin-bottom: 10px;
+}
+
+.order-invoice-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.order-invoice-stat span {
+  color: var(--text-muted, #64748b);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.order-invoice-stat strong {
+  color: var(--text, #111827);
+  font-size: 14px;
 }
 
 .order-invoice-empty {

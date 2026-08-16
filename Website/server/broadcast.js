@@ -36,6 +36,12 @@ const broadcastInventoryCreated = (payload = {}) => broadcastInventoryEvent('inv
 const broadcastInventoryArchived = (payload = {}) => broadcastInventoryEvent('inventory_archived', payload);
 const broadcastInventoryRestored = (payload = {}) => broadcastInventoryEvent('inventory_restored', payload);
 
+// Fired when staff save the "available products" selection (Website
+// OrderProcess page), so any customer-facing screen — mobile Catalog,
+// mobile "Create Mine", the website order page itself — refetches the
+// curated availability list instead of showing a stale set until reload.
+const broadcastAvailableInventoryUpdate = (payload = {}) => broadcastInventoryEvent('available_inventory_updated', payload);
+
 /**
  * Route a barcode scan to the web peer of a given userId only.
  */
@@ -98,6 +104,7 @@ module.exports = {
   broadcastInventoryCreated,
   broadcastInventoryArchived,
   broadcastInventoryRestored,
+  broadcastAvailableInventoryUpdate,
   routeBarcodeToWeb,
   notifyPeer,
   isPeerOnline

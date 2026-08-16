@@ -14,18 +14,6 @@ const {
 const router = express.Router();
 
 const STAFF_DELIVERY_ROLES = ['operations_manager', 'sales_manager', 'social_media_manager', 'super_admin', 'admin'];
-const DELIVERY_STAGE_ORDER_STATUSES = ['Ready for Delivery', 'Order Shipped Out'];
-const DELIVERY_STAGE_DELIVERY_STATUSES = [
-  'Ready for Delivery',
-  'Awaiting Pick-up',
-  'Out for Delivery',
-  'Sent / Shipped',
-  'Delivered',
-  'Picked Up',
-  'Failed Delivery',
-  'Rescheduled',
-  'Cancelled',
-];
 const uploadDir = path.join(__dirname, '..', 'uploads', 'delivery-proofs');
 
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -120,81 +108,122 @@ router.get('/', async (req, res) => {
     await syncReadyDeliveryRows();
 
     const { status, search, expected_date, delivery_mode, courier } = req.query;
-    const clauses = [
-      `(o.status::text = ANY($1::text[]) OR COALESCE(o.delivery_status, 'Pending') = ANY($2::text[]))`,
-    ];
-    const params = [DELIVERY_STAGE_ORDER_STATUSES, DELIVERY_STAGE_DELIVERY_STATUSES];
-    let index = 3;
+    // Every order should be visible here — from freshly placed through
+    // archived/completed — so staff can set up delivery info at any stage.
+    // Cancelled is the only status excluded.
+    const clauses = [`d.order_status != 'Cancelled'`];
+    const params = [];
+    let index = 1;
 
     if (status && status !== 'all') {
-      clauses.push(`COALESCE(o.delivery_status, 'Pending') = $${index++}`);
+      clauses.push(`d.delivery_status = $${index++}`);
       params.push(status);
     }
 
     if (delivery_mode && delivery_mode !== 'all') {
-      clauses.push(`COALESCE(o.delivery_method, '') = $${index++}`);
+      clauses.push(`COALESCE(d.delivery_method, '') = $${index++}`);
       params.push(delivery_mode);
     }
 
     if (courier) {
-      clauses.push(`COALESCE(o.courier_name, '') ILIKE $${index++}`);
+      clauses.push(`COALESCE(d.courier_name, '') ILIKE $${index++}`);
       params.push(`%${courier}%`);
     }
 
     if (expected_date) {
-      clauses.push(`o.expected_delivery = $${index++}`);
+      clauses.push(`d.expected_delivery = $${index++}`);
       params.push(expected_date);
     }
 
     if (search) {
       clauses.push(`(
-        o.order_id ILIKE $${index}
-        OR o.name ILIKE $${index}
-        OR o.shipped_to ILIKE $${index}
-        OR o.shipping_address ILIKE $${index}
-        OR COALESCE(o.tracking_number, '') ILIKE $${index}
-        OR COALESCE(o.courier_name, '') ILIKE $${index}
+        d.order_id ILIKE $${index}
+        OR d.customer_name ILIKE $${index}
+        OR d.shipped_to ILIKE $${index}
+        OR d.shipping_address ILIKE $${index}
+        OR COALESCE(d.tracking_number, '') ILIKE $${index}
+        OR COALESCE(d.courier_name, '') ILIKE $${index}
       )`);
       params.push(`%${search}%`);
       index++;
     }
 
     const result = await pool.query(`
-      SELECT
-        o.order_id,
-        o.customer_id,
-        o.name AS customer_name,
-        o.shipped_to,
-        o.shipping_address,
-        o.cellphone,
-        o.telephone,
-        o.email_address,
-        o.order_date,
-        o.expected_delivery,
-        o.status::text AS order_status,
-        o.total_cost,
-        COALESCE(o.order_quantity, 0) AS total_boxes,
-        COALESCE(o.delivery_status, 'Pending') AS delivery_status,
-        o.delivery_method,
-        o.delivery_mode_id,
-        o.delivery_type,
-        o.courier_name,
-        o.tracking_number,
-        o.tracking_link,
-        o.tracking_link_available,
-        COALESCE(o.tracking_unavailable_message, $${index}) AS tracking_unavailable_message,
-        o.proof_image_url,
-        o.proof_uploaded_at,
-        o.sent_at,
-        o.picked_up_at,
-        o.delivered_at,
-        o.delivery_remarks,
-        o.delivery_updated_at,
-        u.name AS delivery_updated_by_name
-      FROM orders o
-      LEFT JOIN users u ON o.delivery_updated_by = u.user_id
+      SELECT * FROM (
+        SELECT
+          o.order_id,
+          o.customer_id,
+          o.name AS customer_name,
+          o.shipped_to,
+          o.shipping_address,
+          o.cellphone,
+          o.telephone,
+          o.email_address,
+          o.order_date,
+          o.expected_delivery,
+          o.status::text AS order_status,
+          o.total_cost,
+          COALESCE(o.order_quantity, 0) AS total_boxes,
+          COALESCE(o.delivery_status, 'Pending') AS delivery_status,
+          o.delivery_method,
+          o.delivery_mode_id,
+          o.delivery_type,
+          o.courier_name,
+          o.tracking_number,
+          o.tracking_link,
+          o.tracking_link_available,
+          COALESCE(o.tracking_unavailable_message, $${index}) AS tracking_unavailable_message,
+          o.proof_image_url,
+          o.proof_uploaded_at,
+          o.sent_at,
+          o.picked_up_at,
+          o.delivered_at,
+          o.delivery_remarks,
+          o.delivery_updated_at,
+          u.name AS delivery_updated_by_name,
+          false AS archived
+        FROM orders o
+        LEFT JOIN users u ON o.delivery_updated_by = u.user_id
+
+        UNION ALL
+
+        SELECT
+          oh.order_id,
+          oh.customer_id,
+          oh.name AS customer_name,
+          oh.shipped_to,
+          oh.shipping_address,
+          oh.cellphone,
+          oh.telephone,
+          oh.email_address,
+          oh.order_date,
+          oh.expected_delivery,
+          oh.status::text AS order_status,
+          oh.total_cost,
+          COALESCE(oh.order_quantity, 0) AS total_boxes,
+          COALESCE(oh.delivery_status, 'Pending') AS delivery_status,
+          oh.delivery_method,
+          oh.delivery_mode_id,
+          oh.delivery_type,
+          oh.courier_name,
+          oh.tracking_number,
+          oh.tracking_link,
+          oh.tracking_link_available,
+          COALESCE(oh.tracking_unavailable_message, $${index}) AS tracking_unavailable_message,
+          oh.proof_image_url,
+          oh.proof_uploaded_at,
+          oh.sent_at,
+          oh.picked_up_at,
+          oh.delivered_at,
+          oh.delivery_remarks,
+          oh.delivery_updated_at,
+          u2.name AS delivery_updated_by_name,
+          true AS archived
+        FROM order_history oh
+        LEFT JOIN users u2 ON oh.delivery_updated_by = u2.user_id
+      ) d
       WHERE ${clauses.join(' AND ')}
-      ORDER BY o.expected_delivery ASC NULLS LAST, o.order_date DESC NULLS LAST
+      ORDER BY d.expected_delivery ASC NULLS LAST, d.order_date DESC NULLS LAST
       LIMIT 300
     `, [...params, TRACKING_UNAVAILABLE_MESSAGE]);
 
@@ -207,13 +236,14 @@ router.get('/', async (req, res) => {
 
 router.get('/:orderId', async (req, res) => {
   try {
-    const result = await pool.query(`
+    let result = await pool.query(`
       SELECT
         o.*,
         o.status::text AS order_status,
         COALESCE(items.products, '[]'::json) AS products,
         COALESCE(o.order_quantity, 0) AS total_boxes,
-        COALESCE(o.tracking_unavailable_message, $2) AS tracking_unavailable_message
+        COALESCE(o.tracking_unavailable_message, $2) AS tracking_unavailable_message,
+        false AS archived
       FROM orders o
       LEFT JOIN LATERAL (
         SELECT
@@ -229,6 +259,34 @@ router.get('/:orderId', async (req, res) => {
       ) items ON true
       WHERE o.order_id = $1
     `, [req.params.orderId, TRACKING_UNAVAILABLE_MESSAGE]);
+
+    // Order may already be archived (Completed/etc. moved it to order_history) —
+    // still viewable here so staff can look up or finish its delivery info.
+    if (!result.rows.length) {
+      result = await pool.query(`
+        SELECT
+          oh.*,
+          oh.status::text AS order_status,
+          COALESCE(items.products, '[]'::json) AS products,
+          COALESCE(oh.order_quantity, 0) AS total_boxes,
+          COALESCE(oh.tracking_unavailable_message, $2) AS tracking_unavailable_message,
+          true AS archived
+        FROM order_history oh
+        LEFT JOIN LATERAL (
+          SELECT
+            COALESCE(json_agg(json_build_object(
+              'sku', ohp.sku,
+              'name', i.name,
+              'quantity', ohp.quantity,
+              'unit_price', ohp.unit_price
+            )) FILTER (WHERE ohp.sku IS NOT NULL), '[]'::json) AS products
+          FROM order_history_products ohp
+          LEFT JOIN inventory_items i ON ohp.sku = i.sku
+          WHERE ohp.order_id = oh.order_id
+        ) items ON true
+        WHERE oh.order_id = $1
+      `, [req.params.orderId, TRACKING_UNAVAILABLE_MESSAGE]);
+    }
 
     if (!result.rows.length) {
       return res.status(404).json({ success: false, message: 'Delivery order not found' });
@@ -311,7 +369,22 @@ router.patch('/:orderId', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    const result = await client.query(`
+    const updateValues = [
+      delivery_status,
+      mode?.id || null,
+      modeName || null,
+      modeType,
+      finalCourierName,
+      finalTrackingNumber,
+      linkAvailable,
+      finalTrackingLink,
+      finalUnavailableMessage,
+      delivery_remarks || null,
+      req.user?.user_id || null,
+      req.params.orderId,
+    ];
+
+    let result = await client.query(`
       UPDATE orders
       SET delivery_status = $1::varchar,
           delivery_mode_id = $2,
@@ -330,20 +403,32 @@ router.patch('/:orderId', async (req, res) => {
           delivery_updated_at = NOW()
       WHERE order_id = $12
       RETURNING *
-    `, [
-      delivery_status,
-      mode?.id || null,
-      modeName || null,
-      modeType,
-      finalCourierName,
-      finalTrackingNumber,
-      linkAvailable,
-      finalTrackingLink,
-      finalUnavailableMessage,
-      delivery_remarks || null,
-      req.user?.user_id || null,
-      req.params.orderId,
-    ]);
+    `, updateValues);
+
+    // Order may already be archived — retry against order_history so staff
+    // can still finish delivery info for a Completed/etc. order.
+    if (!result.rows.length) {
+      result = await client.query(`
+        UPDATE order_history
+        SET delivery_status = $1::varchar,
+            delivery_mode_id = $2,
+            delivery_method = $3,
+            delivery_type = $4,
+            courier_name = $5,
+            tracking_number = $6,
+            tracking_link_available = $7,
+            tracking_link = $8,
+            tracking_unavailable_message = $9,
+            delivery_remarks = $10,
+            sent_at = CASE WHEN $1::text = 'Sent / Shipped' THEN COALESCE(sent_at, NOW()) ELSE sent_at END,
+            picked_up_at = CASE WHEN $1::text = 'Picked Up' THEN COALESCE(picked_up_at, NOW()) ELSE picked_up_at END,
+            delivered_at = CASE WHEN $1::text = 'Delivered' THEN COALESCE(delivered_at, NOW()) ELSE delivered_at END,
+            delivery_updated_by = $11,
+            delivery_updated_at = NOW()
+        WHERE order_id = $12
+        RETURNING *
+      `, updateValues);
+    }
 
     if (!result.rows.length) {
       await client.query('ROLLBACK');

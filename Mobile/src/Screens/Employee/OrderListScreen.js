@@ -63,11 +63,10 @@ export default function OrderListScreen() {
       );
     }
     
-    // Apply status filter
+    // Apply status filter. filters.status holds the exact status string
+    // (e.g. "Order Placed") set by the chip's onPress below, or 'all'.
     if (filters.status && filters.status !== 'all') {
-      filtered = filtered.filter(order =>
-        (order?.status || '').toLowerCase().replace(' ', '_') === filters.status
-      );
+      filtered = filtered.filter(order => order?.status === filters.status);
     }
 
     // Apply date range filter
@@ -265,33 +264,31 @@ export default function OrderListScreen() {
               {[
                 'All Orders', 'Order Placed', 'Order Paid', 'To Be Packed',
                 'Order Shipped Out', 'Ready for Delivery', 'Order Received', 'Completed', 'Cancelled'
-              ].map((status) => (
-                <TouchableOpacity
-                  key={status}
-                  style={[
-                    styles.filterChip,
-                    { 
-                      backgroundColor: filters.status === status.toLowerCase().replace(' ', '_') 
-                        ? theme.colors.primary 
-                        : theme.colors.surface,
-                      borderColor: theme.colors.outline,
-                      borderWidth: 1
-                    }
-                  ]}
-                  onPress={() => handleFilter('status', status === 'All Orders' ? 'all' : status)}
-                >
-                  <Text style={[
-                    styles.filterChipText,
-                    { 
-                      color: filters.status === status.toLowerCase().replace(' ', '_') 
-                        ? '#fff' 
-                        : theme.colors.onSurface 
-                    }
-                  ]}>
-                    {status}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              ].map((status) => {
+                const chipValue = status === 'All Orders' ? 'all' : status;
+                const isSelected = filters.status === chipValue;
+                return (
+                  <TouchableOpacity
+                    key={status}
+                    style={[
+                      styles.filterChip,
+                      {
+                        backgroundColor: isSelected ? theme.colors.primary : theme.colors.surface,
+                        borderColor: theme.colors.outline,
+                        borderWidth: 1
+                      }
+                    ]}
+                    onPress={() => handleFilter('status', chipValue)}
+                  >
+                    <Text style={[
+                      styles.filterChipText,
+                      { color: isSelected ? '#fff' : theme.colors.onSurface }
+                    ]}>
+                      {status}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 

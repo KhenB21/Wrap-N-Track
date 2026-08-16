@@ -123,7 +123,7 @@ export default function CheckoutScreen({ navigation, route }) {
               text: "Done",
               onPress: () => {
                 clearCart();
-                navigation.navigate("Home");
+                navigation.navigate("CustomerTabs", { screen: "Home" });
               },
             },
           ]

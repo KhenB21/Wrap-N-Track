@@ -134,61 +134,62 @@ const styles = {
   },
   orderDetailsModalContainer: {
     padding:0,
-    borderRadius:18,
-    minWidth:900,
-    maxWidth:1100,
-    width:'70vw',
-    boxShadow:'0 8px 32px rgba(44,62,80,0.10), 0 2px 12px rgba(74,144,226,0.06)',
+    borderRadius:20,
+    minWidth:1040,
+    maxWidth:1320,
+    width:'86vw',
+    boxShadow:'0 24px 64px rgba(15,23,42,0.28), 0 4px 16px rgba(15,23,42,0.10)',
     position:'relative',
     display:'flex',
     flexDirection:'row',
     alignItems:'stretch',
-    maxHeight: '85vh',
+    maxHeight: '92vh',
+    height: '92vh',
     overflow: 'hidden',
   },
   orderDetailsColumnDefault: {
     flex:2,
-    padding:'48px 36px 36px 64px',
-    minWidth:420,
+    padding:'40px 44px 40px 56px',
+    minWidth:460,
     display:'flex',
     flexDirection:'column',
-    justifyContent:'center',
+    justifyContent:'flex-start',
     overflowY: 'auto',
     boxSizing: 'border-box',
   },
   whatsInsideColumnDefault: {
     flex:1.1,
-    borderRadius:'0 18px 18px 0',
-    padding:'48px 32px 36px 32px',
+    borderRadius:'0 20px 20px 0',
+    padding:'40px 36px 40px 36px',
     display:'flex',
     flexDirection:'column',
     alignItems:'flex-start',
-    minWidth:300,
-    maxWidth:340,
-    justifyContent:'center',
+    minWidth:340,
+    maxWidth:400,
+    justifyContent:'flex-start',
     overflowY: 'auto',
     boxSizing: 'border-box',
   },
   whatsInsideColumnLeft: {
     flex:1.1,
-    borderRadius:'18px 0 0 18px',
-    padding:'48px 32px 36px 32px',
+    borderRadius:'20px 0 0 20px',
+    padding:'40px 36px 40px 36px',
     display:'flex',
     flexDirection:'column',
     alignItems:'flex-start',
-    minWidth:300,
-    maxWidth:340,
-    justifyContent:'center',
+    minWidth:340,
+    maxWidth:400,
+    justifyContent:'flex-start',
     overflowY: 'auto',
     boxSizing: 'border-box',
   },
   orderDetailsColumnRight: {
     flex:2,
-    padding:'48px 64px 36px 36px',
-    minWidth:420,
+    padding:'40px 56px 40px 44px',
+    minWidth:460,
     display:'flex',
     flexDirection:'column',
-    justifyContent:'center',
+    justifyContent:'flex-start',
     overflowY: 'auto',
     boxSizing: 'border-box',
   }
@@ -264,6 +265,7 @@ export default function OrderDetails() {
   const location = useLocation();
 
   // State variables
+  const [selectedOrderInvoices, setSelectedOrderInvoices] = useState([]);
   const [pendingOrders, setPendingOrders] = useState([]);
   const [toBePackOrders, setToBePackOrders] = useState([]);
   const [readyToDeliverOrders, setReadyToDeliverOrders] = useState([]);
@@ -421,7 +423,7 @@ export default function OrderDetails() {
     }
 
     const normalizedStatus = normalizeStatus(selectedOrder.status);
-    if (normalizedStatus !== 'pending' && normalizedStatus !== 'tobepacked') {
+    if (normalizedStatus !== 'pending' && normalizedStatus !== 'orderplaced' && normalizedStatus !== 'tobepacked') {
       alert('Only orders with status "Pending" or "To Be Packed" can be cancelled.');
       return;
     }
@@ -493,7 +495,7 @@ export default function OrderDetails() {
         // Potentially set an error state to display to the user
       } else {
         console.log('Processing orders into categories...');
-        setPendingOrders(allOrders.filter(o => normalizeStatus(o.status) === 'pending'));
+        setPendingOrders(allOrders.filter(o => ['pending', 'orderplaced'].includes(normalizeStatus(o.status))));
         setToBePackOrders(allOrders.filter(o => normalizeStatus(o.status) === 'tobepacked'));
         setReadyToDeliverOrders(allOrders.filter(o => normalizeStatus(o.status) === 'readyfordelivery' || normalizeStatus(o.status) === 'confirmed'));
         setEnRouteOrders(allOrders.filter(o => normalizeStatus(o.status) === 'enroute'));
@@ -547,6 +549,10 @@ export default function OrderDetails() {
       setCustomerDetails(null); // Clear if no selected order or no email
     }
   }, [selectedOrder, fetchCustomerDetails]);
+
+  useEffect(() => {
+    setSelectedOrderInvoices([]);
+  }, [selectedOrderId]);
 
   useEffect(() => {
     if (selectedOrderId) {
@@ -1140,35 +1146,70 @@ export default function OrderDetails() {
             ) || 'Unknown Address'
           );
 
+          // Reusable label/value field for the professional info-grid layout
+          const InfoField = ({ label, value, valueColor, fullWidth }) => (
+            <div style={{ gridColumn: fullWidth ? '1 / -1' : 'auto' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 5 }}>
+                {label}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 500, color: valueColor || 'var(--text)' }}>
+                {value}
+              </div>
+            </div>
+          );
+
+          const statusPillColors = isConfirmed
+            ? { background: 'var(--brand-soft)', color: 'var(--success)' }
+            : { background: 'var(--surface-muted)', color: 'var(--text-soft)' };
+
           const OrderDetailsSectionJSX = (
             <>
-              <h2 style={{marginBottom:32,fontFamily:'Cormorant Garamond,serif',fontWeight:700,fontSize:36,color:'#2c3e50'}}>Order Details</h2>
-              <div style={{marginBottom:18, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Name:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.name || '-'}</span></div>
-              <div style={{marginBottom:18, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Email Address:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.email_address || '-'}</span></div>
-              <div style={{marginBottom:18, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Contact Number:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.cellphone || '-'}</span></div>
-              <div style={{marginBottom:18, fontSize:18}}>
-                <span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Total Number of Boxes:</span> 
-                <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.order_quantity ?? selectedOrder.total_boxes ?? '-'}</span>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 28, paddingBottom: 20, borderBottom: '1px solid var(--border)' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontFamily: 'Cormorant Garamond,serif', fontWeight: 700, fontSize: 34, color: 'var(--text)', lineHeight: 1.1 }}>Order Details</h2>
+                  <div style={{ marginTop: 8, fontSize: 14, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
+                    {selectedOrder && selectedOrder.order_id ? selectedOrder.order_id : '-'}
+                  </div>
+                </div>
+                <span style={{
+                  flexShrink: 0,
+                  padding: '7px 16px',
+                  borderRadius: 999,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  background: statusPillColors.background,
+                  color: statusPillColors.color
+                }}>
+                  {selectedOrder.status ? selectedOrder.status : '-'}
+                </span>
               </div>
-              <div style={{marginBottom:18, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Date of Event:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.expected_delivery ? (new Date(selectedOrder.expected_delivery).toLocaleDateString('en-US')) : '-'}</span></div>
-              <div style={{marginBottom:18, fontSize:18}}>
-                <span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Shipping Location:</span>
-                <span style={{fontWeight:400, marginLeft:6, color: resolvedAddress === 'Unknown Address' ? '#666' : '#222' }}>{resolvedAddress}</span>
+
+              <h4 style={{marginBottom:16,fontWeight:700,fontSize:13,letterSpacing:'0.08em',textTransform:'uppercase',color:'var(--brand)'}}>Customer Information</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px', marginBottom: 32 }}>
+                <InfoField label="Name" value={selectedOrder.name || '-'} />
+                <InfoField label="Contact Number" value={selectedOrder.cellphone || '-'} />
+                <InfoField label="Email Address" value={selectedOrder.email_address || '-'} fullWidth />
               </div>
-              <div style={{marginBottom:18, fontSize:18}}>
-                <span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Status:</span>
-                <span style={{fontWeight:700, marginLeft:6, color: isConfirmed ? '#27ae60' : '#444', textTransform:'uppercase'}}>{selectedOrder.status ? selectedOrder.status : '-'}</span>
+
+              <h4 style={{marginBottom:16,fontWeight:700,fontSize:13,letterSpacing:'0.08em',textTransform:'uppercase',color:'var(--brand)'}}>Order Information</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px', marginBottom: 32 }}>
+                <InfoField label="Total Number of Boxes" value={selectedOrder.order_quantity ?? selectedOrder.total_boxes ?? '-'} />
+                <InfoField label="Date of Event" value={selectedOrder.expected_delivery ? (new Date(selectedOrder.expected_delivery).toLocaleDateString('en-US')) : '-'} />
+                <InfoField label="Date Ordered" value={selectedOrder.order_date ? (new Date(selectedOrder.order_date).toLocaleDateString('en-US')) : '-'} />
+                <InfoField
+                  label="Shipping Location"
+                  value={resolvedAddress}
+                  valueColor={resolvedAddress === 'Unknown Address' ? 'var(--text-muted)' : 'var(--text)'}
+                  fullWidth
+                />
               </div>
-              <div style={{marginBottom:18, fontSize:18}}>
-                <span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Order ID:</span> 
-                <span>{selectedOrder && selectedOrder.order_id ? selectedOrder.order_id : '-'}</span>
-              </div>
-              <div style={{marginBottom:18, fontSize:18}}><span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Date Ordered:</span> <span style={{fontWeight:400, marginLeft:6}}>{selectedOrder.order_date ? (new Date(selectedOrder.order_date).toLocaleDateString('en-US')) : '-'}</span></div>
               {/* Payment Method Section - Only show for Pending orders */}
               {normalizeStatus(selectedOrder.status) === normalizeStatus('pending') && (
                 <div style={{marginBottom:32, fontSize:18}}>
                   <span style={{fontWeight:700, textTransform:'uppercase', letterSpacing:1}}>Payment Method:</span>
-                  <select 
+                  <select
                     value={selectedOrder.payment_method || ''} 
                     onChange={(e) => handlePaymentMethodChange(e.target.value)}
                     disabled={loading}
@@ -1176,9 +1217,10 @@ export default function OrderDetails() {
                       marginLeft: 6,
                       padding: '8px 12px',
                       fontSize: '16px',
-                      border: '1px solid #ddd',
+                      border: '1px solid var(--input-border)',
                       borderRadius: '4px',
-                      backgroundColor: loading ? '#f5f5f5' : '#fff',
+                      backgroundColor: loading ? 'var(--disabled-background)' : 'var(--input-background)',
+                      color: 'var(--input-text)',
                       minWidth: '200px',
                       opacity: loading ? 0.6 : 1,
                       cursor: loading ? 'not-allowed' : 'pointer'
@@ -1192,16 +1234,16 @@ export default function OrderDetails() {
                     <option value="Debit Card">Debit Card</option>
                   </select>
                   {loading && (
-                    <span style={{marginLeft: 10, fontSize: '14px', color: '#666'}}>
+                    <span style={{marginLeft: 10, fontSize: '14px', color: 'var(--text-muted)'}}>
                       Updating...
                     </span>
                   )}
                 </div>
               )}
-              <OrderInvoiceSection order={selectedOrder} />
+              <OrderInvoiceSection order={selectedOrder} onInvoicesChange={setSelectedOrderInvoices} />
 
               {/* Action Buttons */}
-              <div style={{display:'flex',gap:18,marginTop:8, justifyContent:'center', alignItems:'center'}}>
+              <div style={{display:'flex',gap:18,marginTop:20,paddingTop:24,borderTop:'1px solid var(--border)', justifyContent:'center', alignItems:'center'}}>
                 <button 
                   className="edit-btn"
                   style={{ ...styles.button, ...styles.primaryButton, marginRight: 16 }}
@@ -1209,31 +1251,59 @@ export default function OrderDetails() {
                 >
                   Edit Order
                 </button>
-                <button 
+                <button
                   className="delete-btn"
-                  style={{ ...styles.button, border: '1.5px solid #dc3545', color: '#dc3545', background: '#fff', marginRight: 16 }}
+                  style={{ ...styles.button, border: '1.5px solid var(--danger)', color: 'var(--danger)', background: 'var(--surface)', marginRight: 16 }}
                   onClick={handleCancelPendingOrder}
                 >
                   Cancel Order
                 </button>
-                {(normalizeStatus(selectedOrder.status) === normalizeStatus('pending') || normalizeStatus(selectedOrder.status) === normalizeStatus('To Be Packed')) && (
                 <button
+                  style={{ ...styles.button, border: '1.5px solid var(--brand)', color: 'var(--brand)', background: 'var(--surface)', marginRight: 16 }}
+                  onClick={() => navigate(`/delivery-tracking?orderId=${encodeURIComponent(selectedOrder.order_id)}`)}
+                >
+                  Delivery Tracking
+                </button>
+                {(() => {
+                  const normalizedSelectedStatus = normalizeStatus(selectedOrder.status);
+                  const isPendingLike = normalizedSelectedStatus === 'pending' || normalizedSelectedStatus === 'orderplaced';
+                  const isToBePackedStatus = normalizedSelectedStatus === normalizeStatus('To Be Packed');
+                  if (!isPendingLike && !isToBePackedStatus) return null;
+
+                  const downPaymentInvoice = selectedOrderInvoices.find(
+                    (inv) => inv.invoice_type === 'DOWN_PAYMENT' && inv.status !== 'CANCELLED'
+                  );
+                  const remainingBalanceInvoice = selectedOrderInvoices.find(
+                    (inv) => inv.invoice_type === 'REMAINING_BALANCE' && inv.status !== 'CANCELLED'
+                  );
+                  const invoicesReady = !!downPaymentInvoice && downPaymentInvoice.status === 'PAID'
+                    && !!remainingBalanceInvoice && remainingBalanceInvoice.status === 'PAID';
+                  const blockedByInvoices = isPendingLike && !invoicesReady;
+
+                  return (
+                <button
+                  disabled={blockedByInvoices}
+                  title={blockedByInvoices ? 'Generate the down payment and remaining balance invoices and mark both as paid before moving this order to To Be Packed.' : undefined}
                   style={{
                     padding: '12px 24px',
                     fontSize: '15px',
                     fontWeight: 700,
-                    backgroundColor: '#2ecc71', // Common green color for now
+                    backgroundColor: blockedByInvoices ? '#a5d6b7' : '#2ecc71',
                     color: 'white',
                     border: 'none',
                     borderRadius: '8px',
-                    cursor: 'pointer',
+                    cursor: blockedByInvoices ? 'not-allowed' : 'pointer',
                     transition: 'background-color 0.3s ease, transform 0.1s ease',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                     letterSpacing: '0.02em'
                   }}
-                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#27ae60'}
-                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2ecc71'}
+                  onMouseOver={(e) => { if (!blockedByInvoices) e.currentTarget.style.backgroundColor = '#27ae60'; }}
+                  onMouseOut={(e) => { if (!blockedByInvoices) e.currentTarget.style.backgroundColor = '#2ecc71'; }}
                   onClick={async () => {
+                    if (blockedByInvoices) {
+                      alert('Both the down payment and remaining balance invoices must be generated and marked as paid before this order can move to To Be Packed.');
+                      return;
+                    }
                     if (!selectedOrder) {
                       console.error("Action Error: selectedOrder is missing.", selectedOrder);
                       alert("Error: Order details are not available.");
@@ -1262,10 +1332,35 @@ export default function OrderDetails() {
                       let payload = { products: lightweightProducts }; // Use lightweight products
 
                     if (currentStatus === normalizeStatus('To Be Packed')) {
+                      // Delivery tracking info (mode, courier, tracking number/link) is filled
+                      // separately on the Delivery Tracking page. Don't let an order move to
+                      // Ready for Delivery until that's been done, or the customer sees a
+                      // "Ready for Delivery" order with no way to know how it's actually shipping.
+                      const isPickupDelivery = selectedOrder.delivery_type === 'PICKUP'
+                        || selectedOrder.delivery_method === 'Customer Pick-up';
+                      const hasDeliveryMethod = !!selectedOrder.delivery_method;
+                      const hasCourierInfo = !!selectedOrder.courier_name
+                        && (
+                          !!selectedOrder.tracking_number
+                          || (selectedOrder.tracking_link_available && !!selectedOrder.tracking_link)
+                          || !!selectedOrder.tracking_unavailable_message
+                        );
+                      const deliveryInfoComplete = hasDeliveryMethod && (isPickupDelivery || hasCourierInfo);
+
+                      if (!deliveryInfoComplete) {
+                        alert(
+                          'Delivery tracking info is not filled out yet for this order. ' +
+                          'Go to Delivery Tracking and set the delivery mode' +
+                          (isPickupDelivery ? '' : ', courier, and tracking number/link') +
+                          ' before confirming.'
+                        );
+                        return;
+                      }
+
                       newStatus = 'Ready for Delivery';
                       confirmMessage = 'This order will be marked as Ready for Delivery. Proceed?';
                       payload.status = newStatus;
-                    } else if (currentStatus === 'pending') {
+                    } else if (currentStatus === 'pending' || currentStatus === 'orderplaced') {
                       newStatus = 'To Be Packed';
                       confirmMessage = 'Are you sure you want to confirm this order? This will finalize the details and prepare it for processing.';
                       // For pending, send all relevant fields from selectedOrder that can be updated.
@@ -1328,7 +1423,8 @@ export default function OrderDetails() {
                   }}>
                   {normalizeStatus(selectedOrder.status) === normalizeStatus('To Be Packed') ? 'Confirm Delivery' : 'Confirm Order'}
                 </button>
-              )}
+                  );
+                })()}
               {(normalizeStatus(selectedOrder.status) === normalizeStatus('Ready for Delivery') || normalizeStatus(selectedOrder.status) === normalizeStatus('ready for deliver') || normalizeStatus(selectedOrder.status) === normalizeStatus('confirmed')) && (
                 <button
                   style={{ padding:'12px 24px', fontSize:15, fontWeight:700, background:'#4caf50', color:'#fff', border:'none', borderRadius:8, cursor:'pointer' }}
@@ -1351,40 +1447,70 @@ export default function OrderDetails() {
 
           const WhatsInsideSectionJSX = (
             <>
-              <h3 style={{fontSize:22,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50',marginBottom:24,fontWeight:700,letterSpacing:'0.04em',borderBottom:'1.5px solid #ece9e6',paddingBottom:8,width:'100%'}}>What's Inside</h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+                <h3 style={{fontSize:20,fontFamily:'Cormorant Garamond,serif',color:'var(--text)',margin:0,fontWeight:700,letterSpacing:'0.02em'}}>What's Inside</h3>
+                {selectedOrder.products && selectedOrder.products.length > 0 && (
+                  <span style={{fontSize:12,fontWeight:700,color:'var(--text-muted)',background:'var(--surface-muted)',border:'1px solid var(--border)',borderRadius:999,padding:'3px 10px'}}>
+                    {selectedOrder.products.length} item{selectedOrder.products.length === 1 ? '' : 's'}
+                  </span>
+                )}
+              </div>
               {selectedOrder.products && selectedOrder.products.length > 0 ? (
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: 'calc(100% - 70px)', overflowY: 'auto' }}>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, width: '100%', maxHeight: 'calc(100% - 70px)', overflowY: 'auto' }}>
                   {selectedOrder.products.map((product, idx) => {
                     const inventoryItem =
                       inventory.find(item => item.sku === product.sku) ||
                       inventory.find(item => (item.name || '').toLowerCase() === (product.name || '').toLowerCase());
                     const imageBase64 = (inventoryItem && inventoryItem.image_data) || product.image_data || null;
                     return (
-                      <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 22 }}>
+                      <li
+                        key={idx}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 16,
+                          marginBottom: 12,
+                          padding: '12px',
+                          borderRadius: 10,
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border)'
+                        }}
+                      >
                         {imageBase64 ? (
                           <img
                             src={buildDataUrlFromBase64(imageBase64)}
                             alt={product.name}
-                            style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', background: '#eee', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
+                            style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', background: 'var(--surface-muted)', boxShadow: '0 1px 4px rgba(0,0,0,0.15)', flexShrink: 0 }}
                           />
                         ) : (
-                          <div style={{ width: 48, height: 48, background: '#e0e0e0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 28, fontWeight: 700 }}>?
+                          <div style={{ width: 48, height: 48, background: 'var(--surface-muted)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 22, fontWeight: 700, flexShrink: 0 }}>?
                           </div>
                         )}
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 700, fontSize: 16, fontFamily: 'Lora,serif', color: '#333', marginBottom:2 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {product.name}
                           </div>
-                          <div style={{ fontSize: 14, color: '#888', fontWeight: 500, letterSpacing:1 }}>
-                            QTY: <span style={{fontWeight:600}}>{product.quantity}</span>
-                          </div>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              letterSpacing: 0.5,
+                              color: 'var(--brand)',
+                              background: 'var(--brand-soft)',
+                              borderRadius: 999,
+                              padding: '2px 10px'
+                            }}
+                          >
+                            QTY {product.quantity}
+                          </span>
                         </div>
                       </li>
                     );
                   })}
                 </ul>
               ) : (
-                <div style={{color:'#666',fontSize:15, textAlign: 'center', width: '100%', marginTop: '20px'}}>No products added to this order yet.</div>
+                <div style={{color:'var(--text-muted)',fontSize:15, textAlign: 'center', width: '100%', marginTop: '20px'}}>No products added to this order yet.</div>
               )}
             </>
           );
@@ -1392,7 +1518,7 @@ export default function OrderDetails() {
           return (
             <div className="modal-backdrop" style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center'}}>
               <div className="od-details-modal" style={styles.orderDetailsModalContainer}>
-                <button onClick={()=>setSelectedOrderId(null)} className="od-modal-close" style={{position:'absolute',top:24,right:32,fontSize:28,background:'none',border:'none',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2}}>&times;</button>
+                <button onClick={()=>setSelectedOrderId(null)} className="od-modal-close" style={{position:'absolute',top:20,right:20,fontSize:22,background:'var(--surface-muted)',border:'1px solid var(--border)',borderRadius:'50%',width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2,lineHeight:1}}>&times;</button>
                 {isToBePacked ? (
                   <>
                     <div className="od-whats-inside od-whats-inside-left" style={styles.whatsInsideColumnLeft}>
@@ -1436,19 +1562,19 @@ export default function OrderDetails() {
             <div
               style={{
                 width: 'min(520px, 96vw)',
-                background: '#fff',
+                background: 'var(--surface-elevated)',
                 borderRadius: 10,
                 boxShadow: '0 20px 70px rgba(15,23,42,0.25)',
                 overflow: 'hidden'
               }}
             >
-              <div style={{ padding: '22px 24px', borderBottom: '1px solid #e5e7eb' }}>
-                <h2 style={{ margin: 0, color: '#2c3e50', fontSize: 24 }}>{orderChallenge.title}</h2>
-                <p style={{ margin: '8px 0 0', color: '#64748b', lineHeight: 1.45 }}>{orderChallenge.message}</p>
+              <div style={{ padding: '22px 24px', borderBottom: '1px solid var(--border)' }}>
+                <h2 style={{ margin: 0, color: 'var(--text)', fontSize: 24 }}>{orderChallenge.title}</h2>
+                <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', lineHeight: 1.45 }}>{orderChallenge.message}</p>
               </div>
               <div style={{ padding: 24 }}>
-                <div style={{ marginBottom: 12, color: '#334155', fontWeight: 700 }}>
-                  Type <span style={{ color: '#111827' }}>{orderChallenge.challengeText}</span> to continue.
+                <div style={{ marginBottom: 12, color: 'var(--text-soft)', fontWeight: 700 }}>
+                  Type <span style={{ color: 'var(--text)' }}>{orderChallenge.challengeText}</span> to continue.
                 </div>
                 <input
                   value={orderChallengeInput}
@@ -1457,14 +1583,16 @@ export default function OrderDetails() {
                   style={{
                     width: '100%',
                     boxSizing: 'border-box',
-                    border: '1px solid #cbd5e1',
+                    border: '1px solid var(--input-border)',
                     borderRadius: 6,
                     padding: '11px 12px',
-                    fontSize: 16
+                    fontSize: 16,
+                    background: 'var(--input-background)',
+                    color: 'var(--input-text)'
                   }}
                   placeholder={orderChallenge.challengeText}
                 />
-                <div style={{ marginTop: 12, color: '#64748b', fontSize: 13 }}>
+                <div style={{ marginTop: 12, color: 'var(--text-muted)', fontSize: 13 }}>
                   Order ID: {orderChallenge.orderId} | New status: {orderChallenge.nextStatus}
                 </div>
               </div>

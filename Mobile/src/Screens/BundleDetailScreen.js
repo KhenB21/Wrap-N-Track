@@ -155,7 +155,7 @@ export default function BundleDetailScreen({ navigation, route }) {
           </Text>
           <TouchableOpacity
             style={[styles.retryButton, { backgroundColor: colors.accent }]}
-            onPress={() => navigation.navigate("Orders")}
+            onPress={() => navigation.navigate("CustomerTabs", { screen: "Orders" })}
           >
             <Text style={styles.retryButtonText}>View My Deliveries</Text>
           </TouchableOpacity>
