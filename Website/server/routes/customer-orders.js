@@ -105,18 +105,7 @@ router.get('/orders', async (req, res) => {
         o.sent_at,
         o.picked_up_at,
         o.delivered_at,
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'sku', op.sku,
-              'name', i.name,
-              'quantity', op.quantity,
-              'unit_price', i.unit_price,
-              'image_data', encode(i.image_data, 'base64')
-            )
-          ) FILTER (WHERE op.sku IS NOT NULL),
-          '[]'::json
-        ) as products
+        COALESCE(prod.products, '[]'::json) as products
       FROM orders o
       LEFT JOIN LATERAL (
         SELECT COALESCE(SUM(i.amount_paid), 0) AS total_verified_payments
@@ -124,10 +113,21 @@ router.get('/orders', async (req, res) => {
         WHERE i.order_id = o.order_id
           AND i.status = 'PAID'
       ) pay ON true
-      LEFT JOIN order_products op ON o.order_id = op.order_id
-      LEFT JOIN inventory_items i ON op.sku = i.sku
+      LEFT JOIN LATERAL (
+        SELECT json_agg(
+          json_build_object(
+            'sku', op.sku,
+            'name', i.name,
+            'quantity', op.quantity,
+            'unit_price', i.unit_price,
+            'image_data', encode(i.image_data, 'base64')
+          )
+        ) AS products
+        FROM order_products op
+        LEFT JOIN inventory_items i ON op.sku = i.sku
+        WHERE op.order_id = o.order_id
+      ) prod ON true
       WHERE o.customer_id = $1
-      GROUP BY o.order_id, pay.total_verified_payments
     `, [customerId, TRACKING_UNAVAILABLE_MESSAGE]);
 
     // Fetch completed/cancelled orders from order_history table with products
@@ -819,22 +819,22 @@ async function getAllOrdersForEmployee(req, res) {
         o.order_received_at,
         o.status_updated_at,
         o.customer_id,
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'sku', op.sku,
-              'name', i.name,
-              'quantity', op.quantity,
-              'unit_price', i.unit_price,
-              'image_data', encode(i.image_data, 'base64')
-            )
-          ) FILTER (WHERE op.sku IS NOT NULL),
-          '[]'::json
-        ) as products
+        COALESCE(prod.products, '[]'::json) as products
       FROM orders o
-      LEFT JOIN order_products op ON o.order_id = op.order_id
-      LEFT JOIN inventory_items i ON op.sku = i.sku
-      GROUP BY o.order_id
+      LEFT JOIN LATERAL (
+        SELECT json_agg(
+          json_build_object(
+            'sku', op.sku,
+            'name', i.name,
+            'quantity', op.quantity,
+            'unit_price', i.unit_price,
+            'image_data', encode(i.image_data, 'base64')
+          )
+        ) AS products
+        FROM order_products op
+        LEFT JOIN inventory_items i ON op.sku = i.sku
+        WHERE op.order_id = o.order_id
+      ) prod ON true
     `);
 
     // Fetch completed/cancelled orders from order_history table with products
