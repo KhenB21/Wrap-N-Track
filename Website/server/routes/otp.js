@@ -1,7 +1,9 @@
 const express = require('express');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const pool = require('../config/db');
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const router = express.Router();
 
@@ -26,31 +28,25 @@ function generateOtp() {
 }
 
 async function sendEmail(email, subject, text, html) {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+  if (!resend) {
     // In development, if email isn't configured, just log the OTP to console
-    console.log('OTP email skipped (no SMTP config). To:', email);
+    console.log('OTP email skipped (no RESEND_API_KEY). To:', email);
     console.log('Email subject:', subject);
     console.log('Email text:', text);
     return;
   }
 
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-  });
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
+  const { error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
     to: email,
     subject,
     text,
     html,
-  };
+  });
 
-  await transporter.sendMail(mailOptions);
+  if (error) {
+    throw new Error(error.message || 'Resend send failed');
+  }
 }
 
 // POST /send-otp
@@ -100,9 +96,7 @@ router.post('/send-otp', async (req, res) => {
       return res.json({ success: true, message: 'OTP sent' });
     } catch (err) {
       console.error('Error sending OTP email:', err);
-      // Still return success since OTP is stored in DB
-      console.log(`[OTP] Email failed but OTP stored in DB for ${email}: ${code}`);
-      return res.json({ success: true, message: 'OTP sent' });
+      return res.status(502).json({ success: false, message: 'Failed to send OTP email' });
     }
   } catch (err) {
     console.error('Error in send-otp:', err);

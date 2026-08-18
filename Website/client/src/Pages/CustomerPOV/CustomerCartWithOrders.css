@@ -111,6 +111,49 @@
   100% { transform: rotate(360deg); }
 }
 
+/* Skeleton Loading */
+.skeleton-card {
+  cursor: default;
+  pointer-events: none;
+}
+
+.skeleton-card:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transform: none;
+}
+
+.skeleton-line {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #edf1f5 37%, #e2e8f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+.skeleton-title {
+  width: 140px;
+  height: 18px;
+  margin-bottom: 10px;
+}
+
+.skeleton-subtitle {
+  width: 100px;
+  height: 14px;
+}
+
+.skeleton-badge {
+  width: 90px;
+  height: 28px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #edf1f5 37%, #e2e8f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
 /* Cart Content */
 .cart-content {
   max-width: 1200px;

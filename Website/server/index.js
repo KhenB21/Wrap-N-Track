@@ -3,7 +3,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -83,6 +83,27 @@ const verifyJwt = require('./middleware/verifyJwt')();
 const requireRole = require('./middleware/requireRole');
 const requireReadOnly = require('./middleware/requireReadOnly');
 
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+async function sendEmail({ to, subject, text, html }) {
+  if (!resend) {
+    console.log('Email skipped (no RESEND_API_KEY). To:', to);
+    return;
+  }
+
+  const { error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to,
+    subject,
+    text,
+    html,
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Resend send failed');
+  }
+}
 
 const app = express();
 // Security hardening: trust proxy (for HTTPS behind load balancer) and hide X-Powered-By
@@ -977,17 +998,8 @@ app.post('/api/auth/resend-code', async (req, res) => {
       [verificationCode, expiresAt, user.user_id]
     );
 
-    // Send email using nodemailer
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
+    // Send email using Resend
+    await sendEmail({
       to: user.email,
       subject: 'Your Email Verification Code for Wrap N\' Track',
       text: `Hello ${user.name},
@@ -1001,9 +1013,7 @@ If you did not request this, please ignore this email.
 Thanks,
 The Wrap N' Track Team`,
       html: `<p>Hello ${user.name},</p><p>Your email verification code is: <strong>${verificationCode}</strong></p><p>This code will expire in 15 minutes.</p><p>If you did not request this, please ignore this email.</p><p>Thanks,<br/>The Wrap N' Track Team</p>`
-    };
-
-    await transporter.sendMail(mailOptions);
+    });
 
     res.json({ success: true, message: 'New verification code sent to your email.' });
 
@@ -1702,31 +1712,16 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     // Store code and expiry
     await pool.query('UPDATE users SET reset_code = $1, reset_code_expires = $2 WHERE user_id = $3', [resetCode, expires, user.user_id]);
 
-    // Nodemailer transporter (same as registration resend-code)
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-
     // Email content (match registration resend-code)
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: "Your Password Reset Code for Wrap N' Track",
-      text: `Hello ${user.name},\n\nYour password reset code is: ${resetCode}\n\nThis code will expire in 15 minutes.\n\nIf you did not request this, please ignore this email.\n\nThanks,\nThe Wrap N' Track Team`,
-      html: `<p>Hello ${user.name},</p><p>Your password reset code is: <strong>${resetCode}</strong></p><p>This code will expire in 15 minutes.</p><p>If you did not request this, please ignore this email.</p><p>Thanks,<br/>The Wrap N' Track Team</p>`
-    };
-
     try {
-      await transporter.sendMail(mailOptions);
+      await sendEmail({
+        to: user.email,
+        subject: "Your Password Reset Code for Wrap N' Track",
+        text: `Hello ${user.name},\n\nYour password reset code is: ${resetCode}\n\nThis code will expire in 15 minutes.\n\nIf you did not request this, please ignore this email.\n\nThanks,\nThe Wrap N' Track Team`,
+        html: `<p>Hello ${user.name},</p><p>Your password reset code is: <strong>${resetCode}</strong></p><p>This code will expire in 15 minutes.</p><p>If you did not request this, please ignore this email.</p><p>Thanks,<br/>The Wrap N' Track Team</p>`
+      });
     } catch (emailError) {
       console.error('Error sending forgot password email:', emailError);
-      if (emailError.code === 'EENVELOPE' || emailError.responseCode === 550) {
-        return res.status(500).json({ message: 'Failed to send reset email. Please check server email configuration or recipient address.' });
-      }
       return res.status(500).json({ message: 'Internal server error while sending reset code.' });
     }
 

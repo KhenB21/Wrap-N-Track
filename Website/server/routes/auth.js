@@ -2,7 +2,7 @@
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const crypto = require('crypto');
 const multer = require('multer');
 // Use centralized pool from config/db to avoid undefined imports
@@ -22,28 +22,26 @@ const upload = multer({
   }
 });
 
-// Create nodemailer transporter
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+// Resend email client
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-// Verify transporter configuration
-transporter.verify(function(error, success) {
-  if (error) {
-    console.error('SMTP configuration error:', error);
-  } else {
-    console.log('SMTP server is ready to take our messages');
+async function sendEmail(mailOptions) {
+  if (!resend) {
+    console.log('Email skipped (no RESEND_API_KEY). To:', mailOptions.to);
+    return;
   }
-});
+
+  const { error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+    to: mailOptions.to,
+    subject: mailOptions.subject,
+    html: mailOptions.html
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Resend send failed');
+  }
+}
 
 // Generate verification code
 const generateVerificationCode = () => {
@@ -192,8 +190,7 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
 
     try {
       console.log('Sending verification email to:', email);
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
+      await sendEmail({
         to: email.trim(),
         subject: 'Verify your email address',
         html: `
@@ -202,8 +199,7 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
           <h2>${verificationCode}</h2>
           <p>This code will expire in 10 minutes.</p>
         `
-      };
-      await transporter.sendMail(mailOptions);
+      });
       console.log('Verification email sent successfully');
     } catch (emailError) {
       console.error('Email sending error:', emailError);
@@ -238,7 +234,7 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
     console.error('Registration error details:', {
       message: error.message,
       stack: error.stack,
-      emailConfig: { user: process.env.EMAIL_USER, hasPassword: !!process.env.EMAIL_PASSWORD },
+      emailConfig: { hasResendKey: !!process.env.RESEND_API_KEY },
       requestBody: { username: req.body.username, name: req.body.name, email: req.body.email, hasPassword: !!req.body.password },
       databaseError: error.code === '23505' ? 'Unique constraint violation' : 'Other database error'
     });
@@ -325,8 +321,7 @@ router.post('/customer/resend-code', async (req, res) => {
     });
 
     // Send new verification email
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
+    await sendEmail({
       to: email,
       subject: 'New verification code',
       html: `
@@ -335,9 +330,7 @@ router.post('/customer/resend-code', async (req, res) => {
         <h2>${verificationCode}</h2>
         <p>This code will expire in 10 minutes.</p>
       `
-    };
-
-    await transporter.sendMail(mailOptions);
+    });
 
     res.json({
       success: true,

@@ -198,9 +198,26 @@ export default function CustomerOrders() {
 
   if (loading) {
     return (
-      <div className="cart-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading your orders...</p>
+      <div className="customer-orders">
+        <TopbarCustomer />
+        <div className="orders-header">
+          <h1>My Orders</h1>
+        </div>
+        <div className="orders-content">
+          <div className="orders-list">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="order-card skeleton-card">
+                <div className="order-header">
+                  <div className="order-info">
+                    <div className="skeleton-line skeleton-title"></div>
+                    <div className="skeleton-line skeleton-subtitle"></div>
+                  </div>
+                  <div className="skeleton-badge"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
