@@ -87,7 +87,7 @@ export default function SupplierDetails() {
   const validatePhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return true; // Optional field
     const cleanNumber = phoneNumber.replace(/[^\d+]/g, '');
-    return /^09\d{9}$/.test(cleanNumber) || /^\+639\d{9}$/.test(cleanNumber) || /^639\d{9}$/.test(cleanNumber) || /^\d{7,10}$/.test(cleanNumber);
+    return /^09\d{9}$/.test(cleanNumber) || /^\+639\d{9}$/.test(cleanNumber) || /^639\d{9}$/.test(cleanNumber);
   };
 
   const handlePhoneChange = (field, value) => {
@@ -557,7 +557,7 @@ export default function SupplierDetails() {
       setError(null);
     } catch (error) {
       console.error('Error adding supplier:', error);
-      setError(error.response?.data?.message || 'Failed to add supplier');
+      setError(error.response?.data?.error || error.response?.data?.message || 'Failed to add supplier');
     }
   };
 
@@ -625,7 +625,7 @@ export default function SupplierDetails() {
       setError(null);
     } catch (error) {
       console.error('Error updating supplier:', error);
-      setError(error.response?.data?.message || 'Failed to update supplier');
+      setError(error.response?.data?.error || error.response?.data?.message || 'Failed to update supplier');
     }
   };
 

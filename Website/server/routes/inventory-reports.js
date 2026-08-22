@@ -704,6 +704,29 @@ router.post('/test-data/insert', async (req, res) => {
     try {
       await client.query('BEGIN');
 
+      // Some deployed databases have an `orders` table whose order_id column
+      // was never given a primary key / unique constraint, which makes any
+      // `ON CONFLICT (order_id)` insert below fail with 42P10. Add it here if
+      // missing so this endpoint is resilient to that drift.
+      await client.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+              ON tc.constraint_name = kcu.constraint_name
+             AND tc.table_schema = kcu.table_schema
+            WHERE tc.table_schema = 'public'
+              AND tc.table_name = 'orders'
+              AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE')
+              AND kcu.column_name = 'order_id'
+          ) THEN
+            ALTER TABLE orders ADD CONSTRAINT orders_order_id_unique UNIQUE (order_id);
+          END IF;
+        END $$;
+      `);
+
       const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
 
       // Realistic gift-shop products spanning healthy / low / zero stock, so
@@ -850,6 +873,24 @@ router.post('/test-data/insert', async (req, res) => {
 
       // Invoices for two TEST-FAST orders — one fully paid, one partially paid —
       // so Paid Amount / Outstanding Payments KPIs have non-zero demo values.
+      // The invoices table is normally created lazily by invoices.js's own
+      // router middleware, which never runs for this endpoint — so guard here
+      // too in case no /api/invoices/* request has hit this DB yet.
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS invoices (
+          id BIGSERIAL PRIMARY KEY,
+          invoice_number VARCHAR(40) UNIQUE NOT NULL,
+          order_id VARCHAR(50) NOT NULL,
+          invoice_type VARCHAR(30) NOT NULL CHECK (invoice_type IN ('DOWN_PAYMENT', 'REMAINING_BALANCE')),
+          status VARCHAR(20) NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('DRAFT', 'ISSUED', 'UNPAID', 'PAID', 'CANCELLED')),
+          subtotal NUMERIC(12,2) NOT NULL DEFAULT 0,
+          total_order_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+          amount_due NUMERIC(12,2) NOT NULL DEFAULT 0,
+          amount_paid NUMERIC(12,2) NOT NULL DEFAULT 0,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+
       await client.query(`
         INSERT INTO invoices (invoice_number, order_id, invoice_type, status, subtotal, total_order_amount, amount_due, amount_paid)
         VALUES ($1, $2, 'DOWN_PAYMENT', 'PAID', $3, $3, 0, $3)
