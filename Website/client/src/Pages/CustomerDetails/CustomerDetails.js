@@ -3,6 +3,7 @@ import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 
 import api from "../../api";
+import { useConfirm } from "../../Context/ConfirmContext";
 import "./CustomerDetails.css";
 
 
@@ -18,6 +19,7 @@ function getProfilePictureUrl() {
 }
 
 export default function CustomerDetails() {
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState(0);
   const [customers, setCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
@@ -490,7 +492,7 @@ export default function CustomerDetails() {
   };
 
   const handleDelete = async (customerId) => {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
+    if (await confirm({ message: 'Are you sure you want to delete this customer?', danger: true })) {
       try {
         await api.delete(`/api/customers/${customerId}`);
         setCustomers(customers.filter(c => c.customer_id !== customerId));
@@ -804,8 +806,8 @@ export default function CustomerDetails() {
               </button>
               <button 
                 className="btn-delete" 
-                onClick={() => {
-                  if (window.confirm(`Are you sure you want to delete ${selectedCustomers.size} customer(s)?`)) {
+                onClick={async () => {
+                  if (await confirm({ message: `Are you sure you want to delete ${selectedCustomers.size} customer(s)?`, danger: true })) {
                     Array.from(selectedCustomers).forEach(handleDelete);
                   }
                 }}

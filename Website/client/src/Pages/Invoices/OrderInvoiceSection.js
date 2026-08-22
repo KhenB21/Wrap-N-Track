@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import api from '../../api';
+import { useConfirm } from '../../Context/ConfirmContext';
 import './Invoices.css';
 import { downloadPaymentProof, openInvoicePdf } from './invoicePdf';
 import PaymentModal from './PaymentModal';
@@ -64,6 +65,7 @@ function DownPaymentConfirmModal({ orderTotal, downPayment, remainingBalance, on
 }
 
 export default function OrderInvoiceSection({ order, onInvoicesChange }) {
+  const confirm = useConfirm();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState(null);
@@ -139,7 +141,7 @@ export default function OrderInvoiceSection({ order, onInvoicesChange }) {
   };
 
   const cancelInvoice = async (invoice) => {
-    if (!window.confirm(`Cancel invoice ${invoice.invoice_number}?`)) return;
+    if (!(await confirm({ message: `Cancel invoice ${invoice.invoice_number}?`, danger: true }))) return;
     setLoading(true);
     try {
       await api.patch(`/api/invoices/${invoice.id}/status`, { status: 'CANCELLED' });

@@ -4,11 +4,13 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useCart } from '../../Context/CartContext';
 import { useAuth } from '../../Context/AuthContext';
+import { useConfirm } from '../../Context/ConfirmContext';
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import './CustomerCart.css';
 
 export default function CustomerCart() {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { user, isAuthenticated } = useAuth();
   const { 
     items, 
@@ -60,7 +62,7 @@ export default function CustomerCart() {
   };
 
   const handleRemoveItem = async (sku, productName) => {
-    if (window.confirm(`Remove "${productName}" from cart?`)) {
+    if (await confirm({ message: `Remove "${productName}" from cart?`, danger: true })) {
       const result = await removeFromCart(sku);
       if (!result.success) {
         toast.error(result.message);
@@ -69,7 +71,7 @@ export default function CustomerCart() {
   };
 
   const handleClearCart = async () => {
-    if (window.confirm('Clear entire cart? This action cannot be undone.')) {
+    if (await confirm({ message: 'Clear entire cart? This action cannot be undone.', danger: true })) {
       const result = await clearCart();
       if (!result.success) {
         toast.error(result.message);

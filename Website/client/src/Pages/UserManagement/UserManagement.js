@@ -6,9 +6,11 @@ import api from '../../api';
 import './UserManagement.css';
 import { useNavigate } from 'react-router-dom';
 import usePermissions from '../../hooks/usePermissions';
+import { useConfirm } from '../../Context/ConfirmContext';
 
 const UserManagement = () => {
   const { checkPermission } = usePermissions();
+  const confirm = useConfirm();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -122,7 +124,7 @@ const UserManagement = () => {
 
   const handleDelete = async () => {
     setActionError(null);
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    if (!(await confirm({ message: 'Are you sure you want to delete this user?', danger: true }))) return;
     try {
       const token = localStorage.getItem('token');
   await api.delete(`/api/users/${selectedUser.user_id}`, {

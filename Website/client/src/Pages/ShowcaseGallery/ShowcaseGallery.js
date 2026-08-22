@@ -3,6 +3,7 @@ import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import withEmployeeAuth from '../../Components/withEmployeeAuth';
 import api from '../../api';
+import { useConfirm } from '../../Context/ConfirmContext';
 import './ShowcaseGallery.css';
 
 const CATEGORIES  = ['wedding', 'corporate', 'bespoke'];
@@ -21,6 +22,7 @@ function buildGalSrc(img) {
 }
 
 function ShowcaseGallery() {
+  const confirm = useConfirm();
   // ── Bundle list ────────────────────────────────────────────────────────────
   const [bundles, setBundles]   = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -221,7 +223,7 @@ function ShowcaseGallery() {
   };
 
   const handleDelete = async (bundle) => {
-    if (!window.confirm(`Delete "${bundle.title}"? This cannot be undone.`)) return;
+    if (!(await confirm({ message: `Delete "${bundle.title}"? This cannot be undone.`, danger: true }))) return;
     try {
       await api.delete(`/api/showcase/${bundle.id}`);
       showToast('Bundle deleted.');
@@ -309,7 +311,7 @@ function ShowcaseGallery() {
 
   const handleGalleryDelete = async (imageId) => {
     if (!editId) return;
-    if (!window.confirm('Remove this gallery image?')) return;
+    if (!(await confirm({ message: 'Remove this gallery image?', danger: true }))) return;
     try {
       await api.delete(`/api/showcase/${editId}/gallery/${imageId}`);
       setGalleryImages(prev => prev.filter(img => img.id !== imageId));

@@ -10,6 +10,7 @@ import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../api';
+import { useConfirm } from '../../Context/ConfirmContext';
 import PortalModal from '../../Components/Modal/PortalModal';
 import OrderInvoiceSection from '../Invoices/OrderInvoiceSection';
 import AddOrderModal from './AddOrderModal';
@@ -265,6 +266,7 @@ function buildDataUrlFromBase64(possibleBase64) {
 export default function OrderDetails() {
   const navigate = useNavigate();
   const location = useLocation();
+  const confirm = useConfirm();
 
   // State variables
   const [selectedOrderInvoices, setSelectedOrderInvoices] = useState([]);
@@ -430,9 +432,10 @@ export default function OrderDetails() {
       return;
     }
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to cancel order ${selectedOrder.order_id}? All products will go back to the inventory.`
-    );
+    const confirmDelete = await confirm({
+      message: `Are you sure you want to cancel order ${selectedOrder.order_id}? All products will go back to the inventory.`,
+      danger: true,
+    });
 
     if (confirmDelete) {
       try {

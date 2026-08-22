@@ -7,8 +7,10 @@ import CustomerModal from './CustomerModal';
 import CustomerCard from './CustomerCard';
 import './Customers.css';
 import api from '../../api';
+import { useConfirm } from '../../Context/ConfirmContext';
 
 export default function Customers() {
+  const confirm = useConfirm();
   const [customers, setCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,7 @@ export default function Customers() {
   };
 
   const handleDeleteCustomer = async (customerId) => {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
+    if (await confirm({ message: 'Are you sure you want to delete this customer?', danger: true })) {
       try {
         await api.delete(`/api/customers/${customerId}`);
         await fetchCustomers();
@@ -118,7 +120,7 @@ export default function Customers() {
       return;
     }
 
-    if (window.confirm(`Are you sure you want to delete ${selectedCustomers.size} customers?`)) {
+    if (await confirm({ message: `Are you sure you want to delete ${selectedCustomers.size} customers?`, danger: true })) {
       try {
         const deletePromises = Array.from(selectedCustomers).map(id =>
           api.delete(`/api/customers/${id}`)

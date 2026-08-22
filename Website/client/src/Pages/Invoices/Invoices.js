@@ -4,6 +4,7 @@ import TopBar from '../../Components/TopBar';
 import withEmployeeAuth from '../../Components/withEmployeeAuth';
 import usePermissions from '../../hooks/usePermissions';
 import api from '../../api';
+import { useConfirm } from '../../Context/ConfirmContext';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './Invoices.css';
@@ -119,6 +120,7 @@ function InvoicePreviewModal({ invoice, onClose, onMarkPaid, onCancel }) {
 
 function Invoices() {
   const { checkPermission } = usePermissions();
+  const confirm = useConfirm();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ invoice_type: '', status: '', customer: '', order: '' });
@@ -156,7 +158,7 @@ function Invoices() {
   }, [fetchInvoices]);
 
   const cancelInvoice = async (invoice) => {
-    if (!window.confirm(`Cancel invoice ${invoice.invoice_number}?`)) return;
+    if (!(await confirm({ message: `Cancel invoice ${invoice.invoice_number}?`, danger: true }))) return;
     try {
       await api.patch(`/api/invoices/${invoice.id}/status`, { status: 'CANCELLED' });
       setSelectedInvoice(null);

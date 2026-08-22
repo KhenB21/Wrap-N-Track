@@ -7,10 +7,12 @@ import { useNavigate } from 'react-router-dom';
 import api from "../../api";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useConfirm } from '../../Context/ConfirmContext';
 
 const UOMS_REQUIRING_CONVERSION = ['Dozen', 'Box', 'Bundle', 'Set', 'Kit'];
 
 function ArchiveProductsContent() {
+  const confirm = useConfirm();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +91,7 @@ function ArchiveProductsContent() {
   };
 
   const handleRestore = async (sku) => {
-    if (window.confirm('Are you sure you want to restore this archived item?')) {
+    if (await confirm('Are you sure you want to restore this archived item?')) {
       try {
         await api.patch(`/api/inventory/${sku}/restore`);
         await fetchProducts();
@@ -101,7 +103,7 @@ function ArchiveProductsContent() {
   };
 
   const handlePermanentDelete = async (sku, name) => {
-    if (window.confirm(`Permanently delete "${name}"? This cannot be undone.`)) {
+    if (await confirm({ message: `Permanently delete "${name}"? This cannot be undone.`, danger: true })) {
       try {
         await api.delete(`/api/inventory/${sku}/permanent`);
         await fetchProducts();

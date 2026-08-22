@@ -7,9 +7,11 @@ import api from "../../api";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import usePermissions from '../../hooks/usePermissions';
+import { useConfirm } from '../../Context/ConfirmContext';
 
 export default function Suppliers() {
   const { checkPermission } = usePermissions();
+  const confirm = useConfirm();
   const [suppliers, setSuppliers] = useState([]);
   const [filteredSuppliers, setFilteredSuppliers] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -89,7 +91,7 @@ export default function Suppliers() {
   };
 
   const handleDeleteSupplier = async (supplierId) => {
-    if (window.confirm('Are you sure you want to delete this supplier?')) {
+    if (await confirm({ message: 'Are you sure you want to delete this supplier?', danger: true })) {
       try {
         await api.delete(`/api/suppliers/${supplierId}`);
         await fetchSuppliers();

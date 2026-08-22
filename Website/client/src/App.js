@@ -7,6 +7,7 @@ import { ThemeProvider } from "./Context/ThemeContext";
 import { MobileNavProvider } from "./Context/MobileNavContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { CartProvider } from "./Context/CartContext";
+import { ConfirmProvider } from "./Context/ConfirmContext";
 
 // Route-level code splitting: each page loads on demand instead of all being
 // bundled into one initial JS payload. Keeps heavy, rarely-visited pages
@@ -79,6 +80,7 @@ function App() {
     <AuthProvider>
     <NotificationProvider>
     <CartProvider>
+    <ConfirmProvider>
     <Router>
       <MobileNavProvider>
       <Suspense fallback={<RouteFallback />}>
@@ -147,6 +149,7 @@ function App() {
       </Suspense>
       </MobileNavProvider>
     </Router>
+    </ConfirmProvider>
     </CartProvider>
     </NotificationProvider>
     </AuthProvider>
