@@ -626,7 +626,7 @@ export default function OrderProcess() {
     const customerData = JSON.parse(localStorage.getItem('customer'));
 
     if (!token || !customerData) {
-      alert('you need to login first');
+      toast.error('you need to login first');
       navigate('/customer-login');
       return;
     }
@@ -708,7 +708,7 @@ export default function OrderProcess() {
               let sku = item.sku;
               if (!sku) sku = productNameToSku[item.name];
               if (!sku) {
-                alert(`Product '${item.name}' (handpicked fallback) does not have a matching SKU and will not be included.`);
+                toast.error(`Product '${item.name}' (handpicked fallback) does not have a matching SKU and will not be included.`);
                 return null;
               }
               return { name: item.name, quantity: guestQuantity, sku };
@@ -720,7 +720,7 @@ export default function OrderProcess() {
           let sku = item.sku;
           if (!sku) sku = productNameToSku[item.name];
           if (!sku) {
-            alert(`Product '${item.name}' does not have a matching SKU and will not be included in the order.`);
+            toast.error(`Product '${item.name}' does not have a matching SKU and will not be included in the order.`);
             return null;
           }
           return { name: item.name, quantity: guestQuantity, sku };
@@ -737,7 +737,7 @@ export default function OrderProcess() {
       });
 
       if (!productsForOrder || productsForOrder.length === 0) {
-        alert('No products selected or available for the order. Please select items or a valid style.');
+        toast.error('No products selected or available for the order. Please select items or a valid style.');
         setLoading(false);
         return;
       }
@@ -816,11 +816,11 @@ export default function OrderProcess() {
       if (error.response && (error.response.status === 401 || error.response.status === 403)) {
         localStorage.removeItem('customerToken');
         localStorage.removeItem('customer');
-        alert('you need to login first');
+        toast.error('you need to login first');
         navigate('/customer-login');
       } else {
         const errorMessage = error.response?.data?.message || error.message;
-        alert('Failed to submit order: ' + errorMessage);
+        toast.error('Failed to submit order: ' + errorMessage);
       }
     } finally {
       setLoading(false);
@@ -1341,7 +1341,7 @@ export default function OrderProcess() {
   await sendOtp(customerData.email, token);
       toast.info('OTP resent to your email.');
     } catch (err) {
-      alert('Failed to resend OTP. Please try again later.');
+      toast.error('Failed to resend OTP. Please try again later.');
     }
   };
 

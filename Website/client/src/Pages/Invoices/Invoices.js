@@ -4,9 +4,12 @@ import TopBar from '../../Components/TopBar';
 import withEmployeeAuth from '../../Components/withEmployeeAuth';
 import usePermissions from '../../hooks/usePermissions';
 import api from '../../api';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import './Invoices.css';
 import { downloadPaymentProof, openInvoicePdf } from './invoicePdf';
 import PaymentModal from './PaymentModal';
+import EmailInvoiceModal from './EmailInvoiceModal';
 
 const peso = (value) => `PHP ${Number(value || 0).toLocaleString('en-PH', {
   minimumFractionDigits: 2,
@@ -43,6 +46,8 @@ const invoiceAmountLabel = (invoice) => (
 );
 
 function InvoicePreviewModal({ invoice, onClose, onMarkPaid, onCancel }) {
+  const [showEmailModal, setShowEmailModal] = useState(false);
+
   if (!invoice) return null;
 
   return (
@@ -78,7 +83,22 @@ function InvoicePreviewModal({ invoice, onClose, onMarkPaid, onCancel }) {
         </div>
         <div className="invoice-modal-footer">
           <button className="invoice-btn" onClick={() => openInvoicePdf(invoice)}>Download PDF</button>
-          <button className="invoice-btn" onClick={() => openInvoicePdf(invoice, true)}>Print Invoice</button>
+          <button
+            className="invoice-btn"
+            onClick={() => openInvoicePdf(invoice, true)}
+            disabled={invoice.status !== 'PAID'}
+            title={invoice.status !== 'PAID' ? 'Mark this invoice as paid before printing it.' : undefined}
+          >
+            Print Invoice
+          </button>
+          <button
+            className="invoice-btn"
+            onClick={() => setShowEmailModal(true)}
+            disabled={invoice.status !== 'PAID'}
+            title={invoice.status !== 'PAID' ? 'Mark this invoice as paid before emailing it to the client.' : undefined}
+          >
+            Email to Client
+          </button>
           {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (
             <button className="invoice-btn success" onClick={() => onMarkPaid(invoice)}>Mark as Paid</button>
           )}
@@ -90,6 +110,9 @@ function InvoicePreviewModal({ invoice, onClose, onMarkPaid, onCancel }) {
           )}
         </div>
       </div>
+      {showEmailModal && (
+        <EmailInvoiceModal invoice={invoice} onClose={() => setShowEmailModal(false)} />
+      )}
     </div>
   );
 }
@@ -117,7 +140,7 @@ function Invoices() {
       setInvoices(response.data?.invoices || []);
     } catch (error) {
       console.error('Failed to fetch invoices:', error);
-      alert(error.response?.data?.message || 'Failed to fetch invoices.');
+      toast.error(error.response?.data?.message || 'Failed to fetch invoices.');
       setInvoices([]);
     } finally {
       setLoading(false);
@@ -139,7 +162,7 @@ function Invoices() {
       setSelectedInvoice(null);
       await fetchInvoices();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to cancel invoice.');
+      toast.error(error.response?.data?.message || 'Failed to cancel invoice.');
     }
   };
 
@@ -257,6 +280,7 @@ function Invoices() {
           await fetchInvoices();
         }}
       />
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
     </div>
   );
 }

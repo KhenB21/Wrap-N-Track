@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import api from '../api';
 
 const KhenTestDataGenerator = () => {
@@ -15,7 +17,7 @@ const KhenTestDataGenerator = () => {
       
       if (response.data.success) {
         setResult(response.data);
-        alert('Khen test data created successfully! You can now view orders in the cart.');
+        toast.success('Khen test data created successfully! You can now view orders in the cart.');
       } else {
         setError(response.data.message || 'Failed to create test data');
       }
@@ -37,7 +39,7 @@ const KhenTestDataGenerator = () => {
       
       if (response.data.success) {
         setResult(null);
-        alert('Khen test data cleared successfully!');
+        toast.success('Khen test data cleared successfully!');
       } else {
         setError(response.data.message || 'Failed to clear test data');
       }
@@ -154,6 +156,7 @@ const KhenTestDataGenerator = () => {
           <li>Switch to "Orders" tab to see delivery monitoring</li>
         </ol>
       </div>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
     </div>
   );
 };

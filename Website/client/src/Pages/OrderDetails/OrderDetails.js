@@ -1,5 +1,7 @@
 /* eslint-disable no-undef */
 import React, { useEffect, useState, useCallback } from "react";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 import "./OrderDetails.css";
@@ -350,7 +352,7 @@ export default function OrderDetails() {
     const orderId = selectedOrder.order_id;
     if (!orderId || orderId === '') {
       console.error('Order ID is empty or invalid:', orderId);
-      alert('Invalid order ID. Please refresh and try again.');
+      toast.error('Invalid order ID. Please refresh and try again.');
       return;
     }
 
@@ -396,14 +398,14 @@ export default function OrderDetails() {
         // The fetchOrders() call will refresh the orders list with updated data
         console.log('Payment method update completed successfully');
         
-        alert('Payment method updated successfully');
+        toast.success('Payment method updated successfully');
       } else {
         console.error('API returned success: false', response.data);
-        alert(`Failed to update payment method: ${response.data.message || 'Unknown error'}`);
+        toast.error(`Failed to update payment method: ${response.data.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error updating payment method:', error);
-      alert('Failed to update payment method');
+      toast.error('Failed to update payment method');
     } finally {
       setLoading(false);
     }
@@ -418,13 +420,13 @@ export default function OrderDetails() {
   const handleCancelPendingOrder = async () => {
     if (!selectedOrder || !selectedOrder.order_id) {
       console.error('No order selected or order_id is missing.');
-      alert('No order selected or order ID is missing.');
+      toast.error('No order selected or order ID is missing.');
       return;
     }
 
     const normalizedStatus = normalizeStatus(selectedOrder.status);
     if (normalizedStatus !== 'pending' && normalizedStatus !== 'orderplaced' && normalizedStatus !== 'tobepacked') {
-      alert('Only orders with status "Pending" or "To Be Packed" can be cancelled.');
+      toast.error('Only orders with status "Pending" or "To Be Packed" can be cancelled.');
       return;
     }
 
@@ -437,13 +439,13 @@ export default function OrderDetails() {
         const encodedOrderId = encodeURIComponent(selectedOrder.order_id);
         console.log(`Attempting to delete order: /api/orders/${encodedOrderId}`); 
         await api.delete(`/api/orders/${encodedOrderId}`);
-        alert(`Order ${selectedOrder.order_id} cancelled successfully. Products have been restocked.`);
+        toast.success(`Order ${selectedOrder.order_id} cancelled successfully. Products have been restocked.`);
         fetchOrders(); // Refresh the orders list
         setSelectedOrderId(null); // Close the modal
         // If a different state controls modal visibility, adjust this line e.g. setShowOrderDetailsModal(false)
       } catch (error) {
         console.error('Error cancelling order:', error.response ? error.response.data : error.message);
-        alert(`Failed to cancel order. ${error.response && error.response.data && error.response.data.message ? error.response.data.message : 'Please try again.'}`);
+        toast.error(`Failed to cancel order. ${error.response && error.response.data && error.response.data.message ? error.response.data.message : 'Please try again.'}`);
       }
     }
   };
@@ -587,7 +589,7 @@ export default function OrderDetails() {
   const confirmOrderChallenge = async () => {
     if (!orderChallenge) return;
     if (orderChallengeInput.trim().toUpperCase() !== orderChallenge.challengeText) {
-      alert(`Please type ${orderChallenge.challengeText} to continue.`);
+      toast.error(`Please type ${orderChallenge.challengeText} to continue.`);
       return;
     }
 
@@ -1301,12 +1303,12 @@ export default function OrderDetails() {
                   onMouseOut={(e) => { if (!blockedByInvoices) e.currentTarget.style.backgroundColor = '#2ecc71'; }}
                   onClick={async () => {
                     if (blockedByInvoices) {
-                      alert('Both the down payment and remaining balance invoices must be generated and marked as paid before this order can move to To Be Packed.');
+                      toast.error('Both the down payment and remaining balance invoices must be generated and marked as paid before this order can move to To Be Packed.');
                       return;
                     }
                     if (!selectedOrder) {
                       console.error("Action Error: selectedOrder is missing.", selectedOrder);
-                      alert("Error: Order details are not available.");
+                      toast.error("Error: Order details are not available.");
                       return;
                     }
 
@@ -1315,7 +1317,7 @@ export default function OrderDetails() {
 
                     if (!orderIdToUse) {
                       console.error("Action Error: Processed order_id is empty. Original selectedOrder:", selectedOrder);
-                      alert("Error: Order ID is invalid or missing.");
+                      toast.error("Error: Order ID is invalid or missing.");
                       return;
                     }
 
@@ -1348,7 +1350,7 @@ export default function OrderDetails() {
                       const deliveryInfoComplete = hasDeliveryMethod && (isPickupDelivery || hasCourierInfo);
 
                       if (!deliveryInfoComplete) {
-                        alert(
+                        toast.error(
                           'Delivery tracking info is not filled out yet for this order. ' +
                           'Go to Delivery Tracking and set the delivery mode' +
                           (isPickupDelivery ? '' : ', courier, and tracking number/link') +
@@ -1385,7 +1387,7 @@ export default function OrderDetails() {
                         // total_cost will be recalculated by backend, so no need to send it from here
                       };
                     } else {
-                      alert('No action defined for this order status.');
+                      toast.error('No action defined for this order status.');
                       return;
                     }
 
@@ -1405,16 +1407,16 @@ export default function OrderDetails() {
                             payload
                           );
                           if (response.data) {
-                            alert(`Order ${selectedOrder.order_id} status updated to ${newStatus}.`);
+                            toast.success(`Order ${selectedOrder.order_id} status updated to ${newStatus}.`);
                             fetchOrders(); // Refresh all orders from the backend
                             setSelectedOrderId(null); // Close modal
                           } else {
                             console.error("Update successful but no data returned", response);
-                            alert("Order status updated, but an issue occurred fetching new data. Please refresh.");
+                            toast.error("Order status updated, but an issue occurred fetching new data. Please refresh.");
                           }
                         } catch (error) {
                           console.error(`Failed to update order status to ${newStatus}:`, error.response || error);
-                          alert(`Failed to update order status. ${error.response?.data?.error || error.message}`);
+                          toast.error(`Failed to update order status. ${error.response?.data?.error || error.message}`);
                         } finally {
                           setLoading(false);
                         }
@@ -1432,11 +1434,11 @@ export default function OrderDetails() {
                     try {
                       const encodedOrderId = encodeURIComponent(String(selectedOrder.order_id));
                       const response = await api.put(`/api/orders/${encodedOrderId}`, { status: 'Completed' });
-                      alert('Order completed and moved to Order History.');
+                      toast.success('Order completed and moved to Order History.');
                       fetchOrders();
                       setSelectedOrderId(null);
                     } catch (e) {
-                      alert('Failed to complete order.');
+                      toast.error('Failed to complete order.');
                     }
                   }}
                 >Complete Order</button>
@@ -1620,6 +1622,7 @@ export default function OrderDetails() {
           </div>
         )}
       </div>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
     </div>
   );
 }

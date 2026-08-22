@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { useCart } from '../../Context/CartContext';
 import { useAuth } from '../../Context/AuthContext';
 import TopbarCustomer from '../../Components/TopbarCustomer';
@@ -53,7 +55,7 @@ export default function CustomerCart() {
     
     const result = await updateCartItem(sku, newQuantity);
     if (!result.success) {
-      alert(result.message);
+      toast.error(result.message);
     }
   };
 
@@ -61,7 +63,7 @@ export default function CustomerCart() {
     if (window.confirm(`Remove "${productName}" from cart?`)) {
       const result = await removeFromCart(sku);
       if (!result.success) {
-        alert(result.message);
+        toast.error(result.message);
       }
     }
   };
@@ -70,7 +72,7 @@ export default function CustomerCart() {
     if (window.confirm('Clear entire cart? This action cannot be undone.')) {
       const result = await clearCart();
       if (!result.success) {
-        alert(result.message);
+        toast.error(result.message);
       }
     }
   };
@@ -91,7 +93,7 @@ export default function CustomerCart() {
     const result = await checkout(checkoutData);
     
     if (result.success) {
-      alert(`Order placed successfully! Order ID: ${result.orderId}`);
+      toast.success(`Order placed successfully! Order ID: ${result.orderId}`);
       navigate('/customer-cart');
     } else {
       setCheckoutError(result.message);
@@ -355,6 +357,7 @@ export default function CustomerCart() {
           </div>
         )}
       </div>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
     </div>
   );
 }

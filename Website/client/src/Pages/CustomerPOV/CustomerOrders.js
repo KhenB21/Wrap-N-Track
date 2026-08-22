@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from '../../Context/AuthContext';
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import api from '../../api';
@@ -65,11 +67,11 @@ export default function CustomerOrders() {
         setSelectedOrder(data.order);
         setShowOrderDetails(true);
       } else {
-        alert('Failed to fetch order details');
+        toast.error('Failed to fetch order details');
       }
     } catch (err) {
       console.error('Error fetching order details:', err);
-      alert('Failed to fetch order details');
+      toast.error('Failed to fetch order details');
     }
   };
 
@@ -439,6 +441,7 @@ export default function CustomerOrders() {
           </div>
         )}
       </div>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
     </div>
   );
 }

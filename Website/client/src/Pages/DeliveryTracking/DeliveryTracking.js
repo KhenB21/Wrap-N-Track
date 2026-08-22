@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import withEmployeeAuth from '../../Components/withEmployeeAuth';
@@ -107,27 +109,27 @@ function DeliveryModal({ delivery, modes, onClose, onSaved }) {
 
   const save = async () => {
     if (!form.delivery_mode_id) {
-      alert('Delivery mode is required.');
+      toast.error('Delivery mode is required.');
       return;
     }
     if (!form.delivery_status) {
-      alert('Delivery status is required.');
+      toast.error('Delivery status is required.');
       return;
     }
     if (['Failed Delivery', 'Rescheduled'].includes(form.delivery_status) && !form.delivery_remarks.trim()) {
-      alert('Remarks are required for failed or rescheduled deliveries.');
+      toast.error('Remarks are required for failed or rescheduled deliveries.');
       return;
     }
     if (!isPickup && trackingAvailable && !isValidUrl(form.tracking_link)) {
-      alert('Please enter a valid tracking URL.');
+      toast.error('Please enter a valid tracking URL.');
       return;
     }
     if (proofFile && !['image/jpeg', 'image/png', 'image/webp'].includes(proofFile.type)) {
-      alert('Proof must be a JPG, PNG, or WEBP image.');
+      toast.error('Proof must be a JPG, PNG, or WEBP image.');
       return;
     }
     if (proofFile && proofFile.size > 5 * 1024 * 1024) {
-      alert('Proof image must be 5 MB or smaller.');
+      toast.error('Proof image must be 5 MB or smaller.');
       return;
     }
 
@@ -153,7 +155,7 @@ function DeliveryModal({ delivery, modes, onClose, onSaved }) {
 
       onSaved();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to update delivery.');
+      toast.error(error.response?.data?.message || 'Failed to update delivery.');
     } finally {
       setSaving(false);
     }
@@ -471,6 +473,7 @@ function DeliveryTracking() {
           await fetchDeliveries();
         }}
       />
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
     </div>
   );
 }

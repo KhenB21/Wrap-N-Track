@@ -3,8 +3,11 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const { Resend } = require('resend');
 const pool = require('../config/db');
 const verifyJwt = require('../middleware/verifyJwt');
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const requireRole = require('../middleware/requireRole');
 const {
   uploadPaymentProof,
@@ -650,10 +653,16 @@ router.get('/invoices/:id', verifyJwt(), staffOnly, async (req, res) => {
 router.get('/orders/:orderId/invoices', verifyJwt(), staffOnly, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT *
-      FROM invoices
-      WHERE order_id = $1
-      ORDER BY issued_at DESC, id DESC
+      SELECT
+        i.*,
+        COALESCE(o.name, oh.name, cd.name) AS customer_name,
+        COALESCE(o.email_address, oh.email_address, cd.email_address) AS customer_email
+      FROM invoices i
+      LEFT JOIN orders o ON i.order_id = o.order_id
+      LEFT JOIN order_history oh ON i.order_id = oh.order_id
+      LEFT JOIN customer_details cd ON i.customer_id = cd.customer_id
+      WHERE i.order_id = $1
+      ORDER BY i.issued_at DESC, i.id DESC
     `, [req.params.orderId]);
     const summary = await syncOrderPaymentSummary(req.params.orderId);
     const invoices = result.rows.map((invoice) => decorateInvoiceRow(invoice, summary));
@@ -1023,6 +1032,68 @@ router.get('/invoices/:id/pdf', verifyJwt(), staffOnly, async (req, res) => {
   } catch (error) {
     console.error('Error generating invoice PDF:', error);
     res.status(500).json({ success: false, message: 'Failed to generate invoice PDF' });
+  }
+});
+
+router.post('/invoices/:id/email', verifyJwt(), staffOnly, async (req, res) => {
+  try {
+    const invoice = await getInvoiceWithDetails(req.params.id);
+    if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
+
+    const recipientEmail = req.body?.email || invoice.order?.customer_email;
+    if (!recipientEmail) {
+      return res.status(400).json({ success: false, message: 'No client email address available' });
+    }
+
+    const pdfBuffer = await new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+      drawInvoicePdf(doc, invoice);
+      doc.end();
+    });
+
+    const clientName = String(invoice.order?.customer_name || 'Client').replace(/[\\/:*?"<>|]/g, '').trim() || 'Client';
+    const fileName = `${clientName}.pdf`;
+    const defaultSubject = invoice.invoice_type === 'REMAINING_BALANCE'
+      ? 'Remaining balance invoice from Pensee Gifting Studio'
+      : 'Downpayment invoice from Pensee Gifting Studio';
+    const defaultText = invoice.invoice_type === 'REMAINING_BALANCE'
+      ? 'Good day! This is your invoice for paying REMAINING BALANCE. This is a automated email, please do not reply. Thank you for your order! '
+      : 'Good day! This is your Invoice for paying a DOWNPAYMENT. This is a automated email do not reply. Thanks';
+    const subject = req.body?.subject || defaultSubject;
+    const text = req.body?.body || defaultText;
+
+    if (!resend) {
+      console.log('Invoice email skipped (no RESEND_API_KEY). To:', recipientEmail);
+      console.log('Email subject:', subject);
+      console.log('Email text:', text);
+      return res.json({ success: true, message: 'Email skipped: RESEND_API_KEY not configured (dev mode)' });
+    }
+
+    const { error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+      to: recipientEmail,
+      subject,
+      text,
+      attachments: [
+        {
+          filename: fileName,
+          content: pdfBuffer.toString('base64'),
+        },
+      ],
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Resend send failed');
+    }
+
+    res.json({ success: true, message: `Invoice emailed to ${recipientEmail}` });
+  } catch (error) {
+    console.error('Error emailing invoice:', error);
+    res.status(500).json({ success: false, message: 'Failed to email invoice' });
   }
 });
 
