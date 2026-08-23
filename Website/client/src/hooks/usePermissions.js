@@ -31,12 +31,18 @@ const usePermissions = () => {
     return true;
   };
 
+  // Test-data insert/clear mutate real inventory and order rows. Mirrors the
+  // server-side guard in middleware/requireTestDataAccess.js -- this only hides the
+  // buttons; the server is what actually enforces it.
+  const canUseTestData = () =>
+    process.env.NODE_ENV !== 'production' && (role === 'admin' || role === 'super_admin');
+
   const isReadOnly = () => {
     const permissions = role ? (rolePermissions[role] || rolePermissions.default) : {};
     return permissions.readOnly || false;
   };
 
-  return { checkPermission, isReadOnly };
+  return { checkPermission, isReadOnly, canUseTestData, role };
 };
 
 export default usePermissions;

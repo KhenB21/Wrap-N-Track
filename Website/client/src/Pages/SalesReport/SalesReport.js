@@ -1,24 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../../Components/Sidebar/Sidebar';
-import TopBar from '../../Components/TopBar';
+import AppShell from '../../Components/AppShell';
+import { TrendChart, DonutChart, BarChart } from '../../Components/Charts';
 import api from '../../api';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './SalesReport.css';
 import usePermissions from '../../hooks/usePermissions';
-
-const STATUS_COLORS = {
-  'Order Placed': '#38bdf8',
-  'Order Paid': '#22c55e',
-  'To Be Packed': '#f59e0b',
-  'Order Shipped Out': '#3b82f6',
-  'Ready for Delivery': '#8b5cf6',
-  'Order Received': '#14b8a6',
-  'Completed': '#10b981',
-  'Cancelled': '#ef4444'
-};
-const statusColor = (status) => STATUS_COLORS[status] || '#6b7280';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const EMPTY_SALES_DATA = {
   totalRevenue: 0,
@@ -33,16 +24,19 @@ const EMPTY_SALES_DATA = {
   ordersByStatus: {},
   revenueTrend: 'stable',
   ordersTrend: 'stable',
-  profitTrend: 'stable'
+  profitTrend: 'stable',
 };
 
+const PERIOD_LABELS = { today: 'Today', week: 'This Week', month: 'This Month' };
+
 export default function SalesReport() {
-  const { checkPermission } = usePermissions();
+  const { checkPermission, canUseTestData } = usePermissions();
+  const showTestDataControls = canUseTestData();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState('today');
+  const [selectedPeriod, setSelectedPeriod] = useState('month');
 
   const [salesData, setSalesData] = useState(EMPTY_SALES_DATA);
   const [trends, setTrends] = useState([]);
@@ -53,50 +47,29 @@ export default function SalesReport() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
-    if (!user) {
-      navigate('/login-employee-pensee');
-      return;
-    }
-    if (!checkPermission('reports')) {
-      return;
-    }
+    if (!user) { navigate('/login-employee-pensee'); return; }
+    if (!checkPermission('reports')) return;
     fetchAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriod]);
 
-  // Formats a Date using its LOCAL calendar day (not toISOString, which
-  // converts to UTC first — that silently shifts "today" back a day for any
-  // positive UTC offset, e.g. Asia/Manila UTC+8, making the "Today" filter
-  // miss today's orders).
   const toLocalDateString = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   };
 
   const getDateRange = (period) => {
     const today = new Date();
-    const startDate = new Date();
-    const endDate = new Date();
-
+    const start = new Date();
     switch (period) {
-      case 'today':
-        break;
-      case 'week':
-        startDate.setDate(today.getDate() - 7);
-        break;
-      case 'month':
-        startDate.setDate(today.getDate() - 30);
-        break;
-      default:
-        break;
+      case 'today': break;
+      case 'week':  start.setDate(today.getDate() - 7);  break;
+      case 'month': start.setDate(today.getDate() - 30); break;
+      default: break;
     }
-
-    return {
-      startDate: toLocalDateString(startDate),
-      endDate: toLocalDateString(endDate)
-    };
+    return { startDate: toLocalDateString(start), endDate: toLocalDateString(today) };
   };
 
   const fetchAllData = async () => {
@@ -109,7 +82,7 @@ export default function SalesReport() {
       api.get(`/api/sales-reports/trends?startDate=${startDate}&endDate=${endDate}&groupBy=day`),
       api.get(`/api/sales-reports/top-products?startDate=${startDate}&endDate=${endDate}&limit=8`),
       api.get(`/api/sales-reports/customer-analysis?startDate=${startDate}&endDate=${endDate}`),
-      api.get('/api/sales-reports/recent?limit=10')
+      api.get('/api/sales-reports/recent?limit=10'),
     ]);
 
     if (overviewRes.status === 'fulfilled' && overviewRes.value.data.success) {
@@ -118,28 +91,24 @@ export default function SalesReport() {
       errors.overview = true;
       setSalesData(EMPTY_SALES_DATA);
     }
-
     if (trendsRes.status === 'fulfilled' && trendsRes.value.data.success) {
       setTrends(trendsRes.value.data.data);
     } else {
       errors.trends = true;
       setTrends([]);
     }
-
     if (topProductsRes.status === 'fulfilled' && topProductsRes.value.data.success) {
       setTopProducts(topProductsRes.value.data.data);
     } else {
       errors.topProducts = true;
       setTopProducts([]);
     }
-
     if (customerRes.status === 'fulfilled' && customerRes.value.data.success) {
       setTopCustomers((customerRes.value.data.data.customers || []).slice(0, 5));
     } else {
       errors.customers = true;
       setTopCustomers([]);
     }
-
     if (recentRes.status === 'fulfilled' && recentRes.value.data.success) {
       setRecentSales(recentRes.value.data.data);
     } else {
@@ -149,7 +118,7 @@ export default function SalesReport() {
 
     setSectionErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast.error('Some sections failed to load. Pull to refresh to retry.');
+      toast.error('Some sections failed to load.');
     }
     setLoading(false);
   };
@@ -158,285 +127,416 @@ export default function SalesReport() {
     setRefreshing(true);
     await fetchAllData();
     setRefreshing(false);
-    toast.success('Data refreshed successfully');
+    toast.success('Data refreshed');
   };
 
   const insertTestData = async () => {
     try {
       setLoading(true);
-      const response = await api.post('/api/sales-reports/test-data/insert');
-      if (response.data.success) {
-        toast.success('Sales test data inserted successfully!');
-        await fetchAllData();
-      } else {
-        toast.error('Failed to insert sales test data');
-      }
-    } catch (error) {
-      console.error('Error inserting sales test data:', error);
-      toast.error('Error inserting sales test data: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
-    }
+      const res = await api.post('/api/sales-reports/test-data/insert');
+      if (res.data.success) { toast.success('Test data inserted!'); await fetchAllData(); }
+      else toast.error('Failed to insert test data');
+    } catch (e) {
+      toast.error('Error: ' + (e.response?.data?.message || e.message));
+    } finally { setLoading(false); }
   };
 
   const clearTestData = async () => {
     try {
       setLoading(true);
-      const response = await api.post('/api/sales-reports/test-data/clear');
-      if (response.data.success) {
-        toast.success('Sales test data cleared successfully!');
-        await fetchAllData();
-      } else {
-        toast.error('Failed to clear sales test data');
-      }
-    } catch (error) {
-      console.error('Error clearing sales test data:', error);
-      toast.error('Error clearing sales test data: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
+      const res = await api.post('/api/sales-reports/test-data/clear');
+      if (res.data.success) { toast.success('Test data cleared!'); await fetchAllData(); }
+      else toast.error('Failed to clear test data');
+    } catch (e) {
+      toast.error('Error: ' + (e.response?.data?.message || e.message));
+    } finally { setLoading(false); }
+  };
+
+  const formatCurrency = (n) =>
+    new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(n || 0);
+  const formatNumber = (n) => new Intl.NumberFormat('en-PH').format(n || 0);
+  const formatDate = (d) =>
+    d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+
+  const trendArrow = (t) => (t === 'up' ? '↗' : t === 'down' ? '↘' : '→');
+  const trendClass = (t) => (t === 'up' ? 'sr-trend-up' : t === 'down' ? 'sr-trend-down' : 'sr-trend-flat');
+
+  // ── Chart data ──────────────────────────────────────────────────────────────
+  const trendData = useMemo(() =>
+    trends.map(t => ({
+      date: t.period,
+      revenue: Number(t.revenue) || 0,
+      orders: Number(t.orders) || 0,
+    })), [trends]);
+
+  const statusDonutData = useMemo(() =>
+    Object.entries(salesData.ordersByStatus || {})
+      .map(([name, value]) => ({ name, value: Number(value) }))
+      .filter(d => d.value > 0)
+      .sort((a, b) => b.value - a.value),
+    [salesData.ordersByStatus]);
+
+  const topProductsChartData = useMemo(() =>
+    topProducts.map(p => ({ name: p.name, value: Number(p.sales_value) || 0 })),
+    [topProducts]);
+
+  // ── Exports ─────────────────────────────────────────────────────────────────
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    const label = PERIOD_LABELS[selectedPeriod] || selectedPeriod;
+    doc.setFontSize(16);
+    doc.text(`Sales Report — ${label}`, 14, 18);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleString('en-PH')}`, 14, 25);
+
+    autoTable(doc, {
+      startY: 32,
+      head: [['Metric', 'Value']],
+      body: [
+        ['Total Revenue', formatCurrency(salesData.totalRevenue)],
+        ['Total Orders', formatNumber(salesData.totalOrders)],
+        ['Avg Order Value', formatCurrency(salesData.avgOrderValue)],
+        ['Total Profit', formatCurrency(salesData.totalProfit)],
+        ['Completed Orders', formatNumber(salesData.completedOrders)],
+        ['Pending Orders', formatNumber(salesData.pendingOrders)],
+        ['Cancelled Orders', formatNumber(salesData.cancelledOrders)],
+        ['Paid Amount', formatCurrency(salesData.paidAmount)],
+        ['Outstanding', formatCurrency(salesData.outstandingAmount)],
+      ],
+    });
+
+    if (topProducts.length > 0) {
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 10,
+        head: [['Product', 'Units Sold', 'Revenue']],
+        body: topProducts.map(p => [p.name, formatNumber(p.units_sold), formatCurrency(p.sales_value)]),
+      });
     }
+
+    if (recentSales.length > 0) {
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 10,
+        head: [['Order #', 'Customer', 'Date', 'Amount', 'Status']],
+        body: recentSales.map(o => [
+          `#${o.order_id}`, o.customer_name, formatDate(o.order_date),
+          formatCurrency(o.total_cost), o.status,
+        ]),
+      });
+    }
+
+    doc.save(`sales-report-${selectedPeriod}.pdf`);
   };
 
-  const formatCurrency = (amount) =>
-    new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount || 0);
+  const exportExcel = () => {
+    const wb = XLSX.utils.book_new();
+    const label = PERIOD_LABELS[selectedPeriod] || selectedPeriod;
 
-  const formatNumber = (num) => new Intl.NumberFormat('en-PH').format(num || 0);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Sales Report', label],
+      ['Generated', new Date().toLocaleString('en-PH')],
+      [],
+      ['Metric', 'Value'],
+      ['Total Revenue', salesData.totalRevenue],
+      ['Total Orders', salesData.totalOrders],
+      ['Avg Order Value', salesData.avgOrderValue],
+      ['Total Profit', salesData.totalProfit],
+      ['Completed Orders', salesData.completedOrders],
+      ['Pending Orders', salesData.pendingOrders],
+      ['Cancelled Orders', salesData.cancelledOrders],
+      ['Paid Amount', salesData.paidAmount],
+      ['Outstanding', salesData.outstandingAmount],
+    ]), 'Summary');
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    return new Date(dateStr).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+    if (topProducts.length > 0) {
+      XLSX.utils.book_append_sheet(wb,
+        XLSX.utils.json_to_sheet(topProducts.map(p => ({
+          Product: p.name, SKU: p.sku, 'Units Sold': p.units_sold, Revenue: p.sales_value,
+        }))),
+        'Top Products');
+    }
+
+    if (recentSales.length > 0) {
+      XLSX.utils.book_append_sheet(wb,
+        XLSX.utils.json_to_sheet(recentSales.map(o => ({
+          'Order #': o.order_id, Customer: o.customer_name, Date: formatDate(o.order_date),
+          Amount: o.total_cost, 'Payment Status': o.payment_status, Status: o.status,
+        }))),
+        'Recent Orders');
+    }
+
+    XLSX.writeFile(wb, `sales-report-${selectedPeriod}.xlsx`);
   };
 
-  const getTrendIcon = (trend) => (trend === 'up' ? '↗️' : trend === 'down' ? '↘️' : '→');
-  const getTrendColor = (trend) => (trend === 'up' ? '#10b981' : trend === 'down' ? '#ef4444' : '#6b7280');
-
-  const statusEntries = Object.entries(salesData.ordersByStatus || {}).sort((a, b) => b[1] - a[1]);
-  const maxStatusCount = Math.max(1, ...statusEntries.map(([, count]) => count));
-  const maxTrendRevenue = Math.max(1, ...trends.map(t => Number(t.revenue) || 0));
-
-  if (loading) {
-    return (
-      <div className="sales-report-container">
-        <Sidebar />
-        <div className="sales-report-main">
-          <TopBar />
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
-            <p>Loading sales data...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // ── Status pill color (CSS-var-based) ───────────────────────────────────────
+  const STATUS_CLASS = {
+    'Order Placed':       'sr-status-placed',
+    'Order Paid':         'sr-status-paid',
+    'To Be Packed':       'sr-status-packing',
+    'Order Shipped Out':  'sr-status-shipped',
+    'Ready for Delivery': 'sr-status-delivery',
+    'Order Received':     'sr-status-received',
+    'Completed':          'sr-status-completed',
+    'Cancelled':          'sr-status-cancelled',
+  };
 
   return (
-    <div className="sales-report-container">
-      <Sidebar />
-      <div className="sales-report-main">
-        <TopBar />
-
-        <div className="sales-report-content">
-          {/* Header Section */}
-          <div className="sales-header">
-            <h1 className="sales-title">Sales Overview</h1>
-            <div className="header-controls">
-              <div className="period-selector">
-                <button className={`period-btn ${selectedPeriod === 'today' ? 'active' : ''}`} onClick={() => setSelectedPeriod('today')}>Today</button>
-                <button className={`period-btn ${selectedPeriod === 'week' ? 'active' : ''}`} onClick={() => setSelectedPeriod('week')}>This Week</button>
-                <button className={`period-btn ${selectedPeriod === 'month' ? 'active' : ''}`} onClick={() => setSelectedPeriod('month')}>This Month</button>
-              </div>
-              <button className="refresh-btn" onClick={handleRefresh} disabled={refreshing}>
+    <AppShell searchPlaceholder="Search orders...">
+      <div className="sr-content">
+        {/* ── Header ──────────────────────────────────────────────────────── */}
+        <div className="sr-header">
+          <div>
+            <h1 className="sr-title">Sales Report</h1>
+            <p className="sr-subtitle">{PERIOD_LABELS[selectedPeriod]} performance</p>
+          </div>
+          <div className="sr-controls">
+            <div className="sr-period-selector">
+              {Object.entries(PERIOD_LABELS).map(([key, label]) => (
+                <button
+                  key={key}
+                  className={`sr-period-btn${selectedPeriod === key ? ' active' : ''}`}
+                  onClick={() => setSelectedPeriod(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="sr-action-btns">
+              <button className="sr-btn sr-btn-ghost" onClick={handleRefresh} disabled={refreshing}>
                 {refreshing ? '⟳' : '↻'} Refresh
               </button>
-              <button className="test-btn insert" onClick={insertTestData} disabled={loading}>
-                🧪 Insert Test Data
-              </button>
-              <button className="test-btn clear" onClick={clearTestData} disabled={loading}>
-                🗑️ Clear Test Data
-              </button>
+              <button className="sr-btn sr-btn-ghost" onClick={exportExcel}>↓ Excel</button>
+              <button className="sr-btn sr-btn-ghost" onClick={exportPDF}>↓ PDF</button>
+              {showTestDataControls && (
+                <>
+                  <button className="sr-btn sr-btn-test-insert" onClick={insertTestData} disabled={loading}>
+                    Insert Test Data
+                  </button>
+                  <button className="sr-btn sr-btn-test-clear" onClick={clearTestData} disabled={loading}>
+                    Clear Test Data
+                  </button>
+                </>
+              )}
             </div>
           </div>
+        </div>
 
-          {/* KPI Cards */}
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <div className="metric-header"><div className="metric-icon">💰</div><div className="metric-title">Total Sales</div></div>
-              <div className="metric-value">{formatCurrency(salesData.totalRevenue)}</div>
-              <div className="metric-trend" style={{ color: getTrendColor(salesData.revenueTrend) }}>{getTrendIcon(salesData.revenueTrend)} {salesData.revenueTrend}</div>
+        {/* ── Hero KPI row ─────────────────────────────────────────────────── */}
+        {loading ? (
+          <div className="sr-hero-grid">
+            {[...Array(4)].map((_, i) => <div key={i} className="sr-hero-card sr-skeleton" />)}
+          </div>
+        ) : (
+          <div className="sr-hero-grid">
+            <div className="sr-hero-card sr-hero-brand">
+              <span className="sr-hero-label">Total Revenue</span>
+              <span className="sr-hero-value">{formatCurrency(salesData.totalRevenue)}</span>
+              <span className={`sr-hero-trend ${trendClass(salesData.revenueTrend)}`}>
+                {trendArrow(salesData.revenueTrend)} {salesData.revenueTrend}
+              </span>
             </div>
-            <div className="metric-card">
-              <div className="metric-header"><div className="metric-icon">📦</div><div className="metric-title">Total Orders</div></div>
-              <div className="metric-value">{formatNumber(salesData.totalOrders)}</div>
-              <div className="metric-trend" style={{ color: getTrendColor(salesData.ordersTrend) }}>{getTrendIcon(salesData.ordersTrend)} {salesData.ordersTrend}</div>
+            <div className="sr-hero-card sr-hero-blue">
+              <span className="sr-hero-label">Total Orders</span>
+              <span className="sr-hero-value">{formatNumber(salesData.totalOrders)}</span>
+              <span className={`sr-hero-trend ${trendClass(salesData.ordersTrend)}`}>
+                {trendArrow(salesData.ordersTrend)} {salesData.ordersTrend}
+              </span>
             </div>
-            <div className="metric-card">
-              <div className="metric-header"><div className="metric-icon">📊</div><div className="metric-title">Avg Order Value</div></div>
-              <div className="metric-value">{formatCurrency(salesData.avgOrderValue)}</div>
+            <div className="sr-hero-card sr-hero-orange">
+              <span className="sr-hero-label">Avg Order Value</span>
+              <span className="sr-hero-value">{formatCurrency(salesData.avgOrderValue)}</span>
             </div>
-            <div className="metric-card">
-              <div className="metric-header"><div className="metric-icon">💎</div><div className="metric-title">Total Profit</div></div>
-              <div className="metric-value">{formatCurrency(salesData.totalProfit)}</div>
-              <div className="metric-trend" style={{ color: getTrendColor(salesData.profitTrend) }}>{getTrendIcon(salesData.profitTrend)} {salesData.profitTrend}</div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-header"><div className="metric-icon">✅</div><div className="metric-title">Completed Orders</div></div>
-              <div className="metric-value">{formatNumber(salesData.completedOrders)}</div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-header"><div className="metric-icon">⏳</div><div className="metric-title">Pending Orders</div></div>
-              <div className="metric-value">{formatNumber(salesData.pendingOrders)}</div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-header"><div className="metric-icon">❌</div><div className="metric-title">Cancelled Orders</div></div>
-              <div className="metric-value">{formatNumber(salesData.cancelledOrders)}</div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-header"><div className="metric-icon">✔️</div><div className="metric-title">Paid Amount</div></div>
-              <div className="metric-value">{formatCurrency(salesData.paidAmount)}</div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-header"><div className="metric-icon">🕓</div><div className="metric-title">Outstanding Payments</div></div>
-              <div className="metric-value">{formatCurrency(salesData.outstandingAmount)}</div>
+            <div className="sr-hero-card sr-hero-green">
+              <span className="sr-hero-label">Total Profit</span>
+              <span className="sr-hero-value">{formatCurrency(salesData.totalProfit)}</span>
+              <span className={`sr-hero-trend ${trendClass(salesData.profitTrend)}`}>
+                {trendArrow(salesData.profitTrend)} {salesData.profitTrend}
+              </span>
             </div>
           </div>
+        )}
 
-          {/* Orders by Status */}
-          <div className="chart-container">
-            <h3 className="chart-title">Orders by Status</h3>
-            {statusEntries.length === 0 ? (
-              <p className="empty-note">No orders in this period.</p>
+        {/* ── Secondary strip ──────────────────────────────────────────────── */}
+        {!loading && (
+          <div className="sr-strip">
+            <div className="sr-strip-tile">
+              <span className="sr-strip-label">Completed</span>
+              <span className="sr-strip-value sr-strip-green">{formatNumber(salesData.completedOrders)}</span>
+            </div>
+            <div className="sr-strip-tile">
+              <span className="sr-strip-label">Pending</span>
+              <span className="sr-strip-value sr-strip-orange">{formatNumber(salesData.pendingOrders)}</span>
+            </div>
+            <div className="sr-strip-tile">
+              <span className="sr-strip-label">Cancelled</span>
+              <span className="sr-strip-value sr-strip-red">{formatNumber(salesData.cancelledOrders)}</span>
+            </div>
+            <div className="sr-strip-tile">
+              <span className="sr-strip-label">Paid Amount</span>
+              <span className="sr-strip-value">{formatCurrency(salesData.paidAmount)}</span>
+            </div>
+            <div className="sr-strip-tile">
+              <span className="sr-strip-label">Outstanding</span>
+              <span className="sr-strip-value sr-strip-red">{formatCurrency(salesData.outstandingAmount)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* ── Charts row ───────────────────────────────────────────────────── */}
+        <div className="sr-charts-row">
+          <div className="sr-chart-card sr-chart-wide">
+            <h3 className="sr-card-title">Revenue &amp; Orders Trend</h3>
+            {loading ? (
+              <div className="sr-chart-skeleton" />
+            ) : trendData.length === 0 ? (
+              <p className="sr-empty">No trend data for this period.</p>
             ) : (
-              <div className="status-bars">
-                {statusEntries.map(([status, count]) => (
-                  <div className="status-bar-row" key={status}>
-                    <span className="status-bar-label">{status}</span>
-                    <div className="status-bar-track">
-                      <div
-                        className="status-bar-fill"
-                        style={{ width: `${(count / maxStatusCount) * 100}%`, backgroundColor: statusColor(status) }}
-                      />
-                    </div>
-                    <span className="status-bar-count">{count}</span>
-                  </div>
-                ))}
-              </div>
+              <TrendChart
+                data={trendData}
+                leftKey="revenue"
+                rightKey="orders"
+                leftLabel="Revenue (₱)"
+                rightLabel="Orders"
+                leftCurrency={true}
+                height={260}
+              />
             )}
           </div>
-
-          {/* Sales Trends */}
-          <div className="chart-container">
-            <h3 className="chart-title">Sales Trend (Revenue)</h3>
-            {trends.length === 0 ? (
-              <p className="empty-note">No trend data available for this period.</p>
+          <div className="sr-chart-card sr-chart-narrow">
+            <h3 className="sr-card-title">Orders by Status</h3>
+            {loading ? (
+              <div className="sr-chart-skeleton" />
+            ) : statusDonutData.length === 0 ? (
+              <p className="sr-empty">No orders in this period.</p>
             ) : (
-              <div className="trend-bars">
-                {trends.map((point) => (
-                  <div className="trend-bar-col" key={point.period}>
-                    <div className="trend-bar-track">
-                      <div
-                        className="trend-bar-fill"
-                        style={{ height: `${Math.max(4, (Number(point.revenue) / maxTrendRevenue) * 100)}%` }}
-                        title={formatCurrency(point.revenue)}
-                      />
-                    </div>
-                    <span className="trend-bar-label">
-                      {new Date(point.period).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <DonutChart data={statusDonutData} height={260} />
             )}
           </div>
+        </div>
 
-          {/* Top Performing Products + Sales by Customer */}
-          <div className="two-col-grid">
-            <div className="table-card">
-              <h3 className="chart-title">Top Performing Products</h3>
-              {topProducts.length === 0 ? (
-                <p className="empty-note">No product sales in this period.</p>
-              ) : (
-                <table>
+        {/* ── Top products bar chart ────────────────────────────────────────── */}
+        {!loading && topProductsChartData.length > 0 && (
+          <div className="sr-chart-card">
+            <h3 className="sr-card-title">Top Products by Revenue</h3>
+            <BarChart
+              data={topProductsChartData}
+              dataKey="value"
+              nameKey="name"
+              layout="horizontal"
+              isCurrency={true}
+              colorByIndex={true}
+              height={Math.max(200, topProductsChartData.length * 36)}
+            />
+          </div>
+        )}
+
+        {/* ── Tables row ───────────────────────────────────────────────────── */}
+        <div className="sr-tables-row">
+          <div className="sr-table-card">
+            <h3 className="sr-card-title">Top Customers</h3>
+            {loading ? (
+              <div className="sr-table-skeleton" />
+            ) : topCustomers.length === 0 ? (
+              <p className="sr-empty">No customer sales in this period.</p>
+            ) : (
+              <div className="sr-table-wrap">
+                <table className="sr-table">
                   <thead>
-                    <tr><th>Product</th><th>Units Sold</th><th>Revenue</th></tr>
+                    <tr><th>Customer</th><th className="sr-num">Orders</th><th className="sr-num">Spent</th></tr>
+                  </thead>
+                  <tbody>
+                    {topCustomers.map(c => (
+                      <tr key={`${c.name}-${c.email_address}`}>
+                        <td>
+                          {c.name}
+                          {c.customer_type && (
+                            <span className="sr-type-tag">{c.customer_type}</span>
+                          )}
+                        </td>
+                        <td className="sr-num">{formatNumber(c.order_count)}</td>
+                        <td className="sr-num">{formatCurrency(c.total_spent)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="sr-table-card">
+            <h3 className="sr-card-title">Top Products</h3>
+            {loading ? (
+              <div className="sr-table-skeleton" />
+            ) : topProducts.length === 0 ? (
+              <p className="sr-empty">No product sales in this period.</p>
+            ) : (
+              <div className="sr-table-wrap">
+                <table className="sr-table">
+                  <thead>
+                    <tr><th>Product</th><th className="sr-num">Units</th><th className="sr-num">Revenue</th></tr>
                   </thead>
                   <tbody>
                     {topProducts.map(p => (
                       <tr key={p.sku}>
                         <td>{p.name}</td>
-                        <td className="num-cell">{formatNumber(p.units_sold)}</td>
-                        <td className="num-cell">{formatCurrency(p.sales_value)}</td>
+                        <td className="sr-num">{formatNumber(p.units_sold)}</td>
+                        <td className="sr-num">{formatCurrency(p.sales_value)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              )}
-            </div>
-
-            <div className="table-card">
-              <h3 className="chart-title">Sales by Customer</h3>
-              {topCustomers.length === 0 ? (
-                <p className="empty-note">No customer sales in this period.</p>
-              ) : (
-                <table>
-                  <thead>
-                    <tr><th>Customer</th><th>Orders</th><th>Spent</th></tr>
-                  </thead>
-                  <tbody>
-                    {topCustomers.map(c => (
-                      <tr key={`${c.name}-${c.email_address}`}>
-                        <td>{c.name}<span className="customer-type-tag">{c.customer_type}</span></td>
-                        <td className="num-cell">{formatNumber(c.order_count)}</td>
-                        <td className="num-cell">{formatCurrency(c.total_spent)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Recent Sales */}
-          <div className="table-card">
-            <h3 className="chart-title">Recent Sales</h3>
-            {recentSales.length === 0 ? (
-              <p className="empty-note">No recent orders found.</p>
-            ) : (
-              <table>
+        {/* ── Recent orders ────────────────────────────────────────────────── */}
+        <div className="sr-table-card sr-table-full">
+          <h3 className="sr-card-title">Recent Orders</h3>
+          {loading ? (
+            <div className="sr-table-skeleton" />
+          ) : recentSales.length === 0 ? (
+            <p className="sr-empty">No recent orders found.</p>
+          ) : (
+            <div className="sr-table-wrap">
+              <table className="sr-table">
                 <thead>
                   <tr>
-                    <th>Order #</th><th>Customer</th><th>Date</th><th>Amount</th><th>Payment</th><th>Status</th><th></th>
+                    <th>Order #</th><th>Customer</th><th>Date</th>
+                    <th className="sr-num">Amount</th><th>Payment</th><th>Status</th><th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recentSales.map(order => (
-                    <tr key={order.order_id}>
-                      <td>#{order.order_id}</td>
-                      <td>{order.customer_name}</td>
-                      <td>{formatDate(order.order_date)}</td>
-                      <td className="num-cell">{formatCurrency(order.total_cost)}</td>
+                  {recentSales.map(o => (
+                    <tr key={o.order_id}>
+                      <td className="sr-order-id">#{o.order_id}</td>
+                      <td>{o.customer_name}</td>
+                      <td>{formatDate(o.order_date)}</td>
+                      <td className="sr-num">{formatCurrency(o.total_cost)}</td>
                       <td>
-                        <span className={`payment-pill ${order.payment_status.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>
-                          {order.payment_status}
+                        <span className={`sr-pay-pill sr-pay-${o.payment_status?.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>
+                          {o.payment_status}
                         </span>
                       </td>
                       <td>
-                        <span className="status-pill" style={{ backgroundColor: statusColor(order.status) }}>
-                          {order.status}
+                        <span className={`sr-status-pill ${STATUS_CLASS[o.status] || 'sr-status-default'}`}>
+                          {o.status}
                         </span>
                       </td>
                       <td>
-                        <button className="view-order-btn" onClick={() => navigate(`/orders/${order.order_id}`)}>View</button>
+                        <button className="sr-view-btn" onClick={() => navigate(`/orders/${o.order_id}`)}>
+                          View
+                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <ToastContainer />
-    </div>
+      <ToastContainer position="bottom-right" />
+    </AppShell>
   );
 }

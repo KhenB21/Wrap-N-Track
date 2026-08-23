@@ -2,7 +2,7 @@
 .inventory-report-container {
   display: flex;
   height: 100vh;
-  background: #fefcf7;
+  background: var(--app-bg, #fefcf7);
   overflow: hidden;
   position: relative;
 }
@@ -42,7 +42,7 @@
 
 .report-header h1 {
   margin: 0;
-  color: #1a202c;
+  color: var(--text, #1a202c);
   font-size: 32px;
   font-weight: 700;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -73,7 +73,7 @@
 
 .date-range label {
   font-weight: 600;
-  color: #4a5568;
+  color: var(--text-muted, #4a5568);
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -98,7 +98,7 @@
 }
 
 .date-range span {
-  color: #718096;
+  color: var(--text-muted, #718096);
   font-weight: 500;
   font-size: 14px;
 }
@@ -288,7 +288,7 @@
 
 .summary-card h3 {
   margin: 0 0 16px 0;
-  color: #4a5568;
+  color: var(--text-muted, #4a5568);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -298,7 +298,7 @@
 .summary-card .value {
   font-size: 36px;
   font-weight: 800;
-  color: #1a202c;
+  color: var(--text, #1a202c);
   margin: 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
@@ -344,10 +344,10 @@
 }
 
 .category-item {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border, #e0e0e0);
   border-radius: 6px;
   padding: 15px;
-  background: #fafafa;
+  background: var(--surface-muted, #fafafa);
 }
 
 .category-header {
@@ -461,7 +461,7 @@
   overflow-x: auto;
   max-height: 50vh;
   overflow-y: auto;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border, #e0e0e0);
   border-radius: 6px;
 }
 
@@ -637,7 +637,7 @@ Y
   align-items: center;
   height: 200px;
   font-size: 18px;
-  color: #718096;
+  color: var(--text-muted, #718096);
   font-weight: 600;
   animation: pulse 2s infinite;
 }
@@ -805,7 +805,7 @@ Y
 
 .section-header h2 {
   margin: 0 0 12px 0;
-  color: #1a202c;
+  color: var(--text, #1a202c);
   font-size: 28px;
   font-weight: 800;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -817,7 +817,7 @@ Y
 
 .section-header p {
   margin: 0;
-  color: #718096;
+  color: var(--text-muted, #718096);
   font-size: 16px;
   font-weight: 500;
   max-width: 600px;
@@ -925,14 +925,14 @@ Y
 
 .item-info .item-name {
   font-weight: 700;
-  color: #1a202c;
+  color: var(--text, #1a202c);
   margin-bottom: 6px;
   font-size: 14px;
 }
 
 .item-info .item-sku {
   font-size: 11px;
-  color: #718096;
+  color: var(--text-muted, #718096);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -953,7 +953,7 @@ Y
 }
 
 .metric .label {
-  color: #718096;
+  color: var(--text-muted, #718096);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -962,7 +962,7 @@ Y
 
 .metric .value {
   font-weight: 700;
-  color: #1a202c;
+  color: var(--text, #1a202c);
   font-size: 13px;
 }
 
@@ -1180,11 +1180,86 @@ Y
   color: #991b1b;
 }
 
-@media (prefers-color-scheme: dark) {
-  .stock-watch-search,
-  .stock-watch-filters select {
-    background: #1e1e2e;
-    border-color: rgba(255,255,255,0.15);
-    color: #e5e7eb;
-  }
+/* Fix: dark mode for filters — use body.dark to match ThemeContext */
+body.dark .stock-watch-search,
+body.dark .stock-watch-filters select {
+  background: var(--surface, #1e1e2e);
+  border-color: var(--border, rgba(255,255,255,0.15));
+  color: var(--text, #e5e7eb);
 }
+
+/* ── Stock-flow chart section ─────────────────────────────────────────────── */
+.ir-chart-card {
+  background: var(--surface, #fff);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.08));
+}
+
+.ir-chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+  margin: 0 0 12px;
+}
+
+.ir-chart-note {
+  font-size: 11px;
+  color: var(--text-muted, #6b7280);
+  margin-top: 8px;
+}
+
+.ir-flow-summary {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.ir-flow-tile {
+  flex: 1;
+  min-width: 120px;
+  background: var(--surface-muted, #f8fafc);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ir-flow-label { font-size: 12px; color: var(--text-muted, #6b7280); }
+.ir-flow-val   { font-size: 18px; font-weight: 700; color: var(--text, #1f2937); }
+.ir-flow-in  .ir-flow-val { color: var(--success, var(--success, #10B981)); }
+.ir-flow-out .ir-flow-val { color: var(--danger,  var(--danger, #EF4444)); }
+.ir-flow-pos { color: var(--success, var(--success, #10B981)); }
+.ir-flow-neg { color: var(--danger,  var(--danger, #EF4444)); }
+
+/* ── Forecast tab ─────────────────────────────────────────────────────────── */
+.ir-forecast-urgent { background: rgba(239,68,68,0.04); }
+.ir-forecast-urgent:hover { background: rgba(239,68,68,0.08) !important; }
+
+.ir-cell-danger { color: var(--danger, var(--danger, #EF4444)); font-weight: 600; }
+
+.ir-formula-source {
+  font-size: 11px;
+  color: var(--text-muted, #6b7280);
+  font-family: monospace;
+}
+
+.ir-trend-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.ir-trend-up   { background: rgba(34,197,94,0.12);  color: var(--success, var(--success, #10B981)); }
+.ir-trend-down { background: rgba(239,68,68,0.10);  color: var(--danger,  var(--danger, #EF4444)); }
+.ir-trend-flat { background: var(--surface-muted, #f1f5f9); color: var(--text-muted, #6b7280); }
+
+/* dark overrides for new sections */
+body.dark .ir-chart-card { background: var(--surface); }
+body.dark .ir-flow-tile  { background: var(--surface-muted); }

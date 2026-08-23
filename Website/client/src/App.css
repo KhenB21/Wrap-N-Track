@@ -31,6 +31,17 @@
   --shadow-lg: 0 20px 45px rgba(15, 23, 42, 0.12);
   --shadow-md: 0 12px 28px rgba(15, 23, 42, 0.08);
   --shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.06);
+  /* Chart palette — WCAG 1.4.11 compliant (≥3:1 vs #ffffff surface) */
+  /* Ratios: chart-1 3.67, chart-2 4.95, chart-3 5.02, chart-4 3.76  */
+  /*         chart-5 5.71, chart-6 5.36, chart-7 5.17, chart-8 5.00  */
+  --chart-1: #3b82f6;
+  --chart-2: #059669;
+  --chart-3: #b45309;
+  --chart-4: #ef4444;
+  --chart-5: #7c3aed;
+  --chart-6: #0e7490;
+  --chart-7: #c2410c;
+  --chart-8: #4d7c0f;
 }
 
 /* Dark-mode values for the same semantic variable names above.
@@ -67,6 +78,15 @@ body.dark {
   --shadow-lg: 0 20px 45px rgba(0, 0, 0, 0.55);
   --shadow-md: 0 12px 28px rgba(0, 0, 0, 0.45);
   --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.35);
+  /* Chart palette — all pass WCAG 1.4.11 vs dark surface (#242424) */
+  --chart-1: #5b9dff;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #f87171;
+  --chart-5: #a78bfa;
+  --chart-6: #22d3ee;
+  --chart-7: #fb923c;
+  --chart-8: #a3e635;
 }
 
 /* Reset and base styles */

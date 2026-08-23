@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './InventoryReport.css';
-import Sidebar from '../../Components/Sidebar/Sidebar';
-import TopBar from '../../Components/TopBar';
+import AppShell from '../../Components/AppShell';
+import { BarChart } from '../../Components/Charts';
 import api from '../../api';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -12,7 +12,8 @@ import * as XLSX from 'xlsx';
 import usePermissions from '../../hooks/usePermissions';
 
 export default function InventoryReport() {
-  const { checkPermission } = usePermissions();
+  const { checkPermission, canUseTestData } = usePermissions();
+  const showTestDataControls = canUseTestData();
   const navigate = useNavigate();
   const [inventoryData, setInventoryData] = useState([]);
   const [reportData, setReportData] = useState({
@@ -29,6 +30,8 @@ export default function InventoryReport() {
   const [movementData, setMovementData] = useState([]);
   const [replenishmentData, setReplenishmentData] = useState([]);
   const [analyticsData, setAnalyticsData] = useState([]);
+  const [forecastData, setForecastData] = useState([]);
+  const [stockFlow, setStockFlow] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
     startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -61,11 +64,15 @@ export default function InventoryReport() {
       console.log('Fetching inventory data...');
       
       // Fetch all data in parallel
-      const [inventoryResponse, movementResponse, replenishmentResponse, analyticsResponse] = await Promise.all([
+      const days = getDaysDifference();
+      const [inventoryResponse, movementResponse, replenishmentResponse, analyticsResponse,
+             forecastResponse, stockFlowResponse] = await Promise.all([
         api.get('/api/inventory'),
-        api.get(`/api/inventory-reports/movement-analysis?days=${getDaysDifference()}`),
-        api.get(`/api/inventory-reports/replenishment-suggestions?days=${getDaysDifference()}`),
-        api.get(`/api/inventory-reports/advanced-analytics?days=${getDaysDifference()}`)
+        api.get(`/api/inventory-reports/movement-analysis?days=${days}`),
+        api.get(`/api/inventory-reports/replenishment-suggestions?days=${days}`),
+        api.get(`/api/inventory-reports/advanced-analytics?days=${days}`),
+        api.get('/api/analytics/forecast/demand').catch(() => null),
+        api.get(`/api/inventory-reports/stock-flow?days=${days}`).catch(() => null),
       ]);
       
       // Handle inventory data
@@ -86,6 +93,8 @@ export default function InventoryReport() {
       setMovementData(movementResponse.data.data || []);
       setReplenishmentData(replenishmentResponse.data.data || []);
       setAnalyticsData(analyticsResponse.data.data || []);
+      if (forecastResponse?.data?.data)  setForecastData(forecastResponse.data.data);
+      if (stockFlowResponse?.data?.data) setStockFlow(stockFlowResponse.data.data);
       
     } catch (error) {
       console.error('Error fetching inventory data:', error);
@@ -129,30 +138,26 @@ export default function InventoryReport() {
   };
 
   // Helper functions for new analytics
-  const getMovementColor = (category) => {
-    switch (category) {
-      case 'FAST_MOVING': return '#10B981';
-      case 'MODERATE_MOVING': return '#F59E0B';
-      case 'SLOW_MOVING': return '#EF4444';
-      case 'DEAD_STOCK': return '#6B7280';
-      default: return '#6B7280';
-    }
+  const MOVEMENT_COLORS = {
+    FAST_MOVING:     'var(--success,#10B981)',
+    MODERATE_MOVING: 'var(--warning,#F59E0B)',
+    SLOW_MOVING:     'var(--danger,#EF4444)',
+    DEAD_STOCK:      'var(--text-muted,#6B7280)',
   };
+  const getMovementColor = (cat) => MOVEMENT_COLORS[cat] || 'var(--text-muted,#6B7280)';
 
   // Matches the actual reorder_status values the backend computes in
   // /api/inventory-reports/replenishment-suggestions (see the formula
   // documented in Website/server/routes/inventory-reports.js) — the frontend
   // previously filtered on invented URGENT/SOON/PLAN/ADEQUATE labels that the
   // backend never sends, so this tab always rendered empty.
-  const getPriorityColor = (status) => {
-    switch (status) {
-      case 'Out of Stock': return '#EF4444';
-      case 'Reorder Recommended': return '#F59E0B';
-      case 'Approaching Reorder Point': return '#3B82F6';
-      case 'Healthy': return '#10B981';
-      default: return '#6B7280';
-    }
+  const PRIORITY_COLORS = {
+    'Out of Stock':              'var(--danger,#EF4444)',
+    'Reorder Recommended':       'var(--warning,#F59E0B)',
+    'Approaching Reorder Point': 'var(--brand,#3B82F6)',
+    'Healthy':                   'var(--success,#10B981)',
   };
+  const getPriorityColor = (status) => PRIORITY_COLORS[status] || 'var(--text-muted,#6B7280)';
 
   const calculateReportData = (data) => {
     // Ensure data is an array
@@ -457,22 +462,15 @@ export default function InventoryReport() {
 
   if (loading) {
     return (
-      <div className="inventory-report-container">
-        <Sidebar />
-        <div className="main-content">
-          <TopBar />
-          <div className="loading">Loading inventory report...</div>
-        </div>
-      </div>
+      <AppShell>
+        <div className="loading">Loading inventory report...</div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="inventory-report-container">
-      <Sidebar />
-      <div className="main-content">
-        <TopBar />
-        <div className="inventory-report">
+    <AppShell>
+      <div className="inventory-report">
           <div className="report-header">
             <div>
               <h1>Enhanced Inventory Analytics</h1>
@@ -505,12 +503,16 @@ export default function InventoryReport() {
                 <button onClick={fetchInventoryData} className="refresh-btn">
                   🔄 Refresh
                 </button>
-                <button onClick={insertTestData} className="test-btn insert" disabled={loading}>
-                  🧪 Insert Test Data
-                </button>
-                <button onClick={clearTestData} className="test-btn clear" disabled={loading}>
-                  🗑️ Clear Test Data
-                </button>
+                {showTestDataControls && (
+                  <>
+                    <button onClick={insertTestData} className="test-btn insert" disabled={loading}>
+                      🧪 Insert Test Data
+                    </button>
+                    <button onClick={clearTestData} className="test-btn clear" disabled={loading}>
+                      🗑️ Clear Test Data
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -535,11 +537,17 @@ export default function InventoryReport() {
             >
               🔄 Replenishment
             </button>
-            <button 
+            <button
               className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
               onClick={() => setActiveTab('analytics')}
             >
               📈 Advanced Analytics
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'forecast' ? 'active' : ''}`}
+              onClick={() => setActiveTab('forecast')}
+            >
+              🔮 Demand Forecast
             </button>
           </div>
 
@@ -660,7 +668,45 @@ export default function InventoryReport() {
                 <h2>Movement Analysis</h2>
                 <p>Analysis of item movement patterns over the selected period</p>
               </div>
-              
+
+              {/* Stock In vs Out chart */}
+              {stockFlow.length > 0 && (() => {
+                const totalIn  = stockFlow.reduce((s, d) => s + d.stockIn, 0);
+                const totalOut = stockFlow.reduce((s, d) => s + d.stockOut, 0);
+                const netData  = stockFlow.map(d => ({ name: d.date, value: d.stockIn - d.stockOut }));
+                return (
+                  <div className="ir-chart-card">
+                    <h3 className="ir-chart-title">Stock Flow — {getDaysDifference()}-day window</h3>
+                    <div className="ir-flow-summary">
+                      <div className="ir-flow-tile ir-flow-in">
+                        <span className="ir-flow-label">Total Stock In</span>
+                        <span className="ir-flow-val">{formatNumber(totalIn)} units</span>
+                      </div>
+                      <div className="ir-flow-tile ir-flow-out">
+                        <span className="ir-flow-label">Total Stock Out</span>
+                        <span className="ir-flow-val">{formatNumber(totalOut)} units</span>
+                      </div>
+                      <div className="ir-flow-tile">
+                        <span className="ir-flow-label">Net Change</span>
+                        <span className={`ir-flow-val ${totalIn - totalOut >= 0 ? 'ir-flow-pos' : 'ir-flow-neg'}`}>
+                          {totalIn - totalOut >= 0 ? '+' : ''}{formatNumber(totalIn - totalOut)} units
+                        </span>
+                      </div>
+                    </div>
+                    <BarChart
+                      data={netData}
+                      dataKey="value"
+                      nameKey="name"
+                      layout="vertical"
+                      isCurrency={false}
+                      colorByIndex={false}
+                      height={Math.max(160, netData.length * 22)}
+                    />
+                    <p className="ir-chart-note">Positive = more received than consumed; negative = drawdown.</p>
+                  </div>
+                );
+              })()}
+
               <div className="movement-grid">
                 {['FAST_MOVING', 'MODERATE_MOVING', 'SLOW_MOVING', 'DEAD_STOCK'].map(category => {
                   const items = movementData.filter(item => item.movement_category === category);
@@ -757,6 +803,103 @@ export default function InventoryReport() {
             </div>
           )}
 
+          {/* Demand Forecast Tab */}
+          {activeTab === 'forecast' && (
+            <div className="tab-content">
+              <div className="section-header">
+                <h2>Demand Forecast</h2>
+                <p>Per-SKU velocity trends, days-to-stockout, and reorder recommendations. Items with fewer than 30 days of sales history are listed separately — their forecast would be unreliable.</p>
+              </div>
+
+              {forecastData.length === 0 ? (
+                <p className="empty-note">No forecast data available. The analytics server may need a restart.</p>
+              ) : (() => {
+                const okItems = forecastData.filter(d => d.status === 'ok');
+                const thinItems = forecastData.filter(d => d.status !== 'ok');
+
+                return (
+                  <>
+                    {okItems.length > 0 && (
+                      <div className="analytics-table-container">
+                        <table className="analytics-table">
+                          <thead>
+                            <tr>
+                              <th>SKU</th>
+                              <th>Name</th>
+                              <th>Avg Daily Use (30d)</th>
+                              <th>Trend</th>
+                              <th>Stock on Hand</th>
+                              <th>Days to Stockout</th>
+                              <th>Projected Stockout</th>
+                              <th>Reorder Qty</th>
+                              <th>Reorder Status</th>
+                              <th>Formula</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {okItems.map(d => {
+                              const urgent = d.daysToStockout !== null && d.daysToStockout <= (d.leadTimeDays || 7);
+                              return (
+                                <tr key={d.sku} className={urgent ? 'ir-forecast-urgent' : ''}>
+                                  <td>{d.sku}</td>
+                                  <td>{d.name}</td>
+                                  <td>{d.averageDailyUsage?.d30 ?? '—'}</td>
+                                  <td>
+                                    {d.trend ? (
+                                      <span className={`ir-trend-badge ir-trend-${d.trend.direction || 'flat'}`}>
+                                        {d.trend.direction === 'up' ? '↑' : d.trend.direction === 'down' ? '↓' : '→'}{' '}
+                                        {d.trend.changePct != null ? `${Math.abs(d.trend.changePct).toFixed(0)}%` : ''}
+                                      </span>
+                                    ) : '—'}
+                                  </td>
+                                  <td>{formatNumber(d.availableStock)}</td>
+                                  <td className={d.daysToStockout !== null && d.daysToStockout <= 14 ? 'ir-cell-danger' : ''}>
+                                    {d.daysToStockout !== null ? `${Math.ceil(d.daysToStockout)}d` : '—'}
+                                  </td>
+                                  <td>{d.projectedStockoutDate ?? '—'}</td>
+                                  <td>{d.recommendedReorderQuantity > 0 ? formatNumber(d.recommendedReorderQuantity) : '—'}</td>
+                                  <td>
+                                    <span className="movement-badge" style={{ backgroundColor: getPriorityColor(d.reorderStatus) }}>
+                                      {d.reorderStatus || '—'}
+                                    </span>
+                                  </td>
+                                  <td className="ir-formula-source">{d.formulaSource ?? '—'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {thinItems.length > 0 && (
+                      <div style={{ marginTop: 24 }}>
+                        <h3 className="ir-chart-title">Insufficient History ({thinItems.length} SKUs)</h3>
+                        <p className="ir-chart-note">These SKUs have fewer than 30 days of sales activity in the last 90 days. A demand forecast would be unreliable, so none is shown.</p>
+                        <div className="analytics-table-container">
+                          <table className="analytics-table">
+                            <thead>
+                              <tr><th>SKU</th><th>Name</th><th>Sales Days (90d window)</th></tr>
+                            </thead>
+                            <tbody>
+                              {thinItems.map(d => (
+                                <tr key={d.sku}>
+                                  <td>{d.sku}</td>
+                                  <td>{d.name}</td>
+                                  <td>{d.salesDays90 ?? '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
           {/* Advanced Analytics Tab */}
           {activeTab === 'analytics' && (
             <div className="tab-content">
@@ -809,8 +952,8 @@ export default function InventoryReport() {
                             {item.stock_level.replace('_', ' ')}
                           </span>
                         </td>
-                        <td>{formatCurrency(item.profit_margin)}</td>
-                        <td>{item.profit_margin_percentage}%</td>
+                        <td>{item.profit_margin_percentage != null ? formatCurrency(item.profit_margin) : '—'}</td>
+                        <td>{item.profit_margin_percentage != null ? `${item.profit_margin_percentage}%` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -820,8 +963,8 @@ export default function InventoryReport() {
           )}
 
         </div>
-      </div>
-      <ToastContainer />
-    </div>
+
+      <ToastContainer position="bottom-right" />
+    </AppShell>
   );
 }

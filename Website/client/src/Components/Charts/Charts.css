@@ -1,0 +1,58 @@
+/* Accessible data-table fallback shown below charts for keyboard/screen reader users */
+.chart-a11y-table {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.chart-a11y-table summary {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted, #f1f5f9);
+  color: var(--text-muted);
+  font-size: 11px;
+  user-select: none;
+}
+
+.chart-a11y-table summary:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.chart-a11y-table table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.chart-a11y-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.chart-a11y-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.chart-a11y-table tr:last-child td {
+  border-bottom: none;
+}
+
+.chart-a11y-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
