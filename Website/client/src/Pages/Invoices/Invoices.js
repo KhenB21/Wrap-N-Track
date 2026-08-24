@@ -231,18 +231,18 @@ function Invoices() {
               <tbody>
                 {invoices.map((invoice) => (
                   <tr key={invoice.id}>
-                    <td className="invoice-number">{invoice.invoice_number}</td>
-                    <td>{typeLabel(invoice.invoice_type)}</td>
-                    <td>{invoice.order_id}</td>
-                    <td>{invoice.customer_name || 'Customer'}</td>
-                    <td>{peso(invoice.total_order_amount)}</td>
-                    <td>{peso(invoice.invoice_amount)}</td>
-                    <td className="invoice-balance-cell">{peso(invoice.remaining_balance_amount)}</td>
-                    <td>{peso(invoice.amount_paid)}</td>
-                    <td><StatusBadge status={invoice.status} /></td>
-                    <td>{formatDate(invoice.issued_at)}</td>
-                    <td>{formatDate(invoice.due_date)}</td>
-                    <td>
+                    <td className="invoice-number" data-label="Invoice Number">{invoice.invoice_number}</td>
+                    <td data-label="Type">{typeLabel(invoice.invoice_type)}</td>
+                    <td data-label="Order Number">{invoice.order_id}</td>
+                    <td data-label="Customer">{invoice.customer_name || 'Customer'}</td>
+                    <td data-label="Total Order">{peso(invoice.total_order_amount)}</td>
+                    <td data-label="Invoice Amount">{peso(invoice.invoice_amount)}</td>
+                    <td className="invoice-balance-cell" data-label="Remaining Balance">{peso(invoice.remaining_balance_amount)}</td>
+                    <td data-label="Amount Paid">{peso(invoice.amount_paid)}</td>
+                    <td data-label="Status"><StatusBadge status={invoice.status} /></td>
+                    <td data-label="Issued">{formatDate(invoice.issued_at)}</td>
+                    <td data-label="Due">{formatDate(invoice.due_date)}</td>
+                    <td data-label="Actions">
                       <div className="invoice-actions">
                         <button className="invoice-btn" onClick={() => setSelectedInvoice(invoice)}>View</button>
                         <button className="invoice-btn" onClick={() => openInvoicePdf(invoice)}>Download PDF</button>

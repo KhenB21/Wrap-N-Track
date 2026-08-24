@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
-import html2canvas from 'html2canvas';
+import * as html2canvasModule from 'html2canvas';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AppShell from '../../Components/AppShell';
@@ -12,6 +12,14 @@ import { TrendChart, BarChart, DonutChart } from '../../Components/Charts';
 import api from '../../api';
 import usePermissions from '../../hooks/usePermissions';
 import './BusinessReport.css';
+
+// html2canvas 1.4.1's UMD build has no __esModule flag, so CRA's webpack
+// interop wraps it inconsistently depending on whether it resolves the
+// "main" (CJS) or "module" (ESM) build — a `default` import sometimes
+// yields the function directly and sometimes yields { default: fn }.
+// Resolving both shapes here avoids the runtime
+// "html2canvas__WEBPACK_IMPORTED_MODULE___default(...) is not a function" error.
+const html2canvas = html2canvasModule.default || html2canvasModule;
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -37,13 +45,17 @@ const formatPesoPdf = (v) => `PHP ${Number(v || 0).toLocaleString('en-PH', { min
 // same "±" bug reappears despite formatPesoPdf being used everywhere else.
 const sanitizePdfText = (s) => String(s ?? '').replace(/₱/g, 'PHP ');
 
-// Snapshot a rendered chart <div> to a PNG data URL for embedding in the PDF
+// Snapshot a rendered chart <div> to a JPEG data URL for embedding in the PDF
 // and Excel exports. Forces a white background regardless of theme (dark/light)
 // since exported business documents are read/printed outside the app's theme.
+// JPEG at 0.85 quality instead of PNG: charts are flat-color/line graphics
+// with no transparency need, and PNG at scale:2 for 6 charts produced a
+// ~16MB PDF — impractical to email. JPEG cuts that by roughly 20x with no
+// visible quality loss at typical report viewing/print size.
 async function captureChart(ref) {
   if (!ref?.current) return null;
-  const canvas = await html2canvas(ref.current, { scale: 2, backgroundColor: '#ffffff', logging: false });
-  return { dataUrl: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height };
+  const canvas = await html2canvas(ref.current, { scale: 1.5, backgroundColor: '#ffffff', logging: false });
+  return { dataUrl: canvas.toDataURL('image/jpeg', 0.85), width: canvas.width, height: canvas.height };
 }
 
 const TrendArrow = ({ direction }) => (
@@ -228,7 +240,7 @@ export default function BusinessReport() {
           doc.text(label, marginX, y);
           y += 6;
         }
-        doc.addImage(img.dataUrl, 'PNG', marginX, y, w, h);
+        doc.addImage(img.dataUrl, 'JPEG', marginX, y, w, h);
         y += h + 10;
       };
       const ensureRoom = (needed = 20) => {
@@ -443,7 +455,7 @@ export default function BusinessReport() {
   function addImageToSheet(wb, ws, img, { row = 0, width = 560, height } = {}) {
     if (!img) return row;
     const h = height || width * (img.height / img.width);
-    const imageId = wb.addImage({ base64: img.dataUrl, extension: 'png' });
+    const imageId = wb.addImage({ base64: img.dataUrl, extension: 'jpeg' });
     ws.addImage(imageId, { tl: { col: 0, row }, ext: { width, height: h } });
     return row + Math.ceil(h / 20) + 2; // approx row height, + spacing
   }
@@ -625,7 +637,7 @@ export default function BusinessReport() {
   const kpis = report?.kpis;
 
   return (
-    <AppShell searchPlaceholder="Search reports...">
+    <AppShell searchPlaceholder="Search reports..." contentClassName="br-page-content">
       <div className="br-content">
         <div className="br-header">
           <div>

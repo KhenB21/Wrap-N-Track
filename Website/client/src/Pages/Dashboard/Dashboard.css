@@ -218,6 +218,25 @@ body.dark .db-chart-skeleton {
   border-top: 3px solid transparent;
 }
 
+.db-health-insights-row {
+  align-items: start;
+}
+
+.db-inv-strip-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.db-inv-strip-col .db-inv-tile {
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .db-health-insights-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .db-inv-brand  { border-top-color: var(--brand);  }
 .db-inv-green  { border-top-color: var(--success); }
 .db-inv-orange { border-top-color: var(--warning); }

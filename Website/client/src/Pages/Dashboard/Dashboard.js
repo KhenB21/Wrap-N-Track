@@ -392,51 +392,52 @@ function Dashboard() {
         </div>
       </section>
 
-      {/* ── Inventory health strip ───────────────────────────────────────── */}
-      <section className="db-section">
-        <h2 className="db-section-title">Inventory Health</h2>
-        <div className="db-inv-strip">
-          {[
-            { label: 'Turnover Ratio', value: invH.turnover != null ? Number(invH.turnover).toFixed(2) : '—', color: 'brand' },
-            { label: 'Low Stock',      value: formatNum(invH.lowStockCount),   color: 'orange', linkTo: '/inventory' },
-            { label: 'Out of Stock',   value: formatNum(invH.outOfStockCount), color: 'red',    linkTo: '/inventory' },
-            ...(isFinancial ? [
-              { label: 'Stock Value',  value: formatPeso(invH.stockValue),     color: 'blue' },
-              { label: 'Dead Stock',   value: formatPeso(invH.deadStockValue), color: 'orange' },
-            ] : []),
-            { label: '< 7-day Supply',   value: formatNum(invH.daysOfSupplyDistribution?.under7), color: 'red' },
-            { label: '7–30-day Supply',  value: formatNum(invH.daysOfSupplyDistribution?.d7to30), color: 'brand' },
-            { label: '30-90-day Supply', value: formatNum(invH.daysOfSupplyDistribution?.d30to90), color: 'green' },
-          ].map((tile, i) => (
-            <div
-              key={i}
-              className={`db-inv-tile ui-card ui-card-hover db-inv-${tile.color}`}
-              onClick={() => tile.linkTo && navigate(tile.linkTo)}
-              tabIndex={tile.linkTo ? 0 : undefined}
-              role={tile.linkTo ? 'button' : undefined}
-              onKeyDown={tile.linkTo ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(tile.linkTo); } } : undefined}
-              style={{ cursor: tile.linkTo ? 'pointer' : undefined }}
-            >
-              <div className="db-inv-label">{tile.label}</div>
-              <div className="db-inv-value">{loading ? <span className="skeleton-value" /> : tile.value}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* ── Inventory health + Insights ─────────────────────────────────── */}
+      <div className="db-row-2col db-health-insights-row">
+        <section className="db-section">
+          <h2 className="db-section-title">Inventory Health</h2>
+          <div className="db-inv-strip db-inv-strip-col">
+            {[
+              { label: 'Turnover Ratio', value: invH.turnover != null ? Number(invH.turnover).toFixed(2) : '—', color: 'brand' },
+              { label: 'Low Stock',      value: formatNum(invH.lowStockCount),   color: 'orange', linkTo: '/inventory' },
+              { label: 'Out of Stock',   value: formatNum(invH.outOfStockCount), color: 'red',    linkTo: '/inventory' },
+              ...(isFinancial ? [
+                { label: 'Stock Value',  value: formatPeso(invH.stockValue),     color: 'blue' },
+                { label: 'Dead Stock',   value: formatPeso(invH.deadStockValue), color: 'orange' },
+              ] : []),
+              { label: '< 7-day Supply',   value: formatNum(invH.daysOfSupplyDistribution?.under7), color: 'red' },
+              { label: '7–30-day Supply',  value: formatNum(invH.daysOfSupplyDistribution?.d7to30), color: 'brand' },
+              { label: '30-90-day Supply', value: formatNum(invH.daysOfSupplyDistribution?.d30to90), color: 'green' },
+            ].map((tile, i) => (
+              <div
+                key={i}
+                className={`db-inv-tile ui-card ui-card-hover db-inv-${tile.color}`}
+                onClick={() => tile.linkTo && navigate(tile.linkTo)}
+                tabIndex={tile.linkTo ? 0 : undefined}
+                role={tile.linkTo ? 'button' : undefined}
+                onKeyDown={tile.linkTo ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(tile.linkTo); } } : undefined}
+                style={{ cursor: tile.linkTo ? 'pointer' : undefined }}
+              >
+                <div className="db-inv-label">{tile.label}</div>
+                <div className="db-inv-value">{loading ? <span className="skeleton-value" /> : tile.value}</div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-      {/* ── AI Insights ─────────────────────────────────────────────────── */}
-      <section className="db-section">
-        <h2 className="db-section-title">Insights</h2>
-        <div className="ui-card db-insights-panel">
-          {loading ? (
-            <div className="db-chart-skeleton" style={{ height: 140 }} />
-          ) : !Array.isArray(insights) || insights.length === 0 ? (
-            <EmptyState message="No insights at this time — everything looks normal." />
-          ) : (
-            insights.map((ins, i) => <InsightRow key={ins.id || i} insight={ins} />)
-          )}
-        </div>
-      </section>
+        <section className="db-section">
+          <h2 className="db-section-title">Insights</h2>
+          <div className="ui-card db-insights-panel">
+            {loading ? (
+              <div className="db-chart-skeleton" style={{ height: 140 }} />
+            ) : !Array.isArray(insights) || insights.length === 0 ? (
+              <EmptyState message="No insights at this time — everything looks normal." />
+            ) : (
+              insights.map((ins, i) => <InsightRow key={ins.id || i} insight={ins} />)
+            )}
+          </div>
+        </section>
+      </div>
 
       {/* ── Activity feed + Team (lazy) ───────────────────────────────────── */}
       <section className="db-section db-row-2col">

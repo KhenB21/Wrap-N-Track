@@ -299,7 +299,7 @@ export default function SalesReport() {
   };
 
   return (
-    <AppShell searchPlaceholder="Search orders...">
+    <AppShell searchPlaceholder="Search orders..." contentClassName="sr-page-content">
       <div className="sr-content">
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="sr-header">
@@ -419,7 +419,7 @@ export default function SalesReport() {
                 rightLabel="Orders"
                 leftCurrency={true}
                 ariaLabel="Revenue and orders trend chart"
-                height={260}
+                height={180}
               />
             )}
           </div>
@@ -434,7 +434,9 @@ export default function SalesReport() {
             ) : (
               <DonutChart
                 data={statusDonutData}
-                height={260}
+                height={230}
+                innerRadius={45}
+                outerRadius={68}
                 ariaLabel="Orders by status"
                 onSegmentClick={(entry) => setStatusFilter(entry.name)}
               />
@@ -459,7 +461,7 @@ export default function SalesReport() {
               layout="horizontal"
               isCurrency={true}
               colorByIndex={true}
-              height={Math.max(200, topProductsChartData.length * 36)}
+              height={Math.max(140, Math.min(220, topProductsChartData.length * 28))}
               ariaLabel="Top products by revenue"
               onBarClick={() => navigate('/inventory')}
             />
