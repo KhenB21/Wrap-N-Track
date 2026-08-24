@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
+import { useConfirm } from '../../Context/ConfirmContext';
 import './CustomerModal.css';
 
 const ARCHIVED_STATUSES = ['completed', 'cancelled'];
@@ -54,6 +55,7 @@ function renderOrdersList(list, isLoading, error, emptyMessage) {
 }
 
 export default function CustomerModal({ mode, customer, onSave, onClose }) {
+  const confirm = useConfirm();
   const [formData, setFormData] = useState({
     name: '',
     email_address: '',
@@ -181,9 +183,9 @@ export default function CustomerModal({ mode, customer, onSave, onClose }) {
     }
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (isDirty) {
-      if (window.confirm('You have unsaved changes. Are you sure you want to close?')) {
+      if (await confirm('You have unsaved changes. Are you sure you want to close?')) {
         onClose();
       }
     } else {

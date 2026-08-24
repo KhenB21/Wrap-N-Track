@@ -13,12 +13,14 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import usePermissions from '../../hooks/usePermissions';
 import { useTheme } from '../../Context/ThemeContext';
+import { useConfirm } from '../../Context/ConfirmContext';
 
 const UOMS_REQUIRING_CONVERSION = ['Dozen', 'Box', 'Bundle', 'Set', 'Kit'];
 
 function Inventory() {
   const { checkPermission } = usePermissions();
   const { theme } = useTheme();
+  const confirm = useConfirm();
 
   useEffect(() => {
     checkPermission('inventory');
@@ -575,7 +577,7 @@ function Inventory() {
   };
 
   const handleArchive = async (sku) => {
-    if (window.confirm('Are you sure you want to archive (delete) this item?')) {
+    if (await confirm({ message: 'Are you sure you want to archive (delete) this item?', danger: true })) {
       try {
   await api.delete(`/api/inventory/${sku}`);
         await fetchProducts();

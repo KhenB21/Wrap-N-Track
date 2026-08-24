@@ -7,6 +7,7 @@ import { ThemeProvider } from "./Context/ThemeContext";
 import { MobileNavProvider } from "./Context/MobileNavContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { CartProvider } from "./Context/CartContext";
+import { ConfirmProvider } from "./Context/ConfirmContext";
 
 // Route-level code splitting: each page loads on demand instead of all being
 // bundled into one initial JS payload. Keeps heavy, rarely-visited pages
@@ -39,6 +40,7 @@ const ArchivedOrders = lazy(() => import('./Pages/ArchivedOrders/ArchivedOrders'
 const ArchiveProducts = lazy(() => import('./Pages/ArchiveProducts/ArchiveProducts'));
 const InventoryReport = lazy(() => import('./Pages/InventoryReport/InventoryReport'));
 const SalesReport = lazy(() => import('./Pages/SalesReport/SalesReport'));
+const BusinessReport = lazy(() => import('./Pages/BusinessReport/BusinessReport'));
 
 const ForgotPassword = lazy(() => import("./Pages/ForgotPassword/ForgotPassword"));
 const EmailVerify = lazy(() => import("./Pages/EmailVerify/EmailVerify"));
@@ -79,6 +81,7 @@ function App() {
     <AuthProvider>
     <NotificationProvider>
     <CartProvider>
+    <ConfirmProvider>
     <Router>
       <MobileNavProvider>
       <Suspense fallback={<RouteFallback />}>
@@ -106,6 +109,7 @@ function App() {
         <Route path="/archive-products" element={<ArchiveProducts />} />
         <Route path="/reports/inventory" element={<InventoryReport />} />
         <Route path="/reports/sales" element={<SalesReport />} />
+        <Route path="/reports/business" element={<BusinessReport />} />
         <Route path="/user-management" element={<UserManagement />} />
         <Route path="/account-management" element={<AccountManagement />} />
         <Route path="/orders" element={<OrderDetails />} />
@@ -147,6 +151,7 @@ function App() {
       </Suspense>
       </MobileNavProvider>
     </Router>
+    </ConfirmProvider>
     </CartProvider>
     </NotificationProvider>
     </AuthProvider>

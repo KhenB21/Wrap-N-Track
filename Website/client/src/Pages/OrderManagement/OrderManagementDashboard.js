@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { useAuth } from "../../Context/AuthContext";
 import TopBar from "../../Components/TopBar";
 import withEmployeeAuth from "../../Components/withEmployeeAuth";
@@ -134,11 +136,11 @@ function OrderManagementDashboard() {
         setSelectedOrder(data.order);
         setShowOrderDetails(true);
       } else {
-        alert("Failed to fetch order details");
+        toast.error("Failed to fetch order details");
       }
     } catch (err) {
       console.error("Error fetching order details:", err);
-      alert("Failed to fetch order details");
+      toast.error("Failed to fetch order details");
     }
   };
 
@@ -159,7 +161,7 @@ function OrderManagementDashboard() {
     // Check if marking as completed and require typing confirmation
     if (statusUpdate.newStatus === "Completed") {
       if (statusUpdate.confirmationText !== "I love Pensee") {
-        alert(
+        toast.error(
           'To mark this order as completed, please type "I love Pensee" in the confirmation field.',
         );
         return;
@@ -186,7 +188,7 @@ function OrderManagementDashboard() {
 
       if (response.ok) {
         await response.json();
-        alert("Order status updated successfully");
+        toast.success("Order status updated successfully");
         setShowStatusModal(false);
         setSelectedOrder(null);
         setStatusUpdate({
@@ -199,11 +201,11 @@ function OrderManagementDashboard() {
         fetchStats();
       } else {
         const errorData = await response.json();
-        alert(`Failed to update status: ${errorData.message}`);
+        toast.error(`Failed to update status: ${errorData.message}`);
       }
     } catch (err) {
       console.error("Error updating status:", err);
-      alert("Failed to update order status");
+      toast.error("Failed to update order status");
     } finally {
       setUpdatingStatus(false);
     }
@@ -770,6 +772,7 @@ function OrderManagementDashboard() {
           </div>
         )}
       </div>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
     </div>
   );
 }

@@ -65,14 +65,15 @@ router.get('/analytics', async (req, res) => {
         SELECT 
           o.order_id,
           o.name,
+          o.customer_id,
           o.total_cost,
           o.status,
           SUM(op.quantity) as total_quantity
-        FROM orders o
-        LEFT JOIN order_products op ON o.order_id = op.order_id
+        FROM all_orders o
+        LEFT JOIN all_order_products op ON o.order_id = op.order_id
         WHERE DATE_PART('month', o.order_date) = $1 
         AND DATE_PART('year', o.order_date) = $2
-        GROUP BY o.order_id, o.name, o.total_cost, o.status
+        GROUP BY o.order_id, o.name, o.customer_id, o.total_cost, o.status
       )
       SELECT 
         COALESCE(SUM(CASE 
@@ -86,7 +87,7 @@ router.get('/analytics', async (req, res) => {
           THEN total_quantity 
           ELSE 0 
         END), 0) as total_units_sold,
-        COUNT(DISTINCT name) as total_customers
+        COUNT(DISTINCT COALESCE(customer_id::text, lower(trim(name)))) as total_customers
       FROM monthly_orders
     `, [targetMonth, targetYear]);
 
@@ -97,8 +98,8 @@ router.get('/analytics', async (req, res) => {
           op.sku,
           SUM(op.quantity) as units_sold,
           SUM(op.quantity * op.unit_price) as sales_value
-        FROM order_products op
-        JOIN orders o ON op.order_id = o.order_id
+        FROM all_order_products op
+        JOIN all_orders o ON op.order_id = o.order_id
         WHERE o.status IN ('Order Received', 'Completed')
         AND DATE_PART('month', o.order_date) = $1 
         AND DATE_PART('year', o.order_date) = $2
@@ -123,7 +124,7 @@ router.get('/analytics', async (req, res) => {
       SELECT 
         o.status,
         COUNT(*) as count
-      FROM orders o
+      FROM all_orders o
       WHERE DATE_PART('month', o.order_date) = $1 
       AND DATE_PART('year', o.order_date) = $2
       GROUP BY o.status
@@ -181,7 +182,7 @@ router.get('/analytics', async (req, res) => {
           o.name as archived_by_name,
           NULL as archived_by_profile_picture,
           o.order_date as archived_at
-        FROM orders o
+        FROM all_orders o
         WHERE DATE_PART('month', o.order_date) = $1
         AND DATE_PART('year', o.order_date) = $2
         ORDER BY o.order_id, o.order_date DESC
@@ -222,7 +223,7 @@ router.get('/available-months', async (req, res) => {
         DATE_PART('year', order_date) as year,
         DATE_PART('month', order_date) as month,
         COUNT(*) as order_count
-      FROM orders
+      FROM all_orders
       GROUP BY DATE_PART('year', order_date), DATE_PART('month', order_date)
       ORDER BY year DESC, month DESC
     `);

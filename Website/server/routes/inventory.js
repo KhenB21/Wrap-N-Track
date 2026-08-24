@@ -436,6 +436,30 @@ router.get('/movements/:sku', async (req, res) => {
 });
 
 // GET /api/inventory/:sku - Get specific inventory item
+// GET /api/inventory/:sku/image - Serve a single product's image as binary,
+// so bulk list endpoints (order history, etc.) can skip embedding base64
+// image data per row and fetch it on demand instead.
+router.get('/:sku/image', async (req, res) => {
+  const { sku } = req.params;
+  try {
+    const result = await pool.query(
+      'SELECT image_data FROM inventory_items WHERE sku = $1',
+      [sku]
+    );
+
+    if (result.rows.length === 0 || !result.rows[0].image_data) {
+      return res.status(404).end();
+    }
+
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    return res.send(result.rows[0].image_data);
+  } catch (error) {
+    console.error('Error fetching inventory item image:', { sku, error: error.message });
+    return res.status(500).end();
+  }
+});
+
 router.get('/:sku', async (req, res) => {
   const { sku } = req.params;
   try {

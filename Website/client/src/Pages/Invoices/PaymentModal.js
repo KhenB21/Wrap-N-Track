@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
 import api from '../../api';
 import './Invoices.css';
 
@@ -99,11 +100,11 @@ export default function PaymentModal({ invoice, onClose, onSaved }) {
     const amountPaid = Number(String(form.amount_paid).replace(/,/g, ''));
     const requiredPaymentAmount = Number(invoice.invoice_amount || invoice.amount_due || 0);
     if (!Number.isFinite(amountPaid) || amountPaid < requiredPaymentAmount) {
-      alert('Amount paid must be at least the invoice amount.');
+      toast.error('Amount paid must be at least the invoice amount.');
       return;
     }
     if (requiredPaymentAmount > 0 && !form.payment_method) {
-      alert('Payment method is required.');
+      toast.error('Payment method is required.');
       return;
     }
 
@@ -120,7 +121,7 @@ export default function PaymentModal({ invoice, onClose, onSaved }) {
       await api.patch(`/api/invoices/${invoice.id}/mark-paid`, payload);
       onSaved();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to mark invoice as paid.');
+      toast.error(error.response?.data?.message || 'Failed to mark invoice as paid.');
     } finally {
       setSaving(false);
     }

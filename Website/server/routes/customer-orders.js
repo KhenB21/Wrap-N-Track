@@ -120,7 +120,7 @@ router.get('/orders', async (req, res) => {
             'name', i.name,
             'quantity', op.quantity,
             'unit_price', i.unit_price,
-            'image_data', encode(i.image_data, 'base64')
+            'has_image', i.image_data IS NOT NULL
           )
         ) AS products
         FROM order_products op
@@ -179,7 +179,7 @@ router.get('/orders', async (req, res) => {
               'name', i.name,
               'quantity', ohp.quantity,
               'unit_price', ohp.unit_price,
-              'image_data', encode(i.image_data, 'base64')
+              'has_image', i.image_data IS NOT NULL
             )
           ) FILTER (WHERE ohp.sku IS NOT NULL),
           '[]'::json
@@ -205,7 +205,14 @@ router.get('/orders', async (req, res) => {
     `, [customerId, TRACKING_UNAVAILABLE_MESSAGE]);
 
     // Combine both results
-    const allOrders = [...activeOrdersResult.rows, ...historyOrdersResult.rows];
+    let allOrders = [...activeOrdersResult.rows, ...historyOrdersResult.rows];
+
+    if (req.query.status) {
+      const statuses = String(req.query.status).split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+      if (statuses.length) {
+        allOrders = allOrders.filter(o => statuses.includes(String(o.status).toLowerCase()));
+      }
+    }
     
     console.log(`Customer ${customerId} orders - Active: ${activeOrdersResult.rows.length}, Archived: ${historyOrdersResult.rows.length}, Total: ${allOrders.length}`);
     console.log('Active orders:', activeOrdersResult.rows.map(o => ({ id: o.order_id, status: o.status })));
@@ -223,11 +230,21 @@ router.get('/orders', async (req, res) => {
       return statusB.getTime() - statusA.getTime();
     });
 
-    const result = { rows: allOrders };
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const total = allOrders.length;
+    const startIndex = (page - 1) * limit;
+    const pagedOrders = allOrders.slice(startIndex, startIndex + limit);
 
     res.json({
       success: true,
-      orders: result.rows
+      orders: pagedOrders,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit))
+      }
     });
   } catch (error) {
     console.error('Error fetching customer orders:', error);
@@ -828,7 +845,7 @@ async function getAllOrdersForEmployee(req, res) {
             'name', i.name,
             'quantity', op.quantity,
             'unit_price', i.unit_price,
-            'image_data', encode(i.image_data, 'base64')
+            'has_image', i.image_data IS NOT NULL
           )
         ) AS products
         FROM order_products op
@@ -867,7 +884,7 @@ async function getAllOrdersForEmployee(req, res) {
               'name', i.name,
               'quantity', ohp.quantity,
               'unit_price', ohp.unit_price,
-              'image_data', encode(i.image_data, 'base64')
+              'has_image', i.image_data IS NOT NULL
             )
           ) FILTER (WHERE ohp.sku IS NOT NULL),
           '[]'::json
@@ -882,7 +899,14 @@ async function getAllOrdersForEmployee(req, res) {
     `);
 
     // Combine both results
-    const allOrders = [...activeOrdersResult.rows, ...historyOrdersResult.rows];
+    let allOrders = [...activeOrdersResult.rows, ...historyOrdersResult.rows];
+
+    if (req.query.status) {
+      const statuses = String(req.query.status).split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+      if (statuses.length) {
+        allOrders = allOrders.filter(o => statuses.includes(String(o.status).toLowerCase()));
+      }
+    }
     
     console.log(`Employee ${req.user.user_id} viewing all orders - Active: ${activeOrdersResult.rows.length}, Archived: ${historyOrdersResult.rows.length}, Total: ${allOrders.length}`);
     
@@ -898,9 +922,21 @@ async function getAllOrdersForEmployee(req, res) {
       return statusB.getTime() - statusA.getTime();
     });
 
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const total = allOrders.length;
+    const startIndex = (page - 1) * limit;
+    const pagedOrders = allOrders.slice(startIndex, startIndex + limit);
+
     res.json({
       success: true,
-      orders: allOrders
+      orders: pagedOrders,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit))
+      }
     });
   } catch (error) {
     console.error('Error fetching all orders for employee:', error);

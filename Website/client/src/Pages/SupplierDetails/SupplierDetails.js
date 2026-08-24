@@ -5,6 +5,7 @@ import TopBar from "../../Components/TopBar";
 import api from '../../api';
 import "./SupplierDetails.css";
 import usePermissions from '../../hooks/usePermissions';
+import { useConfirm } from '../../Context/ConfirmContext';
 
 const tabs = ["Overview", "Order History", "Ongoing orders"];
 
@@ -25,6 +26,7 @@ function getProfilePictureUrl() {
 
 export default function SupplierDetails() {
   const { checkPermission } = usePermissions();
+  const confirm = useConfirm();
 
   useEffect(() => {
     checkPermission('suppliers');
@@ -87,7 +89,7 @@ export default function SupplierDetails() {
   const validatePhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return true; // Optional field
     const cleanNumber = phoneNumber.replace(/[^\d+]/g, '');
-    return /^09\d{9}$/.test(cleanNumber) || /^\+639\d{9}$/.test(cleanNumber) || /^639\d{9}$/.test(cleanNumber) || /^\d{7,10}$/.test(cleanNumber);
+    return /^09\d{9}$/.test(cleanNumber) || /^\+639\d{9}$/.test(cleanNumber) || /^639\d{9}$/.test(cleanNumber);
   };
 
   const handlePhoneChange = (field, value) => {
@@ -440,7 +442,7 @@ export default function SupplierDetails() {
 
   const handleDeleteOrder = async (orderId, event) => {
     event.stopPropagation(); // Prevent triggering the order edit
-    if (!window.confirm('Are you sure you want to delete this order?')) {
+    if (!(await confirm({ message: 'Are you sure you want to delete this order?', danger: true }))) {
       return;
     }
 
@@ -557,7 +559,7 @@ export default function SupplierDetails() {
       setError(null);
     } catch (error) {
       console.error('Error adding supplier:', error);
-      setError(error.response?.data?.message || 'Failed to add supplier');
+      setError(error.response?.data?.error || error.response?.data?.message || 'Failed to add supplier');
     }
   };
 
@@ -581,7 +583,7 @@ export default function SupplierDetails() {
   };
 
   const handleDelete = async (supplierId) => {
-    if (window.confirm('Are you sure you want to delete this supplier?')) {
+    if (await confirm({ message: 'Are you sure you want to delete this supplier?', danger: true })) {
       try {
         const token = localStorage.getItem('token');
   await api.delete(`/api/suppliers/${supplierId}`, {
@@ -625,7 +627,7 @@ export default function SupplierDetails() {
       setError(null);
     } catch (error) {
       console.error('Error updating supplier:', error);
-      setError(error.response?.data?.message || 'Failed to update supplier');
+      setError(error.response?.data?.error || error.response?.data?.message || 'Failed to update supplier');
     }
   };
 
@@ -1280,8 +1282,8 @@ export default function SupplierDetails() {
               {selectedSuppliers.size > 0 && (
                 <button
                   className="btn-danger"
-                  onClick={() => {
-                    if (window.confirm(`Are you sure you want to delete ${selectedSuppliers.size} supplier(s)?`)) {
+                  onClick={async () => {
+                    if (await confirm({ message: `Are you sure you want to delete ${selectedSuppliers.size} supplier(s)?`, danger: true })) {
                       Array.from(selectedSuppliers).forEach(handleDelete);
                     }
                   }}

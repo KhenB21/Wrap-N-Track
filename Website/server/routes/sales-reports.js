@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const requireTestDataAccess = require('../middleware/requireTestDataAccess');
 
 // GET /api/sales-reports/overview - Get sales overview data
 router.get('/overview', async (req, res) => {
@@ -20,14 +21,19 @@ router.get('/overview', async (req, res) => {
         SELECT 
           o.order_id,
           o.name,
+          o.customer_id,
           o.total_cost,
           o.status,
           o.total_profit_estimation,
-          SUM(op.quantity) as total_quantity
-        FROM orders o
-        LEFT JOIN order_products op ON o.order_id = op.order_id
+          SUM(op.quantity) as total_quantity,
+          SUM(op.quantity * (COALESCE(op.unit_price, 0) - op.cost_price))
+            FILTER (WHERE op.cost_price IS NOT NULL) as gross_margin,
+          COUNT(*) FILTER (WHERE op.sku IS NOT NULL) as line_count,
+          COUNT(*) FILTER (WHERE op.sku IS NOT NULL AND op.cost_price IS NULL) as lines_missing_cost
+        FROM all_orders o
+        LEFT JOIN all_order_products op ON o.order_id = op.order_id
         WHERE o.order_date::date BETWEEN $1 AND $2
-        GROUP BY o.order_id, o.name, o.total_cost, o.status, o.total_profit_estimation
+        GROUP BY o.order_id, o.name, o.customer_id, o.total_cost, o.status, o.total_profit_estimation
       )
       SELECT
         COALESCE(SUM(CASE
@@ -41,8 +47,14 @@ router.get('/overview', async (req, res) => {
           THEN total_quantity
           ELSE 0
         END), 0) as total_units_sold,
-        COALESCE(SUM(total_profit_estimation), 0) as total_profit,
-        COUNT(DISTINCT name) as total_customers
+        COALESCE(SUM(CASE
+          WHEN status IN ('Order Received', 'Completed')
+          THEN gross_margin
+          ELSE 0
+        END), 0) as total_profit,
+        COALESCE(SUM(line_count), 0) as line_count,
+        COALESCE(SUM(lines_missing_cost), 0) as lines_missing_cost,
+        COUNT(DISTINCT COALESCE(customer_id::text, lower(trim(name)))) as total_customers
       FROM period_orders
     `, [defaultStartDate, defaultEndDate]);
 
@@ -54,7 +66,7 @@ router.get('/overview', async (req, res) => {
       SELECT
         status,
         COUNT(*) as count
-      FROM orders
+      FROM all_orders
       WHERE order_date::date BETWEEN $1 AND $2
       GROUP BY status
       ORDER BY count DESC
@@ -68,7 +80,7 @@ router.get('/overview', async (req, res) => {
         COALESCE(SUM(o.total_cost), 0) as total_order_value,
         COALESCE(SUM(pay.amount_paid), 0) as paid_amount,
         COALESCE(SUM(GREATEST(o.total_cost - pay.amount_paid, 0)), 0) as outstanding_amount
-      FROM orders o
+      FROM all_orders o
       LEFT JOIN LATERAL (
         SELECT COALESCE(SUM(i.amount_paid), 0) as amount_paid
         FROM invoices i
@@ -91,14 +103,19 @@ router.get('/overview', async (req, res) => {
         SELECT 
           o.order_id,
           o.name,
+          o.customer_id,
           o.total_cost,
           o.status,
           o.total_profit_estimation,
-          SUM(op.quantity) as total_quantity
-        FROM orders o
-        LEFT JOIN order_products op ON o.order_id = op.order_id
+          SUM(op.quantity) as total_quantity,
+          SUM(op.quantity * (COALESCE(op.unit_price, 0) - op.cost_price))
+            FILTER (WHERE op.cost_price IS NOT NULL) as gross_margin,
+          COUNT(*) FILTER (WHERE op.sku IS NOT NULL) as line_count,
+          COUNT(*) FILTER (WHERE op.sku IS NOT NULL AND op.cost_price IS NULL) as lines_missing_cost
+        FROM all_orders o
+        LEFT JOIN all_order_products op ON o.order_id = op.order_id
         WHERE o.order_date::date BETWEEN $1 AND $2
-        GROUP BY o.order_id, o.name, o.total_cost, o.status, o.total_profit_estimation
+        GROUP BY o.order_id, o.name, o.customer_id, o.total_cost, o.status, o.total_profit_estimation
       )
       SELECT
         COALESCE(SUM(CASE
@@ -107,7 +124,11 @@ router.get('/overview', async (req, res) => {
           ELSE 0
         END), 0) as total_revenue,
         COUNT(*) as total_orders,
-        COALESCE(SUM(total_profit_estimation), 0) as total_profit
+        COALESCE(SUM(CASE
+          WHEN status IN ('Order Received', 'Completed')
+          THEN gross_margin
+          ELSE 0
+        END), 0) as total_profit
       FROM period_orders
     `, [previousPeriodStart.toISOString().split('T')[0], previousPeriodEnd.toISOString().split('T')[0]]);
 
@@ -143,6 +164,10 @@ router.get('/overview', async (req, res) => {
       totalOrders: parseInt(currentData.total_orders) || 0,
       avgOrderValue: parseFloat(avgOrderValue) || 0,
       totalProfit: parseFloat(currentData.total_profit) || 0,
+      marginCoverage: {
+        lineCount: parseInt(currentData.line_count, 10) || 0,
+        linesMissingCost: parseInt(currentData.lines_missing_cost, 10) || 0
+      },
       totalUnitsSold: parseInt(currentData.total_units_sold) || 0,
       totalCustomers: parseInt(currentData.total_customers) || 0,
       completedOrders: completedCount,
@@ -190,9 +215,11 @@ router.get('/top-products', async (req, res) => {
           op.sku,
           SUM(op.quantity) as units_sold,
           SUM(op.quantity * COALESCE(op.unit_price, i.unit_price)) as sales_value,
-          AVG(COALESCE(op.unit_price, i.unit_price)) as avg_price
-        FROM order_products op
-        JOIN orders o ON op.order_id = o.order_id
+          AVG(COALESCE(op.unit_price, i.unit_price)) as avg_price,
+          SUM(op.quantity * (COALESCE(op.unit_price, i.unit_price) - op.cost_price))
+            FILTER (WHERE op.cost_price IS NOT NULL) as gross_margin
+        FROM all_order_products op
+        JOIN all_orders o ON op.order_id = o.order_id
         JOIN inventory_items i ON op.sku = i.sku
         WHERE o.status IN ('Order Received', 'Completed')
         AND o.order_date::date BETWEEN $1 AND $2
@@ -205,7 +232,8 @@ router.get('/top-products', async (req, res) => {
         i.unit_price,
         COALESCE(ps.units_sold, 0) as units_sold,
         COALESCE(ps.sales_value, 0) as sales_value,
-        COALESCE(ps.avg_price, i.unit_price) as avg_price
+        COALESCE(ps.avg_price, i.unit_price) as avg_price,
+        ps.gross_margin
       FROM inventory_items i
       LEFT JOIN product_sales ps ON i.sku = ps.sku
       WHERE COALESCE(ps.units_sold, 0) > 0
@@ -249,7 +277,7 @@ router.get('/customer-analysis', async (req, res) => {
           AVG(o.total_cost) as avg_order_value,
           MAX(o.order_date) as last_order_date,
           MIN(o.order_date) as first_order_date
-        FROM orders o
+        FROM all_orders o
         WHERE o.order_date::date BETWEEN $1 AND $2
         GROUP BY o.name, o.email_address, o.telephone
       )
@@ -274,11 +302,11 @@ router.get('/customer-analysis', async (req, res) => {
     // Get summary statistics
     const summary = await pool.query(`
       SELECT 
-        COUNT(DISTINCT o.name) as total_customers,
+        COUNT(DISTINCT COALESCE(o.customer_id::text, lower(trim(o.name)))) as total_customers,
         COUNT(*) as total_orders,
         AVG(o.total_cost) as avg_order_value,
         SUM(o.total_cost) as total_revenue
-      FROM orders o
+      FROM all_orders o
       WHERE o.order_date::date BETWEEN $1 AND $2
     `, [defaultStartDate, defaultEndDate]);
 
@@ -337,9 +365,14 @@ router.get('/trends', async (req, res) => {
         ${dateFormat} as period,
         COUNT(*) as order_count,
         SUM(CASE WHEN o.status IN ('Order Received', 'Completed') THEN o.total_cost ELSE 0 END) as revenue,
-        SUM(o.total_profit_estimation) as profit,
-        COUNT(DISTINCT o.name) as unique_customers
-      FROM orders o
+        SUM(CASE WHEN o.status IN ('Order Received', 'Completed') THEN COALESCE(m.gross_margin, 0) ELSE 0 END) as profit,
+        COUNT(DISTINCT COALESCE(o.customer_id::text, lower(trim(o.name)))) as unique_customers
+      FROM all_orders o
+      LEFT JOIN LATERAL (
+        SELECT SUM(op.quantity * (COALESCE(op.unit_price, 0) - op.cost_price)) as gross_margin
+        FROM all_order_products op
+        WHERE op.order_id = o.order_id AND op.cost_price IS NOT NULL
+      ) m ON true
       WHERE o.order_date::date BETWEEN $1 AND $2
       GROUP BY ${dateFormat}
       ORDER BY period ASC
@@ -379,7 +412,7 @@ router.get('/recent', async (req, res) => {
           WHEN COALESCE(pay.amount_paid, 0) > 0 THEN 'Partially Paid'
           ELSE 'Unpaid'
         END as payment_status
-      FROM orders o
+      FROM all_orders o
       LEFT JOIN LATERAL (
         SELECT COALESCE(SUM(i.amount_paid), 0) as amount_paid
         FROM invoices i
@@ -408,10 +441,51 @@ router.get('/recent', async (req, res) => {
 // meaningful variation to render instead of flat/empty data. Uses the same
 // TEST- prefixed inventory items the Inventory Report test-data seeds (or
 // creates them here if they don't exist yet), so it can be run independently.
-router.post('/test-data/insert', async (req, res) => {
+router.post('/test-data/insert', requireTestDataAccess(), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    // The invoices table is normally created lazily by invoices.js's own
+    // router middleware, which never runs for this endpoint — so guard here
+    // too in case no /api/invoices/* request has hit this DB yet.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS invoices (
+        id BIGSERIAL PRIMARY KEY,
+        invoice_number VARCHAR(40) UNIQUE NOT NULL,
+        order_id VARCHAR(50) NOT NULL,
+        invoice_type VARCHAR(30) NOT NULL CHECK (invoice_type IN ('DOWN_PAYMENT', 'REMAINING_BALANCE')),
+        status VARCHAR(20) NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('DRAFT', 'ISSUED', 'UNPAID', 'PAID', 'CANCELLED')),
+        subtotal NUMERIC(12,2) NOT NULL DEFAULT 0,
+        total_order_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+        amount_due NUMERIC(12,2) NOT NULL DEFAULT 0,
+        amount_paid NUMERIC(12,2) NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Some deployed databases have an `orders` table whose order_id column
+    // was never given a primary key / unique constraint, which makes any
+    // `ON CONFLICT (order_id)` insert below fail with 42P10. Add it here if
+    // missing so this endpoint is resilient to that drift.
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM information_schema.table_constraints tc
+          JOIN information_schema.key_column_usage kcu
+            ON tc.constraint_name = kcu.constraint_name
+           AND tc.table_schema = kcu.table_schema
+          WHERE tc.table_schema = 'public'
+            AND tc.table_name = 'orders'
+            AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE')
+            AND kcu.column_name = 'order_id'
+        ) THEN
+          ALTER TABLE orders ADD CONSTRAINT orders_order_id_unique UNIQUE (order_id);
+        END IF;
+      END $$;
+    `);
 
     const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
 
@@ -502,7 +576,7 @@ router.post('/test-data/insert', async (req, res) => {
 });
 
 // POST /api/sales-reports/test-data/clear - Remove TEST-SALE-% rows
-router.post('/test-data/clear', async (req, res) => {
+router.post('/test-data/clear', requireTestDataAccess(), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

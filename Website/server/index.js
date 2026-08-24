@@ -68,6 +68,8 @@ const availableInventoryRouter = require('./routes/available-inventory');
 const inventoryReportsRouter = require('./routes/inventory-reports');
 const salesReportsRouter = require('./routes/sales-reports');
 const dashboardRouter = require('./routes/dashboard');
+const analyticsRouter = require('./routes/analytics');
+const reportsRouter = require('./routes/reports');
 const khenTestDataRouter = require('./routes/khen-test-data');
 
 const authRouter = require('./routes/auth');
@@ -442,11 +444,15 @@ app.get('/api/public/inventory', async (req, res) => {
   }
 });
 
-// Unprotected test data endpoints for development
-app.use('/api/test', inventoryReportsRouter);
+// NOTE: '/api/test' is intentionally NOT mounted to inventoryReportsRouter.
+// Doing so exposed POST /test-data/insert and /test-data/clear -- which mutate real
+// inventory and order rows -- with no authentication at all. The specific
+// /api/test/env and /api/test/roles handlers are declared separately below.
 app.use('/api/khen-test', khenTestDataRouter);
 app.use('/api/sales-reports', verifyJwt, requireReadOnly(), salesReportsRouter);
 app.use('/api/dashboard', verifyJwt, requireReadOnly(), dashboardRouter);
+app.use('/api/analytics', verifyJwt, requireReadOnly(), analyticsRouter);
+app.use('/api/reports', verifyJwt, requireReadOnly(), reportsRouter);
 // Employee-only routes (protected)
 app.use('/api/employee', verifyJwt, requireRole(['admin','business_developer','creatives','director','sales_manager','assistant_sales','packer']), requireReadOnly(), employeeRouter);
 
@@ -896,6 +902,13 @@ app.post('/api/auth/login', async (req, res) => {
     );
 
     console.log('Login successful for user:', username);
+
+    // Fire-and-forget audit write. Never awaited and never inside a transaction --
+    // a logging failure must not affect or delay the login response.
+    pool.query(
+      'INSERT INTO activity_logs (user_id, activity) VALUES ($1, $2)',
+      [user.user_id, 'Logged in']
+    ).catch(err => console.error('[activity_logs] login write failed:', err.message));
 
     // Return success response with profile picture data
     res.json({

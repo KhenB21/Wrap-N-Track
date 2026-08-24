@@ -5,19 +5,6 @@ import api from "../../api";
 import "./OrderHistory.css";
 import { useNavigate } from "react-router-dom";
 
-// Build a robust data URL from base64, detecting common image MIME types
-function buildDataUrlFromBase64(possibleBase64) {
-  if (!possibleBase64) return null;
-  const str = String(possibleBase64);
-  if (str.startsWith('data:')) return str;
-  let mime = 'image/jpeg';
-  if (str.startsWith('iVBORw0KGgo')) mime = 'image/png';
-  else if (str.startsWith('/9j/')) mime = 'image/jpeg';
-  else if (str.startsWith('R0lGOD')) mime = 'image/gif';
-  else if (str.startsWith('UklGR')) mime = 'image/webp';
-  return `data:${mime};base64,${str}`;
-}
-
 function getProfilePictureUrl() {
   const user = JSON.parse(localStorage.getItem('user'));
   if (!user) return "/placeholder-profile.png";
@@ -45,9 +32,11 @@ export default function OrderHistory() {
   const [productsLoading, setProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState(null);
   const [confirmation, setConfirmation] = useState({ open: false, message: '' });
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const navigate = useNavigate();
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (pageToFetch = 1) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -57,18 +46,19 @@ export default function OrderHistory() {
         return;
       }
 
-
-      // Fetch all customer orders (including archived ones)
+      // Only Cancelled/Completed orders belong on this page — filtering
+      // server-side keeps pagination meaningful (was previously fetching
+      // every order in one shot, which included embedded product images
+      // and could OOM-crash the server on large histories).
       const response = await api.get(`/api/customer-orders/orders`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        params: { status: 'Completed,Cancelled', page: pageToFetch, limit: 20 }
       });
-      let data = response.data.orders || [];
-      console.log('All customer orders:', data);
-      console.log('Order statuses found:', data.map(order => order.status));
-      // Only show Cancelled or Completed
-      data = data.filter(order => ['Cancelled', 'Completed'].includes(order.status));
-      console.log('Filtered orders (Cancelled/Completed):', data);
+      const data = response.data.orders || [];
       setOrders(data);
+      if (response.data.pagination) {
+        setPagination(response.data.pagination);
+      }
       setError(null);
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -102,7 +92,8 @@ export default function OrderHistory() {
       const data = JSON.parse(event.data);
       if (data.type === 'order-archived') {
         // Fetch updated order history when an order is archived
-        fetchOrders();
+        setPage(1);
+        fetchOrders(1);
       }
     };
 
@@ -114,8 +105,9 @@ export default function OrderHistory() {
   }, []);
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    fetchOrders(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   useEffect(() => {
     if (selectedOrderId) {
@@ -147,7 +139,7 @@ export default function OrderHistory() {
         
         {/* Header / Filters */}
         <div className="order-filters">
-          <span>Total Archived Orders: {orders.length}</span>
+          <span>Total Archived Orders: {pagination.total}</span>
           <div className="history-badges">
             <button
               type="button"
@@ -267,6 +259,29 @@ export default function OrderHistory() {
                 </div>
               </div>
             ))}
+            {!loading && !error && pagination.totalPages > 1 && (
+              <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:12,padding:'12px 0'}}>
+                <button
+                  type="button"
+                  className="badge"
+                  disabled={pagination.page <= 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  style={{cursor: pagination.page <= 1 ? 'default' : 'pointer', opacity: pagination.page <= 1 ? 0.5 : 1}}
+                >
+                  Prev
+                </button>
+                <span style={{fontSize:13,color:'#666'}}>Page {pagination.page} of {pagination.totalPages}</span>
+                <button
+                  type="button"
+                  className="badge"
+                  disabled={pagination.page >= pagination.totalPages}
+                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                  style={{cursor: pagination.page >= pagination.totalPages ? 'default' : 'pointer', opacity: pagination.page >= pagination.totalPages ? 0.5 : 1}}
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Order Details */}
@@ -402,7 +417,7 @@ export default function OrderHistory() {
                           const lineTotal = unitPrice * (isNaN(qty) ? 0 : qty);
                           const orderName = selectedOrder?.name;
                           const displayName = (p?.name && p.name !== orderName) ? p.name : (p?.sku || 'Item');
-                          const imgSrc = p?.image_data ? buildDataUrlFromBase64(p.image_data) : null;
+                          const imgSrc = p?.sku ? `${api.defaults.baseURL || ''}/api/inventory/${encodeURIComponent(p.sku)}/image` : null;
                           return (
                             <div key={`${p.sku}-${idx}`} style={{display:'flex',alignItems:'center',gap:16,padding:'10px 0',borderBottom:idx!==effectiveProducts.length-1?'1px solid #eee':'none'}}>
                               <div style={{width:40,height:40,borderRadius:8,overflow:'hidden',background:'#f1f3f5',flexShrink:0}}>

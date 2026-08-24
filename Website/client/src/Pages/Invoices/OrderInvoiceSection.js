@@ -1,8 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import api from '../../api';
+import { useConfirm } from '../../Context/ConfirmContext';
 import './Invoices.css';
 import { downloadPaymentProof, openInvoicePdf } from './invoicePdf';
 import PaymentModal from './PaymentModal';
+import EmailInvoiceModal from './EmailInvoiceModal';
 
 const peso = (value) => `PHP ${Number(value || 0).toLocaleString('en-PH', {
   minimumFractionDigits: 2,
@@ -61,10 +65,12 @@ function DownPaymentConfirmModal({ orderTotal, downPayment, remainingBalance, on
 }
 
 export default function OrderInvoiceSection({ order, onInvoicesChange }) {
+  const confirm = useConfirm();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState(null);
   const [showDownPaymentModal, setShowDownPaymentModal] = useState(false);
+  const [emailInvoiceTarget, setEmailInvoiceTarget] = useState(null);
 
   const orderId = order?.order_id;
   const downPayment = invoices.find((invoice) => invoice.invoice_type === 'DOWN_PAYMENT' && invoice.status !== 'CANCELLED');
@@ -95,18 +101,18 @@ export default function OrderInvoiceSection({ order, onInvoicesChange }) {
 
   const generateDownPayment = async () => {
     if (!orderTotal || orderTotal <= 0) {
-      alert('Order total is required before generating a down payment invoice.');
+      toast.error('Order total is required before generating a down payment invoice.');
       return;
     }
 
     setLoading(true);
     try {
       const response = await api.post(`/api/orders/${encodeURIComponent(orderId)}/invoices/down-payment`);
-      alert(response.data?.existing ? 'Down payment invoice already exists.' : 'Down payment invoice generated.');
+      toast.success(response.data?.existing ? 'Down payment invoice already exists.' : 'Down payment invoice generated.');
       setShowDownPaymentModal(false);
       await fetchInvoices();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to generate down payment invoice.');
+      toast.error(error.response?.data?.message || 'Failed to generate down payment invoice.');
     } finally {
       setLoading(false);
     }
@@ -114,34 +120,34 @@ export default function OrderInvoiceSection({ order, onInvoicesChange }) {
 
   const generateRemainingBalance = async () => {
     if (!orderTotal || orderTotal <= 0) {
-      alert('Order total is required before generating a remaining balance invoice.');
+      toast.error('Order total is required before generating a remaining balance invoice.');
       return;
     }
     if (!downPayment || downPayment.status !== 'PAID') {
-      alert('The down payment invoice must be paid before generating the remaining balance invoice.');
+      toast.error('The down payment invoice must be paid before generating the remaining balance invoice.');
       return;
     }
 
     setLoading(true);
     try {
       const response = await api.post(`/api/orders/${encodeURIComponent(orderId)}/invoices/remaining-balance`);
-      alert(response.data?.existing ? 'Remaining balance invoice already exists.' : 'Remaining balance invoice generated.');
+      toast.success(response.data?.existing ? 'Remaining balance invoice already exists.' : 'Remaining balance invoice generated.');
       await fetchInvoices();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to generate remaining balance invoice.');
+      toast.error(error.response?.data?.message || 'Failed to generate remaining balance invoice.');
     } finally {
       setLoading(false);
     }
   };
 
   const cancelInvoice = async (invoice) => {
-    if (!window.confirm(`Cancel invoice ${invoice.invoice_number}?`)) return;
+    if (!(await confirm({ message: `Cancel invoice ${invoice.invoice_number}?`, danger: true }))) return;
     setLoading(true);
     try {
       await api.patch(`/api/invoices/${invoice.id}/status`, { status: 'CANCELLED' });
       await fetchInvoices();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to cancel invoice.');
+      toast.error(error.response?.data?.message || 'Failed to cancel invoice.');
     } finally {
       setLoading(false);
     }
@@ -189,7 +195,22 @@ export default function OrderInvoiceSection({ order, onInvoicesChange }) {
             </div>
             <div className="order-invoice-actions">
               <button className="invoice-btn" onClick={() => openInvoicePdf(invoice)}>Download PDF</button>
-              <button className="invoice-btn" onClick={() => openInvoicePdf(invoice, true)}>Print Invoice</button>
+              <button
+                className="invoice-btn"
+                onClick={() => openInvoicePdf(invoice, true)}
+                disabled={invoice.status !== 'PAID'}
+                title={invoice.status !== 'PAID' ? 'Mark this invoice as paid before printing it.' : undefined}
+              >
+                Print Invoice
+              </button>
+              <button
+                className="invoice-btn"
+                onClick={() => setEmailInvoiceTarget(invoice)}
+                disabled={invoice.status !== 'PAID'}
+                title={invoice.status !== 'PAID' ? 'Mark this invoice as paid before emailing it to the client.' : undefined}
+              >
+                Email to Client
+              </button>
               {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (
                 <button className="invoice-btn success" onClick={() => setPaymentInvoice(invoice)} disabled={loading}>Mark as Paid</button>
               )}
@@ -236,6 +257,10 @@ export default function OrderInvoiceSection({ order, onInvoicesChange }) {
           await fetchInvoices();
         }}
       />
+      {emailInvoiceTarget && (
+        <EmailInvoiceModal invoice={emailInvoiceTarget} onClose={() => setEmailInvoiceTarget(null)} />
+      )}
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
       {showDownPaymentModal && (
         <DownPaymentConfirmModal
           orderTotal={orderTotal}

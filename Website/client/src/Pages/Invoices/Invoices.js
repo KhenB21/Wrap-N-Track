@@ -4,9 +4,13 @@ import TopBar from '../../Components/TopBar';
 import withEmployeeAuth from '../../Components/withEmployeeAuth';
 import usePermissions from '../../hooks/usePermissions';
 import api from '../../api';
+import { useConfirm } from '../../Context/ConfirmContext';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import './Invoices.css';
 import { downloadPaymentProof, openInvoicePdf } from './invoicePdf';
 import PaymentModal from './PaymentModal';
+import EmailInvoiceModal from './EmailInvoiceModal';
 
 const peso = (value) => `PHP ${Number(value || 0).toLocaleString('en-PH', {
   minimumFractionDigits: 2,
@@ -43,6 +47,8 @@ const invoiceAmountLabel = (invoice) => (
 );
 
 function InvoicePreviewModal({ invoice, onClose, onMarkPaid, onCancel }) {
+  const [showEmailModal, setShowEmailModal] = useState(false);
+
   if (!invoice) return null;
 
   return (
@@ -78,7 +84,22 @@ function InvoicePreviewModal({ invoice, onClose, onMarkPaid, onCancel }) {
         </div>
         <div className="invoice-modal-footer">
           <button className="invoice-btn" onClick={() => openInvoicePdf(invoice)}>Download PDF</button>
-          <button className="invoice-btn" onClick={() => openInvoicePdf(invoice, true)}>Print Invoice</button>
+          <button
+            className="invoice-btn"
+            onClick={() => openInvoicePdf(invoice, true)}
+            disabled={invoice.status !== 'PAID'}
+            title={invoice.status !== 'PAID' ? 'Mark this invoice as paid before printing it.' : undefined}
+          >
+            Print Invoice
+          </button>
+          <button
+            className="invoice-btn"
+            onClick={() => setShowEmailModal(true)}
+            disabled={invoice.status !== 'PAID'}
+            title={invoice.status !== 'PAID' ? 'Mark this invoice as paid before emailing it to the client.' : undefined}
+          >
+            Email to Client
+          </button>
           {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (
             <button className="invoice-btn success" onClick={() => onMarkPaid(invoice)}>Mark as Paid</button>
           )}
@@ -90,12 +111,16 @@ function InvoicePreviewModal({ invoice, onClose, onMarkPaid, onCancel }) {
           )}
         </div>
       </div>
+      {showEmailModal && (
+        <EmailInvoiceModal invoice={invoice} onClose={() => setShowEmailModal(false)} />
+      )}
     </div>
   );
 }
 
 function Invoices() {
   const { checkPermission } = usePermissions();
+  const confirm = useConfirm();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ invoice_type: '', status: '', customer: '', order: '' });
@@ -117,7 +142,7 @@ function Invoices() {
       setInvoices(response.data?.invoices || []);
     } catch (error) {
       console.error('Failed to fetch invoices:', error);
-      alert(error.response?.data?.message || 'Failed to fetch invoices.');
+      toast.error(error.response?.data?.message || 'Failed to fetch invoices.');
       setInvoices([]);
     } finally {
       setLoading(false);
@@ -133,13 +158,13 @@ function Invoices() {
   }, [fetchInvoices]);
 
   const cancelInvoice = async (invoice) => {
-    if (!window.confirm(`Cancel invoice ${invoice.invoice_number}?`)) return;
+    if (!(await confirm({ message: `Cancel invoice ${invoice.invoice_number}?`, danger: true }))) return;
     try {
       await api.patch(`/api/invoices/${invoice.id}/status`, { status: 'CANCELLED' });
       setSelectedInvoice(null);
       await fetchInvoices();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to cancel invoice.');
+      toast.error(error.response?.data?.message || 'Failed to cancel invoice.');
     }
   };
 
@@ -206,18 +231,18 @@ function Invoices() {
               <tbody>
                 {invoices.map((invoice) => (
                   <tr key={invoice.id}>
-                    <td className="invoice-number">{invoice.invoice_number}</td>
-                    <td>{typeLabel(invoice.invoice_type)}</td>
-                    <td>{invoice.order_id}</td>
-                    <td>{invoice.customer_name || 'Customer'}</td>
-                    <td>{peso(invoice.total_order_amount)}</td>
-                    <td>{peso(invoice.invoice_amount)}</td>
-                    <td className="invoice-balance-cell">{peso(invoice.remaining_balance_amount)}</td>
-                    <td>{peso(invoice.amount_paid)}</td>
-                    <td><StatusBadge status={invoice.status} /></td>
-                    <td>{formatDate(invoice.issued_at)}</td>
-                    <td>{formatDate(invoice.due_date)}</td>
-                    <td>
+                    <td className="invoice-number" data-label="Invoice Number">{invoice.invoice_number}</td>
+                    <td data-label="Type">{typeLabel(invoice.invoice_type)}</td>
+                    <td data-label="Order Number">{invoice.order_id}</td>
+                    <td data-label="Customer">{invoice.customer_name || 'Customer'}</td>
+                    <td data-label="Total Order">{peso(invoice.total_order_amount)}</td>
+                    <td data-label="Invoice Amount">{peso(invoice.invoice_amount)}</td>
+                    <td className="invoice-balance-cell" data-label="Remaining Balance">{peso(invoice.remaining_balance_amount)}</td>
+                    <td data-label="Amount Paid">{peso(invoice.amount_paid)}</td>
+                    <td data-label="Status"><StatusBadge status={invoice.status} /></td>
+                    <td data-label="Issued">{formatDate(invoice.issued_at)}</td>
+                    <td data-label="Due">{formatDate(invoice.due_date)}</td>
+                    <td data-label="Actions">
                       <div className="invoice-actions">
                         <button className="invoice-btn" onClick={() => setSelectedInvoice(invoice)}>View</button>
                         <button className="invoice-btn" onClick={() => openInvoicePdf(invoice)}>Download PDF</button>
@@ -257,6 +282,7 @@ function Invoices() {
           await fetchInvoices();
         }}
       />
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
     </div>
   );
 }

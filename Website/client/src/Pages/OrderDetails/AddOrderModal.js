@@ -1,15 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api';
 import PortalModal from '../../Components/Modal/PortalModal';
-import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
 import './AddOrderModal.css';
 
-// "Carlo" is the one pre-existing preset package convention already used elsewhere in
-// the app (see CarloPreview.js / the Edit Order product table's package_name === 'Carlo'
-// filter). Package Order stays convention-based for this pass rather than introducing a
-// normalized packages/package_items table, per the approved implementation plan.
-const PACKAGE_PRESETS = ['Carlo'];
-const ORDER_STATUSES = ['Pending', 'To Be Pack', 'Ready to ship', 'En Route', 'Completed', 'Invoice', 'Cancelled'];
+const SHOWCASE_CATEGORIES = ['wedding', 'corporate', 'bespoke'];
+const SHOWCASE_CATEGORY_LABELS = { wedding: 'Wedding', corporate: 'Corporate', bespoke: 'Bespoke' };
+const ORDER_STATUSES = ['Pending', 'Order Placed', 'Order Paid', 'To Be Packed', 'Order Shipped Out', 'Ready for Delivery', 'Order Received', 'Completed', 'Cancelled'];
 const PAYMENT_METHODS = ['Cash', 'Online Banking', 'E-Wallet', 'Bank Transfer'];
 
 function generateOrderId() {
@@ -41,7 +37,10 @@ const emptyFields = () => ({
 
 export default function AddOrderModal({ isOpen, onClose, inventory, onCreated }) {
   const [orderType, setOrderType] = useState('custom'); // 'package' | 'custom'
+  const [packages, setPackages] = useState([]);
+  const [packageId, setPackageId] = useState('');
   const [packageName, setPackageName] = useState('');
+  const [packageLoading, setPackageLoading] = useState(false);
 
   const [customerMode, setCustomerMode] = useState('existing'); // 'existing' | 'new'
   const [customers, setCustomers] = useState([]);
@@ -59,6 +58,7 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
   useEffect(() => {
     if (!isOpen) return;
     setOrderType('custom');
+    setPackageId('');
     setPackageName('');
     setCustomerMode('existing');
     setCustomerQuery('');
@@ -79,27 +79,48 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
     return () => { cancelled = true; };
   }, [isOpen]);
 
-  // Package Order: auto-load the preset's product list. Products already on the list
-  // that were manually added stay; defaults are only added once per package selection.
+  // Package Order: load all active showcase bundles (Wedding/Corporate/Bespoke) so
+  // employees can pick any gallery-managed package, not just a hardcoded preset.
   useEffect(() => {
-    if (orderType !== 'package' || !packageName || packageName !== 'Carlo') return;
-    const matches = (inventory || []).filter((item) =>
-      defaultProductNames.some((presetName) =>
-        (item.name || '').toLowerCase().includes(presetName.toLowerCase()) ||
-        presetName.toLowerCase().includes((item.name || '').toLowerCase())
-      )
-    );
-    setSelectedProducts(matches.map((item) => ({
-      sku: item.sku,
-      name: item.name,
-      unit_price: Number(item.unit_price) || 0,
-      quantity: 1,
-      image_data: item.image_data,
-      isPackageDefault: true,
-      availableQty: Number(item.quantity) || 0
-    })));
+    if (!isOpen) return;
+    let cancelled = false;
+    Promise.all(SHOWCASE_CATEGORIES.map((cat) =>
+      api.get('/api/showcase', { params: { category: cat } })
+        .then((res) => (res.data?.bundles || []).map((b) => ({ ...b, category: cat })))
+        .catch((err) => { console.error(`Error fetching ${cat} showcase bundles:`, err); return []; })
+    )).then((groups) => { if (!cancelled) setPackages(groups.flat()); });
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
+  // Package Order: auto-load the selected bundle's product list. Defaults are only
+  // (re)loaded when the bundle selection itself changes.
+  useEffect(() => {
+    if (orderType !== 'package' || !packageId) return;
+    let cancelled = false;
+    setPackageLoading(true);
+    api.get(`/api/showcase/${packageId}`)
+      .then((res) => {
+        if (cancelled) return;
+        const bundle = res.data?.bundle;
+        const items = bundle?.bundle_items || [];
+        setSelectedProducts(items.map((item) => {
+          const invMatch = (inventory || []).find((inv) => inv.sku === item.sku);
+          return {
+            sku: item.sku,
+            name: item.item_name,
+            unit_price: Number(item.unit_price) || 0,
+            quantity: Number(item.quantity) || 1,
+            image_data: invMatch?.image_data,
+            isPackageDefault: true,
+            availableQty: Number(invMatch?.quantity) || 0
+          };
+        }));
+      })
+      .catch((err) => console.error('Error loading package contents:', err))
+      .finally(() => { if (!cancelled) setPackageLoading(false); });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderType, packageName]);
+  }, [orderType, packageId]);
 
   const filteredCustomers = useMemo(() => {
     if (!customerQuery.trim()) return customers.slice(0, 8);
@@ -132,9 +153,10 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
     return list;
   }, [inventory, categoryFilter, productSearch]);
 
-  const totalCost = useMemo(() => selectedProducts.reduce(
+  const productsCost = useMemo(() => selectedProducts.reduce(
     (sum, p) => sum + (Number(p.unit_price) || 0) * (Number(p.quantity) || 0), 0
   ), [selectedProducts]);
+  const totalCost = productsCost * (Number(fields.order_quantity) || 0);
   const downPayment = Math.round(totalCost * 0.7 * 100) / 100;
   const remainingBalance = Math.round((totalCost - downPayment) * 100) / 100;
 
@@ -299,11 +321,30 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
             {orderType === 'package' && (
               <div className="aom-field-group">
                 <label className="aom-label" htmlFor="aom-package">Package</label>
-                <select id="aom-package" className="aom-input" value={packageName} onChange={(e) => setPackageName(e.target.value)}>
+                <select
+                  id="aom-package"
+                  className="aom-input"
+                  value={packageId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setPackageId(id);
+                    const chosen = packages.find((p) => String(p.id) === id);
+                    setPackageName(chosen?.title || '');
+                  }}
+                >
                   <option value="">Select a package…</option>
-                  {PACKAGE_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
+                  {SHOWCASE_CATEGORIES.map((cat) => {
+                    const group = packages.filter((p) => p.category === cat);
+                    if (group.length === 0) return null;
+                    return (
+                      <optgroup key={cat} label={SHOWCASE_CATEGORY_LABELS[cat]}>
+                        {group.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                      </optgroup>
+                    );
+                  })}
                 </select>
-                {packageName && (
+                {packageLoading && <p className="aom-hint">Loading package contents…</p>}
+                {packageId && !packageLoading && (
                   <p className="aom-hint">Package defaults were loaded into the product list on the right — marked "Package default". You can still add or remove items.</p>
                 )}
               </div>
@@ -486,13 +527,18 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
                     id="aom-boxes"
                     type="number"
                     min="0"
+                    max="9999"
                     step="1"
+                    maxLength={4}
                     className="aom-input aom-boxes-input"
                     name="order_quantity"
                     value={fields.order_quantity}
-                    onChange={(e) => setFields((prev) => ({ ...prev, order_quantity: e.target.value.replace(/[^0-9]/g, '') }))}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                      setFields((prev) => ({ ...prev, order_quantity: digits }));
+                    }}
                   />
-                  <button type="button" onClick={() => setFields((prev) => ({ ...prev, order_quantity: Number(prev.order_quantity || 0) + 1 }))}>+</button>
+                  <button type="button" onClick={() => setFields((prev) => ({ ...prev, order_quantity: Math.min(9999, Number(prev.order_quantity || 0) + 1) }))}>+</button>
                 </div>
                 <p className="aom-hint">The actual number of physical boxes in this shipment — not the product count.</p>
               </div>

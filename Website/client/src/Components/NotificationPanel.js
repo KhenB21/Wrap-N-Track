@@ -87,6 +87,23 @@ const NotificationPanel = () => {
     deleteNotification(notificationId);
   };
 
+  // Alert messages embed a full comma-separated item list, which reads as a
+  // wall of text once there are more than a few products. Show the intro
+  // sentence plus the first 3 items and collapse the rest into a "+N more".
+  const summarizeMessage = (message, productCount) => {
+    if (!message || productCount <= 3) return message;
+
+    const colonIndex = message.indexOf(':');
+    if (colonIndex === -1) return message;
+
+    const intro = message.slice(0, colonIndex + 1);
+    const items = message.slice(colonIndex + 1).split(',').map(s => s.trim()).filter(Boolean);
+    if (items.length <= 3) return message;
+
+    const shown = items.slice(0, 3).join(', ');
+    return `${intro} ${shown}, and ${items.length - 3} more`;
+  };
+
   return (
     <div className={`notification-panel-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
       <div className={`notification-panel ${isClosing ? 'closing' : ''}`} onClick={(e) => e.stopPropagation()}>
@@ -175,7 +192,8 @@ const NotificationPanel = () => {
                     // Get product count from metadata (now always an object)
                     const metadata = notification.metadata || {};
                     const productCount = metadata.product_count || 1;
-                    
+                    const displayMessage = summarizeMessage(notification.message, productCount);
+
                     return (
                       <div
                         key={notification.id}
@@ -200,7 +218,7 @@ const NotificationPanel = () => {
                               ×
                             </button>
                           </div>
-                          <p className="notification-message">{notification.message}</p>
+                          <p className="notification-message">{displayMessage}</p>
                           <div className="notification-meta">
                             <span className="notification-time">
                               {formatTimestamp(notification.created_at)}
