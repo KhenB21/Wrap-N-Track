@@ -1,7 +1,11 @@
 const pool = require('../config/db');
 
 class NotificationService {
-  // Create a new notification
+  // Create a new notification, or refresh an existing one of the same
+  // user/type/category within the dedupe window instead of stacking a new row.
+  // Alert titles embed a live count (e.g. "13 Products"), so matching on the
+  // exact title let every count change past the old dedupe check and spam
+  // near-duplicate alerts (see NOTIFICATIONS UI bug report).
   static async createNotification(notificationData) {
     const {
       userId,
@@ -14,14 +18,24 @@ class NotificationService {
     } = notificationData;
 
     try {
-      // Check if similar notification exists for this user within the last 2 hours
-      const similarExists = await pool.query(`
-        SELECT check_similar_notification($1, $2, $3, 2) as exists
-      `, [userId, type, title]);
+      const existing = await pool.query(`
+        SELECT id FROM notifications
+        WHERE user_id = $1 AND type = $2 AND category = $3
+        AND is_read = false
+        AND created_at > NOW() - INTERVAL '2 hours'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `, [userId, type, category]);
 
-      if (similarExists.rows[0].exists) {
-        console.log(`Skipping duplicate notification for user ${userId}: ${title}`);
-        return null;
+      if (existing.rows.length > 0) {
+        const result = await pool.query(`
+          UPDATE notifications
+          SET title = $1, message = $2, priority = $3, metadata = $4, created_at = NOW()
+          WHERE id = $5
+          RETURNING *
+        `, [title, message, priority, JSON.stringify(metadata), existing.rows[0].id]);
+
+        return result.rows[0];
       }
 
       const result = await pool.query(`
