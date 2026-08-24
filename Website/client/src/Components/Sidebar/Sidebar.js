@@ -133,6 +133,7 @@ const Sidebar = () => {
               <ul className="dropdown-menu">
                 <li><Link to="/reports/sales">Sales Reports</Link></li>
                 <li><Link to="/reports/inventory">Inventory Reports</Link></li>
+                <li><Link to="/reports/business">Monthly / Yearly Report</Link></li>
               </ul>
             </li>
           )}

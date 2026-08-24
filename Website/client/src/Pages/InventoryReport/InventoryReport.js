@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './InventoryReport.css';
 import AppShell from '../../Components/AppShell';
+import EmptyState from '../../Components/EmptyState';
 import { BarChart } from '../../Components/Charts';
 import api from '../../api';
 import { ToastContainer, toast } from 'react-toastify';
@@ -241,9 +242,17 @@ export default function InventoryReport() {
     });
   };
 
+  // jsPDF's built-in fonts (Helvetica, via autoTable) only support the WinAnsi
+  // character set, which does not include ₱ (U+20B1) — it silently substitutes
+  // a fallback glyph that renders as "±". PDFKit invoices already work around
+  // this the same way (see routes/invoices.js formatMoney): use "PHP " instead
+  // of the peso glyph in PDF output only. On-screen formatCurrency keeps ₱.
+  const formatCurrencyPdf = (n) =>
+    `PHP ${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   const exportToPDF = () => {
     const doc = new jsPDF();
-    
+
     // Title
     doc.setFontSize(20);
     doc.text('Enhanced Wrap-N-Track Inventory Report', 14, 22);
@@ -258,7 +267,7 @@ export default function InventoryReport() {
     
     const summaryData = [
       ['Metric', 'Value'],
-      ['Total Inventory Value', formatCurrency(reportData.totalValue)],
+      ['Total Inventory Value', formatCurrencyPdf(reportData.totalValue)],
       ['Total SKUs', formatNumber(reportData.totalSKUs)],
       ['Low Stock Items', formatNumber(reportData.lowStockItems.length)],
       ['Out of Stock Items', formatNumber(reportData.outOfStockItems.length)],
@@ -286,7 +295,7 @@ export default function InventoryReport() {
         item.sku,
         item.name,
         formatNumber(item.sold_quantity),
-        formatCurrency(item.sales_value),
+        formatCurrencyPdf(item.sales_value),
         item.movement_category
       ]);
       
@@ -311,9 +320,9 @@ export default function InventoryReport() {
         item.name,
         formatNumber(item.available_stock),
         formatNumber(item.suggested_reorder_quantity),
-        formatCurrency((parseFloat(item.suggested_reorder_quantity) || 0) * (parseFloat(item.unit_price) || 0))
+        formatCurrencyPdf((parseFloat(item.suggested_reorder_quantity) || 0) * (parseFloat(item.unit_price) || 0))
       ]);
-      
+
       autoTable(doc, {
         startY: doc.lastAutoTable.finalY + 25,
         head: [['SKU', 'Name', 'Current Stock', 'Suggested Order Qty', 'Order Value']],
@@ -622,7 +631,7 @@ export default function InventoryReport() {
               </div>
 
               {stockWatchItems.length === 0 ? (
-                <p className="empty-note">No products match the current filters.</p>
+                <EmptyState message="No products match the current filters." />
               ) : (
                 <div className="replenishment-table">
                   <table>
@@ -812,7 +821,7 @@ export default function InventoryReport() {
               </div>
 
               {forecastData.length === 0 ? (
-                <p className="empty-note">No forecast data available. The analytics server may need a restart.</p>
+                <EmptyState message="No forecast data available. The analytics server may need a restart." />
               ) : (() => {
                 const okItems = forecastData.filter(d => d.status === 'ok');
                 const thinItems = forecastData.filter(d => d.status !== 'ok');

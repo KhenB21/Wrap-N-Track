@@ -127,6 +127,7 @@ async function getReplenishmentSuggestions(pool, days = 90) {
       ROUND(average_daily_usage::numeric, 2) AS average_daily_usage,
       sales_days,
       reorder_point,
+      target_stock_level,
       formula_source,
       suggested_reorder_quantity,
       needs_reorder,

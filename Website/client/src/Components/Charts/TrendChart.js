@@ -43,16 +43,6 @@ const CustomTooltip = ({ active, payload, label, leftKey, rightKey, leftLabel, r
   );
 };
 
-// TrendChart — dual-axis line/area chart. Actuals solid, forecast dashed with shaded band.
-// Props:
-//   data            — array of objects with date, [leftKey], [rightKey], [forecastKey], [forecastLower], [forecastUpper]
-//   leftKey         — primary Y axis field (e.g. 'revenue')
-//   rightKey        — secondary Y axis field (e.g. 'orders') — optional
-//   forecastKey     — forecast field name — optional
-//   forecastLower/Upper — confidence band fields — optional
-//   leftLabel / rightLabel — axis labels
-//   leftCurrency / rightCurrency — format as peso?
-//   splitAt         — date string where actuals end and forecast begins (renders reference line)
 export default function TrendChart({
   data = [],
   leftKey = 'value',
@@ -66,14 +56,22 @@ export default function TrendChart({
   rightCurrency = false,
   splitAt,
   height = 280,
+  ariaLabel,
+  // When the right series is the same unit/scale as the left (e.g. a
+  // year-over-year comparison of the same metric), plot it on the left axis
+  // instead of a second independently-scaled axis — a dual-axis chart would
+  // let the two lines cross at points that don't reflect the real values.
+  sameAxis = false,
 }) {
   const c = useMemo(() => getChartColors(), []);
 
   const leftFmt = v => leftCurrency ? formatPeso(v) : formatNum(v);
   const rightFmt = v => rightCurrency ? formatPeso(v) : formatNum(v);
+  const rightAxisId = sameAxis ? 'left' : 'right';
 
   return (
-    <div style={{ width: '100%', overflowX: 'auto' }}>
+    <div>
+      <div role="figure" aria-label={ariaLabel} style={{ width: '100%', overflowX: 'auto' }}>
       <div style={{ minWidth: 320 }}>
         <ResponsiveContainer width="100%" height={height}>
           <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
@@ -94,7 +92,7 @@ export default function TrendChart({
               axisLine={false}
               width={leftCurrency ? 78 : 48}
             />
-            {rightKey && (
+            {rightKey && !sameAxis && (
               <YAxis
                 yAxisId="right"
                 orientation="right"
@@ -178,14 +176,15 @@ export default function TrendChart({
               />
             )}
 
-            {/* Secondary axis line */}
+            {/* Secondary series — own axis unless sameAxis */}
             {rightKey && (
               <Line
-                yAxisId="right"
+                yAxisId={rightAxisId}
                 type="monotone"
                 dataKey={rightKey}
                 stroke={c.success}
                 strokeWidth={2}
+                strokeDasharray={sameAxis ? '5 3' : undefined}
                 dot={false}
                 activeDot={{ r: 4, fill: c.success }}
                 name={rightLabel || rightKey}
@@ -204,6 +203,30 @@ export default function TrendChart({
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+      </div>
+      {data.length > 0 && (
+        <details className="chart-a11y-table">
+          <summary>View as table</summary>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                {leftKey && <th className="chart-a11y-num">{leftLabel || leftKey}</th>}
+                {rightKey && <th className="chart-a11y-num">{rightLabel || rightKey}</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row, i) => (
+                <tr key={i}>
+                  <td>{row.date}</td>
+                  {leftKey && <td className="chart-a11y-num">{leftCurrency ? formatPeso(row[leftKey]) : formatNum(row[leftKey])}</td>}
+                  {rightKey && <td className="chart-a11y-num">{rightCurrency ? formatPeso(row[rightKey]) : formatNum(row[rightKey])}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
     </div>
   );
 }

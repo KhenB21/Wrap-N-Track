@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppShell from '../../Components/AppShell';
+import EmptyState from '../../Components/EmptyState';
 import { TrendChart, DonutChart, BarChart } from '../../Components/Charts';
 import api from '../../api';
 import { ToastContainer, toast } from 'react-toastify';
@@ -29,6 +30,15 @@ const EMPTY_SALES_DATA = {
 
 const PERIOD_LABELS = { today: 'Today', week: 'This Week', month: 'This Month' };
 
+function SectionError({ onRetry }) {
+  return (
+    <div className="sr-empty" role="alert">
+      <p style={{ margin: '0 0 10px' }}>This section failed to load.</p>
+      <button className="sr-btn sr-btn-ghost" onClick={onRetry}>Retry</button>
+    </div>
+  );
+}
+
 export default function SalesReport() {
   const { checkPermission, canUseTestData } = usePermissions();
   const showTestDataControls = canUseTestData();
@@ -44,6 +54,7 @@ export default function SalesReport() {
   const [topCustomers, setTopCustomers] = useState([]);
   const [recentSales, setRecentSales] = useState([]);
   const [sectionErrors, setSectionErrors] = useState({});
+  const [statusFilter, setStatusFilter] = useState(null);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -181,6 +192,14 @@ export default function SalesReport() {
     [topProducts]);
 
   // ── Exports ─────────────────────────────────────────────────────────────────
+  // jsPDF's built-in fonts (Helvetica, via autoTable) only support the WinAnsi
+  // character set, which does not include ₱ (U+20B1) — it silently substitutes
+  // a fallback glyph that renders as "±". PDFKit invoices already work around
+  // this the same way (see routes/invoices.js formatMoney): use "PHP " instead
+  // of the peso glyph in PDF output only. On-screen formatCurrency keeps ₱.
+  const formatCurrencyPdf = (n) =>
+    `PHP ${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   const exportPDF = () => {
     const doc = new jsPDF();
     const label = PERIOD_LABELS[selectedPeriod] || selectedPeriod;
@@ -193,15 +212,15 @@ export default function SalesReport() {
       startY: 32,
       head: [['Metric', 'Value']],
       body: [
-        ['Total Revenue', formatCurrency(salesData.totalRevenue)],
+        ['Total Revenue', formatCurrencyPdf(salesData.totalRevenue)],
         ['Total Orders', formatNumber(salesData.totalOrders)],
-        ['Avg Order Value', formatCurrency(salesData.avgOrderValue)],
-        ['Total Profit', formatCurrency(salesData.totalProfit)],
+        ['Avg Order Value', formatCurrencyPdf(salesData.avgOrderValue)],
+        ['Total Profit', formatCurrencyPdf(salesData.totalProfit)],
         ['Completed Orders', formatNumber(salesData.completedOrders)],
         ['Pending Orders', formatNumber(salesData.pendingOrders)],
         ['Cancelled Orders', formatNumber(salesData.cancelledOrders)],
-        ['Paid Amount', formatCurrency(salesData.paidAmount)],
-        ['Outstanding', formatCurrency(salesData.outstandingAmount)],
+        ['Paid Amount', formatCurrencyPdf(salesData.paidAmount)],
+        ['Outstanding', formatCurrencyPdf(salesData.outstandingAmount)],
       ],
     });
 
@@ -209,7 +228,7 @@ export default function SalesReport() {
       autoTable(doc, {
         startY: doc.lastAutoTable.finalY + 10,
         head: [['Product', 'Units Sold', 'Revenue']],
-        body: topProducts.map(p => [p.name, formatNumber(p.units_sold), formatCurrency(p.sales_value)]),
+        body: topProducts.map(p => [p.name, formatNumber(p.units_sold), formatCurrencyPdf(p.sales_value)]),
       });
     }
 
@@ -219,7 +238,7 @@ export default function SalesReport() {
         head: [['Order #', 'Customer', 'Date', 'Amount', 'Status']],
         body: recentSales.map(o => [
           `#${o.order_id}`, o.customer_name, formatDate(o.order_date),
-          formatCurrency(o.total_cost), o.status,
+          formatCurrencyPdf(o.total_cost), o.status,
         ]),
       });
     }
@@ -387,8 +406,10 @@ export default function SalesReport() {
             <h3 className="sr-card-title">Revenue &amp; Orders Trend</h3>
             {loading ? (
               <div className="sr-chart-skeleton" />
+            ) : sectionErrors.trends ? (
+              <SectionError onRetry={fetchAllData} />
             ) : trendData.length === 0 ? (
-              <p className="sr-empty">No trend data for this period.</p>
+              <EmptyState message="No trend data for this period." />
             ) : (
               <TrendChart
                 data={trendData}
@@ -397,6 +418,7 @@ export default function SalesReport() {
                 leftLabel="Revenue (₱)"
                 rightLabel="Orders"
                 leftCurrency={true}
+                ariaLabel="Revenue and orders trend chart"
                 height={260}
               />
             )}
@@ -405,16 +427,29 @@ export default function SalesReport() {
             <h3 className="sr-card-title">Orders by Status</h3>
             {loading ? (
               <div className="sr-chart-skeleton" />
+            ) : sectionErrors.overview ? (
+              <SectionError onRetry={fetchAllData} />
             ) : statusDonutData.length === 0 ? (
-              <p className="sr-empty">No orders in this period.</p>
+              <EmptyState message="No orders in this period." />
             ) : (
-              <DonutChart data={statusDonutData} height={260} />
+              <DonutChart
+                data={statusDonutData}
+                height={260}
+                ariaLabel="Orders by status"
+                onSegmentClick={(entry) => setStatusFilter(entry.name)}
+              />
             )}
           </div>
         </div>
 
         {/* ── Top products bar chart ────────────────────────────────────────── */}
-        {!loading && topProductsChartData.length > 0 && (
+        {!loading && sectionErrors.topProducts && (
+          <div className="sr-chart-card">
+            <h3 className="sr-card-title">Top Products by Revenue</h3>
+            <SectionError onRetry={fetchAllData} />
+          </div>
+        )}
+        {!loading && !sectionErrors.topProducts && topProductsChartData.length > 0 && (
           <div className="sr-chart-card">
             <h3 className="sr-card-title">Top Products by Revenue</h3>
             <BarChart
@@ -425,6 +460,8 @@ export default function SalesReport() {
               isCurrency={true}
               colorByIndex={true}
               height={Math.max(200, topProductsChartData.length * 36)}
+              ariaLabel="Top products by revenue"
+              onBarClick={() => navigate('/inventory')}
             />
           </div>
         )}
@@ -435,8 +472,10 @@ export default function SalesReport() {
             <h3 className="sr-card-title">Top Customers</h3>
             {loading ? (
               <div className="sr-table-skeleton" />
+            ) : sectionErrors.customers ? (
+              <SectionError onRetry={fetchAllData} />
             ) : topCustomers.length === 0 ? (
-              <p className="sr-empty">No customer sales in this period.</p>
+              <EmptyState message="No customer sales in this period." />
             ) : (
               <div className="sr-table-wrap">
                 <table className="sr-table">
@@ -466,8 +505,10 @@ export default function SalesReport() {
             <h3 className="sr-card-title">Top Products</h3>
             {loading ? (
               <div className="sr-table-skeleton" />
+            ) : sectionErrors.topProducts ? (
+              <SectionError onRetry={fetchAllData} />
             ) : topProducts.length === 0 ? (
-              <p className="sr-empty">No product sales in this period.</p>
+              <EmptyState message="No product sales in this period." />
             ) : (
               <div className="sr-table-wrap">
                 <table className="sr-table">
@@ -491,11 +532,22 @@ export default function SalesReport() {
 
         {/* ── Recent orders ────────────────────────────────────────────────── */}
         <div className="sr-table-card sr-table-full">
-          <h3 className="sr-card-title">Recent Orders</h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <h3 className="sr-card-title" style={{ margin: 0 }}>
+              Recent Orders{statusFilter ? ` — ${statusFilter}` : ''}
+            </h3>
+            {statusFilter && (
+              <button className="sr-btn sr-btn-ghost" onClick={() => setStatusFilter(null)}>Clear filter</button>
+            )}
+          </div>
           {loading ? (
             <div className="sr-table-skeleton" />
+          ) : sectionErrors.recent ? (
+            <SectionError onRetry={fetchAllData} />
           ) : recentSales.length === 0 ? (
-            <p className="sr-empty">No recent orders found.</p>
+            <EmptyState message="No recent orders found." />
+          ) : (statusFilter ? recentSales.filter(o => o.status === statusFilter) : recentSales).length === 0 ? (
+            <EmptyState message={`No orders with status "${statusFilter}".`} />
           ) : (
             <div className="sr-table-wrap">
               <table className="sr-table">
@@ -506,7 +558,7 @@ export default function SalesReport() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentSales.map(o => (
+                  {(statusFilter ? recentSales.filter(o => o.status === statusFilter) : recentSales).map(o => (
                     <tr key={o.order_id}>
                       <td className="sr-order-id">#{o.order_id}</td>
                       <td>{o.customer_name}</td>

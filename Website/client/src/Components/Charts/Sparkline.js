@@ -25,12 +25,12 @@ const SparkTooltip = ({ active, payload, isCurrency }) => {
   );
 };
 
-export default function Sparkline({ data = [], dataKey = 'value', color, isCurrency = false, height = 48 }) {
+export default function Sparkline({ data = [], dataKey = 'value', color, isCurrency = false, height = 48, ariaLabel }) {
   const c = useMemo(() => getChartColors(), []);
   const lineColor = color || c.brand;
 
   return (
-    <div style={{ width: '100%', height }}>
+    <div role="img" aria-label={ariaLabel || 'trend sparkline'} style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
           <Line

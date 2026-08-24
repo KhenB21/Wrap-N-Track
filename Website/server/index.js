@@ -69,6 +69,7 @@ const inventoryReportsRouter = require('./routes/inventory-reports');
 const salesReportsRouter = require('./routes/sales-reports');
 const dashboardRouter = require('./routes/dashboard');
 const analyticsRouter = require('./routes/analytics');
+const reportsRouter = require('./routes/reports');
 const khenTestDataRouter = require('./routes/khen-test-data');
 
 const authRouter = require('./routes/auth');
@@ -451,6 +452,7 @@ app.use('/api/khen-test', khenTestDataRouter);
 app.use('/api/sales-reports', verifyJwt, requireReadOnly(), salesReportsRouter);
 app.use('/api/dashboard', verifyJwt, requireReadOnly(), dashboardRouter);
 app.use('/api/analytics', verifyJwt, requireReadOnly(), analyticsRouter);
+app.use('/api/reports', verifyJwt, requireReadOnly(), reportsRouter);
 // Employee-only routes (protected)
 app.use('/api/employee', verifyJwt, requireRole(['admin','business_developer','creatives','director','sales_manager','assistant_sales','packer']), requireReadOnly(), employeeRouter);
 

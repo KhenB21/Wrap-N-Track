@@ -76,6 +76,9 @@ function KpiCard({ label, value, pct, direction, sparkData, isCurrency, onClick,
     <div
       className={`db-kpi-card ui-card ui-card-hover${color ? ` db-kpi-${color}` : ''}`}
       onClick={onClick}
+      tabIndex={onClick ? 0 : undefined}
+      role={onClick ? 'button' : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
       style={{ cursor: onClick ? 'pointer' : undefined }}
     >
       <div className="db-kpi-label">{label}</div>
@@ -150,8 +153,16 @@ function PipelineFunnel({ operations }) {
 function AttentionRow({ icon, label, value, linkTo, severity = 'warning' }) {
   const navigate = useNavigate();
   const color = SEV_COLOR[severity] || SEV_COLOR.warning;
+  const go = () => linkTo && navigate(linkTo);
   return (
-    <div className="db-attn-row" onClick={() => linkTo && navigate(linkTo)} style={{ cursor: linkTo ? 'pointer' : undefined }}>
+    <div
+      className="db-attn-row"
+      onClick={go}
+      tabIndex={linkTo ? 0 : undefined}
+      role={linkTo ? 'button' : undefined}
+      onKeyDown={linkTo ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } } : undefined}
+      style={{ cursor: linkTo ? 'pointer' : undefined }}
+    >
       <span className="db-attn-icon" style={{ color }}>{icon}</span>
       <span className="db-attn-label">{label}</span>
       {value && <span className="db-attn-value" style={{ color }}>{value}</span>}
@@ -319,7 +330,7 @@ function Dashboard() {
           <h2 className="db-section-title">Revenue &amp; Orders Trend</h2>
           <div className="ui-card db-chart-card">
             {loading ? (
-              <div className="db-chart-loading"><span className="skeleton-value skeleton-wide" /></div>
+              <div className="db-chart-skeleton" style={{ height: 300 }} />
             ) : trendData.length === 0 ? (
               <EmptyState message="No trend data available for this period" />
             ) : (
@@ -335,6 +346,7 @@ function Dashboard() {
                 leftCurrency
                 splitAt={lastActualDate}
                 height={300}
+                ariaLabel="Revenue and orders trend chart"
               />
             )}
             {forecast && (
@@ -352,7 +364,7 @@ function Dashboard() {
         <div className="ui-card db-chart-card">
           <h3 className="db-card-title">Order Pipeline</h3>
           {loading ? (
-            <div className="db-chart-loading"><span className="skeleton-value skeleton-wide" /></div>
+            <div className="db-chart-skeleton" style={{ height: 180 }} />
           ) : (
             <PipelineFunnel operations={operations} />
           )}
@@ -361,7 +373,7 @@ function Dashboard() {
         <div className="ui-card db-chart-card">
           <h3 className="db-card-title">Top Products {isFinancial ? 'by Revenue' : '(by activity)'}</h3>
           {loading ? (
-            <div className="db-chart-loading"><span className="skeleton-value skeleton-wide" /></div>
+            <div className="db-chart-skeleton" style={{ height: 180 }} />
           ) : topProducts.length === 0 ? (
             <EmptyState message="No product data for this period" />
           ) : (
@@ -373,6 +385,8 @@ function Dashboard() {
               isCurrency={isFinancial}
               showValueLabels={false}
               height={Math.max(180, topProducts.length * 34)}
+              ariaLabel="Top products by revenue"
+              onBarClick={() => navigate('/inventory')}
             />
           )}
         </div>
@@ -398,6 +412,9 @@ function Dashboard() {
               key={i}
               className={`db-inv-tile ui-card ui-card-hover db-inv-${tile.color}`}
               onClick={() => tile.linkTo && navigate(tile.linkTo)}
+              tabIndex={tile.linkTo ? 0 : undefined}
+              role={tile.linkTo ? 'button' : undefined}
+              onKeyDown={tile.linkTo ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(tile.linkTo); } } : undefined}
               style={{ cursor: tile.linkTo ? 'pointer' : undefined }}
             >
               <div className="db-inv-label">{tile.label}</div>
@@ -412,7 +429,7 @@ function Dashboard() {
         <h2 className="db-section-title">Insights</h2>
         <div className="ui-card db-insights-panel">
           {loading ? (
-            <div className="db-chart-loading"><span className="skeleton-value skeleton-wide" /></div>
+            <div className="db-chart-skeleton" style={{ height: 140 }} />
           ) : !Array.isArray(insights) || insights.length === 0 ? (
             <EmptyState message="No insights at this time — everything looks normal." />
           ) : (
@@ -427,7 +444,7 @@ function Dashboard() {
         <div className="ui-card db-activity-panel">
           <h3 className="db-card-title">Team Activity</h3>
           {activityLoading && !activity ? (
-            <div className="db-chart-loading"><span className="skeleton-value skeleton-wide" /></div>
+            <div className="db-chart-skeleton" style={{ height: 220 }} />
           ) : !activity?.items?.length ? (
             <EmptyState message="No recent activity" />
           ) : (
@@ -448,7 +465,7 @@ function Dashboard() {
             <>
               <h3 className="db-card-title">Workload Distribution (7d)</h3>
               {!teamPerformance ? (
-                <div className="db-chart-loading"><span className="skeleton-value skeleton-wide" /></div>
+                <div className="db-chart-skeleton" style={{ height: 160 }} />
               ) : teamMembers.length === 0 ? (
                 <EmptyState message="No team activity in the last 7 days" />
               ) : (
@@ -459,6 +476,7 @@ function Dashboard() {
                   layout="horizontal"
                   showValueLabels
                   height={Math.max(160, teamMembers.length * 34)}
+                  ariaLabel="Team workload distribution over the last 7 days"
                 />
               )}
             </>
@@ -466,7 +484,7 @@ function Dashboard() {
             <>
               <h3 className="db-card-title">My Activity (7d)</h3>
               {!myActivity ? (
-                <div className="db-chart-loading"><span className="skeleton-value skeleton-wide" /></div>
+                <div className="db-chart-skeleton" style={{ height: 160 }} />
               ) : (
                 <div className="db-my-activity">
                   {[

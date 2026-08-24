@@ -140,11 +140,22 @@
   margin: 0 0 14px;
 }
 
-.db-chart-loading {
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.db-chart-skeleton {
+  width: 100%;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--surface-muted,#f1f5f9) 25%, var(--hover,#e2e8f0) 50%, var(--surface-muted,#f1f5f9) 75%);
+  background-size: 200% 100%;
+  animation: db-shimmer 1.5s infinite ease-in-out;
+}
+
+@keyframes db-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+body.dark .db-chart-skeleton {
+  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+  background-size: 200% 100%;
 }
 
 .db-forecast-note {
