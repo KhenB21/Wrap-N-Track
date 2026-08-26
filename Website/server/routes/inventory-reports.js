@@ -5,6 +5,7 @@ const pool = require('../config/db');
 const requireTestDataAccess = require('../middleware/requireTestDataAccess');
 const { getReplenishmentSuggestions } = require('../services/replenishment');
 const { getMovementAnalysis } = require('../services/movementClassification');
+const logger = require('../utils/logger');
 
 // GET /api/inventory-reports/summary - Get inventory summary data
 router.get('/summary', async (req, res) => {
@@ -830,7 +831,7 @@ router.get('/stock-flow', async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error('Error fetching stock flow:', error);
+    logger.error('inventory_reports_stock_flow_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch stock flow' });
   }
 });
