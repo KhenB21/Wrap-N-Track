@@ -6,6 +6,7 @@ const { resolveScope, requireFinancialScope } = require('../middleware/analytics
 const { getReplenishmentSuggestions } = require('../services/replenishment');
 const forecastService = require('../services/forecastService');
 const { generateInsights } = require('../services/insightEngine');
+const logger = require('../utils/logger');
 
 const REVENUE_STATUSES = "('Order Received', 'Completed')";
 
@@ -214,7 +215,7 @@ router.get('/kpis', requireFinancialScope(), async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching analytics KPIs:', error);
+    logger.error('analytics_kpis_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch KPIs' });
   }
 });
@@ -286,7 +287,7 @@ router.get('/timeseries', requireFinancialScope(), async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching analytics timeseries:', error);
+    logger.error('analytics_timeseries_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch timeseries' });
   }
 });
@@ -374,7 +375,7 @@ router.get('/breakdown', requireFinancialScope(), async (req, res) => {
 
     res.json({ success: true, scope: 'financial', data });
   } catch (error) {
-    console.error('Error fetching analytics breakdown:', error);
+    logger.error('analytics_breakdown_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch breakdown' });
   }
 });
@@ -457,7 +458,7 @@ router.get('/operations', async (req, res) => {
 
     res.json({ success: true, scope, data });
   } catch (error) {
-    console.error('Error fetching analytics operations:', error);
+    logger.error('analytics_operations_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch operations data' });
   }
 });
@@ -528,7 +529,7 @@ router.get('/payments', requireFinancialScope(), async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching analytics payments:', error);
+    logger.error('analytics_payments_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch payments data' });
   }
 });
@@ -592,7 +593,7 @@ router.get('/inventory-health', async (req, res) => {
 
     res.json({ success: true, scope, data });
   } catch (error) {
-    console.error('Error fetching analytics inventory-health:', error);
+    logger.error('analytics_inventory_health_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch inventory health' });
   }
 });
@@ -651,7 +652,7 @@ router.get('/work-queue', async (req, res) => {
 
     res.json({ success: true, scope, data });
   } catch (error) {
-    console.error('Error fetching analytics work-queue:', error);
+    logger.error('analytics_work_queue_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch work queue' });
   }
 });
@@ -718,7 +719,7 @@ router.get('/forecast/revenue', requireFinancialScope(), async (req, res) => {
 
     res.json({ success: true, scope: 'financial', data: payload, cached: false });
   } catch (error) {
-    console.error('Error fetching revenue forecast:', error);
+    logger.error('analytics_forecast_revenue_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch revenue forecast' });
   }
 });
@@ -835,7 +836,7 @@ router.get('/forecast/demand', async (req, res) => {
 
     res.json({ success: true, scope, data, cached });
   } catch (error) {
-    console.error('Error fetching demand forecast:', error);
+    logger.error('analytics_forecast_demand_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch demand forecast' });
   }
 });
@@ -971,7 +972,7 @@ router.get('/insights', async (req, res) => {
 
     res.json({ success: true, scope, data });
   } catch (error) {
-    console.error('Error generating insights:', error);
+    logger.error('analytics_insights_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to generate insights' });
   }
 });
@@ -1038,7 +1039,7 @@ router.get('/activity', async (req, res) => {
 
     res.json({ success: true, scope, data, nextCursor });
   } catch (error) {
-    console.error('Error fetching activity feed:', error);
+    logger.error('analytics_activity_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch activity feed' });
   }
 });
@@ -1111,7 +1112,7 @@ router.get('/team-performance', requireRole(['admin', 'super_admin', 'director',
 
     res.json({ success: true, scope: resolveScope(req), data: payload, cached: false });
   } catch (error) {
-    console.error('Error fetching team performance:', error);
+    logger.error('analytics_team_performance_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch team performance' });
   }
 });
@@ -1138,7 +1139,7 @@ router.get('/my-activity', async (req, res) => {
 
     res.json({ success: true, scope: resolveScope(req), data: mine });
   } catch (error) {
-    console.error('Error fetching my-activity:', error);
+    logger.error('analytics_my_activity_failed', { err: error });
     res.status(500).json({ success: false, message: 'Failed to fetch activity' });
   }
 });

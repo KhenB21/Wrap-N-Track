@@ -11,6 +11,7 @@ const WebSocket = require('ws');
 const http = require('http');
 const helmet = require('helmet');
 const compression = require('compression');
+const logger = require('./utils/logger');
 // Load environment variables.
 // On Render (and other PaaS), env vars are injected natively — dotenv is a local-dev convenience only.
 // index.js lives at Website/server/index.js so __dirname IS the server root; .env sits beside it.
@@ -359,14 +360,20 @@ app.use(helmet.contentSecurityPolicy({
   }
 }));
 
-// Add a middleware to log all requests
+// Access log: one line per request, logged after the response is sent so it
+// carries status + duration. Never logs headers (Authorization tokens, cookies).
 app.use((req, res, next) => {
-  console.log('Incoming request:', {
-    method: req.method,
-    path: req.path,
-    origin: req.headers.origin,
-    headers: req.headers,
-    timestamp: new Date().toISOString()
+  const startedAt = process.hrtime.bigint();
+  res.on('finish', () => {
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+    const level = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
+    logger[level]('http_request', {
+      method: req.method,
+      path: req.originalUrl,
+      status: res.statusCode,
+      durationMs: Math.round(durationMs),
+      origin: req.headers.origin
+    });
   });
   next();
 });
@@ -467,18 +474,11 @@ app.use('/api/showcase', showcaseRouter);
 
 // Add error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  console.error('Request details:', {
+  logger.error('unhandled_request_error', {
     method: req.method,
     path: req.path,
     origin: req.headers.origin,
-    headers: req.headers,
-    timestamp: new Date().toISOString()
-  });
-  console.error('Error details:', {
-    code: err.code,
-    message: err.message,
-    stack: err.stack
+    err
   });
   res.status(500).json({
     success: false,
