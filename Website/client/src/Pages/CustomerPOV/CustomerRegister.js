@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../../api";
-import config from "../../config";
 import "./CustomerRegister.css";
 import TopbarCustomer from "../../Components/TopbarCustomer";
+import { useAuth } from "../../Context/AuthContext";
 
 function debounce(func, delay) {
   let timeoutId;
@@ -17,43 +17,26 @@ function debounce(func, delay) {
 
 function CustomerRegister() {
   const [formData, setFormData] = useState({
-    username: "",
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
-    phone_number: "",
-    address: ""
   });
-  const [profilePicture, setProfilePicture] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordMatchError, setPasswordMatchError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [emailError, setEmailError] = useState("");
-  const [nameError, setNameError] = useState("");
-  const [usernameError, setUsernameError] = useState("");
-  const [checkingUsername, setCheckingUsername] = useState(false);
-  const [verificationSent, setVerificationSent] = useState(false);
-  const [phoneError, setPhoneError] = useState("");
 
+  const { login } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (formData.confirmPassword && formData.password !== formData.confirmPassword) {
-      setPasswordMatchError("Passwords do not match");
-    } else {
-      setPasswordMatchError("");
-    }
-  }, [formData.password, formData.confirmPassword]);
 
   const checkEmailExists = debounce(async (email) => {
     if (!email) return;
     try {
       setCheckingEmail(true);
-  const res = await api.get(`/api/auth/check-email`, {
+      const res = await api.get(`/api/auth/check-email`, {
         params: { email }
       });
 
@@ -67,29 +50,6 @@ function CustomerRegister() {
       setEmailError("Could not check email");
     } finally {
       setCheckingEmail(false);
-    }
-  }, 500);
-
-  // Name uniqueness check removed - multiple users can have the same name
-
-  const checkUsernameExists = debounce(async (username) => {
-    if (!username.trim()) return;
-    try {
-      setCheckingUsername(true);
-  const res = await api.get(`/api/auth/check-username`, {
-        params: { username: username.trim() }
-      });
-
-      if (res.data.exists) {
-        setUsernameError("Username is already taken");
-      } else {
-        setUsernameError("");
-      }
-    } catch (err) {
-      console.error("Username check failed:", err);
-      setUsernameError("Could not check username");
-    } finally {
-      setCheckingUsername(false);
     }
   }, 500);
 
@@ -121,62 +81,6 @@ function CustomerRegister() {
         setPasswordError("");
       }
     }
-
-    if (name === "name") {
-      // Name validation removed - multiple users can have the same name
-    }
-
-    if (name === "username") {
-      const usernamePattern = /^[a-zA-Z0-9_]{3,20}$/;
-      if (!usernamePattern.test(value)) {
-        setUsernameError("Username must be 3-20 characters and can only contain letters, numbers, and underscores");
-      } else {
-        setUsernameError("");
-        checkUsernameExists(value);
-      }
-    }
-
-    // Phone number validation for PH
-    if (name === "phone_number") {
-      // Allow only digits and optional leading +
-      let cleaned = value.replace(/[^\d+]/g, "");
-      // Only allow one leading +
-      if (cleaned.startsWith("++")) cleaned = cleaned.replace(/^\++/, "+");
-      // Limit to 13 chars (+639XXXXXXXXX) or 11 chars (09XXXXXXXXX)
-      if (cleaned.startsWith("+")) cleaned = cleaned.slice(0, 13);
-      else cleaned = cleaned.slice(0, 11);
-      // Set cleaned value
-      setFormData((prev) => ({ ...prev, [name]: cleaned }));
-      setError("");
-      // Validate PH number
-      if (
-        !(cleaned.match(/^09\d{9}$/) || cleaned.match(/^\+639\d{9}$/))
-      ) {
-        setPhoneError("Enter a valid PH mobile number (09XXXXXXXXX or +639XXXXXXXXX)");
-      } else {
-        setPhoneError("");
-      }
-      return;
-    }
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError("File size must be less than 5MB");
-        return;
-      }
-
-      if (!file.type.match(/^image\/(jpg|jpeg|png|gif)$/)) {
-        setError("Only image files (jpg, jpeg, png, gif) are allowed");
-        return;
-      }
-
-      setProfilePicture(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setError("");
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -190,49 +94,25 @@ function CustomerRegister() {
       return;
     }
 
-    // Phone number validation before submit
-    if (!formData.phone_number.match(/^09\d{9}$/) && !formData.phone_number.match(/^\+639\d{9}$/)) {
-      setError("Please enter a valid PH mobile number (09XXXXXXXXX or +639XXXXXXXXX)");
-      setLoading(false);
-      return;
-    }
-
     try {
-      console.log('Attempting customer registration (unified api instance)');
-      const formDataToSend = new FormData();
-      formDataToSend.append("name", formData.name);
-      formDataToSend.append("email", formData.email);
-      formDataToSend.append("password", formData.password);
-      formDataToSend.append("username", formData.username);
-      formDataToSend.append("phone_number", formData.phone_number);
-      formDataToSend.append("address", formData.address);
-      if (profilePicture) {
-        formDataToSend.append("profilePicture", profilePicture);
-      }
-
-      const response = await api.post(
-        `/api/auth/customer/register`,
-        formDataToSend,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      console.log("Registration response:", response.data);
+      const response = await api.post(`/api/auth/customer/register`, {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
 
       if (response.data.success) {
+        // Account is created and usable right away, even unverified — the OTP
+        // check only happens later, at order time.
         localStorage.setItem("verificationEmail", formData.email);
-        navigate("/customer/verify");
+        login(response.data.customer, response.data.token, 'customer');
+        navigate("/customer-home");
       }
     } catch (err) {
       const message = err.response?.data?.message;
 
       if (message === "Email already registered") {
         setEmailError(message);
-      } else if (message === "Username already taken") {
-        setUsernameError(message);
       } else {
         setError(message || "Registration failed. Please try again.");
       }
@@ -248,26 +128,7 @@ function CustomerRegister() {
         <h2>Create Your Account</h2>
         <p className="register-subtitle">Join Pensée Gifting Studio and start curating thoughtful gifts</p>
         {error && <div className="error-message">{error}</div>}
-        {verificationSent && (
-          <div className="success-message">
-            Registration successful! Please check your email for verification.
-          </div>
-        )}
         <form onSubmit={handleSubmit} className="register-form">
-          <div className="form-group">
-            <label htmlFor="username">Username:</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-            />
-            {checkingUsername && <small>Checking username...</small>}
-            {usernameError && <div className="error-message">{usernameError}</div>}
-          </div>
-
           <div className="form-group">
             <label htmlFor="name">Full Name:</label>
             <input
@@ -278,7 +139,6 @@ function CustomerRegister() {
               onChange={handleChange}
               required
             />
-            {nameError && <div className="error-message">{nameError}</div>}
           </div>
 
           <div className="form-group">
@@ -322,50 +182,6 @@ function CustomerRegister() {
             />
             {passwordMatchError && (
               <div className="error-message">{passwordMatchError}</div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="phone_number">Phone Number:</label>
-            <input
-              type="tel"
-              id="phone_number"
-              name="phone_number"
-              value={formData.phone_number}
-              onChange={handleChange}
-              required
-              pattern="(09\d{9}|\+639\d{9})"
-              placeholder="09XXXXXXXXX or +639XXXXXXXXX"
-              maxLength={13}
-            />
-            {phoneError && <div className="error-message">{phoneError}</div>}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="address">Address:</label>
-            <input
-              type="text"
-              id="address"
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              required
-              placeholder="Enter your address"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="profilePicture">Profile Picture:</label>
-            <input
-              type="file"
-              id="profilePicture"
-              accept="image/*"
-              onChange={handleFileChange}
-            />
-            {previewUrl && (
-              <div className="preview-container">
-                <img src={previewUrl} alt="Preview" className="preview-image" />
-              </div>
             )}
           </div>
 

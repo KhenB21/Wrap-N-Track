@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './TopbarCustomer.css';
 import { useAuth } from '../Context/AuthContext';
+import { useAuthModal } from '../Context/AuthModalContext';
 import { useCart } from '../Context/CartContext';
 import ZapierChatbotEmbed from './ZapierChatbotEmbed';
 
@@ -19,9 +20,11 @@ export default function TopbarCustomer() {
   const navigate = useNavigate();
   const dropdownRef = useRef();
   const { user, isAuthenticated, logout } = useAuth();
+  const { openLogin, openRegister } = useAuthModal();
   const { itemCount } = useCart();
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -77,8 +80,15 @@ export default function TopbarCustomer() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 24);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <header className="topbar-customer">
+    <header className={`topbar-customer${scrolled ? ' scrolled' : ''}`}>
       <nav className="topbar-customer-nav">
         {/* Mobile Hamburger Menu Button */}
         <button 
@@ -141,16 +151,17 @@ export default function TopbarCustomer() {
           )}
           {!isAuthenticated ? (
             <>
-              <Link
-                to="/customer-register"
-                className={`topbar-customer-link${location.pathname === '/customer-register' ? ' active' : ''}`}
+              <button
+                className="topbar-customer-link"
+                style={{ background: 'none', border: 'none', padding: '9px 16px', margin: 0, cursor: 'pointer' }}
+                onClick={openRegister}
               >
                 REGISTER
-              </Link>
+              </button>
               <button
-                className={`topbar-customer-link${location.pathname === '/customer-login' ? ' active' : ''}`}
-                style={{ background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
-                onClick={() => navigate('/customer-login')}
+                className="topbar-customer-link"
+                style={{ background: 'none', border: 'none', padding: '9px 16px', margin: 0, cursor: 'pointer' }}
+                onClick={openLogin}
               >
                 LOG IN
               </button>
@@ -220,20 +231,20 @@ export default function TopbarCustomer() {
           )}
           {!isAuthenticated ? (
             <>
-              <Link
-                to="/customer-register"
-                className={`topbar-customer-link${location.pathname === '/customer-register' ? ' active' : ''}`}
-                onClick={() => setMobileMenuOpen(false)}
+              <button
+                className="topbar-customer-link"
+                style={{ background: 'none', border: 'none', padding: '0.6rem 0.75rem', margin: 0, cursor: 'pointer', width: '100%', textAlign: 'left' }}
+                onClick={() => { setMobileMenuOpen(false); openRegister(); }}
               >
                 REGISTER
-              </Link>
-              <Link
-                to="/customer-login"
-                className={`topbar-customer-link${location.pathname === '/customer-login' ? ' active' : ''}`}
-                onClick={() => setMobileMenuOpen(false)}
+              </button>
+              <button
+                className="topbar-customer-link"
+                style={{ background: 'none', border: 'none', padding: '0.6rem 0.75rem', margin: 0, cursor: 'pointer', width: '100%', textAlign: 'left' }}
+                onClick={() => { setMobileMenuOpen(false); openLogin(); }}
               >
                 LOG IN
-              </Link>
+              </button>
             </>
           ) : (
             <>

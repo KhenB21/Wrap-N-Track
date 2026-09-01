@@ -154,15 +154,35 @@ export default function UserFormModal({ mode, user, roles, onClose, onSaved }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const isValid = useMemo(() => {
-    if (!formData.first_name.trim() || !formData.last_name.trim() || !formData.role) return false;
-    if (!formData.email.trim() || !EMAIL_REGEX.test(formData.email)) return false;
-    if (availability.emailTaken || availability.usernameTaken) return false;
+  // Human-readable list of everything still missing/invalid, shown next to the
+  // submit button so a disabled "Create User" isn't a mystery.
+  const missingReasons = useMemo(() => {
+    const reasons = [];
+    if (!formData.first_name.trim()) reasons.push('First name');
+    if (!formData.last_name.trim()) reasons.push('Last name');
+    if (!formData.email.trim()) reasons.push('Email address');
+    else if (!EMAIL_REGEX.test(formData.email)) reasons.push('A valid email address');
+    else if (availability.emailTaken) reasons.push('A different email (already in use)');
+    if (formData.username && availability.usernameTaken) reasons.push('A different username (already taken)');
+    if (!formData.role) reasons.push('Role');
+
     const pw = passwordData.password;
-    if (!isEdit && !pw) return false;
-    if (pw && (pw !== passwordData.confirmPassword || scorePasswordStrength(pw) < 2)) return false;
-    return true;
+    const confirmPw = passwordData.confirmPassword;
+    if (!isEdit && !pw) {
+      reasons.push('Password');
+    } else if (pw) {
+      if (scorePasswordStrength(pw) < 2) reasons.push('A stronger password');
+      if (!confirmPw) reasons.push('Confirm password');
+      else if (pw !== confirmPw) reasons.push('Matching passwords (they don’t match)');
+    }
+
+    return reasons;
   }, [formData, passwordData, availability, isEdit]);
+
+  const isValid = missingReasons.length === 0;
+
+  const passwordsMismatch = !!passwordData.password && !!passwordData.confirmPassword
+    && passwordData.password !== passwordData.confirmPassword;
 
   const handleSubmitClick = (e) => {
     e.preventDefault();
@@ -397,7 +417,7 @@ export default function UserFormModal({ mode, user, roles, onClose, onSaved }) {
           <section className="user-form-section">
             <h3 className="user-form-section-title">Security</h3>
             {isEdit && <p className="user-form-hint">Leave both fields blank to keep the current password.</p>}
-            <div className="user-form-grid">
+            <div className="user-form-password-stack">
               <div className="form-group">
                 <label>{isEdit ? 'New Password' : 'Password'} {!isEdit && <span className="required-asterisk">*</span>}</label>
                 <div className="password-input-wrap">
@@ -430,7 +450,7 @@ export default function UserFormModal({ mode, user, roles, onClose, onSaved }) {
                     onChange={(e) => setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                     placeholder="Re-enter password"
                     autoComplete="new-password"
-                    className={errors.confirmPassword ? 'input-error' : ''}
+                    className={errors.confirmPassword || passwordsMismatch ? 'input-error' : ''}
                   />
                   <button
                     type="button"
@@ -442,7 +462,13 @@ export default function UserFormModal({ mode, user, roles, onClose, onSaved }) {
                     {visibility.confirmPassword ? '🙈' : '👁'}
                   </button>
                 </div>
-                {errors.confirmPassword && <p className="field-hint hint-error">{errors.confirmPassword}</p>}
+                {errors.confirmPassword ? (
+                  <p className="field-hint hint-error">{errors.confirmPassword}</p>
+                ) : passwordsMismatch ? (
+                  <p className="field-hint hint-error">Passwords do not match</p>
+                ) : passwordData.confirmPassword && passwordData.password === passwordData.confirmPassword ? (
+                  <p className="field-hint hint-success">✓ Passwords match</p>
+                ) : null}
               </div>
             </div>
             <PasswordStrengthMeter password={passwordData.password} showRequirements />
@@ -472,6 +498,12 @@ export default function UserFormModal({ mode, user, roles, onClose, onSaved }) {
               </div>
             </div>
           </section>
+
+          {!isValid && missingReasons.length > 0 && (
+            <p className="user-form-missing-hint" role="status">
+              Still needed: {missingReasons.join(', ')}
+            </p>
+          )}
 
           <div className="user-form-actions">
             <button type="button" className="btn btn-secondary" onClick={handleCloseAttempt} disabled={submitting}>

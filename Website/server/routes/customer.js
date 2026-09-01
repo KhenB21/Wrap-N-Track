@@ -181,42 +181,39 @@ router.put('/profile', verifyToken, async (req, res) => {
       });
     }
 
-    if (!/^\+639\d{9}$/.test(phone_number || '')) {
+    // Phone/PSGC address fields are all optional here — the signup flow no
+    // longer collects them, and this endpoint also handles single-field edits
+    // (e.g. just updating "address") from the profile page, which don't send
+    // the rest. Only validate a field's format when it's actually provided.
+    if (phone_number && !/^(09\d{9}|\+639\d{9})$/.test(phone_number)) {
       return res.status(400).json({
         success: false,
-        message: 'Please enter a valid Philippine mobile number'
+        message: 'Please enter a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX)'
       });
     }
 
-    if (!house_street_number?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'House / Street Number is required'
-      });
-    }
-
-    if (!isValidRegion(region_code, region)) {
+    if (region_code && !isValidRegion(region_code, region)) {
       return res.status(400).json({
         success: false,
         message: 'Please select a valid region'
       });
     }
 
-    if (!isValidCity(region_code, city_code, city)) {
+    if (city_code && !isValidCity(region_code, city_code, city)) {
       return res.status(400).json({
         success: false,
         message: 'Please select a valid city'
       });
     }
 
-    if (!isValidBarangay(city_code, barangay_code, barangay)) {
+    if (barangay_code && !isValidBarangay(city_code, barangay_code, barangay)) {
       return res.status(400).json({
         success: false,
         message: 'Please select a valid barangay'
       });
     }
 
-    if (!/^\d{4}$/.test(postal_code || '')) {
+    if (postal_code && !/^\d{4}$/.test(postal_code)) {
       return res.status(400).json({
         success: false,
         message: 'Postal code must be 4 digits'
@@ -277,38 +274,40 @@ router.put('/profile', verifyToken, async (req, res) => {
       console.log('Verification code for new email:', verificationCode);
     }
 
-    const fullAddress = (address || [house_street_number.trim(), `Barangay ${barangay}`, city, region, postal_code].filter(Boolean).join(', ')).trim();
+    const addressParts = [house_street_number?.trim(), barangay ? `Barangay ${barangay}` : '', city, region, postal_code].filter(Boolean);
+    const fullAddress = address?.trim() || (addressParts.length ? addressParts.join(', ') : null);
+
     const result = await pool.query(
       `UPDATE customer_details
        SET name = $1,
            username = $2,
            email_address = $3,
-           phone_number = $4,
-           address = $5,
-           house_street_number = $6,
-           region = $7,
-           region_code = $8,
-           city = $9,
-           city_code = $10,
-           barangay = $11,
-           barangay_code = $12,
-           postal_code = $13
+           phone_number = COALESCE($4, phone_number),
+           address = COALESCE($5, address),
+           house_street_number = COALESCE($6, house_street_number),
+           region = COALESCE($7, region),
+           region_code = COALESCE($8, region_code),
+           city = COALESCE($9, city),
+           city_code = COALESCE($10, city_code),
+           barangay = COALESCE($11, barangay),
+           barangay_code = COALESCE($12, barangay_code),
+           postal_code = COALESCE($13, postal_code)
        WHERE customer_id = $14
        RETURNING *`,
       [
         name.trim(),
         username.trim(),
         email_address.trim(),
-        phone_number,
+        phone_number || null,
         fullAddress,
-        house_street_number.trim(),
-        region,
-        region_code,
-        city,
-        city_code,
-        barangay,
-        barangay_code,
-        postal_code,
+        house_street_number ? house_street_number.trim() : null,
+        region || null,
+        region_code || null,
+        city || null,
+        city_code || null,
+        barangay || null,
+        barangay_code || null,
+        postal_code || null,
         customerId
       ]
     );
@@ -537,6 +536,27 @@ router.post('/profile/address', verifyToken, async (req, res) => {
       success: false,
       message: 'Failed to save address'
     });
+  }
+});
+
+// Mark the authenticated customer as verified. Called after they successfully
+// complete the one-time-password check at order time (see /api/otp/verify-otp
+// + OrderProcess.js) — that OTP check proves email ownership, so once it
+// passes we don't need to make them repeat it on every future order.
+router.put('/mark-verified', verifyToken, async (req, res) => {
+  try {
+    const customerId = req.user.customer_id;
+    const result = await pool.query(
+      'UPDATE customer_details SET is_verified = true WHERE customer_id = $1 RETURNING customer_id, is_verified',
+      [customerId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
+    }
+    res.json({ success: true, is_verified: true });
+  } catch (error) {
+    console.error('Error marking customer verified:', error);
+    res.status(500).json({ success: false, message: 'Failed to update verification status' });
   }
 });
 

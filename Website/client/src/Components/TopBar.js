@@ -7,7 +7,7 @@ import { useAuth } from "../Context/AuthContext";
 import { useTheme } from "../Context/ThemeContext";
 import { useMobileNav } from "../Context/MobileNavContext";
 
-export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowStockProducts, searchValue = "", onSearchChange = () => {} }) {
+export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowStockProducts, searchValue = "", onSearchChange = () => {}, showSearch = true }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -96,13 +96,15 @@ export default function TopBar({ searchPlaceholder = "Search", avatarUrl, lowSto
         <span />
         <span />
       </button>
-      <input
-        className="dashboard-search"
-        type="text"
-        placeholder={searchPlaceholder}
-        value={searchValue}
-        onChange={onSearchChange}
-      />
+      {showSearch && (
+        <input
+          className="dashboard-search"
+          type="text"
+          placeholder={searchPlaceholder}
+          value={searchValue}
+          onChange={onSearchChange}
+        />
+      )}
       <div className="dashboard-topbar-icons">
         <NotificationContainer />
         <span 

@@ -299,7 +299,7 @@ export default function SalesReport() {
   };
 
   return (
-    <AppShell searchPlaceholder="Search orders..." contentClassName="sr-page-content">
+    <AppShell searchPlaceholder="Search orders..." contentClassName="sr-page-content" showSearch={false}>
       <div className="sr-content">
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="sr-header">

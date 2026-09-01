@@ -3,17 +3,23 @@ import "./styles/design-system.css";
 import { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./Context/AuthContext";
+import { AuthModalProvider } from "./Context/AuthModalContext";
 import { ThemeProvider } from "./Context/ThemeContext";
 import { MobileNavProvider } from "./Context/MobileNavContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { CartProvider } from "./Context/CartContext";
 import { ConfirmProvider } from "./Context/ConfirmContext";
+import AuthModal from "./Components/AuthModal";
 
 // Route-level code splitting: each page loads on demand instead of all being
 // bundled into one initial JS payload. Keeps heavy, rarely-visited pages
 // (report generation with xlsx/jspdf, barcode printing with bwip-js, employee
 // dashboards) out of the bundle a customer downloads just to view the home page.
 const Dashboard = lazy(() => import("./Pages/Dashboard/Dashboard"));
+const Overview = lazy(() => import("./Pages/Dashboard/Overview"));
+const Operations = lazy(() => import("./Pages/Dashboard/Operations"));
+const Supplier = lazy(() => import("./Pages/Dashboard/Supplier"));
+const Details = lazy(() => import("./Pages/Dashboard/Details"));
 const Login = lazy(() => import("./Pages/Login/Login"));
 const OrderDetails = lazy(() => import("./Pages/OrderDetails/OrderDetails"));
 const ProductDetails = lazy(() => import("./Pages/ProductDetails/ProductDetails"));
@@ -79,15 +85,22 @@ function App() {
   return (
     <ThemeProvider>
     <AuthProvider>
+    <AuthModalProvider>
     <NotificationProvider>
     <CartProvider>
     <ConfirmProvider>
     <Router>
       <MobileNavProvider>
       <Suspense fallback={<RouteFallback />}>
+      <AuthModal />
       <Routes>
         <Route path="/" element={<CustomerHome />} />
-        <Route path="/employee-dashboard" element={<Dashboard />} />
+        <Route path="/employee-dashboard" element={<Overview />} />
+        <Route path="/employee-dashboard/overview" element={<Overview />} />
+        <Route path="/employee-dashboard/operations" element={<Operations />} />
+        <Route path="/employee-dashboard/supplier" element={<Supplier />} />
+        <Route path="/employee-dashboard/details" element={<Details />} />
+        <Route path="/employee-dashboard/legacy" element={<Dashboard />} />
         <Route path="/login-employee-pensee" element={<Login />} />
         <Route path="/product-details" element={<ProductDetails />} />
         <Route path="/product-details/:sku" element={<ProductDetails />} />
@@ -154,6 +167,7 @@ function App() {
     </ConfirmProvider>
     </CartProvider>
     </NotificationProvider>
+    </AuthModalProvider>
     </AuthProvider>
     </ThemeProvider>
   );

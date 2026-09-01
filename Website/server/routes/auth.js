@@ -4,23 +4,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
 const crypto = require('crypto');
-const multer = require('multer');
 // Use centralized pool from config/db to avoid undefined imports
 const pool = require('../config/db');
-const { isValidRegion, isValidCity, isValidBarangay } = require('../data/philippineLocations');
 // dotenv is loaded once at startup in index.js — no second call needed here.
-
-// Configure multer for memory storage
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: function (req, file, cb) {
-    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-      return cb(new Error('Only image files are allowed!'), false);
-    }
-    cb(null, true);
-  }
-});
 
 // Resend email client
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -51,112 +37,53 @@ const generateVerificationCode = () => {
 // Store verification codes (in production, use Redis or a database)
 const verificationCodes = new Map();
 
-// Register customer
-router.post('/customer/register', upload.single('profilePicture'), async (req, res) => {
-  console.log('Registration request received:', {
-    body: req.body,
-    file: req.file ? {
-      fieldname: req.file.fieldname,
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size
-    } : 'No file uploaded'
-  });
+// Derives a unique login username from the customer's email since the login
+// flow still looks accounts up by username — the simplified signup form only
+// collects name/email/password, so this keeps the DB/login contract intact
+// without exposing a username field to the user.
+async function generateUniqueUsername(email) {
+  const base = String(email).split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16) || 'user';
+  let candidate = base;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const existing = await pool.query('SELECT 1 FROM customer_details WHERE username = $1', [candidate]);
+    if (existing.rows.length === 0) return candidate;
+    candidate = `${base}${Math.floor(1000 + Math.random() * 9000)}`;
+  }
+  // Extremely unlikely fallback if 20 random suffixes all collided.
+  return `${base}${Date.now()}`;
+}
 
-  const {
-    username,
-    name,
-    first_name,
-    last_name,
-    email,
-    password,
-    phone_number,
-    house_street_number,
-    region,
-    region_code,
-    city,
-    city_code,
-    barangay,
-    barangay_code,
-    postal_code,
-  } = req.body;
+// Register customer
+// Simplified, minimal signup: name, email, password only. Everything else
+// (phone, address, region/city/barangay, profile picture) is collected later
+// — address at checkout time (see requireVerifiedCustomer in customer-orders.js),
+// and the rest from the profile page. Accounts start unverified; verification
+// is enforced only when the customer tries to place an order, not at signup.
+router.post('/customer/register', async (req, res) => {
+  const { name, email, password } = req.body;
 
   const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-  const phoneRegex = /^\+639\d{9}$/;
-  const postalRegex = /^\d{4}$/;
-  const fullName = (name || [first_name, last_name].filter(Boolean).join(' ')).trim();
-  const generatedAddress = [
-    house_street_number?.trim(),
-    barangay ? `Barangay ${barangay}` : '',
-    city,
-    region,
-    postal_code,
-  ].filter(Boolean).join(', ');
+  const fullName = String(name || '').trim();
 
-  if (!username?.trim() || !fullName || !password) {
-    return res.status(400).json({ success: false, message: 'Please complete all required account fields.' });
+  if (!fullName) {
+    return res.status(400).json({ success: false, message: 'Please enter your name.' });
   }
 
   if (!emailRegex.test(String(email || '').trim())) {
     return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
   }
 
-  if (!phoneRegex.test(String(phone_number || '').trim())) {
-    return res.status(400).json({ success: false, message: 'Please enter a valid Philippine mobile number.' });
-  }
-
-  if (!house_street_number?.trim()) {
-    return res.status(400).json({ success: false, message: 'House / Street Number is required.' });
-  }
-
-  if (!isValidRegion(region_code, region)) {
-    return res.status(400).json({ success: false, message: 'Please select a valid region from the list.' });
-  }
-
-  if (!isValidCity(region_code, city_code, city)) {
-    return res.status(400).json({ success: false, message: 'Please select a valid city from the selected region.' });
-  }
-
-  if (!isValidBarangay(city_code, barangay_code, barangay)) {
-    return res.status(400).json({ success: false, message: 'Please select a valid barangay from the selected city.' });
-  }
-
-  if (!postalRegex.test(String(postal_code || '').trim())) {
-    return res.status(400).json({ success: false, message: 'Postal code must be 4 digits.' });
-  }
-
-  let profilePictureData = null;
-
-  if (req.file) {
-    profilePictureData = req.file.buffer;
+  const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+  if (!passwordPattern.test(String(password || ''))) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password must be at least 8 characters and include at least 1 uppercase, 1 lowercase, 1 number, and 1 symbol.'
+    });
   }
 
   try {
-    await pool.query(`
-      ALTER TABLE customer_details
-      ADD COLUMN IF NOT EXISTS house_street_number TEXT,
-      ADD COLUMN IF NOT EXISTS region VARCHAR(100),
-      ADD COLUMN IF NOT EXISTS region_code VARCHAR(20),
-      ADD COLUMN IF NOT EXISTS city VARCHAR(100),
-      ADD COLUMN IF NOT EXISTS city_code VARCHAR(20),
-      ADD COLUMN IF NOT EXISTS barangay VARCHAR(100),
-      ADD COLUMN IF NOT EXISTS barangay_code VARCHAR(20),
-      ADD COLUMN IF NOT EXISTS postal_code VARCHAR(4)
-    `);
-
-    console.log('Checking if username exists:', username);
-    const usernameCheck = await pool.query(
-      'SELECT * FROM customer_details WHERE username = $1',
-      [username.trim()]
-    );
-
-    if (usernameCheck.rows.length > 0) {
-      return res.status(400).json({ success: false, message: 'Username already taken' });
-    }
-
-    console.log('Checking if email exists:', email);
     const emailCheck = await pool.query(
-      'SELECT * FROM customer_details WHERE email_address = $1',
+      'SELECT 1 FROM customer_details WHERE email_address = $1',
       [email.trim()]
     );
 
@@ -164,32 +91,21 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
       return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    console.log('Hashing password...');
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
+    const username = await generateUniqueUsername(email.trim());
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    console.log('Generating verification code...');
     const verificationCode = generateVerificationCode();
     verificationCodes.set(email.trim(), { code: verificationCode, timestamp: Date.now() });
 
-    console.log('Inserting new customer into database...');
     const result = await pool.query(
       `INSERT INTO customer_details (
-        username, name, email_address, password_hash, is_verified, profile_picture_data,
-        phone_number, address, house_street_number, region, region_code, city, city_code,
-        barangay, barangay_code, postal_code
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-      RETURNING customer_id, username, name, email_address, phone_number, address,
-        house_street_number, region, region_code, city, city_code, barangay, barangay_code, postal_code`,
-      [
-        username.trim(), fullName, email.trim(), passwordHash, true, profilePictureData,
-        phone_number.trim(), generatedAddress, house_street_number.trim(), region, region_code,
-        city, city_code, barangay, barangay_code, postal_code
-      ]
+        username, name, email_address, password_hash, is_verified
+      ) VALUES ($1, $2, $3, $4, false)
+      RETURNING customer_id, username, name, email_address, phone_number, address`,
+      [username, fullName, email.trim(), passwordHash]
     );
 
     try {
-      console.log('Sending verification email to:', email);
       await sendEmail({
         to: email.trim(),
         subject: 'Verify your email address',
@@ -200,18 +116,26 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
           <p>This code will expire in 10 minutes.</p>
         `
       });
-      console.log('Verification email sent successfully');
     } catch (emailError) {
-      console.error('Email sending error:', emailError);
-      console.log('Continuing with registration despite email error');
+      console.error('Verification email send failed (registration still succeeds):', emailError);
     }
 
     const newCustomer = result.rows[0];
-    console.log('Customer registered successfully:', newCustomer);
+
+    // Auto-login: the account exists and is usable immediately (unverified).
+    // Verification is only enforced later, when the customer tries to order.
+    const token = jwt.sign({
+      customer_id: newCustomer.customer_id,
+      username: newCustomer.username,
+      name: newCustomer.name,
+      email: newCustomer.email_address,
+      role: 'customer'
+    }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful. You can now log in.',
+      message: 'Registration successful.',
+      token,
       customer: {
         customer_id: newCustomer.customer_id,
         username: newCustomer.username,
@@ -219,25 +143,13 @@ router.post('/customer/register', upload.single('profilePicture'), async (req, r
         email: newCustomer.email_address,
         phone_number: newCustomer.phone_number,
         address: newCustomer.address,
-        house_street_number: newCustomer.house_street_number,
-        region: newCustomer.region,
-        region_code: newCustomer.region_code,
-        city: newCustomer.city,
-        city_code: newCustomer.city_code,
-        barangay: newCustomer.barangay,
-        barangay_code: newCustomer.barangay_code,
-        postal_code: newCustomer.postal_code
+        is_verified: false,
+        role: 'customer'
       }
     });
 
   } catch (error) {
-    console.error('Registration error details:', {
-      message: error.message,
-      stack: error.stack,
-      emailConfig: { hasResendKey: !!process.env.RESEND_API_KEY },
-      requestBody: { username: req.body.username, name: req.body.name, email: req.body.email, hasPassword: !!req.body.password },
-      databaseError: error.code === '23505' ? 'Unique constraint violation' : 'Other database error'
-    });
+    console.error('Registration error:', error);
     res.status(500).json({ success: false, message: 'Registration failed. Please try again.' });
   }
 });
@@ -351,9 +263,11 @@ router.post('/customer/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // 1. Try customer_details by username
+    // 1. Try customer_details by username OR email — signup only asks for an
+    // email (username is auto-generated and never shown), so login has to
+    // accept whichever identifier the customer actually has.
     const customerResult = await pool.query(
-      'SELECT * FROM customer_details WHERE username = $1',
+      'SELECT * FROM customer_details WHERE username = $1 OR LOWER(email_address) = LOWER($1)',
       [username]
     );
 

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -14,7 +14,67 @@ import {
 import { getChartColors, formatPeso, formatNum } from './chartUtils';
 import './Charts.css';
 
-const CustomTooltip = ({ active, payload, label, leftKey, rightKey, leftLabel, rightLabel, leftCurrency, rightCurrency }) => {
+const GRANULARITIES = [
+  { value: 'day', label: 'Daily' },
+  { value: 'week', label: 'Weekly' },
+  { value: 'month', label: 'Monthly' },
+];
+
+// `date` is expected to be anything `new Date()` can parse (an ISO 'YYYY-MM-DD'
+// string works). Callers that pass a pre-formatted display string (no year, e.g.
+// "Aug 1") only support the 'day' view correctly — weekly/monthly bucketing needs
+// a real calendar date to group by.
+function mondayOf(d) {
+  const day = d.getUTCDay();
+  const diffToMonday = (day === 0 ? -6 : 1) - day;
+  const monday = new Date(d);
+  monday.setUTCDate(d.getUTCDate() + diffToMonday);
+  return monday;
+}
+
+function bucketKey(dateStr, granularity) {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr; // not parseable — leave ungrouped
+  if (granularity === 'month') {
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`;
+  }
+  if (granularity === 'week') {
+    return mondayOf(d).toISOString().slice(0, 10);
+  }
+  return dateStr;
+}
+
+function formatLabel(dateStr, granularity) {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  if (granularity === 'month') {
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }
+  if (granularity === 'week') {
+    const end = new Date(d);
+    end.setUTCDate(d.getUTCDate() + 6);
+    return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}–${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  }
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// Sums leftKey/rightKey into weekly/monthly buckets. Forecast fields aren't
+// meaningful once aggregated (a forecast band spanning a bucket isn't a sum),
+// so they're dropped outside the 'day' view — the toggle only affects actuals.
+function aggregate(data, granularity, leftKey, rightKey) {
+  if (granularity === 'day') return data;
+  const buckets = new Map();
+  for (const row of data) {
+    const key = bucketKey(row.date, granularity);
+    const existing = buckets.get(key) || { date: key, [leftKey]: 0, ...(rightKey ? { [rightKey]: 0 } : {}) };
+    existing[leftKey] = (existing[leftKey] || 0) + (Number(row[leftKey]) || 0);
+    if (rightKey) existing[rightKey] = (existing[rightKey] || 0) + (Number(row[rightKey]) || 0);
+    buckets.set(key, existing);
+  }
+  return Array.from(buckets.values()).sort((a, b) => a.date < b.date ? -1 : 1);
+}
+
+const CustomTooltip = ({ active, payload, label, leftKey, rightKey, leftLabel, rightLabel, leftCurrency, rightCurrency, granularity }) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
@@ -27,7 +87,7 @@ const CustomTooltip = ({ active, payload, label, leftKey, rightKey, leftLabel, r
       boxShadow: 'var(--shadow-md)',
       minWidth: 160,
     }}>
-      <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text-soft)' }}>{label}</div>
+      <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text-soft)' }}>{formatLabel(label, granularity)}</div>
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
           <span style={{ width: 10, height: 10, borderRadius: 2, background: p.color, display: 'inline-block' }} />
@@ -62,8 +122,18 @@ export default function TrendChart({
   // instead of a second independently-scaled axis — a dual-axis chart would
   // let the two lines cross at points that don't reflect the real values.
   sameAxis = false,
+  // Show the Daily/Weekly/Monthly toggle. Off by default for charts that plot
+  // a forecast band or splitAt marker, since those only make sense per-day.
+  allowGranularity = !forecastKey && !splitAt,
 }) {
   const c = useMemo(() => getChartColors(), []);
+  const [granularity, setGranularity] = useState('day');
+
+  const displayData = useMemo(
+    () => allowGranularity ? aggregate(data, granularity, leftKey, rightKey) : data,
+    [data, granularity, leftKey, rightKey, allowGranularity]
+  );
+  const activeGranularity = allowGranularity ? granularity : 'day';
 
   const leftFmt = v => leftCurrency ? formatPeso(v) : formatNum(v);
   const rightFmt = v => rightCurrency ? formatPeso(v) : formatNum(v);
@@ -71,10 +141,24 @@ export default function TrendChart({
 
   return (
     <div>
+      {allowGranularity && (
+        <div className="chart-granularity-toggle" role="group" aria-label="Chart time grouping">
+          {GRANULARITIES.map(g => (
+            <button
+              key={g.value}
+              type="button"
+              className={`chart-granularity-btn${granularity === g.value ? ' active' : ''}`}
+              onClick={() => setGranularity(g.value)}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div role="figure" aria-label={ariaLabel} style={{ width: '100%', overflowX: 'auto' }}>
       <div style={{ minWidth: 320 }}>
         <ResponsiveContainer width="100%" height={height}>
-          <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+          <ComposedChart data={displayData} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={c.border} vertical={false} />
             <XAxis
               dataKey="date"
@@ -82,6 +166,7 @@ export default function TrendChart({
               tickLine={false}
               axisLine={{ stroke: c.border }}
               interval="preserveStartEnd"
+              tickFormatter={label => formatLabel(label, activeGranularity)}
             />
             <YAxis
               yAxisId="left"
@@ -112,6 +197,7 @@ export default function TrendChart({
                   rightLabel={rightLabel}
                   leftCurrency={leftCurrency}
                   rightCurrency={rightCurrency}
+                  granularity={activeGranularity}
                 />
               }
             />
@@ -120,7 +206,7 @@ export default function TrendChart({
             />
 
             {/* Forecast confidence band (shaded area, behind lines) */}
-            {forecastLower && forecastUpper && (
+            {activeGranularity === 'day' && forecastLower && forecastUpper && (
               <Area
                 yAxisId="left"
                 dataKey={forecastUpper}
@@ -134,7 +220,7 @@ export default function TrendChart({
                 tooltipType="none"
               />
             )}
-            {forecastLower && forecastUpper && (
+            {activeGranularity === 'day' && forecastLower && forecastUpper && (
               <Area
                 yAxisId="left"
                 dataKey={forecastLower}
@@ -162,7 +248,7 @@ export default function TrendChart({
             />
 
             {/* Forecast line — dashed */}
-            {forecastKey && (
+            {activeGranularity === 'day' && forecastKey && (
               <Line
                 yAxisId="left"
                 type="monotone"
@@ -191,7 +277,7 @@ export default function TrendChart({
               />
             )}
 
-            {splitAt && (
+            {activeGranularity === 'day' && splitAt && (
               <ReferenceLine
                 yAxisId="left"
                 x={splitAt}
@@ -204,9 +290,9 @@ export default function TrendChart({
         </ResponsiveContainer>
       </div>
       </div>
-      {data.length > 0 && (
-        <details className="chart-a11y-table">
-          <summary>View as table</summary>
+      {displayData.length > 0 && (
+        <details className="chart-a11y-table" open>
+          <summary>Data table</summary>
           <table>
             <thead>
               <tr>
@@ -216,9 +302,9 @@ export default function TrendChart({
               </tr>
             </thead>
             <tbody>
-              {data.map((row, i) => (
+              {displayData.map((row, i) => (
                 <tr key={i}>
-                  <td>{row.date}</td>
+                  <td>{formatLabel(row.date, activeGranularity)}</td>
                   {leftKey && <td className="chart-a11y-num">{leftCurrency ? formatPeso(row[leftKey]) : formatNum(row[leftKey])}</td>}
                   {rightKey && <td className="chart-a11y-num">{rightCurrency ? formatPeso(row[rightKey]) : formatNum(row[rightKey])}</td>}
                 </tr>

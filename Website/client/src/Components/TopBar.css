@@ -66,6 +66,10 @@
   align-items: center;
   gap: 20px;
   flex-shrink: 0;
+  /* Keeps icons pinned right even when the search input is hidden — with
+     justify-content:space-between on the parent, a single remaining flex
+     item (no search) would otherwise collapse to the left edge. */
+  margin-left: auto;
 }
 
 @media (max-width: 768px) {

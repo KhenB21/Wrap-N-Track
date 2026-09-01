@@ -339,7 +339,7 @@ function ShowcaseGallery() {
     <div className="sg-layout">
       <Sidebar />
       <div className="sg-main">
-        <TopBar />
+        <TopBar showSearch={false} />
 
         {toast && (
           <div className={`sg-toast ${toast.isError ? 'sg-toast--error' : 'sg-toast--success'}`}>

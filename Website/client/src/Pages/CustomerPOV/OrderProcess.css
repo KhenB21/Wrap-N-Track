@@ -257,3 +257,56 @@ label {
   transform: scale(1.05);
   border-color: #696a8f;
 }
+/* ── Modern date picker ───────────────────────────────────────────────────── */
+.op-date-input {
+  position: relative;
+  width: 100%;
+}
+
+.op-date-input input[type="date"] {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  color: #2c3e50;
+  background: #fff;
+  accent-color: #696a8f;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.op-date-input input[type="date"]:hover {
+  border-color: #b8b8cf;
+}
+
+.op-date-input input[type="date"]:focus {
+  outline: none;
+  border-color: #696a8f;
+  box-shadow: 0 0 0 3px rgba(105, 106, 143, 0.15);
+}
+
+.op-date-input input[type="date"].op-date-error {
+  border-color: #b0413e;
+}
+
+.op-date-input input[type="date"].op-date-error:focus {
+  box-shadow: 0 0 0 3px rgba(176, 65, 62, 0.15);
+}
+
+/* WebKit's built-in calendar icon — recolor to match the theme instead of
+   the default black/gray, and give it a bit more click area. */
+.op-date-input input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(38%) sepia(9%) saturate(1116%) hue-rotate(202deg) brightness(90%) contrast(88%);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.op-date-input input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  background: #f0f0f5;
+}

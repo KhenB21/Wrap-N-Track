@@ -6,6 +6,7 @@ import { useMobileNav } from "../../Context/MobileNavContext";
 
 const Sidebar = () => {
   const [reportsOpen, setReportsOpen] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { isOpen, close } = useMobileNav();
@@ -32,7 +33,7 @@ const Sidebar = () => {
       dashboard: true, inventory: false, orders: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false, showcaseGallery: false,
     },
     creatives: {
-      dashboard: true, inventory: true, orders: false, reports: true, customers: false, suppliers: false, orderHistory: false, accountManagement: false, showcaseGallery: true,
+      dashboard: false, inventory: true, orders: false, reports: false, customers: false, suppliers: false, orderHistory: false, accountManagement: false, showcaseGallery: true,
     },
     sales_manager: {
       dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: false, showcaseGallery: true,
@@ -73,11 +74,21 @@ const Sidebar = () => {
       <nav className="sidebar-nav">
         <ul>
           {permissions.dashboard && (
-            <li>
-              <Link to="/employee-dashboard">
+            <li className={`dropdown ${dashboardOpen ? "open" : ""}`}>
+              <div
+                className="dropdown-header"
+                onClick={() => setDashboardOpen(!dashboardOpen)}
+              >
                 <span className="icon">📊</span>
                 <span className="text">Dashboard</span>
-              </Link>
+                <span className="arrow">{dashboardOpen ? "▼" : "▶"}</span>
+              </div>
+              <ul className="dropdown-menu">
+                <li><Link to="/employee-dashboard/overview">Overview</Link></li>
+                <li><Link to="/employee-dashboard/operations">Operations</Link></li>
+                <li><Link to="/employee-dashboard/supplier">Supplier</Link></li>
+                <li><Link to="/employee-dashboard/details">Details</Link></li>
+              </ul>
             </li>
           )}
           {permissions.inventory && (
