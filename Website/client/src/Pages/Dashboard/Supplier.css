@@ -1,0 +1,24 @@
+/* ── Supplier: extras on top of the shared ov-* layout from Overview.css ── */
+.sup-status-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sup-status-critical {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+}
+
+.sup-status-warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning);
+}
+
+.sup-status-ok {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success);
+}

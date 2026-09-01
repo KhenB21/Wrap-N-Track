@@ -1,0 +1,24 @@
+/* ── Operations: extras on top of the shared ov-* layout from Overview.css ── */
+.ops-status-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ops-status-critical {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+}
+
+.ops-status-warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning);
+}
+
+.ops-status-ok {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success);
+}

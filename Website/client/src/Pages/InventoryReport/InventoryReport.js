@@ -471,7 +471,7 @@ export default function InventoryReport() {
 
   if (loading) {
     return (
-      <AppShell>
+      <AppShell showSearch={false}>
         <div className="loading">Loading inventory report...</div>
       </AppShell>
     );

@@ -6,7 +6,7 @@
 }
 
 .chart-a11y-table summary {
-  cursor: pointer;
+  cursor: default;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -16,12 +16,18 @@
   background: var(--surface-muted, #f1f5f9);
   color: var(--text-muted);
   font-size: 11px;
+  font-weight: 600;
   user-select: none;
 }
 
-.chart-a11y-table summary:hover {
-  background: var(--hover);
-  color: var(--text);
+/* Always expanded (see `open` attr on <details>) — hide the collapse triangle
+   so it doesn't look like an interactive toggle it no longer is. */
+.chart-a11y-table summary::-webkit-details-marker {
+  display: none;
+}
+
+.chart-a11y-table summary {
+  list-style: none;
 }
 
 .chart-a11y-table table {
@@ -55,4 +61,35 @@
 .chart-a11y-num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Daily/Weekly/Monthly toggle (TrendChart) ────────────────────────────── */
+.chart-granularity-toggle {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.chart-granularity-btn {
+  background: var(--surface-muted, #f1f5f9);
+  border: 1px solid transparent;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.chart-granularity-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.chart-granularity-btn.active {
+  background: var(--brand);
+  color: #fff;
+  font-weight: 600;
 }

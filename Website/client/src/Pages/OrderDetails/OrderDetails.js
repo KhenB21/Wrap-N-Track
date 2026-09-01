@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Sidebar from "../../Components/Sidebar/Sidebar";
@@ -275,6 +275,7 @@ export default function OrderDetails() {
   const [readyToDeliverOrders, setReadyToDeliverOrders] = useState([]);
   const [enRouteOrders, setEnRouteOrders] = useState([]);
   const [completedOrders, setCompletedOrders] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   // Removed "More" modal for now per request
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({
@@ -604,12 +605,28 @@ export default function OrderDetails() {
     }
   };
 
+  const matchesSearch = useCallback((order) => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return true;
+    return (order.order_id || '').toLowerCase().includes(q)
+      || (order.name || '').toLowerCase().includes(q)
+      || (order.customer_name || '').toLowerCase().includes(q);
+  }, [searchTerm]);
+
+  const filteredPendingOrders = useMemo(() => pendingOrders.filter(matchesSearch), [pendingOrders, matchesSearch]);
+  const filteredToBePackOrders = useMemo(() => toBePackOrders.filter(matchesSearch), [toBePackOrders, matchesSearch]);
+  const filteredReadyToDeliverOrders = useMemo(() => readyToDeliverOrders.filter(matchesSearch), [readyToDeliverOrders, matchesSearch]);
 
   return (
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar avatarUrl={getProfilePictureUrl()} />
+        <TopBar
+          avatarUrl={getProfilePictureUrl()}
+          searchPlaceholder="Search orders by ID or customer..."
+          searchValue={searchTerm}
+          onSearchChange={(e) => setSearchTerm(e.target.value)}
+        />
         
         {/* Action Bar */}
         <div className="od-action-bar" style={styles.actionBar}>
@@ -630,7 +647,7 @@ export default function OrderDetails() {
           <div className="od-column" style={styles.column}>
             <div className="od-column-header" style={styles.columnHeader}>
               <h3 className="od-column-title" style={styles.columnTitle}>Pending Orders</h3>
-              <span className="od-order-count" style={styles.orderCount}>{pendingOrders.length}</span>
+              <span className="od-order-count" style={styles.orderCount}>{filteredPendingOrders.length}</span>
             </div>
             <div style={styles.orderList}>
               {loading ? (
@@ -643,10 +660,10 @@ export default function OrderDetails() {
                     </div>
                   </div>
                 ))
-              ) : pendingOrders.length === 0 ? (
-                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
+              ) : filteredPendingOrders.length === 0 ? (
+                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>{searchTerm ? 'No matching orders' : 'No orders found'}</div>
               ) : (
-                pendingOrders.map(order => (
+                filteredPendingOrders.map(order => (
                   <div 
                     key={order.order_id} 
                     className="od-order-card"
@@ -674,7 +691,7 @@ export default function OrderDetails() {
           <div className="od-column" style={styles.column}>
             <div className="od-column-header" style={styles.columnHeader}>
               <h3 className="od-column-title" style={styles.columnTitle}>To Be Packed</h3>
-              <span className="od-order-count" style={styles.orderCount}>{toBePackOrders.length}</span>
+              <span className="od-order-count" style={styles.orderCount}>{filteredToBePackOrders.length}</span>
             </div>
             <div style={styles.orderList}>
               {loading ? (
@@ -687,10 +704,10 @@ export default function OrderDetails() {
                     </div>
                   </div>
                 ))
-              ) : toBePackOrders.length === 0 ? (
-                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
+              ) : filteredToBePackOrders.length === 0 ? (
+                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>{searchTerm ? 'No matching orders' : 'No orders found'}</div>
               ) : (
-                toBePackOrders.map(order => (
+                filteredToBePackOrders.map(order => (
                   <div 
                     key={order.order_id} 
                     className="od-order-card"
@@ -718,7 +735,7 @@ export default function OrderDetails() {
           <div className="od-column" style={styles.column}>
             <div className="od-column-header" style={styles.columnHeader}>
               <h3 className="od-column-title" style={styles.columnTitle}>Ready for Delivery</h3>
-              <span className="od-order-count" style={styles.orderCount}>{readyToDeliverOrders.length}</span>
+              <span className="od-order-count" style={styles.orderCount}>{filteredReadyToDeliverOrders.length}</span>
             </div>
             <div style={styles.orderList}>
               {loading ? (
@@ -731,10 +748,10 @@ export default function OrderDetails() {
                     </div>
                   </div>
                 ))
-              ) : readyToDeliverOrders.length === 0 ? (
-                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>No orders found</div>
+              ) : filteredReadyToDeliverOrders.length === 0 ? (
+                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>{searchTerm ? 'No matching orders' : 'No orders found'}</div>
               ) : (
-                readyToDeliverOrders.map(order => (
+                filteredReadyToDeliverOrders.map(order => (
                   <div 
                     key={order.order_id} 
                     className="od-order-card"

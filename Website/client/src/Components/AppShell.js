@@ -16,7 +16,8 @@ export default function AppShell({
   onSearchChange,
   avatarUrl,
   lowStockProducts,
-  contentClassName = ''
+  contentClassName = '',
+  showSearch = true
 }) {
   return (
     <div className="dashboard-container">
@@ -28,6 +29,7 @@ export default function AppShell({
           onSearchChange={onSearchChange}
           avatarUrl={avatarUrl}
           lowStockProducts={lowStockProducts}
+          showSearch={showSearch}
         />
         <div className={`ui-page-content ${contentClassName}`.trim()}>
           {children}

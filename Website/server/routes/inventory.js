@@ -127,6 +127,20 @@ const requireInventoryStaff = (req, res, next) => {
   next();
 };
 
+// Roles that may view inventory (via optionalVerifyToken) but never mutate it.
+const readOnlyInventoryRoles = new Set(['creatives', 'packer']);
+
+const requireInventoryWrite = (req, res, next) => {
+  const role = String(req.user?.role || '').toLowerCase();
+  if (readOnlyInventoryRoles.has(role)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Your role has read-only access to inventory.'
+    });
+  }
+  next();
+};
+
 const toBoolean = (value) => value === 'true' || value === true;
 
 const getActor = (req) => {
@@ -487,7 +501,7 @@ router.get('/:sku', async (req, res) => {
 });
 
 // POST /api/inventory/add-stock - Add stock to existing item
-router.post('/add-stock', optionalVerifyToken, async (req, res) => {
+router.post('/add-stock', optionalVerifyToken, requireInventoryWrite, async (req, res) => {
   const { sku, quantity, reason, source } = req.body;
 
   console.log('Add stock request received:', { sku, quantity, reason });
@@ -569,7 +583,7 @@ router.post('/add-stock', optionalVerifyToken, async (req, res) => {
 });
 
 // POST /api/inventory/stock-out - Deduct stock from an existing item
-router.post('/stock-out', optionalVerifyToken, async (req, res) => {
+router.post('/stock-out', optionalVerifyToken, requireInventoryWrite, async (req, res) => {
   const { sku, quantity, reason, source } = req.body;
   const movementQuantity = Number(quantity);
 
@@ -652,7 +666,7 @@ router.post('/stock-out', optionalVerifyToken, async (req, res) => {
 });
 
 // POST /api/inventory - Create new inventory item OR update existing item
-router.post('/', optionalVerifyToken, upload.single('image'), async (req, res) => {
+router.post('/', optionalVerifyToken, requireInventoryWrite, upload.single('image'), async (req, res) => {
   const {
     sku,
     name,
@@ -888,7 +902,7 @@ router.post('/', optionalVerifyToken, upload.single('image'), async (req, res) =
 });
 
 // PUT /api/inventory/:sku - Update inventory item
-router.put('/:sku', optionalVerifyToken, async (req, res) => {
+router.put('/:sku', optionalVerifyToken, requireInventoryWrite, async (req, res) => {
   const { sku } = req.params;
   const { name, description, category, quantity, unit_price, image_data, supplier_id, uom, conversion_qty, expirable, expiration, reorder_level } = req.body;
 
@@ -999,7 +1013,7 @@ router.put('/:sku', optionalVerifyToken, async (req, res) => {
 });
 
 // DELETE /api/inventory/:sku - Delete inventory item
-router.delete('/:sku', optionalVerifyToken, async (req, res) => {
+router.delete('/:sku', optionalVerifyToken, requireInventoryWrite, async (req, res) => {
   const { sku } = req.params;
   const client = await pool.connect();
 
@@ -1059,7 +1073,7 @@ router.delete('/:sku', optionalVerifyToken, async (req, res) => {
 });
 
 // PATCH /api/inventory/:sku/restore - Restore soft-deleted inventory item
-router.patch('/:sku/restore', optionalVerifyToken, async (req, res) => {
+router.patch('/:sku/restore', optionalVerifyToken, requireInventoryWrite, async (req, res) => {
   const { sku } = req.params;
 
   try {
@@ -1095,7 +1109,7 @@ router.patch('/:sku/restore', optionalVerifyToken, async (req, res) => {
 });
 
 // DELETE /api/inventory/:sku/permanent - Permanently remove an archived inventory item
-router.delete('/:sku/permanent', optionalVerifyToken, async (req, res) => {
+router.delete('/:sku/permanent', optionalVerifyToken, requireInventoryWrite, async (req, res) => {
   const { sku } = req.params;
   const client = await pool.connect();
 

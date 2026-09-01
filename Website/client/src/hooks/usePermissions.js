@@ -5,7 +5,7 @@ const rolePermissions = {
   admin: { inventory: true, invoices: true, deliveryTracking: true, suppliers: true, accountManagement: true, reports: true, readOnly: false },
   director: { inventory: true, suppliers: true, accountManagement: true, reports: true, readOnly: false },
   business_developer: { inventory: false, suppliers: true, accountManagement: false, reports: true, readOnly: false },
-  creatives: { inventory: true, suppliers: false, accountManagement: false, reports: true, readOnly: false },
+  creatives: { inventory: true, suppliers: false, accountManagement: false, reports: false, readOnly: true },
   sales_manager: { inventory: true, invoices: true, deliveryTracking: true, suppliers: true, accountManagement: false, reports: true, readOnly: false },
   assistant_sales: { inventory: true, suppliers: true, accountManagement: false, reports: true, readOnly: false },
   packer: { inventory: true, suppliers: false, accountManagement: false, reports: true, readOnly: true },

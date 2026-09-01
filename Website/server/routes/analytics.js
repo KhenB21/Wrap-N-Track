@@ -598,6 +598,199 @@ router.get('/inventory-health', async (req, res) => {
   }
 });
 
+// GET /api/analytics/inventory-operations
+// Backs the employee Operations dashboard: replenishment KPIs, a monthly
+// units-received trend, an inventory-health distribution, the list of SKUs
+// needing replenishment, and current-stock-vs-reorder-point for the most
+// at-risk SKUs. Reuses the same reorder-point formula as the work queue /
+// replenishment-suggestions endpoints (services/replenishment.js) so the
+// numbers agree everywhere they're shown.
+router.get('/inventory-operations', async (req, res) => {
+  try {
+    const days = Math.max(1, parseInt(req.query.days, 10) || 90);
+    const suggestions = await getReplenishmentSuggestions(pool, days);
+
+    const lowStockSkus = suggestions.filter(r => r.reorder_status === 'Reorder Recommended' || r.reorder_status === 'Approaching Reorder Point').length;
+    const stockoutCount = suggestions.filter(r => r.reorder_status === 'Out of Stock').length;
+    const dosValues = suggestions.map(r => Number(r.days_of_supply)).filter(v => Number.isFinite(v));
+    const avgDaysOfSupply = dosValues.length ? dosValues.reduce((a, b) => a + b, 0) / dosValues.length : null;
+    const restockCost = suggestions
+      .filter(r => r.needs_reorder)
+      .reduce((sum, r) => sum + Number(r.suggested_reorder_quantity || 0) * Number(r.unit_price || 0), 0);
+
+    const [unitsReceivedR, monthlyReceivedR] = await Promise.all([
+      pool.query(`
+        SELECT COALESCE(SUM(quantity), 0) AS units_received
+        FROM stock_movements
+        WHERE movement_type = 'STOCK_IN' AND created_at >= NOW() - INTERVAL '30 days'
+      `),
+      pool.query(`
+        SELECT DATE_TRUNC('month', created_at) AS month, SUM(quantity) AS units_received
+        FROM stock_movements
+        WHERE movement_type = 'STOCK_IN' AND created_at >= NOW() - INTERVAL '12 months'
+        GROUP BY DATE_TRUNC('month', created_at)
+        ORDER BY month ASC
+      `),
+    ]);
+
+    const healthDistribution = {
+      stockout: stockoutCount,
+      criticalLow: suggestions.filter(r => r.reorder_status === 'Reorder Recommended').length,
+      approaching: suggestions.filter(r => r.reorder_status === 'Approaching Reorder Point').length,
+      healthy: suggestions.filter(r => r.reorder_status === 'Healthy').length,
+    };
+
+    const replenishment = suggestions
+      .filter(r => r.needs_reorder)
+      .slice(0, 25)
+      .map(r => ({
+        sku: r.sku,
+        category: r.category,
+        name: r.name,
+        currentStock: Number(r.on_hand_stock),
+        reorderPoint: Number(r.reorder_point),
+        reorderQuantity: Number(r.suggested_reorder_quantity),
+        status: r.reorder_status,
+      }));
+
+    const stockVsReorder = [...suggestions]
+      .sort((a, b) => Number(a.available_stock) - Number(b.available_stock))
+      .slice(0, 8)
+      .map(r => ({
+        sku: r.sku,
+        name: r.name,
+        currentStock: Number(r.on_hand_stock),
+        reorderPoint: Number(r.reorder_point),
+      }));
+
+    res.json({
+      success: true,
+      data: {
+        kpis: {
+          lowStockSkus,
+          stockoutCount,
+          avgDaysOfSupply,
+          unitsReceived30d: Number(unitsReceivedR.rows[0].units_received),
+          restockCost,
+        },
+        monthlyUnitsReceived: monthlyReceivedR.rows.map(r => ({ month: r.month, unitsReceived: Number(r.units_received) })),
+        healthDistribution,
+        replenishment,
+        stockVsReorder,
+      },
+    });
+  } catch (error) {
+    logger.error('analytics_inventory_operations_failed', { err: error });
+    res.status(500).json({ success: false, message: 'Failed to fetch inventory operations data' });
+  }
+});
+
+// GET /api/analytics/supplier-operations
+// Backs the employee Supplier dashboard: lead-time/DIO/stockout-risk KPIs,
+// a monthly stockout-events trend (from stock_movements, the only table with
+// real history — there's no daily inventory snapshot to derive a historical
+// stockout-rate % from), inventory value by category (this schema has no
+// warehouse/location concept, so that substitutes for "by warehouse"), and a
+// per-supplier scorecard used for both the table and the risk-matrix scatter.
+router.get('/supplier-operations', async (req, res) => {
+  try {
+    const [kpiR, monthlyStockoutR, categoryR, scorecardR] = await Promise.all([
+      pool.query(`
+        WITH active_items AS (
+          SELECT i.sku, i.quantity, i.unit_price, i.cost_price, i.reorder_level, i.supplier_id,
+            COALESCE(i.lead_time_days, s.lead_time_days, 7) AS effective_lead_time
+          FROM inventory_items i
+          LEFT JOIN suppliers s ON s.supplier_id = i.supplier_id
+          WHERE i.is_active = true
+        ),
+        cogs AS (
+          SELECT SUM(op.quantity * COALESCE(i.cost_price, i.unit_price)) AS total_cogs_90d
+          FROM all_order_products op
+          JOIN all_orders o ON o.order_id = op.order_id
+          JOIN inventory_items i ON i.sku = op.sku
+          WHERE o.status IN ('Order Received', 'Completed')
+            AND o.order_date >= CURRENT_DATE - INTERVAL '90 days'
+        ),
+        by_supplier_value AS (
+          SELECT supplier_id, SUM(quantity * unit_price) AS supplier_stock_value
+          FROM active_items
+          WHERE supplier_id IS NOT NULL
+          GROUP BY supplier_id
+        )
+        SELECT
+          (SELECT AVG(effective_lead_time) FROM active_items) AS avg_lead_time,
+          (SELECT SUM(quantity * COALESCE(cost_price, unit_price)) FROM active_items) AS total_stock_value,
+          (SELECT total_cogs_90d FROM cogs) AS total_cogs_90d,
+          (SELECT COUNT(DISTINCT supplier_id) FROM active_items WHERE supplier_id IS NOT NULL) AS active_suppliers,
+          (SELECT COUNT(*) FROM active_items) AS total_active_skus,
+          (SELECT COUNT(*) FROM active_items WHERE quantity <= COALESCE(reorder_level, CEIL(quantity * 0.2))) AS at_risk_skus,
+          (SELECT COALESCE(MAX(supplier_stock_value), 0) - COALESCE(MIN(supplier_stock_value), 0) FROM by_supplier_value) AS stock_value_spread
+      `),
+      pool.query(`
+        SELECT DATE_TRUNC('month', created_at) AS month, COUNT(*) AS stockout_events
+        FROM stock_movements
+        WHERE movement_type = 'STOCK_OUT' AND new_quantity = 0 AND created_at >= NOW() - INTERVAL '12 months'
+        GROUP BY DATE_TRUNC('month', created_at)
+        ORDER BY month ASC
+      `),
+      pool.query(`
+        SELECT COALESCE(category, 'Uncategorized') AS category, SUM(quantity * unit_price) AS total_value
+        FROM inventory_items
+        WHERE is_active = true
+        GROUP BY COALESCE(category, 'Uncategorized')
+        ORDER BY total_value DESC
+        LIMIT 6
+      `),
+      pool.query(`
+        SELECT
+          s.supplier_id,
+          s.name AS supplier_name,
+          COUNT(i.sku) AS skus_supplied,
+          AVG(COALESCE(i.lead_time_days, s.lead_time_days, 7)) AS avg_lead_time,
+          SUM(i.quantity * i.unit_price) AS inventory_value,
+          COUNT(i.sku) FILTER (WHERE i.quantity <= COALESCE(i.reorder_level, CEIL(i.quantity * 0.2))) AS at_risk_count
+        FROM suppliers s
+        JOIN inventory_items i ON i.supplier_id = s.supplier_id AND i.is_active = true
+        GROUP BY s.supplier_id, s.name
+        HAVING COUNT(i.sku) > 0
+        ORDER BY inventory_value DESC
+      `),
+    ]);
+
+    const k = kpiR.rows[0];
+    const dio = k.total_cogs_90d > 0 ? (Number(k.total_stock_value) / Number(k.total_cogs_90d)) * 90 : null;
+    const stockoutRiskPct = k.total_active_skus > 0 ? (Number(k.at_risk_skus) / Number(k.total_active_skus)) * 100 : 0;
+
+    const scorecard = scorecardR.rows.map(r => ({
+      supplierId: `SUP-${String(r.supplier_id).padStart(2, '0')}`,
+      supplierName: r.supplier_name,
+      avgLeadTime: Math.round(Number(r.avg_lead_time)),
+      skusSupplied: Number(r.skus_supplied),
+      stockoutRate: Number(r.skus_supplied) > 0 ? (Number(r.at_risk_count) / Number(r.skus_supplied)) * 100 : 0,
+      inventoryValue: Number(r.inventory_value),
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        kpis: {
+          avgLeadTimeDays: k.avg_lead_time != null ? Number(k.avg_lead_time) : null,
+          dio,
+          activeSuppliers: Number(k.active_suppliers),
+          stockoutRiskPct,
+          stockValueSpread: Number(k.stock_value_spread),
+        },
+        monthlyStockoutEvents: monthlyStockoutR.rows.map(r => ({ month: r.month, count: Number(r.stockout_events) })),
+        categoryValue: categoryR.rows.map(r => ({ category: r.category, value: Number(r.total_value) })),
+        scorecard,
+      },
+    });
+  } catch (error) {
+    logger.error('analytics_supplier_operations_failed', { err: error });
+    res.status(500).json({ success: false, message: 'Failed to fetch supplier operations data' });
+  }
+});
+
 // GET /api/analytics/work-queue
 router.get('/work-queue', async (req, res) => {
   try {

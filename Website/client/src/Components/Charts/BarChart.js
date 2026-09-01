@@ -57,9 +57,12 @@ export default function BarChart({
       <div role="figure" aria-label={ariaLabel} style={{ width: '100%', overflowX: 'auto' }}>
         <div style={{ minWidth: 280 }}>
           <ResponsiveContainer width="100%" height={height}>
+            {/* Recharts' own `layout` means the opposite of this component's `layout` prop
+                (native 'vertical' = row bars, 'horizontal' = column bars) — translate here
+                rather than passing the raw prop through, which corrupted the value-axis domain. */}
             <ReBarChart
               data={data}
-              layout={layout}
+              layout={isHorizontal ? 'vertical' : 'horizontal'}
               margin={{ top: 8, right: 16, bottom: 0, left: isHorizontal ? 80 : 8 }}
               onClick={onBarClick ? (e) => { if (e?.activePayload?.[0]) onBarClick(e.activePayload[0].payload); } : undefined}
               style={onBarClick ? { cursor: 'pointer' } : undefined}
@@ -96,8 +99,8 @@ export default function BarChart({
         </div>
       </div>
       {data.length > 0 && (
-        <details className="chart-a11y-table">
-          <summary>View as table</summary>
+        <details className="chart-a11y-table" open>
+          <summary>Data table</summary>
           <table>
             <thead><tr><th>{nameKey}</th><th className="chart-a11y-num">{dataKey}</th></tr></thead>
             <tbody>

@@ -13,6 +13,15 @@ body{
   padding: 0;
   border-bottom: 1px solid #f0e9d2;
   z-index: 100;
+  position: sticky;
+  top: 0;
+  transition: box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.topbar-customer.scrolled {
+  box-shadow: 0 4px 20px rgba(51, 55, 61, 0.08);
+  background: rgba(241, 240, 226, 0.97);
+  backdrop-filter: blur(6px);
 }
 
 .topbar-customer-nav {
@@ -23,6 +32,16 @@ body{
   margin: 0 auto;
   height: 60px;
   position: relative;
+  transition: height 0.3s ease;
+}
+
+.topbar-customer.scrolled .topbar-customer-nav {
+  height: 52px;
+}
+
+.topbar-customer.scrolled .topbar-customer-logo {
+  max-width: 48px;
+  max-height: 48px;
 }
 
 .topbar-customer-links {
@@ -58,13 +77,34 @@ body{
   transition: color 0.2s, background 0.2s;
 }
 
+.topbar-customer-link::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 4px;
+  height: 1.5px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+
 .topbar-customer-link:hover {
   color: #6a698f;
+}
+
+.topbar-customer-link:hover::after {
+  transform: scaleX(1);
 }
 
 .topbar-customer-link.active {
   background: #3f444b;
   color: #fff;
+}
+
+.topbar-customer-link.active::after {
+  transform: scaleX(0);
 }
 
 .topbar-customer-link.active:hover {

@@ -78,14 +78,14 @@ function CustomerLogIn() {
             {error && <div className="error-message">{error}</div>}
             <form onSubmit={handleSubmit}>
               <div className="input-container">
-                <label htmlFor="username">Username:</label>
+                <label htmlFor="username">Email:</label>
                 <input
                   type="text"
                   id="username"
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
-                  placeholder="Enter your username"
+                  placeholder="Enter your email"
                   required
                   disabled={loading}
                 />

@@ -273,7 +273,7 @@ function Dashboard() {
   const teamMembers = Array.isArray(teamPerformance) ? teamPerformance : [];
 
   return (
-    <AppShell>
+    <AppShell showSearch={false}>
       <header className="ui-page-header">
         <div className="ui-page-header-text">
           <h1 className="ui-page-title">Dashboard</h1>

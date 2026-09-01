@@ -88,8 +88,8 @@ export default function DonutChart({ data = [], isCurrency = false, colors, heig
         </ResponsiveContainer>
       </div>
       {enriched.length > 0 && (
-        <details className="chart-a11y-table">
-          <summary>View as table</summary>
+        <details className="chart-a11y-table" open>
+          <summary>Data table</summary>
           <table>
             <thead><tr><th>Name</th><th className="chart-a11y-num">Value</th><th className="chart-a11y-num">%</th></tr></thead>
             <tbody>

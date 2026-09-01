@@ -1,0 +1,167 @@
+/* ── Details: KPI row ─────────────────────────────────────────────────────── */
+.det-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1100px) {
+  .det-kpi-row { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .det-kpi-row { grid-template-columns: 1fr; }
+}
+
+.det-kpi-tile {
+  padding: 18px 20px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.det-kpi-label {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.det-kpi-value {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.det-kpi-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Table card ───────────────────────────────────────────────────────────── */
+.det-table-card {
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.det-table-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.det-table-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.det-table-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.det-search {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--input-bg, var(--surface));
+  color: var(--text);
+  font-size: 13px;
+  min-width: 220px;
+}
+
+.det-search:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+
+/* ── Table ────────────────────────────────────────────────────────────────── */
+.det-table-scroll {
+  overflow-x: auto;
+  max-height: 640px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.det-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+
+.det-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-muted, #f8fafc);
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  z-index: 1;
+}
+
+.det-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.det-sortable:hover {
+  color: var(--text);
+}
+
+.det-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.det-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.det-table tbody tr:hover {
+  background: var(--hover);
+}
+
+/* ── Status pills ─────────────────────────────────────────────────────────── */
+.det-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.det-pill-ok {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success);
+}
+
+.det-pill-warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning);
+}
+
+.det-pill-critical {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+}

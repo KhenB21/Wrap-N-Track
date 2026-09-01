@@ -515,13 +515,27 @@ pool.connect((err, client, release) => {
 
   // Add profit-related columns to orders table
   client.query(`
-    ALTER TABLE orders 
+    ALTER TABLE orders
     ADD COLUMN IF NOT EXISTS total_profit_estimation DECIMAL(10,2) DEFAULT 0.00;
   `, (err) => {
     if (err) {
       console.error('Error adding total_profit_estimation column:', err);
     } else {
       console.log('Successfully added total_profit_estimation column to orders table');
+    }
+  });
+
+  // Add reset-code columns to customer_details so customer forgot-password
+  // can store/verify a code the same way the employee `users` table does.
+  client.query(`
+    ALTER TABLE customer_details
+    ADD COLUMN IF NOT EXISTS reset_code VARCHAR(10),
+    ADD COLUMN IF NOT EXISTS reset_code_expires TIMESTAMP;
+  `, (err) => {
+    if (err) {
+      console.error('Error adding reset_code columns to customer_details:', err);
+    } else {
+      console.log('Successfully ensured reset_code columns on customer_details table');
     }
   });
 
@@ -1704,34 +1718,51 @@ app.get('/api/order-history', verifyJwt, requireRole(['admin', 'sales_manager', 
 
 // --- PASSWORD RESET ENDPOINTS ---
 
+// Password reset spans two separate account tables: `users` (employees/admin,
+// keyed by user_id/email) and `customer_details` (customers, keyed by
+// customer_id/email_address). These helpers look an email up across both so
+// the three endpoints below work regardless of which kind of account it is.
+async function findResettableAccountByEmail(email) {
+  const employee = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+  if (employee.rows.length > 0) {
+    return { table: 'users', idColumn: 'user_id', row: employee.rows[0], name: employee.rows[0].name };
+  }
+  const customer = await pool.query('SELECT * FROM customer_details WHERE email_address = $1', [email]);
+  if (customer.rows.length > 0) {
+    return { table: 'customer_details', idColumn: 'customer_id', row: customer.rows[0], name: customer.rows[0].name };
+  }
+  return null;
+}
+
 // Forgot Password: Generate and store reset code and send via email
 app.post('/api/auth/forgot-password', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ message: "Email is required" });
 
   try {
-    // Fetch all user columns to match registration resend flow
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (userResult.rows.length === 0) {
+    const account = await findResettableAccountByEmail(email);
+    if (!account) {
       // Always respond the same to avoid leaking which emails are registered
       return res.json({ message: "If this email exists, instructions have been sent." });
     }
 
-    const user = userResult.rows[0];
     // Generate secure OTP using crypto.randomInt (same as registration)
     const resetCode = crypto.randomInt(100000, 999999).toString();
     const expires = new Date(Date.now() + 15 * 60 * 1000);
 
-    // Store code and expiry
-    await pool.query('UPDATE users SET reset_code = $1, reset_code_expires = $2 WHERE user_id = $3', [resetCode, expires, user.user_id]);
+    // Store code and expiry in whichever table the account lives in
+    await pool.query(
+      `UPDATE ${account.table} SET reset_code = $1, reset_code_expires = $2 WHERE ${account.idColumn} = $3`,
+      [resetCode, expires, account.row[account.idColumn]]
+    );
 
     // Email content (match registration resend-code)
     try {
       await sendEmail({
-        to: user.email,
+        to: email,
         subject: "Your Password Reset Code for Wrap N' Track",
-        text: `Hello ${user.name},\n\nYour password reset code is: ${resetCode}\n\nThis code will expire in 15 minutes.\n\nIf you did not request this, please ignore this email.\n\nThanks,\nThe Wrap N' Track Team`,
-        html: `<p>Hello ${user.name},</p><p>Your password reset code is: <strong>${resetCode}</strong></p><p>This code will expire in 15 minutes.</p><p>If you did not request this, please ignore this email.</p><p>Thanks,<br/>The Wrap N' Track Team</p>`
+        text: `Hello ${account.name},\n\nYour password reset code is: ${resetCode}\n\nThis code will expire in 15 minutes.\n\nIf you did not request this, please ignore this email.\n\nThanks,\nThe Wrap N' Track Team`,
+        html: `<p>Hello ${account.name},</p><p>Your password reset code is: <strong>${resetCode}</strong></p><p>This code will expire in 15 minutes.</p><p>If you did not request this, please ignore this email.</p><p>Thanks,<br/>The Wrap N' Track Team</p>`
       });
     } catch (emailError) {
       console.error('Error sending forgot password email:', emailError);
@@ -1751,14 +1782,11 @@ app.post('/api/auth/verify-reset-code', async (req, res) => {
   if (!email || !code) return res.status(400).json({ message: "Email and code are required" });
 
   try {
-    const userResult = await pool.query(
-      'SELECT reset_code, reset_code_expires FROM users WHERE email = $1',
-      [email]
-    );
-    if (userResult.rows.length === 0) {
+    const account = await findResettableAccountByEmail(email);
+    if (!account) {
       return res.status(400).json({ message: "Invalid code or email" });
     }
-    const { reset_code, reset_code_expires } = userResult.rows[0];
+    const { reset_code, reset_code_expires } = account.row;
     if (
       !reset_code ||
       reset_code !== code ||
@@ -1781,15 +1809,11 @@ app.post('/api/auth/reset-password', async (req, res) => {
     return res.status(400).json({ message: "Email, code, and new password are required" });
   }
   try {
-    // Check code validity
-    const userResult = await pool.query(
-      'SELECT user_id, reset_code, reset_code_expires FROM users WHERE email = $1',
-      [email]
-    );
-    if (userResult.rows.length === 0) {
+    const account = await findResettableAccountByEmail(email);
+    if (!account) {
       return res.status(400).json({ message: "Invalid email or code" });
     }
-    const { user_id, reset_code, reset_code_expires } = userResult.rows[0];
+    const { reset_code, reset_code_expires } = account.row;
     if (
       !reset_code ||
       reset_code !== code ||
@@ -1803,8 +1827,8 @@ app.post('/api/auth/reset-password', async (req, res) => {
     const passwordHash = await bcrypt.hash(newPassword, saltRounds);
     // Update password and clear reset code
     await pool.query(
-      'UPDATE users SET password_hash = $1, reset_code = NULL, reset_code_expires = NULL WHERE user_id = $2',
-      [passwordHash, user_id]
+      `UPDATE ${account.table} SET password_hash = $1, reset_code = NULL, reset_code_expires = NULL WHERE ${account.idColumn} = $2`,
+      [passwordHash, account.row[account.idColumn]]
     );
     res.json({ message: "Password reset successful" });
   } catch (err) {

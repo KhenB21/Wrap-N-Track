@@ -637,7 +637,7 @@ export default function BusinessReport() {
   const kpis = report?.kpis;
 
   return (
-    <AppShell searchPlaceholder="Search reports..." contentClassName="br-page-content">
+    <AppShell searchPlaceholder="Search reports..." contentClassName="br-page-content" showSearch={false}>
       <div className="br-content">
         <div className="br-header">
           <div>

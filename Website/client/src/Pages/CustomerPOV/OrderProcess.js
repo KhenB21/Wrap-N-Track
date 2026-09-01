@@ -189,6 +189,13 @@ export default function OrderProcess() {
   const [resendCountdown, setResendCountdown] = useState(0);
   const [pendingOrderPayload, setPendingOrderPayload] = useState(null);
   const resendTimerRef = useRef(null);
+  // Address-required modal state — shown when placing an order and the
+  // account has no address on file yet.
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [addressInput, setAddressInput] = useState('');
+  const [addressError, setAddressError] = useState('');
+  const [addressSaving, setAddressSaving] = useState(false);
+  const [pendingOrderContext, setPendingOrderContext] = useState(null);
 
   // Authentication and inventory state
   const { user } = useAuth();
@@ -742,75 +749,18 @@ export default function OrderProcess() {
         return;
       }
 
-      // Debug logging to help troubleshoot SKU issues
-      console.log('Products for order:', productsForOrder);
-      productsForOrder.forEach(product => {
-        console.log(`Product: ${product.name}, SKU: ${product.sku}`);
-      });
-
-      // Log the complete order payload being sent to server
-      console.log('Complete order payload:', {
-        account_name: customerData.account_name || 'Guest',
-        name: customerData.name || 'Guest',
-        order_date: new Date().toISOString().split('T')[0],
-        expected_delivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        status: 'Pending',
-        package_name: selectedStyle || 'Custom',
-        payment_method: 'Pending',
-        payment_type: 'Pending',
-        shipped_to: customerData.name || 'Guest',
-        shipping_address: customerData.address || 'TBD',
-        total_cost: 0,
-        remarks: formData.specialRequests || '',
-        telephone: customerData.telephone || '',
-        cellphone: customerData.cellphone || '',
-        email_address: customerData.email_address || '',
-        products: productsForOrder
-      });
-
-      let shippingAddress = '';
-      if (customerData.street && customerData.street !== '') shippingAddress += customerData.street;
-      if (customerData.city && customerData.city !== '') shippingAddress += (shippingAddress ? ', ' : '') + customerData.city;
-      if (customerData.zipcode && customerData.zipcode !== '') shippingAddress += (shippingAddress ? ', ' : '') + customerData.zipcode;
-      if (!shippingAddress) shippingAddress = 'Default Address'; 
-
-      const orderPayload = {
-        name: customerData.name || 'Customer Order',
-        account_name: customerData.name || 'Customer Account',
-        order_date: new Date().toISOString().split('T')[0],
-        expected_delivery: formData.expectedDeliveryDate,
-        status: 'Pending',
-        payment_type: 'Pending',
-        payment_method: 'Pending',
-        shipped_to: customerData.name || 'Customer',
-        shipping_address: shippingAddress,
-        total_cost: 0, 
-        remarks: formData.specialRequests || '',
-        telephone: customerData.telephone || customerData.phone_number || 'N/A',
-        cellphone: customerData.cellphone || customerData.phone_number || 'N/A',
-        email_address: customerData.email,
-        order_quantity: guestQuantity, 
-        package_name: formData.style || "Handpick",
-        products: productsForOrder,
-      };
-
-      // Save payload and show OTP modal immediately. Then attempt to send OTP.
-      setPendingOrderPayload(orderPayload);
-      setOtpError('');
-      setOtpModalVisible(true);
-
-      if (!customerData.email) {
-        setOtpError('No email available for this account. Please update your profile.');
-      } else {
-        try {
-          await sendOtp(customerData.email, token);
-          toast.info('An OTP has been sent to your email. Please enter it to confirm your order.');
-        } catch (otpErr) {
-          console.error('Failed to send OTP:', otpErr);
-          // show error inside modal but keep modal open so user may resend
-          setOtpError('Failed to send OTP. Please try Resend or check your email.');
-        }
+      // An address is required to ship the order — if the account doesn't
+      // have one on file yet, pause here and ask for it before going further.
+      if (!customerData.address || !customerData.address.trim()) {
+        setPendingOrderContext({ productsForOrder, guestQuantity });
+        setAddressError('');
+        setAddressInput('');
+        setAddressModalVisible(true);
+        setLoading(false);
+        return;
       }
+
+      await proceedWithOrder(customerData, token, productsForOrder, guestQuantity);
     } catch (error) {
       console.error('Error submitting order:', error);
       if (error.response && (error.response.status === 401 || error.response.status === 403)) {
@@ -1345,49 +1295,35 @@ export default function OrderProcess() {
     }
   };
 
-  const handleVerifyAndPlaceOrder = async () => {
-    setOtpError('');
-    const token = localStorage.getItem('customerToken');
-    const customerData = JSON.parse(localStorage.getItem('customer')) || {};
-    if (!pendingOrderPayload) { setOtpError('No pending order found.'); return; }
-    if (!otpCode || otpCode.trim().length < 6) { setOtpError('Please enter the 6-digit code.'); return; }
-    if (!token) { setOtpError('Session expired. Please log in again.'); return; }
-    console.log('[ORDER] Starting verification+placement flow');
-    console.log('[ORDER] Pending payload:', JSON.stringify(pendingOrderPayload, null, 2));
+  // Shared by both order-submission paths: an already-verified customer whose
+  // order skips the OTP modal entirely, and the post-OTP-verify path below.
+  const submitOrder = async (orderPayload, token, { onError } = {}) => {
     try {
-      await verifyOtp(customerData.email, otpCode.trim(), token);
-    } catch (verifyErr) {
-      console.warn('[ORDER] Verification failed; aborting order placement.');
-      return; // otpError already set
-    }
-    try {
-      console.log('[ORDER] OTP verified. Placing order...');
-      const response = await api.post('/api/orders', pendingOrderPayload, { headers: { Authorization: `Bearer ${token}` } });
+      console.log('[ORDER] Placing order...');
+      const response = await api.post('/api/orders', orderPayload, { headers: { Authorization: `Bearer ${token}` } });
       console.log('[ORDER] Order response:', response.data);
       if (response.data) {
-        // Add ordered items to cart for display
-        if (pendingOrderPayload.products && Array.isArray(pendingOrderPayload.products)) {
+        if (orderPayload.products && Array.isArray(orderPayload.products)) {
           try {
-            for (const product of pendingOrderPayload.products) {
+            for (const product of orderPayload.products) {
               if (product.sku && product.quantity) {
-                await api.post('/api/cart/add', 
+                await api.post('/api/cart/add',
                   { sku: product.sku, quantity: product.quantity },
                   { headers: { Authorization: `Bearer ${token}` } }
                 );
               }
             }
-            console.log('[ORDER] Items added to cart for display');
           } catch (cartErr) {
             console.warn('[ORDER] Failed to add items to cart for display:', cartErr);
             // Don't fail the order if cart addition fails
           }
         }
-        
+
         toast.success('Order placed successfully');
         setOtpModalVisible(false);
         setOtpCode('');
         setPendingOrderPayload(null);
-        
+
         // Force refresh the page to ensure new order appears
         setTimeout(() => {
           window.location.href = '/customer-cart';
@@ -1397,10 +1333,130 @@ export default function OrderProcess() {
       const status = orderErr.response?.status;
       const backendMessage = orderErr.response?.data?.error || orderErr.response?.data?.message;
       console.error('[ORDER] Placement failed status=', status, backendMessage, orderErr);
-      if (status === 400) setOtpError(backendMessage || 'Order data invalid. Review selections.');
-      else if (status === 401) setOtpError('Authorization failed. Please log in again.');
-      else setOtpError('Server error placing order. Try again.');
+      const message = status === 400 ? (backendMessage || 'Order data invalid. Review selections.')
+        : status === 401 ? 'Authorization failed. Please log in again.'
+        : 'Server error placing order. Try again.';
+      if (onError) onError(message);
+      else toast.error(message);
     }
+  };
+
+  // Builds the order payload and either places it immediately (verified
+  // accounts) or routes through the OTP modal first (unverified accounts).
+  // customerData.address is assumed present — callers gate on that first.
+  const proceedWithOrder = async (customerData, token, productsForOrder, guestQuantity) => {
+    const orderPayload = {
+      name: customerData.name || 'Customer Order',
+      account_name: customerData.name || 'Customer Account',
+      order_date: new Date().toISOString().split('T')[0],
+      expected_delivery: formData.expectedDeliveryDate,
+      status: 'Pending',
+      payment_type: 'Pending',
+      payment_method: 'Pending',
+      shipped_to: customerData.name || 'Customer',
+      shipping_address: customerData.address,
+      total_cost: 0,
+      remarks: formData.specialRequests || '',
+      telephone: customerData.telephone || customerData.phone_number || 'N/A',
+      cellphone: customerData.cellphone || customerData.phone_number || 'N/A',
+      email_address: customerData.email,
+      order_quantity: guestQuantity,
+      package_name: formData.style || "Handpick",
+      products: productsForOrder,
+    };
+
+    if (customerData.is_verified) {
+      // Already proved email ownership on a previous order — place it directly.
+      await submitOrder(orderPayload, token);
+    } else {
+      // Save payload and show OTP modal immediately. Then attempt to send OTP.
+      setPendingOrderPayload(orderPayload);
+      setOtpError('');
+      setOtpModalVisible(true);
+
+      if (!customerData.email) {
+        setOtpError('No email available for this account. Please update your profile.');
+      } else {
+        try {
+          await sendOtp(customerData.email, token);
+          toast.info('An OTP has been sent to your email. Please enter it to confirm your order.');
+        } catch (otpErr) {
+          console.error('Failed to send OTP:', otpErr);
+          setOtpError('Failed to send OTP. Please try Resend or check your email.');
+        }
+      }
+    }
+  };
+
+  const handleSaveAddressAndContinue = async () => {
+    setAddressError('');
+    if (!addressInput.trim()) {
+      setAddressError('Please enter your address.');
+      return;
+    }
+    if (!pendingOrderContext) {
+      setAddressError('Your order details were lost — please try submitting again.');
+      return;
+    }
+    const token = localStorage.getItem('customerToken');
+    const customerData = JSON.parse(localStorage.getItem('customer')) || {};
+    if (!token) {
+      setAddressError('Session expired. Please log in again.');
+      return;
+    }
+    setAddressSaving(true);
+    try {
+      const response = await api.put('/api/customer/profile', {
+        name: customerData.name,
+        username: customerData.username,
+        email_address: customerData.email,
+        address: addressInput.trim(),
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
+      const updatedCustomer = { ...customerData, address: addressInput.trim(), ...(response.data?.customer || {}) };
+      // The profile endpoint returns email_address, not email — keep the
+      // shape the rest of this page (and AuthContext) expects.
+      updatedCustomer.email = updatedCustomer.email || customerData.email;
+      localStorage.setItem('customer', JSON.stringify(updatedCustomer));
+
+      setAddressModalVisible(false);
+      setAddressSaving(false);
+      const { productsForOrder, guestQuantity } = pendingOrderContext;
+      setPendingOrderContext(null);
+      await proceedWithOrder(updatedCustomer, token, productsForOrder, guestQuantity);
+    } catch (err) {
+      console.error('Failed to save address:', err);
+      setAddressError(err.response?.data?.message || 'Failed to save address. Please try again.');
+      setAddressSaving(false);
+    }
+  };
+
+  const handleVerifyAndPlaceOrder = async () => {
+    setOtpError('');
+    const token = localStorage.getItem('customerToken');
+    const customerData = JSON.parse(localStorage.getItem('customer')) || {};
+    if (!pendingOrderPayload) { setOtpError('No pending order found.'); return; }
+    if (!otpCode || otpCode.trim().length < 6) { setOtpError('Please enter the 6-digit code.'); return; }
+    if (!token) { setOtpError('Session expired. Please log in again.'); return; }
+    console.log('[ORDER] Starting verification+placement flow');
+    try {
+      await verifyOtp(customerData.email, otpCode.trim(), token);
+    } catch (verifyErr) {
+      console.warn('[ORDER] Verification failed; aborting order placement.');
+      return; // otpError already set
+    }
+
+    // The OTP just proved this customer controls their email — treat the
+    // account as verified from now on so future orders skip this step.
+    try {
+      await api.put('/api/customer/mark-verified', {}, { headers: { Authorization: `Bearer ${token}` } });
+      const updatedCustomer = { ...customerData, is_verified: true };
+      localStorage.setItem('customer', JSON.stringify(updatedCustomer));
+    } catch (markErr) {
+      console.warn('[ORDER] Failed to persist verified status (order still proceeds):', markErr);
+    }
+
+    await submitOrder(pendingOrderPayload, token, { onError: setOtpError });
   };
 
   // cleanup timer on unmount
@@ -1743,244 +1799,135 @@ export default function OrderProcess() {
 
           {/* Step Forms */}
           {currentStep === 0 && (
-            <div style={{...styles.form, width: "100%", padding: "40px"}}>
+            <div style={{...styles.form, width: "100%", padding: "28px 32px"}}>
               {renderStaffProductPanel()}
-              <div style={{display: "flex", flexDirection: "column", gap: "30px"}}>
+              <div style={{display: "flex", flexDirection: "column", gap: "18px"}}>
 
                 {/* Welcome Section */}
-                <div style={{textAlign: "center", marginBottom: "20px"}}>
+                <div style={{textAlign: "center", marginBottom: "4px"}}>
                   <h2 style={{
-                    fontSize: "2rem",
+                    fontSize: "1.6rem",
                     color: "#2c3e50",
-                    marginBottom: "10px",
+                    marginBottom: "6px",
                     fontFamily: "'Cormorant Garamond', serif"
                   }}>
                     Welcome to Wrap N' Track Custom Gift Box Creator! 🎁
                   </h2>
                   <p style={{
-                    fontSize: "1.1rem",
+                    fontSize: "0.95rem",
                     color: "#4a4a6a",
-                    lineHeight: "1.6"
+                    lineHeight: "1.5",
+                    margin: 0
                   }}>
                     Create personalized wedding gift boxes in just 4 simple steps
                   </p>
                 </div>
 
-                {/* How It Works Section */}
+                {/* How It Works Section — compact 2x2 grid, keeps all copy but in far less vertical space */}
                 <div style={{
                   background: "#f8f9fa",
                   borderRadius: "12px",
-                  padding: "30px",
-                  border: "2px solid #e0e0e0"
+                  padding: "22px 24px",
+                  border: "1px solid #e5e5e5"
                 }}>
                   <h3 style={{
-                    fontSize: "1.5rem",
+                    fontSize: "1.4rem",
+                    fontWeight: 700,
                     color: "#2c3e50",
-                    marginBottom: "20px",
+                    marginBottom: "16px",
                     display: "flex",
                     alignItems: "center",
-                    gap: "10px"
+                    gap: "8px"
                   }}>
                     📋 How It Works
                   </h3>
-                  
-                  <div style={{display: "flex", flexDirection: "column", gap: "20px"}}>
-                    {/* Step 1 */}
-                    <div style={{
-                      display: "flex",
-                      gap: "15px",
-                      alignItems: "flex-start",
-                      padding: "15px",
-                      background: "#ffffff",
-                      borderRadius: "8px",
-                      borderLeft: "4px solid #696a8f"
-                    }}>
-                      <div style={{
-                        minWidth: "40px",
-                        height: "40px",
-                        borderRadius: "50%",
-                        background: "#696a8f",
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "bold",
-                        fontSize: "1.2rem"
-                      }}>1</div>
-                      <div>
-                        <h4 style={{color: "#2c3e50", marginBottom: "8px", fontSize: "1.1rem"}}>
-                          Choose Your Packaging
-                        </h4>
-                        <p style={{color: "#5a5a6a", lineHeight: "1.5", margin: 0}}>
-                          Select from our curated collection of elegant boxes, bags, and wrapping options. 
-                          Mix and match to create the perfect presentation for your gifts.
-                        </p>
-                      </div>
-                    </div>
 
-                    {/* Step 2 */}
-                    <div style={{
-                      display: "flex",
-                      gap: "15px",
-                      alignItems: "flex-start",
-                      padding: "15px",
-                      background: "#ffffff",
-                      borderRadius: "8px",
-                      borderLeft: "4px solid #696a8f"
-                    }}>
-                      <div style={{
-                        minWidth: "40px",
-                        height: "40px",
-                        borderRadius: "50%",
-                        background: "#696a8f",
-                        color: "#fff",
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                    gap: "14px"
+                  }}>
+                    {[
+                      { n: 1, title: "Choose Your Packaging", body: "Pick from our curated boxes, bags, and wrapping options to set the presentation." },
+                      { n: 2, title: "Choose the Contents", body: "Fill your boxes with beverages, food, kitchenware, decor, beauty items, and more." },
+                      { n: 3, title: "Make it Personal", body: "Add custom tags, ribbons, cards, and small touches to make each box memorable." },
+                      { n: 4, title: "Finalize Your Order & Submit", body: "Confirm dates and quantity, add any notes, and submit — we handle the rest." },
+                    ].map(step => (
+                      <div key={step.n} style={{
                         display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "bold",
-                        fontSize: "1.2rem"
-                      }}>2</div>
-                      <div>
-                        <h4 style={{color: "#2c3e50", marginBottom: "8px", fontSize: "1.1rem"}}>
-                          Choose the Contents
-                        </h4>
-                        <p style={{color: "#5a5a6a", lineHeight: "1.5", margin: 0}}>
-                          Fill your gift boxes with premium items from our catalog including beverages, 
-                          gourmet food, kitchenware, home decor, beauty products, and more. You can select 
-                          multiple items per category or use your own products.
-                        </p>
+                        gap: "12px",
+                        alignItems: "flex-start",
+                        padding: "14px",
+                        background: "#ffffff",
+                        borderRadius: "8px",
+                        borderLeft: "3px solid #696a8f"
+                      }}>
+                        <div style={{
+                          minWidth: "32px",
+                          height: "32px",
+                          borderRadius: "50%",
+                          background: "#696a8f",
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: "bold",
+                          fontSize: "1rem",
+                          flexShrink: 0
+                        }}>{step.n}</div>
+                        <div>
+                          <h4 style={{color: "#2c3e50", marginBottom: "5px", fontSize: "1.05rem", fontWeight: 700}}>
+                            {step.title}
+                          </h4>
+                          <p style={{color: "#3f3f52", lineHeight: "1.5", margin: 0, fontSize: "0.95rem", fontWeight: 500}}>
+                            {step.body}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-
-                    {/* Step 3 */}
-                    <div style={{
-                      display: "flex",
-                      gap: "15px",
-                      alignItems: "flex-start",
-                      padding: "15px",
-                      background: "#ffffff",
-                      borderRadius: "8px",
-                      borderLeft: "4px solid #696a8f"
-                    }}>
-                      <div style={{
-                        minWidth: "40px",
-                        height: "40px",
-                        borderRadius: "50%",
-                        background: "#696a8f",
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "bold",
-                        fontSize: "1.2rem"
-                      }}>3</div>
-                      <div>
-                        <h4 style={{color: "#2c3e50", marginBottom: "8px", fontSize: "1.1rem"}}>
-                          Make it Personal
-                        </h4>
-                        <p style={{color: "#5a5a6a", lineHeight: "1.5", margin: 0}}>
-                          Add personalized touches like custom tags, ribbons, cards, and special decorations. 
-                          Make each gift box unique and memorable for your special day.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Step 4 */}
-                    <div style={{
-                      display: "flex",
-                      gap: "15px",
-                      alignItems: "flex-start",
-                      padding: "15px",
-                      background: "#ffffff",
-                      borderRadius: "8px",
-                      borderLeft: "4px solid #696a8f"
-                    }}>
-                      <div style={{
-                        minWidth: "40px",
-                        height: "40px",
-                        borderRadius: "50%",
-                        background: "#696a8f",
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "bold",
-                        fontSize: "1.2rem"
-                      }}>4</div>
-                      <div>
-                        <h4 style={{color: "#2c3e50", marginBottom: "8px", fontSize: "1.1rem"}}>
-                          Finalize Your Order & Submit
-                        </h4>
-                        <p style={{color: "#5a5a6a", lineHeight: "1.5", margin: 0}}>
-                          Review your selections, specify your wedding date, delivery date, and quantity. 
-                          Add any special requests and submit your order. We'll take care of the rest!
-                        </p>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* Important Guidelines */}
+                {/* Important Guidelines — condensed to a compact chip list */}
                 <div style={{
                   background: "#eef1e9",
                   borderRadius: "12px",
-                  padding: "25px",
-                  border: "2px solid #7f9c7a"
+                  padding: "18px 24px",
+                  border: "1px solid #cdd9c8"
                 }}>
                   <h3 style={{
-                    fontSize: "1.3rem",
+                    fontSize: "1.15rem",
+                    fontWeight: 700,
                     color: "#3d5c42",
-                    marginBottom: "15px",
+                    marginBottom: "12px",
                     display: "flex",
                     alignItems: "center",
-                    gap: "10px"
+                    gap: "8px"
                   }}>
                     ✨ Important Guidelines
                   </h3>
-                  <ul style={{
-                    color: "#3d5c42",
-                    lineHeight: "1.8",
-                    paddingLeft: "20px",
-                    margin: 0
-                  }}>
-                    <li><strong>Multiple Selections:</strong> You can select multiple items in each category to create variety</li>
-                    <li><strong>Custom Products:</strong> Want to use your own items? Check the "I want to use my own products" option</li>
-                    <li><strong>Lead Time:</strong> Please order at least 2-3 weeks before your wedding date for best results</li>
-                    <li><strong>Minimum Order:</strong> We recommend a minimum of 10 gift boxes for wedding events</li>
-                    <li><strong>Review Before Submit:</strong> You can go back and edit any step before final submission</li>
-                    <li><strong>Order Tracking:</strong> Once submitted, you can track your order status in the "My Orders" section</li>
-                  </ul>
-                </div>
-
-                {/* Tips Section */}
-                <div style={{
-                  background: "#f4ecd8",
-                  borderRadius: "12px",
-                  padding: "25px",
-                  border: "2px solid #b8945a"
-                }}>
-                  <h3 style={{
-                    fontSize: "1.3rem",
-                    color: "#6b4f23",
-                    marginBottom: "15px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px"
-                  }}>
-                    💡 Pro Tips
-                  </h3>
-                  <ul style={{
-                    color: "#6b4f23",
-                    lineHeight: "1.8",
-                    paddingLeft: "20px",
-                    margin: 0
-                  }}>
-                    <li>Consider your guests' preferences when selecting items (dietary restrictions, allergies, etc.)</li>
-                    <li>Mix practical items with luxury treats for a balanced gift box</li>
-                    <li>Coordinate packaging colors with your wedding theme</li>
-                    <li>Add a personal thank you note or card for a special touch</li>
-                    <li>Order a few extra boxes for last-minute additions to your guest list</li>
-                  </ul>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                    {[
+                      "Select multiple items per category for variety",
+                      'Have your own items? Check "use my own products"',
+                      "Order 2–3 weeks before your wedding date",
+                      "Minimum 10 gift boxes recommended",
+                      "You can edit any step before submitting",
+                      'Track orders anytime in "My Orders"',
+                    ].map((tip, i) => (
+                      <span key={i} style={{
+                        background: "#fff",
+                        color: "#2f4a34",
+                        fontSize: "0.9rem",
+                        fontWeight: 600,
+                        padding: "8px 14px",
+                        borderRadius: "999px",
+                        border: "1px solid #cdd9c8"
+                      }}>
+                        {tip}
+                      </span>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Get Started Button */}
@@ -2908,18 +2855,17 @@ export default function OrderProcess() {
               <div style={{width: "50%"}}>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Wedding Date</label>
-                  <input
-                    type="date"
-                    name="weddingDate"
-                    value={formData.weddingDate}
-                    onChange={handleInputChange}
-                    style={{
-                      ...styles.input,
-                      borderColor: dateErrors.weddingDate ? '#b0413e' : styles.input.border?.split(' ')[2] || '#ddd'
-                    }}
-                    min={new Date().toISOString().split('T')[0]}
-                    required
-                  />
+                  <div className="op-date-input">
+                    <input
+                      type="date"
+                      name="weddingDate"
+                      value={formData.weddingDate}
+                      onChange={handleInputChange}
+                      className={dateErrors.weddingDate ? 'op-date-error' : ''}
+                      min={new Date().toISOString().split('T')[0]}
+                      required
+                    />
+                  </div>
                   {dateErrors.weddingDate && (
                     <p style={{ color: '#b0413e', fontSize: '13px', marginTop: '6px', lineHeight: '1.4' }}>
                       {dateErrors.weddingDate}
@@ -2937,19 +2883,18 @@ export default function OrderProcess() {
 
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Expected Delivery Date</label>
-                  <input
-                    type="date"
-                    name="expectedDeliveryDate"
-                    value={formData.expectedDeliveryDate}
-                    onChange={handleInputChange}
-                    style={{
-                      ...styles.input,
-                      borderColor: dateErrors.expectedDeliveryDate ? '#b0413e' : styles.input.border?.split(' ')[2] || '#ddd'
-                    }}
-                    min={new Date().toISOString().split('T')[0]}
-                    max={formData.weddingDate || undefined}
-                    required
-                  />
+                  <div className="op-date-input">
+                    <input
+                      type="date"
+                      name="expectedDeliveryDate"
+                      value={formData.expectedDeliveryDate}
+                      onChange={handleInputChange}
+                      className={dateErrors.expectedDeliveryDate ? 'op-date-error' : ''}
+                      min={new Date().toISOString().split('T')[0]}
+                      max={formData.weddingDate || undefined}
+                      required
+                    />
+                  </div>
                   {dateErrors.expectedDeliveryDate && (
                     <p style={{ color: '#b0413e', fontSize: '13px', marginTop: '6px', lineHeight: '1.4' }}>
                       {dateErrors.expectedDeliveryDate}
@@ -3059,6 +3004,36 @@ export default function OrderProcess() {
           )}
 
           {renderModal()}
+          {/* Address Required Modal */}
+          {addressModalVisible && (
+            <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:3000}}>
+              <div style={{background:'#fff',width:'420px',borderRadius:12,padding:24,boxShadow:'0 8px 40px rgba(0,0,0,0.2)'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                  <h3 style={{margin:0}}>Add your delivery address</h3>
+                  <button onClick={() => { setAddressModalVisible(false); setPendingOrderContext(null); }} style={{background:'transparent',border:'none',fontSize:20,cursor:'pointer'}}>×</button>
+                </div>
+                <p style={{color:'#666',marginBottom:12}}>We don't have a delivery address on file for your account yet. Please add one to continue.</p>
+                <textarea
+                  value={addressInput}
+                  onChange={e => setAddressInput(e.target.value)}
+                  placeholder="House/street, barangay, city, province, postal code"
+                  rows={3}
+                  style={{width:'100%',padding:12,border:'1px solid #ddd',borderRadius:6,marginBottom:8,fontSize:14,resize:'vertical'}}
+                />
+                {addressError && <div style={{color:'#b0413e',marginBottom:8}}>{addressError}</div>}
+                <div style={{display:'flex',justifyContent:'flex-end',marginTop:8}}>
+                  <button
+                    onClick={handleSaveAddressAndContinue}
+                    disabled={addressSaving}
+                    style={{padding:'10px 18px',background:'#3f444b',color:'#fff',border:'none',borderRadius:6,cursor:addressSaving?'not-allowed':'pointer',fontWeight:700,opacity:addressSaving?0.7:1}}
+                  >
+                    {addressSaving ? 'Saving…' : 'Save & Continue'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* OTP Modal */}
           {otpModalVisible && (
             <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:3000}}>

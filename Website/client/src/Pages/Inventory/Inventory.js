@@ -18,7 +18,8 @@ import { useConfirm } from '../../Context/ConfirmContext';
 const UOMS_REQUIRING_CONVERSION = ['Dozen', 'Box', 'Bundle', 'Set', 'Kit'];
 
 function Inventory() {
-  const { checkPermission } = usePermissions();
+  const { checkPermission, isReadOnly } = usePermissions();
+  const readOnly = isReadOnly();
   const { theme } = useTheme();
   const confirm = useConfirm();
 
@@ -676,30 +677,34 @@ function Inventory() {
                 <span style={{ fontSize: '10px' }}>{rtStatus === 'live' ? '●' : '○'}</span>
                 {rtStatus === 'live' ? 'Live' : rtStatus === 'reconnecting' ? 'Reconnecting…' : rtStatus === 'offline' ? 'Offline' : 'Connecting…'}
               </span>
-              <button
-                className="phone-scanner-btn"
-                onClick={handlePsOpen}
-                title="Adjust stock by scanning a barcode with your phone"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '7px' }}>
-                  <path d="M2 4h2v16H2V4zm3 0h1v16H5V4zm2 0h2v16H7V4zm3 0h1v16h-1V4zm3 0h2v16h-2V4zm3 0h1v16h-1V4zm2 0h2v16h-2V4zM3 21h18v2H3v-2z"/>
-                </svg>
-                Scan with Phone
-              </button>
-              <button
-                className="add-product-btn"
-                onClick={() => {
-                  setModalMode('add');
-                  setSelectedProduct(null);
-                  setShowModal(true);
-                }}
-                title="Add New Product"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '8px' }}>
-                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                </svg>
-                Add Product
-              </button>
+              {!readOnly && (
+                <button
+                  className="phone-scanner-btn"
+                  onClick={handlePsOpen}
+                  title="Adjust stock by scanning a barcode with your phone"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '7px' }}>
+                    <path d="M2 4h2v16H2V4zm3 0h1v16H5V4zm2 0h2v16H7V4zm3 0h1v16h-1V4zm3 0h2v16h-2V4zm3 0h1v16h-1V4zm2 0h2v16h-2V4zM3 21h18v2H3v-2z"/>
+                  </svg>
+                  Scan with Phone
+                </button>
+              )}
+              {!readOnly && (
+                <button
+                  className="add-product-btn"
+                  onClick={() => {
+                    setModalMode('add');
+                    setSelectedProduct(null);
+                    setShowModal(true);
+                  }}
+                  title="Add New Product"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '8px' }}>
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                  </svg>
+                  Add Product
+                </button>
+              )}
             </div>
           </div>
           <div className="inventory-filters">
@@ -877,31 +882,37 @@ function Inventory() {
                       <td style={{ textAlign: 'center' }}>{Number(product.ordered_quantity || 0).toLocaleString()}</td>
                       <td style={{ textAlign: 'center' }}>{Number(product.delivered_quantity || 0).toLocaleString()}</td>
                       <td style={{ textAlign: 'center' }}>
-                        <button className="action-btn add" title="Add Stock" onClick={e => { 
-                          e.stopPropagation(); 
-                          setModalMode('addStock');
-                          setSelectedProduct(product);
-                          setShowModal(true);
-                        }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                          </svg>
-                        </button>
-                        <button className="action-btn edit" title="Edit" onClick={e => { 
-                          e.stopPropagation();
-                          setModalMode('edit');
-                          setSelectedProduct(product);
-                          setShowModal(true);
-                        }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                          </svg>
-                        </button>
-                        <button className="action-btn archive" title="Archive" onClick={e => { e.stopPropagation(); handleArchive(product.sku); }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                          </svg>
-                        </button>
+                        {readOnly ? (
+                          <span style={{ fontSize: '12px', color: '#9ca3af' }}>View only</span>
+                        ) : (
+                          <>
+                            <button className="action-btn add" title="Add Stock" onClick={e => {
+                              e.stopPropagation();
+                              setModalMode('addStock');
+                              setSelectedProduct(product);
+                              setShowModal(true);
+                            }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                              </svg>
+                            </button>
+                            <button className="action-btn edit" title="Edit" onClick={e => {
+                              e.stopPropagation();
+                              setModalMode('edit');
+                              setSelectedProduct(product);
+                              setShowModal(true);
+                            }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                              </svg>
+                            </button>
+                            <button className="action-btn archive" title="Archive" onClick={e => { e.stopPropagation(); handleArchive(product.sku); }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                              </svg>
+                            </button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))
