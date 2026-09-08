@@ -36,6 +36,10 @@ function Inventory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [selectedCategories, setSelectedCategories] = useState([]); // empty = all categories
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
+  const categoryDropdownRef = useRef(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [reorderInsights, setReorderInsights] = useState({});
   const navigate = useNavigate();
@@ -197,8 +201,55 @@ function Inventory() {
       default:
         break;
     }
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(item => selectedCategories.includes(normalizeCategoryKey(item.category)));
+    }
     setFilteredProducts(filtered);
-  }, [searchTerm, filter, products, reorderInsights]);
+  }, [searchTerm, filter, selectedCategories, products, reorderInsights]);
+
+  // Categories can come back from the API with inconsistent casing/whitespace
+  // (e.g. "Beverages" vs "beverages " vs " Beverages") — dedupe on a normalized
+  // key so those don't show up as separate options, while keeping a clean label.
+  const normalizeCategoryKey = (cat) => (cat || 'Uncategorized').trim().toLowerCase();
+
+  const categories = (() => {
+    if (!Array.isArray(products)) return [];
+    const byKey = new Map();
+    products.forEach(item => {
+      const label = (item.category || 'Uncategorized').trim();
+      const key = normalizeCategoryKey(item.category);
+      if (!byKey.has(key)) byKey.set(key, label);
+    });
+    return Array.from(byKey.entries())
+      .map(([key, label]) => ({ key, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  })();
+
+  const visibleCategories = categorySearchTerm.trim()
+    ? categories.filter(c => c.label.toLowerCase().includes(categorySearchTerm.trim().toLowerCase()))
+    : categories;
+
+  const toggleCategory = (key) => {
+    setSelectedCategories(prev =>
+      prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key]
+    );
+  };
+
+  // Close the category dropdown when clicking outside of it
+  useEffect(() => {
+    if (!categoryDropdownOpen) return;
+    const handleClickOutside = (e) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target)) {
+        setCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [categoryDropdownOpen]);
+
+  useEffect(() => {
+    if (!categoryDropdownOpen) setCategorySearchTerm('');
+  }, [categoryDropdownOpen]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -653,8 +704,7 @@ function Inventory() {
       <div className="dashboard-main" style={{ marginLeft: '220px', width: 'calc(100% - 220px)', height: '100vh', overflow: 'hidden' }}>
         <TopBar
           lowStockProducts={Array.isArray(products) ? products.filter(item => Number(item.quantity || 0) > 0 && Number(item.quantity || 0) <= Number(item.reorder_level || 0)) : []}
-          searchValue={searchTerm}
-          onSearchChange={e => setSearchTerm(e.target.value)}
+          showSearch={false}
         />
         <div className="inventory-container">
           <div className="inventory-header">
@@ -708,16 +758,83 @@ function Inventory() {
             </div>
           </div>
           <div className="inventory-filters">
-            <select 
-              value={filter} 
-              onChange={(e) => setFilter(e.target.value)}
-              className="inventory-filter-select"
-            >
-              <option value="all">All Products</option>
-              <option value="low-stock">Reorder Recommended / Approaching</option>
-              <option value="high-stock">Healthy</option>
-              <option value="replenishment">Out of Stock</option>
-            </select>
+            <div className="inventory-filter-group">
+              <input
+                type="text"
+                className="inventory-search"
+                placeholder="Search products"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="inventory-filter-select"
+              >
+                <option value="all">All Products</option>
+                <option value="low-stock">Reorder Recommended / Approaching</option>
+                <option value="high-stock">Healthy</option>
+                <option value="replenishment">Out of Stock</option>
+              </select>
+              <div className="category-dropdown" ref={categoryDropdownRef}>
+                <button
+                  type="button"
+                  className={`category-dropdown-toggle ${selectedCategories.length > 0 ? 'category-dropdown-toggle--active' : ''}`}
+                  onClick={() => setCategoryDropdownOpen(open => !open)}
+                >
+                  {selectedCategories.length === 0
+                    ? 'Category'
+                    : selectedCategories.length === 1
+                      ? (categories.find(c => c.key === selectedCategories[0])?.label || 'Category')
+                      : `Category (${selectedCategories.length})`}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: '6px' }}>
+                    <path d="M7 10l5 5 5-5z" />
+                  </svg>
+                </button>
+                {categoryDropdownOpen && (
+                  <div className="category-dropdown-panel">
+                    <div className="category-dropdown-header">
+                      <span>Category</span>
+                      {selectedCategories.length > 0 && (
+                        <button
+                          type="button"
+                          className="category-dropdown-clear"
+                          onClick={() => setSelectedCategories([])}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      className="category-dropdown-search"
+                      placeholder="Search categories"
+                      value={categorySearchTerm}
+                      onChange={(e) => setCategorySearchTerm(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="category-dropdown-list">
+                      {visibleCategories.length === 0 ? (
+                        <p className="category-dropdown-empty">
+                          {categories.length === 0 ? 'No categories yet' : 'No matches'}
+                        </p>
+                      ) : (
+                        visibleCategories.map(cat => (
+                          <label key={cat.key} className="category-dropdown-option">
+                            <input
+                              type="checkbox"
+                              checked={selectedCategories.includes(cat.key)}
+                              onChange={() => toggleCategory(cat.key)}
+                            />
+                            <span>{cat.label}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="export-buttons">
               <button onClick={exportToPDF} className="export-btn pdf-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '8px' }}><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM9.5 11.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V9h2v2.5c0 1.93-1.57 3.5-3.5 3.5S8 13.43 8 11.5V9h1.5v2.5zM13 9V3.5L18.5 9H13z"/></svg>Export as PDF</button>
               <button onClick={exportToExcel} className="export-btn excel-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '8px' }}><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-2 14h-2v-2h2v2zm0-4h-2v-2h2v2zm-4-2h2v2H8v-2zm0 4h2v2H8v-2zm-1.9-6.95l1.45-1.45 1.05 1.05 2.85-2.85 1.45 1.45-4.3 4.3-2.5-2.5zM13 9V3.5L18.5 9H13z"/></svg>Export as Excel</button>

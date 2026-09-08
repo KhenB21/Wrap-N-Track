@@ -172,7 +172,7 @@ function Invoices() {
     <div className="invoices-page">
       <Sidebar />
       <div className="invoices-main">
-        <TopBar avatarUrl={getProfilePictureUrl()} />
+        <TopBar avatarUrl={getProfilePictureUrl()} showSearch={false} />
         <div className="invoices-content">
           <div className="invoices-header">
             <div>

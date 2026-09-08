@@ -22,7 +22,8 @@ async function ensureSupplierSchema() {
       ADD COLUMN IF NOT EXISTS telephone VARCHAR(30),
       ADD COLUMN IF NOT EXISTS cellphone VARCHAR(30),
       ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true,
-      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      ADD COLUMN IF NOT EXISTS barangay VARCHAR(100);
   `);
   await pool.query(`
     UPDATE suppliers
@@ -65,7 +66,7 @@ const mapSupplier = (supplier) => ({
   description: supplier.notes,
   province: supplier.state,
   city_municipality: supplier.city,
-  barangay: '',
+  barangay: supplier.barangay || '',
   street_address: supplier.address,
   zip_code: supplier.postal_code,
   status: supplier.is_active === false ? 'inactive' : 'active',
@@ -213,8 +214,8 @@ router.post('/', upload.single('image'), async (req, res) => {
       // Map frontend fields to database fields
       const result = await client.query(`
         INSERT INTO suppliers (
-          name, contact_person, phone, telephone, cellphone, email, address, city, state, postal_code, country, notes, is_active, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW()) RETURNING *
+          name, contact_person, phone, telephone, cellphone, email, address, barangay, city, state, postal_code, country, notes, is_active, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW()) RETURNING *
       `, [
         name,
         contact_person,
@@ -223,6 +224,7 @@ router.post('/', upload.single('image'), async (req, res) => {
         cellphone || '',
         email_address,
         street_address || '', // Map street_address to address
+        barangay || '',
         city_municipality || '', // Map city_municipality to city
         province || '', // Map province to state
         zip_code || '', // Map zip_code to postal_code
@@ -304,20 +306,21 @@ router.put('/:supplier_id', upload.single('image'), async (req, res) => {
       }
 
       const result = await client.query(`
-        UPDATE suppliers SET 
-          name = $1, 
-          contact_person = $2, 
-          phone = $3, 
+        UPDATE suppliers SET
+          name = $1,
+          contact_person = $2,
+          phone = $3,
           telephone = $4,
           cellphone = $5,
           email = $6,
           address = $7,
-          city = $8,
-          state = $9,
-          postal_code = $10,
-          notes = $11,
+          barangay = $8,
+          city = $9,
+          state = $10,
+          postal_code = $11,
+          notes = $12,
           updated_at = NOW()
-        WHERE supplier_id = $12 RETURNING *
+        WHERE supplier_id = $13 RETURNING *
       `, [
         name,
         contact_person,
@@ -326,6 +329,7 @@ router.put('/:supplier_id', upload.single('image'), async (req, res) => {
         cellphone || '',
         email_address,
         street_address || '',
+        barangay || '',
         city_municipality || '',
         province || '',
         zip_code || '',

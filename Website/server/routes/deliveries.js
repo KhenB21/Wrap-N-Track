@@ -10,6 +10,7 @@ const {
   TRACKING_UNAVAILABLE_MESSAGE,
   ensureDeliverySchema,
 } = require('../services/deliveryService');
+const NotificationService = require('../services/notificationService');
 
 const router = express.Router();
 
@@ -335,9 +336,6 @@ router.patch('/:orderId', async (req, res) => {
   if (!delivery_mode_id && !delivery_method) {
     return res.status(400).json({ success: false, message: 'Delivery mode is required' });
   }
-  if (['Failed Delivery', 'Rescheduled'].includes(delivery_status) && !String(delivery_remarks || '').trim()) {
-    return res.status(400).json({ success: false, message: 'Remarks are required for failed or rescheduled deliveries' });
-  }
 
   let mode = null;
   if (delivery_mode_id) {
@@ -455,6 +453,26 @@ router.patch('/:orderId', async (req, res) => {
     ]);
 
     await client.query('COMMIT');
+
+    // Let the customer know a tracking link just became available. Failure
+    // here shouldn't fail the delivery update itself -- the dedupe window in
+    // createNotification already keeps repeat saves from spamming.
+    if (linkAvailable && finalTrackingLink && result.rows[0].customer_id) {
+      try {
+        await NotificationService.createNotification({
+          userId: result.rows[0].customer_id,
+          title: 'Tracking Link Available',
+          message: `A tracking link is now available for order ${req.params.orderId}.`,
+          type: 'delivery_tracking',
+          priority: 'normal',
+          category: 'delivery',
+          metadata: { order_id: req.params.orderId, tracking_link: finalTrackingLink },
+        });
+      } catch (notifyError) {
+        console.error('Error creating tracking link notification:', notifyError);
+      }
+    }
+
     res.json({ success: true, delivery: result.rows[0] });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -476,7 +494,7 @@ router.post('/:orderId/proof', (req, res) => {
 
     const proofUrl = mapProofUrl(req.file.filename);
     try {
-      const result = await pool.query(`
+      let result = await pool.query(`
         UPDATE orders
         SET proof_image_url = $1,
             proof_uploaded_by = $2,
@@ -486,6 +504,22 @@ router.post('/:orderId/proof', (req, res) => {
         WHERE order_id = $3
         RETURNING *
       `, [proofUrl, req.user?.user_id || null, req.params.orderId]);
+
+      // Order may already be archived into order_history (e.g. status
+      // Completed) -- retry there the same way the PATCH /:orderId handler
+      // does, so uploading proof for an archived order doesn't 404.
+      if (!result.rows.length) {
+        result = await pool.query(`
+          UPDATE order_history
+          SET proof_image_url = $1,
+              proof_uploaded_by = $2,
+              proof_uploaded_at = NOW(),
+              delivery_updated_by = $2,
+              delivery_updated_at = NOW()
+          WHERE order_id = $3
+          RETURNING *
+        `, [proofUrl, req.user?.user_id || null, req.params.orderId]);
+      }
 
       if (!result.rows.length) {
         return res.status(404).json({ success: false, message: 'Delivery order not found' });

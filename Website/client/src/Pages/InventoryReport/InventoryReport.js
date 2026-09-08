@@ -34,6 +34,10 @@ export default function InventoryReport() {
   const [forecastData, setForecastData] = useState([]);
   const [stockFlow, setStockFlow] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Movement/Advanced Analytics/Forecast tabs' data arrives after the
+  // Overview tab is already interactive -- this only gates those tabs
+  // instead of blocking the whole page behind the slowest endpoint.
+  const [extrasLoading, setExtrasLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
     startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
@@ -60,49 +64,34 @@ export default function InventoryReport() {
   }, []);
 
   const fetchInventoryData = async () => {
+    const days = getDaysDifference();
     try {
       setLoading(true);
-      console.log('Fetching inventory data...');
-      
-      // Fetch all data in parallel
-      const days = getDaysDifference();
-      const [inventoryResponse, movementResponse, replenishmentResponse, analyticsResponse,
-             forecastResponse, stockFlowResponse] = await Promise.all([
+
+      // Core data for the Overview tab -- fetched first so the page can
+      // become interactive without waiting on the slower analytics/forecast
+      // endpoints (previously a single Promise.all over all 6 endpoints
+      // blocked the entire page behind whichever one was slowest).
+      const [inventoryResponse, replenishmentResponse] = await Promise.all([
         api.get('/api/inventory'),
-        api.get(`/api/inventory-reports/movement-analysis?days=${days}`),
         api.get(`/api/inventory-reports/replenishment-suggestions?days=${days}`),
-        api.get(`/api/inventory-reports/advanced-analytics?days=${days}`),
-        api.get('/api/analytics/forecast/demand').catch(() => null),
-        api.get(`/api/inventory-reports/stock-flow?days=${days}`).catch(() => null),
       ]);
-      
+
       // Handle inventory data
       let data = [];
       if (Array.isArray(inventoryResponse.data)) {
         data = inventoryResponse.data;
       } else if (inventoryResponse.data && inventoryResponse.data.inventory) {
         data = inventoryResponse.data.inventory;
-      } else if (inventoryResponse.data && Array.isArray(inventoryResponse.data)) {
-        data = inventoryResponse.data;
       }
-      
-      console.log('Processed inventory data:', data);
+
       setInventoryData(data);
       calculateReportData(data);
-      
-      // Set analytics data
-      setMovementData(movementResponse.data.data || []);
       setReplenishmentData(replenishmentResponse.data.data || []);
-      setAnalyticsData(analyticsResponse.data.data || []);
-      if (forecastResponse?.data?.data)  setForecastData(forecastResponse.data.data);
-      if (stockFlowResponse?.data?.data) setStockFlow(stockFlowResponse.data.data);
-      
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching inventory data:', error);
-      console.error('Error response:', error.response);
-      console.error('Error status:', error.response?.status);
-      console.error('Error data:', error.response?.data);
-      
+
       if (error.response?.status === 401) {
         toast.error('Authentication required. Please log in again.');
         navigate('/login-employee-pensee');
@@ -112,8 +101,32 @@ export default function InventoryReport() {
         toast.error('Failed to fetch inventory data');
       }
       setInventoryData([]); // Set empty array on error
-    } finally {
       setLoading(false);
+      setExtrasLoading(false);
+      return;
+    }
+
+    // Movement/Advanced Analytics/Forecast/Stock Flow tabs' data -- fetched
+    // after the page is already showing the Overview tab, so a slow
+    // analytics query no longer holds up the whole page.
+    try {
+      setExtrasLoading(true);
+      const [movementResponse, analyticsResponse, forecastResponse, stockFlowResponse] = await Promise.all([
+        api.get(`/api/inventory-reports/movement-analysis?days=${days}`),
+        api.get(`/api/inventory-reports/advanced-analytics?days=${days}`),
+        api.get('/api/analytics/forecast/demand').catch(() => null),
+        api.get(`/api/inventory-reports/stock-flow?days=${days}`).catch(() => null),
+      ]);
+
+      setMovementData(movementResponse.data.data || []);
+      setAnalyticsData(analyticsResponse.data.data || []);
+      if (forecastResponse?.data?.data)  setForecastData(forecastResponse.data.data);
+      if (stockFlowResponse?.data?.data) setStockFlow(stockFlowResponse.data.data);
+    } catch (error) {
+      console.error('Error fetching movement/analytics data:', error);
+      toast.error('Failed to load Movement Analysis / Advanced Analytics data');
+    } finally {
+      setExtrasLoading(false);
     }
   };
 
@@ -678,6 +691,10 @@ export default function InventoryReport() {
                 <p>Analysis of item movement patterns over the selected period</p>
               </div>
 
+              {extrasLoading && movementData.length === 0 && stockFlow.length === 0 && (
+                <div className="loading">Loading movement analysis...</div>
+              )}
+
               {/* Stock In vs Out chart */}
               {stockFlow.length > 0 && (() => {
                 const totalIn  = stockFlow.reduce((s, d) => s + d.stockIn, 0);
@@ -820,7 +837,9 @@ export default function InventoryReport() {
                 <p>Per-SKU velocity trends, days-to-stockout, and reorder recommendations. Items with fewer than 30 days of sales history are listed separately — their forecast would be unreliable.</p>
               </div>
 
-              {forecastData.length === 0 ? (
+              {extrasLoading && forecastData.length === 0 ? (
+                <div className="loading">Loading demand forecast...</div>
+              ) : forecastData.length === 0 ? (
                 <EmptyState message="No forecast data available. The analytics server may need a restart." />
               ) : (() => {
                 const okItems = forecastData.filter(d => d.status === 'ok');
@@ -917,6 +936,9 @@ export default function InventoryReport() {
                 <p>Comprehensive analysis of inventory performance and profitability</p>
               </div>
               
+              {extrasLoading && analyticsData.length === 0 ? (
+                <div className="loading">Loading advanced analytics...</div>
+              ) : (
               <div className="analytics-table-container">
                 <table className="analytics-table">
                   <thead>
@@ -968,6 +990,7 @@ export default function InventoryReport() {
                   </tbody>
                 </table>
               </div>
+              )}
             </div>
           )}
 

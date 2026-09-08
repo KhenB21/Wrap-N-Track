@@ -94,6 +94,27 @@
   box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
 }
 
+.supplier-search {
+  padding: 8px 12px;
+  border: 1px solid var(--input-border, #e1e5e9);
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 220px;
+  background: var(--input-background, white);
+  color: var(--input-text, #1a1a1a);
+  transition: all 0.2s ease;
+}
+
+.supplier-search::placeholder {
+  color: var(--input-placeholder, #94a3b8);
+}
+
+.supplier-search:focus {
+  outline: none;
+  border-color: #4361ee;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+}
+
 .results-info {
   font-size: 14px;
   color: var(--text-muted, #64748b);

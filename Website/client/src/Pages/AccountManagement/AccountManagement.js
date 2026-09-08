@@ -127,7 +127,7 @@ const AccountManagement = () => {
       <div className="dashboard-container">
         <Sidebar />
         <div className="main-content">
-          <TopBar />
+          <TopBar showSearch={false} />
           <div className="account-management">
             <div className="access-denied">
               <h2>Access Denied</h2>
@@ -143,7 +143,7 @@ const AccountManagement = () => {
     <div className="dashboard-container">
       <Sidebar />
       <div className="main-content">
-        <TopBar />
+        <TopBar showSearch={false} />
         <div className="account-management">
           <div className="account-management-header">
             <h1>Account Management</h1>

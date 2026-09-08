@@ -39,6 +39,15 @@
   to   { opacity: 1; transform: scale(1)    translateY(0); }
 }
 
+.cust-modal--compact {
+  max-width: 460px;
+}
+
+.cust-modal-body--view {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
 /* ── Header ───────────────────────────────────────────── */
 .cust-modal-header {
   display: flex;
@@ -253,6 +262,10 @@
   border: 1px solid #f0f0f3;
   border-radius: 8px;
   padding: 10px 14px;
+}
+
+.cust-fm-info-item--full {
+  grid-column: 1 / -1;
 }
 
 .cust-fm-info-label {

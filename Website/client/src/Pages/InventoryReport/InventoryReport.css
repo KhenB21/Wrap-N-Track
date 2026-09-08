@@ -33,7 +33,6 @@
   align-items: flex-start;
   margin-bottom: 32px;
   background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
   padding: 32px;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -67,7 +66,6 @@
   background: rgba(255, 255, 255, 0.8);
   padding: 12px 16px;
   border-radius: 12px;
-  backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
@@ -87,7 +85,7 @@
   font-weight: 500;
   background: var(--input-background, white);
   color: var(--input-text, #1a202c);
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   min-width: 140px;
 }
 
@@ -116,7 +114,7 @@
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -182,7 +180,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -244,7 +242,6 @@
 
 .summary-card {
   background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
   padding: 24px;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -252,7 +249,7 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .summary-card::before {
@@ -514,11 +511,6 @@
 }
 
 /* Dark Mode Support */
-body.dark .inventory-report-container {
-  background-color: #1a1a1a;
-  color: #e0e0e0;
-}
-
 body.dark .report-header,
 body.dark .summary-card,
 body.dark .report-section {
@@ -548,27 +540,107 @@ body.dark .category-name {
   color: #e0e0e0;
 }
 
-body.dark .inventory-table th {
+/* Tab bar + tab panels — these replaced the old .inventory-table-based
+   layout above, but never got their own dark-mode treatment, so this
+   whole page fell back to plain light-mode colors under body.dark. */
+body.dark .tab-navigation,
+body.dark .tab-content {
+  background-color: #2d2d2d;
+  border-color: #444;
+}
+
+body.dark .tab-btn {
+  color: #e0e0e0;
+}
+
+body.dark .tab-btn:hover {
+  background: rgba(102, 126, 234, 0.2);
+}
+
+body.dark .section-header h2,
+body.dark .section-header p {
+  color: #e0e0e0;
+}
+
+body.dark .date-range {
+  background: #3d3d3d;
+  border-color: #555;
+}
+
+body.dark .date-range label {
+  color: #b0b0b0;
+}
+
+body.dark .replenishment-table th,
+body.dark .analytics-table th {
   background-color: #3d3d3d;
   color: #e0e0e0;
   border-bottom-color: #555;
 }
 
-body.dark .inventory-table td {
+body.dark .replenishment-table td,
+body.dark .analytics-table td {
   color: #e0e0e0;
   border-bottom-color: #555;
 }
 
-body.dark .inventory-table tr:hover {
-  background-color: #3d3d3d;
+body.dark .priority-section,
+body.dark .movement-category {
+  background-color: #2d2d2d;
+  border-color: #444;
 }
 
-body.dark .inventory-table tr.low-stock {
+body.dark .movement-item {
+  border-bottom-color: #444;
+}
+
+body.dark .movement-item:hover {
+  background: rgba(102, 126, 234, 0.12);
+}
+
+body.dark .item-name,
+body.dark .metric .value {
+  color: #e0e0e0;
+}
+
+body.dark .item-sku,
+body.dark .metric .label {
+  color: #b0b0b0;
+}
+
+body.dark .stock-status-pill.low {
+  background: #4a3c1a;
+  color: #fbbf24;
+}
+
+body.dark .stock-status-pill.out {
+  background: #4a2c2c;
+  color: #f87171;
+}
+
+body.dark .stock-level.low_stock {
   background-color: #4a2c2c;
+  color: #f87171;
 }
 
-body.dark .inventory-table tr.low-stock:hover {
-  background-color: #5a3c3c;
+body.dark .stock-level.medium_stock {
+  background-color: #4a3c1a;
+  color: #fbbf24;
+}
+
+body.dark .stock-level.high_stock {
+  background-color: #1a3d2c;
+  color: #4ade80;
+}
+
+body.dark .ir-chart-card {
+  background-color: #2d2d2d;
+  border-color: #444;
+}
+
+body.dark .loading,
+body.dark .empty-note {
+  color: #b0b0b0;
 }
 
 body.dark .alert-item {
@@ -735,7 +807,6 @@ Y
   gap: 6px;
   margin-bottom: 24px;
   background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
   padding: 6px;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -750,7 +821,7 @@ Y
   border-radius: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -790,7 +861,6 @@ Y
 
 .tab-content {
   background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   padding: 32px;
@@ -846,9 +916,8 @@ Y
   border-radius: 16px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .movement-category:hover {
@@ -896,7 +965,6 @@ Y
   letter-spacing: 0.5px;
   position: relative;
   z-index: 2;
-  backdrop-filter: blur(5px);
 }
 
 .category-items {
@@ -909,7 +977,7 @@ Y
   align-items: center;
   padding: 16px 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  transition: all 0.2s ease;
+  transition: background 0.2s ease;
 }
 
 .movement-item:last-child {

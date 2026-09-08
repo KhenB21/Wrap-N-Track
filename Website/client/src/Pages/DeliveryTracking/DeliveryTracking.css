@@ -14,7 +14,7 @@
 
 .delivery-content {
   padding: 24px;
-  max-width: 1400px;
+  width: 100%;
 }
 
 @media (min-width: 768.02px) and (max-width: 1023.98px) {
@@ -138,6 +138,14 @@
   vertical-align: top;
 }
 
+.delivery-table tbody tr.delivery-row-clickable {
+  cursor: pointer;
+}
+
+.delivery-table tbody tr.delivery-row-clickable:hover {
+  background: var(--hover, rgba(15, 23, 42, 0.035));
+}
+
 .delivery-table th {
   background: var(--surface-muted, #f8fafc);
   color: var(--text-soft, #475569);
@@ -154,21 +162,22 @@
   font-weight: 800;
 }
 
-.delivery-status.Delivered {
+.delivery-status.Delivered,
+.delivery-status.Picked-Up {
   background: #dcfce7;
   color: #166534;
 }
 
-.delivery-status.Failed-Delivery,
-.delivery-status.Cancelled {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.delivery-status.Out-for-Delivery,
-.delivery-status.Ready-for-Delivery {
+.delivery-status.Ready-for-Delivery,
+.delivery-status.Awaiting-Pick-up,
+.delivery-status.Sent-Shipped {
   background: #dbeafe;
   color: #1d4ed8;
+}
+
+.delivery-status.Scheduled {
+  background: #ede9fe;
+  color: #6d28d9;
 }
 
 .delivery-modal-backdrop {
@@ -241,7 +250,8 @@
 }
 
 .delivery-info-grid span,
-.delivery-form-grid label {
+.delivery-form-grid label,
+.delivery-form-grid .delivery-field-label {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -305,6 +315,66 @@
   color: var(--text-soft, #334155);
   font-size: 13px;
   font-weight: 700;
+}
+
+.delivery-file-upload {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.delivery-file-upload input[type="file"] {
+  display: none;
+}
+
+.delivery-file-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #2c3e50;
+  background: #2c3e50;
+  color: #fff;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.delivery-file-upload-btn:hover {
+  background: #1f2d3a;
+}
+
+.delivery-file-upload-btn:active {
+  transform: scale(0.98);
+}
+
+.delivery-file-upload-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.delivery-file-upload-name {
+  color: var(--text-muted, #64748b);
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+}
+
+body.dark .delivery-file-upload-btn {
+  background: var(--brand, #5b9dff);
+  border-color: var(--brand, #5b9dff);
+  color: #0f172a;
+}
+
+body.dark .delivery-file-upload-btn:hover {
+  background: #4a8ae8;
 }
 
 .delivery-proof img {

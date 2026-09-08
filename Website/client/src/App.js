@@ -23,7 +23,6 @@ const Details = lazy(() => import("./Pages/Dashboard/Details"));
 const Login = lazy(() => import("./Pages/Login/Login"));
 const OrderDetails = lazy(() => import("./Pages/OrderDetails/OrderDetails"));
 const ProductDetails = lazy(() => import("./Pages/ProductDetails/ProductDetails"));
-const CustomerDetails = lazy(() => import("./Pages/CustomerDetails/CustomerDetails"));
 const Customers = lazy(() => import("./Pages/Customers/Customers"));
 const SupplierDetails = lazy(() => import("./Pages/SupplierDetails/SupplierDetails"));
 const SupplierForm = lazy(() => import("./Pages/SupplierDetails/SupplierForm"));
@@ -110,7 +109,6 @@ function App() {
         <Route path="/customer-home" element={<CustomerHome />} />
 
         <Route path="/archived-orders" element={<ArchivedOrders />} />
-        <Route path="/customer-details" element={<CustomerDetails />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/supplier-details" element={<SupplierDetails />} />
         <Route path="/supplier-form" element={<SupplierForm />} />

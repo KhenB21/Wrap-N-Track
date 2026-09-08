@@ -669,7 +669,7 @@ router.post('/stock-out', optionalVerifyToken, requireInventoryWrite, async (req
 router.post('/', optionalVerifyToken, requireInventoryWrite, upload.single('image'), async (req, res) => {
   const {
     sku,
-    name,
+    name: rawName,
     description,
     category,
     quantity,
@@ -685,6 +685,10 @@ router.post('/', optionalVerifyToken, requireInventoryWrite, upload.single('imag
     barcode
   } = req.body;
 
+  // Trim so "Envelope", " Envelope" and "Envelope " are recognized as the
+  // same product by the duplicate-name check below, and so future rows don't
+  // themselves become a source of the same near-duplicate problem.
+  const name = typeof rawName === 'string' ? rawName.trim() : rawName;
   const barcodeValue = typeof barcode === 'undefined' || (typeof barcode === 'string' && barcode.trim() === '') ? null : String(barcode).trim();
 
   const isUpdateRequested = isUpdate === 'true' || isUpdate === true;
@@ -750,6 +754,24 @@ router.post('/', optionalVerifyToken, requireInventoryWrite, upload.single('imag
         }
       }
 
+      // Renaming this product to match a DIFFERENT product's name (active or
+      // archived) would create the same kind of duplicate the create-time
+      // check prevents -- e.g. editing "Envelope Small" to just "Envelope"
+      // when an "Envelope" already exists elsewhere.
+      if (name) {
+        const duplicateName = await client.query(
+          `SELECT sku FROM inventory_items WHERE sku != $1 AND lower(trim(name)) = lower(trim($2)) LIMIT 1`,
+          [sku, name]
+        );
+        if (duplicateName.rows.length > 0) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            success: false,
+            message: `A product named "${name}" already exists (SKU ${duplicateName.rows[0].sku}). Choose a different name, or edit that product instead.`
+          });
+        }
+      }
+
       const previousQuantity = Number(existingItem.rows[0].quantity || 0);
       const result = await client.query(`
         UPDATE inventory_items
@@ -798,6 +820,32 @@ router.post('/', optionalVerifyToken, requireInventoryWrite, upload.single('imag
         success: true,
         message: 'Item updated successfully',
         product: result.rows[0]
+      });
+    }
+
+    // Guard against accidental duplicate products (e.g. a double-submitted Add
+    // Product request, or a client whose in-memory product list was stale) --
+    // this is the server-side check; the client-side name check in
+    // AddProductModal.js is a UX nicety only and was never enough on its own.
+    //
+    // Checked against ALL products, not just active ones: without this, you
+    // could archive "Envelope", create a brand-new "Envelope" (allowed, since
+    // the old one is inactive), then restore the archived one -- landing back
+    // at two active "Envelope" products. Blocking the create here closes that
+    // path at its source; restoring an archived item is guarded separately
+    // below for the case where the second product was made some other way.
+    const duplicateName = await client.query(
+      `SELECT sku, is_active FROM inventory_items WHERE lower(trim(name)) = lower(trim($1)) LIMIT 1`,
+      [name]
+    );
+    if (duplicateName.rows.length > 0) {
+      await client.query('ROLLBACK');
+      const existing = duplicateName.rows[0];
+      return res.status(409).json({
+        success: false,
+        message: existing.is_active
+          ? `A product named "${name}" already exists (SKU ${existing.sku}). Use Edit or Add Stock instead of creating a new one.`
+          : `A product named "${name}" already exists but is archived (SKU ${existing.sku}). Restore it instead of creating a new one.`
       });
     }
 
@@ -928,6 +976,22 @@ router.put('/:sku', optionalVerifyToken, requireInventoryWrite, async (req, res)
       });
     }
     const previousQuantity = Number(existingItem.rows[0].quantity || 0);
+
+    // Same duplicate-name guard as the POST isUpdate path -- this route isn't
+    // called by either client today, but leaving it unguarded would make it a
+    // silent way back into the same bug if something starts calling it later.
+    if (name) {
+      const duplicateName = await pool.query(
+        `SELECT sku FROM inventory_items WHERE sku != $1 AND lower(trim(name)) = lower(trim($2)) LIMIT 1`,
+        [sku, name]
+      );
+      if (duplicateName.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: `A product named "${name}" already exists (SKU ${duplicateName.rows[0].sku}).`
+        });
+      }
+    }
 
     // Handle image data if provided
     let imageBuffer = null;
@@ -1083,6 +1147,22 @@ router.patch('/:sku/restore', optionalVerifyToken, requireInventoryWrite, async 
       return res.status(404).json({
         success: false,
         message: 'Item not found'
+      });
+    }
+
+    // Restoring can create the same kind of duplicate a create would, if a
+    // different active product picked up this same name while this one was
+    // archived (which the create-time check now blocks going forward, but
+    // this covers rows that already exist from before that fix, or products
+    // renamed to match while this one sat archived).
+    const conflict = await pool.query(
+      `SELECT sku FROM inventory_items WHERE sku != $1 AND is_active = true AND lower(trim(name)) = lower(trim($2)) LIMIT 1`,
+      [sku, existingItem.rows[0].name]
+    );
+    if (conflict.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `Can't restore "${existingItem.rows[0].name}" -- an active product with the same name already exists (SKU ${conflict.rows[0].sku}). Rename one of them first.`
       });
     }
 

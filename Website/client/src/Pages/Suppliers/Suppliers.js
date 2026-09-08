@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Suppliers.css';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
@@ -12,6 +13,7 @@ import { useConfirm } from '../../Context/ConfirmContext';
 export default function Suppliers() {
   const { checkPermission } = usePermissions();
   const confirm = useConfirm();
+  const navigate = useNavigate();
   const [suppliers, setSuppliers] = useState([]);
   const [filteredSuppliers, setFilteredSuppliers] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -106,12 +108,14 @@ export default function Suppliers() {
   const handleSaveSupplier = async (supplierData) => {
     try {
       if (modalMode === 'add') {
-        await api.post('/api/suppliers', supplierData);
+        const response = await api.post('/api/suppliers', supplierData);
         toast.success('Supplier added successfully!');
-      } else {
-        await api.put(`/api/suppliers/${selectedSupplier.supplier_id}`, supplierData);
-        toast.success('Supplier updated successfully!');
+        setShowModal(false);
+        navigate('/supplier-details', { state: { newSupplierId: response.data?.supplier_id } });
+        return;
       }
+      await api.put(`/api/suppliers/${selectedSupplier.supplier_id}`, supplierData);
+      toast.success('Supplier updated successfully!');
       setShowModal(false);
       await fetchSuppliers();
     } catch (err) {
@@ -152,10 +156,7 @@ export default function Suppliers() {
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar
-          searchValue={searchTerm}
-          onSearchChange={e => setSearchTerm(e.target.value)}
-        />
+        <TopBar showSearch={false} />
         
         <div className="suppliers-container">
           <div className="suppliers-header">
@@ -181,7 +182,14 @@ export default function Suppliers() {
 
           <div className="suppliers-filters">
             <div className="filter-group">
-              <select 
+              <input
+                type="text"
+                className="supplier-search"
+                placeholder="Search suppliers"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <select
                 value={typeFilter} 
                 onChange={(e) => setTypeFilter(e.target.value)}
                 className="type-filter"
