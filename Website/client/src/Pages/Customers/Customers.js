@@ -4,6 +4,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import CustomerModal from './CustomerModal';
+import CustomerViewModal from './CustomerViewModal';
 import CustomerCard from './CustomerCard';
 import './Customers.css';
 import api from '../../api';
@@ -22,6 +23,7 @@ export default function Customers() {
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [viewingCustomer, setViewingCustomer] = useState(null);
   const [selectedCustomers, setSelectedCustomers] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
@@ -96,9 +98,14 @@ export default function Customers() {
   };
 
   const handleEditCustomer = (customer) => {
+    setViewingCustomer(null);
     setModalMode('edit');
     setSelectedCustomer(customer);
     setShowModal(true);
+  };
+
+  const handleViewCustomer = (customer) => {
+    setViewingCustomer(customer);
   };
 
   const handleDeleteCustomer = async (customerId) => {
@@ -194,7 +201,7 @@ export default function Customers() {
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar />
+        <TopBar showSearch={false} />
         
         <div className="customers-page">
           {/* Header Section */}
@@ -427,6 +434,7 @@ export default function Customers() {
                         customer={customer}
                         isSelected={selectedCustomers.has(customer.customer_id)}
                         onSelect={handleSelectCustomer}
+                        onView={handleViewCustomer}
                         onEdit={handleEditCustomer}
                         onDelete={handleDeleteCustomer}
                       />
@@ -456,8 +464,12 @@ export default function Customers() {
                       </thead>
                       <tbody>
                         {paginatedCustomers.map((customer) => (
-                          <tr key={customer.customer_id}>
-                            <td>
+                          <tr
+                            key={customer.customer_id}
+                            onClick={() => handleViewCustomer(customer)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <td onClick={(e) => e.stopPropagation()}>
                               <input
                                 type="checkbox"
                                 checked={selectedCustomers.has(customer.customer_id)}
@@ -503,7 +515,7 @@ export default function Customers() {
                                 : 'N/A'
                               }
                             </td>
-                            <td>
+                            <td onClick={(e) => e.stopPropagation()}>
                               <div className="action-buttons">
                                 <button
                                   className="action-btn edit"
@@ -565,7 +577,16 @@ export default function Customers() {
           </div>
         </div>
 
-        {/* Modal */}
+        {/* View Modal (compact, read-only) */}
+        {viewingCustomer && (
+          <CustomerViewModal
+            customer={viewingCustomer}
+            onClose={() => setViewingCustomer(null)}
+            onEdit={handleEditCustomer}
+          />
+        )}
+
+        {/* Add/Edit Modal */}
         {showModal && (
           <CustomerModal
             mode={modalMode}

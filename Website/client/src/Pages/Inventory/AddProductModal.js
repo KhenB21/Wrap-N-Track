@@ -156,6 +156,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     barcode: initialData.barcode || '',
   });
   const [quantityToAdd, setQuantityToAdd] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(initialData.image_data ? `data:image/jpeg;base64,${initialData.image_data}` : null);
   const [errors, setErrors] = useState({});
@@ -284,6 +285,20 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     // Validate supplier selection
     if (!form.supplier_id) {
       newErrors.supplier = 'Please select a supplier';
+    }
+
+    // Validate expiration date when marked as expirable
+    if (form.expirable) {
+      if (!form.expiration) {
+        newErrors.expiration = 'Please select an expiration date';
+      } else {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const expirationDate = new Date(form.expiration);
+        if (expirationDate < today) {
+          newErrors.expiration = 'Expiration date cannot be in the past';
+        }
+      }
     }
 
     setErrors(newErrors);
@@ -415,15 +430,21 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return; // guards against double-tap/double-click firing this twice
     if (!validateForm()) return;
 
     if (isAddStockMode) {
-        onAdd({
-            sku: form.sku,
-            quantity: quantityToAdd,
-            reason: form.stock_reason || '',
-            isAddStock: true,
-        });
+        setIsSubmitting(true);
+        try {
+          await onAdd({
+              sku: form.sku,
+              quantity: quantityToAdd,
+              reason: form.stock_reason || '',
+              isAddStock: true,
+          });
+        } finally {
+          setIsSubmitting(false);
+        }
         return;
     }
 
@@ -486,7 +507,12 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
 
     // The onAdd prop (handleAddProduct in Inventory.js) will receive this data.
     // It currently only POSTs. The backend /api/inventory POST must handle upsert.
-    onAdd(dataToSend);
+    setIsSubmitting(true);
+    try {
+      await onAdd(dataToSend);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Add Stock is a narrow, high-frequency action (received a delivery, correcting a
@@ -553,8 +579,8 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
             </label>
 
             <div className="button-group">
-              <button type="button" className="submit-btn" onClick={onClose}>Cancel</button>
-              <button type="submit" className="submit-btn primary">Add Stock</button>
+              <button type="button" className="submit-btn" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+              <button type="submit" className="submit-btn primary" disabled={isSubmitting}>{isSubmitting ? 'Adding...' : 'Add Stock'}</button>
             </div>
           </form>
         </div>
@@ -787,21 +813,25 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                   <span>Expirable Product?</span>
                 </label>
                 {form.expirable ? (
-                  <input
-                    type="date"
-                    name="expiration"
-                    value={form.expiration}
-                    onChange={e => setForm(prev => ({ ...prev, expiration: e.target.value }))}
-                    className="expirable-date"
-                  />
+                  <>
+                    <input
+                      type="date"
+                      name="expiration"
+                      value={form.expiration}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={e => setForm(prev => ({ ...prev, expiration: e.target.value }))}
+                      className="expirable-date"
+                    />
+                    {errors.expiration && <span className="error-message">{errors.expiration}</span>}
+                  </>
                 ) : (
                   <span className="dont-expire-badge">Does not expire</span>
                 )}
               </div>
 
               <div className="button-group">
-                <button type="button" className="submit-btn" onClick={onClose}>Cancel</button>
-                <button type="submit" className="submit-btn primary">Save Product</button>
+                <button type="button" className="submit-btn" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+                <button type="submit" className="submit-btn primary" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save Product'}</button>
               </div>
             </form>
           </div>

@@ -369,7 +369,17 @@ router.get('/advanced-analytics', async (req, res) => {
     const days = Math.max(1, parseInt(req.query.days, 10) || 90);
 
     const result = await pool.query(`
-      WITH inventory_metrics AS (
+      WITH recent_order_products AS (
+        -- Date/status filter applied BEFORE joining to inventory_items, so the
+        -- join below is bounded by the requested window instead of scanning
+        -- every historical order line for every SKU on every request.
+        SELECT op.sku, op.order_id, op.quantity, op.unit_price, op.cost_price
+        FROM all_order_products op
+        JOIN all_orders o ON op.order_id = o.order_id
+        WHERE o.status IN ('Order Received', 'Completed')
+          AND o.order_date >= CURRENT_DATE - ($1::int * INTERVAL '1 day')
+      ),
+      inventory_metrics AS (
         SELECT
           i.sku,
           i.name,
@@ -380,47 +390,20 @@ router.get('/advanced-analytics', async (req, res) => {
           i.reorder_level,
           i.supplier_id,
           s.name as supplier_name,
-          COALESCE(SUM(CASE
-            WHEN o.status IN ('Order Received', 'Completed')
-            AND o.order_date >= CURRENT_DATE - ($1::int * INTERVAL '1 day')
-            THEN op.quantity
-            ELSE 0
-          END), 0) as sold_quantity,
-          COALESCE(SUM(CASE
-            WHEN o.status IN ('Order Received', 'Completed')
-            AND o.order_date >= CURRENT_DATE - ($1::int * INTERVAL '1 day')
-            THEN op.quantity * COALESCE(op.unit_price, i.unit_price)
-            ELSE 0
-          END), 0) as sales_value,
+          COALESCE(SUM(rop.quantity), 0) as sold_quantity,
+          COALESCE(SUM(rop.quantity * COALESCE(rop.unit_price, i.unit_price)), 0) as sales_value,
           -- cost of goods sold, and the quantity it actually covers, so an unknown
           -- cost on some lines does not silently understate the average cost
           COALESCE(SUM(CASE
-            WHEN o.status IN ('Order Received', 'Completed')
-            AND o.order_date >= CURRENT_DATE - ($1::int * INTERVAL '1 day')
-            AND op.cost_price IS NOT NULL
-            THEN op.quantity * op.cost_price
-            ELSE 0
+            WHEN rop.cost_price IS NOT NULL THEN rop.quantity * rop.cost_price ELSE 0
           END), 0) as cost_of_goods,
           COALESCE(SUM(CASE
-            WHEN o.status IN ('Order Received', 'Completed')
-            AND o.order_date >= CURRENT_DATE - ($1::int * INTERVAL '1 day')
-            AND op.cost_price IS NOT NULL
-            THEN op.quantity
-            ELSE 0
+            WHEN rop.cost_price IS NOT NULL THEN rop.quantity ELSE 0
           END), 0) as qty_with_known_cost,
-          COUNT(DISTINCT CASE
-            WHEN o.status IN ('Order Received', 'Completed')
-            AND o.order_date >= CURRENT_DATE - ($1::int * INTERVAL '1 day')
-            THEN o.order_id
-          END) as order_count,
-          AVG(CASE
-            WHEN o.status IN ('Order Received', 'Completed')
-            AND o.order_date >= CURRENT_DATE - ($1::int * INTERVAL '1 day')
-            THEN op.quantity
-          END) as avg_order_quantity
+          COUNT(DISTINCT rop.order_id) as order_count,
+          AVG(rop.quantity) as avg_order_quantity
         FROM inventory_items i
-        LEFT JOIN all_order_products op ON i.sku = op.sku
-        LEFT JOIN all_orders o ON op.order_id = o.order_id
+        LEFT JOIN recent_order_products rop ON rop.sku = i.sku
         LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id
         WHERE i.is_active = true
         GROUP BY i.sku, i.name, i.category, i.quantity, i.unit_price, i.cost_price,

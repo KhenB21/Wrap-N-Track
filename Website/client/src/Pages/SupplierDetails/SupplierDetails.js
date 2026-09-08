@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 import React, { useState, useEffect, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../../Components/Sidebar/Sidebar";
 import TopBar from "../../Components/TopBar";
 import api from '../../api';
@@ -27,6 +28,8 @@ function getProfilePictureUrl() {
 export default function SupplierDetails() {
   const { checkPermission } = usePermissions();
   const confirm = useConfirm();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     checkPermission('suppliers');
@@ -37,6 +40,7 @@ export default function SupplierDetails() {
   const [filteredSuppliers, setFilteredSuppliers] = useState([]);
   const [selectedSuppliers, setSelectedSuppliers] = useState(new Set());
   const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [viewingSupplier, setViewingSupplier] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [isAddingOrder, setIsAddingOrder] = useState(false);
@@ -135,6 +139,23 @@ export default function SupplierDetails() {
     
     setFilteredSuppliers(filtered);
   }, [suppliers, searchTerm, selectedCategory]);
+
+  // Deep-link support: Suppliers page's "Add Supplier" flow navigates here as
+  // /supplier-details with { newSupplierId } in nav state, so the freshly
+  // created supplier is highlighted and selected instead of just landing on
+  // an unfiltered list. Cleared from history state afterward so refreshing
+  // or navigating back here later doesn't keep re-selecting it.
+  useEffect(() => {
+    const newSupplierId = location.state?.newSupplierId;
+    if (!newSupplierId || suppliers.length === 0) return;
+    const match = suppliers.find(s => s.supplier_id === newSupplierId);
+    if (match) {
+      setSelectedSupplier(match);
+      setSelectedSuppliers(new Set([match.supplier_id]));
+    }
+    navigate(location.pathname, { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suppliers, location.state]);
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -1324,10 +1345,10 @@ export default function SupplierDetails() {
             ) : (
               <div className="suppliers-grid">
                 {filteredSuppliers.map((supplier) => (
-                  <div 
+                  <div
                     key={supplier.supplier_id}
                     className={`supplier-card ${selectedSuppliers.has(supplier.supplier_id) ? 'selected' : ''}`}
-                    onClick={(e) => handleSupplierSelect(supplier, e)}
+                    onClick={() => setViewingSupplier(supplier)}
                   >
                     <div className="card-header">
                       <input 
@@ -1425,6 +1446,43 @@ export default function SupplierDetails() {
                 <button className="sup-modal-btn sup-modal-btn--cancel" onClick={handleCancel}>Cancel</button>
                 <button className="sup-modal-btn sup-modal-btn--save" onClick={isAdding ? handleSaveAdd : handleSaveEdit}>
                   {isAdding ? 'Add Supplier' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Supplier Modal (read-only) */}
+        {viewingSupplier && (
+          <div className="sup-modal-overlay" onClick={() => setViewingSupplier(null)}>
+            <div className="sup-modal" onClick={e => e.stopPropagation()}>
+              <div className="sup-modal-header">
+                <div className="sup-modal-title-group">
+                  <span className="sup-modal-icon">🏢</span>
+                  <h2 className="sup-modal-title">{viewingSupplier.name}</h2>
+                </div>
+                <button className="sup-modal-close" onClick={() => setViewingSupplier(null)} aria-label="Close">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <div className="sup-modal-body">
+                <div className="sup-view-grid">
+                  <div className="sup-view-field"><span>Supplier ID</span><strong>#{viewingSupplier.supplier_id}</strong></div>
+                  <div className="sup-view-field"><span>Contact Person</span><strong>{viewingSupplier.contact_person || '-'}</strong></div>
+                  <div className="sup-view-field"><span>Email</span><strong>{viewingSupplier.email_address || '-'}</strong></div>
+                  <div className="sup-view-field"><span>Telephone</span><strong>{viewingSupplier.telephone || '-'}</strong></div>
+                  <div className="sup-view-field"><span>Cellphone</span><strong>{viewingSupplier.cellphone || '-'}</strong></div>
+                  <div className="sup-view-field sup-view-field--full"><span>Address</span><strong>{[viewingSupplier.street_address, viewingSupplier.barangay, viewingSupplier.city_municipality, viewingSupplier.province, viewingSupplier.zip_code].filter(Boolean).join(', ') || '-'}</strong></div>
+                  <div className="sup-view-field sup-view-field--full"><span>Description</span><strong>{viewingSupplier.description || '-'}</strong></div>
+                </div>
+              </div>
+              <div className="sup-modal-footer">
+                <button className="sup-modal-btn sup-modal-btn--cancel" onClick={() => setViewingSupplier(null)}>Close</button>
+                <button
+                  className="sup-modal-btn sup-modal-btn--save"
+                  onClick={() => { const s = viewingSupplier; setViewingSupplier(null); handleEdit(s); }}
+                >
+                  Edit Supplier
                 </button>
               </div>
             </div>

@@ -1,19 +1,20 @@
 import React from 'react';
 import './CustomerCard.css';
 
-export default function CustomerCard({ 
-  customer, 
-  isSelected, 
-  onSelect, 
-  onEdit, 
-  onDelete 
+export default function CustomerCard({
+  customer,
+  isSelected,
+  onSelect,
+  onView,
+  onEdit,
+  onDelete
 }) {
   const handleCardClick = (e) => {
-    // Don't trigger selection if clicking on buttons or checkbox
+    // Don't open details if clicking on buttons or the selection checkbox
     if (e.target.closest('.card-actions') || e.target.closest('.card-checkbox')) {
       return;
     }
-    onSelect(customer.customer_id);
+    onView(customer);
   };
 
   const handleEditClick = (e) => {

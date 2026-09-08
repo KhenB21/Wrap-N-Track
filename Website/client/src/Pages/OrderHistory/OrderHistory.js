@@ -135,7 +135,7 @@ export default function OrderHistory() {
     <div className="dashboard-container">
       <Sidebar />
       <div className="dashboard-main">
-        <TopBar avatarUrl={getProfilePictureUrl()} />
+        <TopBar avatarUrl={getProfilePictureUrl()} showSearch={false} />
         
         {/* Header / Filters */}
         <div className="order-filters">
@@ -169,7 +169,7 @@ export default function OrderHistory() {
           <input 
             className="order-search" 
             type="text" 
-            placeholder="Search archived orders…" 
+            placeholder="Search by customer, ship to, order ID, or email…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -199,8 +199,9 @@ export default function OrderHistory() {
               </div>
             ) : orders.filter((o)=> {
               const statusMatch = filterStatus==='all' ? true : (filterStatus==='completed' ? o.status==='Completed' : o.status==='Cancelled');
-              const searchMatch = !searchTerm || 
-                (o.name && o.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+              const searchMatch = !searchTerm ||
+                (o.customer_name && o.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (o.shipped_to && o.shipped_to.toLowerCase().includes(searchTerm.toLowerCase())) ||
                 (o.order_id && o.order_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
                 (o.email_address && o.email_address.toLowerCase().includes(searchTerm.toLowerCase()));
               return statusMatch && searchMatch;
@@ -216,8 +217,9 @@ export default function OrderHistory() {
             ) : orders
               .filter((o)=> {
                 const statusMatch = filterStatus==='all' ? true : (filterStatus==='completed' ? o.status==='Completed' : o.status==='Cancelled');
-                const searchMatch = !searchTerm || 
-                  (o.name && o.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                const searchMatch = !searchTerm ||
+                  (o.customer_name && o.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                  (o.shipped_to && o.shipped_to.toLowerCase().includes(searchTerm.toLowerCase())) ||
                   (o.order_id && o.order_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
                   (o.email_address && o.email_address.toLowerCase().includes(searchTerm.toLowerCase()));
                 return statusMatch && searchMatch;
@@ -230,7 +232,7 @@ export default function OrderHistory() {
                 style={{cursor:'pointer'}}
               >
                 <div className="order-info">
-                  <div className="order-name">{o.name || 'Unknown Customer'}</div>
+                  <div className="order-name">{o.customer_name || o.shipped_to || 'Unknown Customer'}</div>
                   <div className={`order-status-badge ${o.status === 'Completed' ? 'status-completed' : 'status-cancelled'}`}>
                     {o.status}
                   </div>
@@ -287,64 +289,61 @@ export default function OrderHistory() {
           {/* Order Details */}
           <div className="order-details-panel">
             {!selectedOrder ? (
-              <div style={{color:'#bbb',fontSize:22,display:'flex',alignItems:'center',justifyContent:'center',height:'100%'}}>Select an order to view details</div>
+              <div className="order-details-empty">Select an order to view details</div>
             ) : (
-              <div style={{padding:'0 12px'}}>
-                <div style={{display:'flex',gap:32,alignItems:'flex-start'}}>
+              <div className="order-details-content">
+                <div className="order-details-columns">
                   {/* LEFT COLUMN: DETAILS */}
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:18}}>
-                      <div>
-                        <div style={{fontSize:28,fontWeight:700,marginBottom:2}}>{selectedOrder.name}</div>
-                        <div style={{fontSize:18,color:'#888'}}>{selectedOrder.order_id}</div>
-                        <div style={{fontSize:14,color:'#666',marginTop:4}}>
-                          {(() => {
-                            const dateField = selectedOrder.archived_at || selectedOrder.order_date || selectedOrder.status_updated_at;
-                            if (!dateField) return 'Archived on Unknown Date';
-                            
-                            try {
-                              const date = new Date(dateField);
-                              if (isNaN(date.getTime())) return 'Archived on Invalid Date';
-                              return `Archived on ${date.toLocaleString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}`;
-                            } catch (e) {
-                              return 'Archived on Invalid Date';
-                            }
-                          })()}
-                        </div>
-                      </div>
-                      {/* Action buttons removed per request. Filtering handled by header badges. */}
-                    </div>
-                    <hr style={{margin:'18px 0'}}/>
-                    <div style={{marginBottom:18}}>
-                      <div style={{fontWeight:700,fontSize:16,marginBottom:8,letterSpacing:1}}>CONTACT DETAILS</div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Cellphone</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.cellphone || '-'}</div>
-                      </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Email Address</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.email_address || '-'}</div>
+                  <div className="order-details-main">
+                    <div className="order-details-heading">
+                      <div className="order-details-customer">{selectedOrder.customer_name || selectedOrder.shipped_to || 'Unknown Customer'}</div>
+                      <div className="order-details-id">{selectedOrder.order_id}</div>
+                      <div className="order-details-archived-date">
+                        {(() => {
+                          const dateField = selectedOrder.archived_at || selectedOrder.order_date || selectedOrder.status_updated_at;
+                          if (!dateField) return 'Archived on Unknown Date';
+
+                          try {
+                            const date = new Date(dateField);
+                            if (isNaN(date.getTime())) return 'Archived on Invalid Date';
+                            return `Archived on ${date.toLocaleString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}`;
+                          } catch (e) {
+                            return 'Archived on Invalid Date';
+                          }
+                        })()}
                       </div>
                     </div>
-                    <div style={{marginBottom:18}}>
-                      <div style={{fontWeight:700,fontSize:16,marginBottom:8,letterSpacing:1}}>SHIPPING DETAILS</div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Ship to</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.shipped_to}</div>
+                    <hr className="order-details-divider"/>
+                    <div className="order-detail-section">
+                      <div className="order-detail-section-title">Contact Details</div>
+                      <div className="order-detail-row">
+                        <div className="order-detail-label">Cellphone</div>
+                        <div className="order-detail-value">{selectedOrder.cellphone || '-'}</div>
                       </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Address</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.shipping_address}</div>
+                      <div className="order-detail-row">
+                        <div className="order-detail-label">Email Address</div>
+                        <div className="order-detail-value">{selectedOrder.email_address || '-'}</div>
                       </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Date Ordered</div>
-                        <div style={{fontWeight:500}}>
+                    </div>
+                    <div className="order-detail-section">
+                      <div className="order-detail-section-title">Shipping Details</div>
+                      <div className="order-detail-row">
+                        <div className="order-detail-label">Ship to</div>
+                        <div className="order-detail-value">{selectedOrder.shipped_to || '-'}</div>
+                      </div>
+                      <div className="order-detail-row">
+                        <div className="order-detail-label">Address</div>
+                        <div className="order-detail-value">{selectedOrder.shipping_address || '-'}</div>
+                      </div>
+                      <div className="order-detail-row">
+                        <div className="order-detail-label">Date Ordered</div>
+                        <div className="order-detail-value">
                           {(() => {
                             if (!selectedOrder.order_date) return 'Not specified';
                             try {
@@ -361,9 +360,9 @@ export default function OrderHistory() {
                           })()}
                         </div>
                       </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Expected Delivery</div>
-                        <div style={{fontWeight:500}}>
+                      <div className="order-detail-row">
+                        <div className="order-detail-label">Expected Delivery</div>
+                        <div className="order-detail-value">
                           {(() => {
                             if (!selectedOrder.expected_delivery) return 'Not specified';
                             try {
@@ -381,25 +380,25 @@ export default function OrderHistory() {
                         </div>
                       </div>
                     </div>
-                    <div style={{marginBottom:18}}>
-                      <div style={{fontWeight:700,fontSize:16,marginBottom:8,letterSpacing:1}}>PAYMENT DETAILS</div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Payment Method</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.payment_method || 'Not specified'}</div>
+                    <div className="order-detail-section">
+                      <div className="order-detail-section-title">Payment Details</div>
+                      <div className="order-detail-row">
+                        <div className="order-detail-label">Payment Method</div>
+                        <div className="order-detail-value">{selectedOrder.payment_method || 'Not specified'}</div>
                       </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Total Cost</div>
-                        <div style={{fontWeight:500}}>₱{Number(selectedOrder.total_cost || 0).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
+                      <div className="order-detail-row">
+                        <div className="order-detail-label">Total Cost</div>
+                        <div className="order-detail-value order-detail-value-strong">₱{Number(selectedOrder.total_cost || 0).toLocaleString(undefined, {minimumFractionDigits:2})}</div>
                       </div>
-                      <div style={{display:'flex',gap:32,marginBottom:4}}>
-                        <div style={{minWidth:120,color:'#888'}}>Remarks</div>
-                        <div style={{fontWeight:500}}>{selectedOrder.remarks || 'None'}</div>
+                      <div className="order-detail-row">
+                        <div className="order-detail-label">Remarks</div>
+                        <div className="order-detail-value">{selectedOrder.remarks || 'None'}</div>
                       </div>
                     </div>
                   </div>
                   {/* RIGHT COLUMN: PRODUCTS CARD */}
-                  <div className="order-history-products-card" style={{width:340,minWidth:260,borderRadius:10,padding:'18px 24px',boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
-                    <div style={{fontWeight:700,fontSize:16,marginBottom:12,letterSpacing:1}}>PRODUCTS</div>
+                  <div className="order-history-products-card">
+                    <div className="order-detail-section-title">Products</div>
                     {(() => {
                       // Prefer explicitly fetched products; fall back to embedded products if valid
                       const fetched = Array.isArray(orderProducts) ? orderProducts : [];
@@ -407,7 +406,7 @@ export default function OrderHistory() {
                       const hasValidFetched = fetched.some(p => p && (p.sku || p.image_data || p.unit_price !== undefined || p.quantity !== undefined));
                       const effectiveProducts = hasValidFetched ? fetched : embedded;
                       if (!effectiveProducts || effectiveProducts.length === 0) {
-                        return <div style={{color:'#aaa'}}>No products in this order.</div>;
+                        return <div className="order-products-empty">No products in this order.</div>;
                       }
                       return (
                         <div>
@@ -415,40 +414,33 @@ export default function OrderHistory() {
                           const unitPrice = Number(p && p.unit_price != null ? p.unit_price : 0);
                           const qty = Number(p && p.quantity != null ? p.quantity : 0);
                           const lineTotal = unitPrice * (isNaN(qty) ? 0 : qty);
-                          const orderName = selectedOrder?.name;
+                          const orderName = selectedOrder?.customer_name;
                           const displayName = (p?.name && p.name !== orderName) ? p.name : (p?.sku || 'Item');
                           const imgSrc = p?.sku ? `${api.defaults.baseURL || ''}/api/inventory/${encodeURIComponent(p.sku)}/image` : null;
                           return (
-                            <div key={`${p.sku}-${idx}`} style={{display:'flex',alignItems:'center',gap:16,padding:'10px 0',borderBottom:idx!==effectiveProducts.length-1?'1px solid #eee':'none'}}>
-                              <div style={{width:40,height:40,borderRadius:8,overflow:'hidden',background:'#f1f3f5',flexShrink:0}}>
+                            <div key={`${p.sku}-${idx}`} className={`order-product-row${idx!==effectiveProducts.length-1 ? ' order-product-row-bordered' : ''}`}>
+                              <div className="order-product-thumb">
                                 {imgSrc ? (
                                   <img
                                     src={imgSrc}
                                     alt={displayName}
-                                    style={{width:'100%',height:'100%',objectFit:'cover'}}
-                                    onError={(e)=>{ 
+                                    onError={(e)=>{
                                       e.currentTarget.style.display = 'none';
                                       e.currentTarget.nextElementSibling.style.display = 'flex';
                                     }}
                                   />
                                 ) : null}
-                                <div 
-                                  style={{
-                                    width:'100%',height:'100%',display:imgSrc ? 'none' : 'flex',
-                                    alignItems:'center',justifyContent:'center',
-                                    background:'#e9ecef',color:'#6c757d',fontSize:'12px',fontWeight:'600'
-                                  }}
-                                >
+                                <div className="order-product-thumb-fallback" style={{ display: imgSrc ? 'none' : 'flex' }}>
                                   📦
                                 </div>
                               </div>
-                              <div style={{flex:1,minWidth:0}}>
-                                <div style={{fontWeight:600,fontSize:15}}>{displayName}</div>
-                                <div style={{fontSize:13,color:'#888'}}>₱{unitPrice.toLocaleString(undefined, {minimumFractionDigits:2})} each</div>
+                              <div className="order-product-info">
+                                <div className="order-product-name">{displayName}</div>
+                                <div className="order-product-unit-price">₱{unitPrice.toLocaleString(undefined, {minimumFractionDigits:2})} each</div>
                               </div>
-                              <div style={{display:'flex',alignItems:'baseline',gap:12}}>
-                                <div style={{color:'#888',fontWeight:500,fontSize:15, minWidth:70}}>Qty: {qty}</div>
-                                <div style={{color:'#666',fontWeight:600,fontSize:15}}>
+                              <div className="order-product-totals">
+                                <div className="order-product-qty">Qty: {qty}</div>
+                                <div className="order-product-line-total">
                                   ₱{lineTotal.toLocaleString(undefined, {minimumFractionDigits:2})}
                                 </div>
                               </div>

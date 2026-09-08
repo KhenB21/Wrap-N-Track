@@ -1,17 +1,12 @@
 const TRACKING_UNAVAILABLE_MESSAGE = 'Delivery tracking link is not available. Please contact pensee@gmail.com.';
 
 const DELIVERY_STATUSES = [
-  'Pending',
-  'Preparing',
+  'Scheduled',
   'Ready for Delivery',
   'Awaiting Pick-up',
-  'Out for Delivery',
   'Sent / Shipped',
   'Delivered',
   'Picked Up',
-  'Failed Delivery',
-  'Rescheduled',
-  'Cancelled',
 ];
 
 const DELIVERY_MODE_SEEDS = [

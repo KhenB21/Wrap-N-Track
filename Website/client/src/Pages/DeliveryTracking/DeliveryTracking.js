@@ -10,20 +10,24 @@ import api from '../../api';
 import './DeliveryTracking.css';
 
 const STATUSES = [
-  'Pending',
-  'Preparing',
+  'Scheduled',
   'Ready for Delivery',
   'Awaiting Pick-up',
-  'Out for Delivery',
   'Sent / Shipped',
   'Delivered',
   'Picked Up',
-  'Failed Delivery',
-  'Rescheduled',
-  'Cancelled',
 ];
 
-const PICKUP_STATUSES = ['Ready for Delivery', 'Awaiting Pick-up', 'Picked Up', 'Cancelled'];
+// "Delivered"/"Picked Up" are the terminal states for the two delivery
+// tracks (courier vs. pickup) -- labeled "(Completed)" so staff scanning the
+// dropdown/table can tell at a glance that the order is fully done.
+const STATUS_LABELS = {
+  Delivered: 'Delivered (Completed)',
+  'Picked Up': 'Picked Up (Completed)',
+};
+const statusLabel = (status) => STATUS_LABELS[status] || status;
+
+const PICKUP_STATUSES = ['Scheduled', 'Ready for Delivery', 'Awaiting Pick-up', 'Picked Up'];
 const TRACKING_UNAVAILABLE_MESSAGE = 'Delivery tracking link is not available. Please contact pensee@gmail.com.';
 
 const formatDate = (value) => {
@@ -153,7 +157,8 @@ function DeliveryModal({ delivery, modes, onClose, onSaved }) {
         await api.post(`/api/deliveries/${encodeURIComponent(delivery.order_id)}/proof`, proofData);
       }
 
-      onSaved();
+      const trackingLinkSet = !isPickup && trackingAvailable && !!form.tracking_link;
+      onSaved({ orderId: delivery.order_id, trackingLinkSet });
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update delivery.');
     } finally {
@@ -211,7 +216,7 @@ function DeliveryModal({ delivery, modes, onClose, onSaved }) {
             <label>
               Delivery Status
               <select value={form.delivery_status} onChange={(e) => setForm({ ...form, delivery_status: e.target.value })}>
-                {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                {statusOptions.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}
               </select>
             </label>
 
@@ -248,10 +253,26 @@ function DeliveryModal({ delivery, modes, onClose, onSaved }) {
               <div className="delivery-message full">{TRACKING_UNAVAILABLE_MESSAGE}</div>
             )}
 
-            <label className="full">
+            <div className="full delivery-field-label">
               Proof of Sending / Pickup
-              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
-            </label>
+              <div className="delivery-file-upload">
+                <label className="delivery-file-upload-btn" htmlFor="delivery-proof-input">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  {proofFile ? 'Change File' : 'Upload Proof'}
+                </label>
+                <input
+                  id="delivery-proof-input"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                />
+                {proofFile && <span className="delivery-file-upload-name">{proofFile.name}</span>}
+              </div>
+            </div>
 
             {delivery.proof_image_url && (
               <div className="delivery-proof full">
@@ -389,7 +410,7 @@ function DeliveryTracking() {
     <div className="delivery-page">
       <Sidebar />
       <main className="delivery-main">
-        <TopBar />
+        <TopBar showSearch={false} />
         <div className="delivery-content">
           <div className="delivery-header">
             <div>
@@ -403,7 +424,7 @@ function DeliveryTracking() {
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order, customer, receiver, address, tracking" />
             <select value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="all">All statuses</option>
-              {STATUSES.map((item) => <option key={item} value={item}>{item}</option>)}
+              {STATUSES.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
             </select>
             <select value={modeFilter} onChange={(e) => setModeFilter(e.target.value)}>
               <option value="all">All delivery modes</option>
@@ -436,7 +457,11 @@ function DeliveryTracking() {
               </thead>
               <tbody>
                 {filteredDeliveries.map((delivery) => (
-                  <tr key={delivery.order_id}>
+                  <tr
+                    key={delivery.order_id}
+                    className="delivery-row-clickable"
+                    onClick={() => openDelivery(delivery)}
+                  >
                     <td data-label="Order">{delivery.order_id}</td>
                     <td data-label="Customer">{delivery.customer_name || '-'}</td>
                     <td data-label="Receiver">{delivery.shipped_to || '-'}</td>
@@ -446,11 +471,16 @@ function DeliveryTracking() {
                     <td data-label="Mode">{delivery.delivery_method || '-'}</td>
                     <td data-label="Courier">{delivery.courier_name || '-'}</td>
                     <td data-label="Tracking">{delivery.tracking_number || '-'}</td>
-                    <td data-label="Status"><span className={`delivery-status ${String(delivery.delivery_status || '').replace(/\s+/g, '-')}`}>{delivery.delivery_status || 'Pending'}</span></td>
+                    <td data-label="Status"><span className={`delivery-status ${String(delivery.delivery_status || '').replace(/[^A-Za-z0-9]+/g, '-')}`}>{statusLabel(delivery.delivery_status) || 'Pending'}</span></td>
                     <td data-label="Proof">{delivery.proof_image_url ? 'Uploaded' : 'Not uploaded'}</td>
                     <td data-label="Last Updated">{formatDateTime(delivery.delivery_updated_at)}</td>
                     <td data-label="Actions">
-                      <button className="delivery-btn" onClick={() => openDelivery(delivery)}>View / Update</button>
+                      <button
+                        className="delivery-btn"
+                        onClick={(e) => { e.stopPropagation(); openDelivery(delivery); }}
+                      >
+                        View / Update
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -465,12 +495,19 @@ function DeliveryTracking() {
         </div>
       </main>
       <DeliveryModal
+        key={selectedDelivery?.order_id || 'closed'}
         delivery={selectedDelivery}
         modes={modes}
         onClose={() => setSelectedDelivery(null)}
-        onSaved={async () => {
+        onSaved={async ({ orderId, trackingLinkSet } = {}) => {
           setSelectedDelivery(null);
           await fetchDeliveries();
+          if (trackingLinkSet && orderId) {
+            toast.success('Tracking link saved. Returning to the order...');
+            navigate(`/orders/${encodeURIComponent(orderId)}`);
+          } else {
+            toast.success('Delivery updated.');
+          }
         }}
       />
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop />
