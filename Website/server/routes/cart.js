@@ -31,6 +31,7 @@ router.get('/', async (req, res) => {
         ii.description,
         ii.unit_price,
         ii.image_data,
+        ii.quantity as available_stock,
         cc.quantity,
         (ii.unit_price * cc.quantity) as total_price,
         cc.added_at,
@@ -357,6 +358,15 @@ router.post('/checkout', async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Shipping address and payment method are required'
+      });
+    }
+
+    // Cash on Delivery is not offered for customer orders.
+    const isCod = (value) => /^\s*(cod|cash on delivery)\s*$/i.test(String(value || ''));
+    if (isCod(payment_method) || isCod(payment_type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cash on Delivery is not available'
       });
     }
 

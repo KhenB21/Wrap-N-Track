@@ -26,7 +26,13 @@ const EMPTY_SALES_DATA = {
   revenueTrend: 'stable',
   ordersTrend: 'stable',
   profitTrend: 'stable',
+  profitMarginPct: null,
+  targetMarginPct: 70,
+  estimatedProfitOrders: 0,
 };
+
+// Small line under a hero value (revenue source, margin vs target).
+const HERO_NOTE_STYLE = { fontSize: 12, marginTop: 4, opacity: 0.85 };
 
 const PERIOD_LABELS = { today: 'Today', week: 'This Week', month: 'This Month' };
 
@@ -177,7 +183,8 @@ export default function SalesReport() {
     trends.map(t => ({
       date: t.period,
       revenue: Number(t.revenue) || 0,
-      orders: Number(t.orders) || 0,
+      // The trends endpoint names the count `order_count`.
+      orders: Number(t.order_count ?? t.orders) || 0,
     })), [trends]);
 
   const statusDonutData = useMemo(() =>
@@ -216,6 +223,7 @@ export default function SalesReport() {
         ['Total Orders', formatNumber(salesData.totalOrders)],
         ['Avg Order Value', formatCurrencyPdf(salesData.avgOrderValue)],
         ['Total Profit', formatCurrencyPdf(salesData.totalProfit)],
+        ['Profit Margin', `${salesData.profitMarginPct ?? 0}% (target ${salesData.targetMarginPct ?? 70}%)`],
         ['Completed Orders', formatNumber(salesData.completedOrders)],
         ['Pending Orders', formatNumber(salesData.pendingOrders)],
         ['Cancelled Orders', formatNumber(salesData.cancelledOrders)],
@@ -259,6 +267,8 @@ export default function SalesReport() {
       ['Total Orders', salesData.totalOrders],
       ['Avg Order Value', salesData.avgOrderValue],
       ['Total Profit', salesData.totalProfit],
+      ['Profit Margin %', salesData.profitMarginPct ?? 0],
+      ['Target Margin %', salesData.targetMarginPct ?? 70],
       ['Completed Orders', salesData.completedOrders],
       ['Pending Orders', salesData.pendingOrders],
       ['Cancelled Orders', salesData.cancelledOrders],
@@ -352,6 +362,7 @@ export default function SalesReport() {
               <span className={`sr-hero-trend ${trendClass(salesData.revenueTrend)}`}>
                 {trendArrow(salesData.revenueTrend)} {salesData.revenueTrend}
               </span>
+              <span style={HERO_NOTE_STYLE}>Payments received (paid invoices)</span>
             </div>
             <div className="sr-hero-card sr-hero-blue">
               <span className="sr-hero-label">Total Orders</span>
@@ -370,6 +381,22 @@ export default function SalesReport() {
               <span className={`sr-hero-trend ${trendClass(salesData.profitTrend)}`}>
                 {trendArrow(salesData.profitTrend)} {salesData.profitTrend}
               </span>
+              {salesData.profitMarginPct != null && (
+                <span
+                  style={{
+                    ...HERO_NOTE_STYLE,
+                    fontWeight: 600,
+                    color: salesData.profitMarginPct >= (salesData.targetMarginPct ?? 70) ? 'var(--success, #16A34A)' : 'var(--warning, #D97706)',
+                  }}
+                >
+                  Margin {salesData.profitMarginPct}% · Target {salesData.targetMarginPct ?? 70}%
+                </span>
+              )}
+              {salesData.estimatedProfitOrders > 0 && (
+                <span style={HERO_NOTE_STYLE}>
+                  {salesData.estimatedProfitOrders} order{salesData.estimatedProfitOrders === 1 ? '' : 's'} estimated at {salesData.targetMarginPct ?? 70}% (missing product costs)
+                </span>
+              )}
             </div>
           </div>
         )}

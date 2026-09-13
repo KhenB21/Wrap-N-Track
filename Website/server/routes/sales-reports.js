@@ -2,58 +2,44 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const requireTestDataAccess = require('../middleware/requireTestDataAccess');
+const { TARGET_PROFIT_MARGIN, paidSalesCtes, getPaidSalesTotals } = require('../services/salesMetrics');
+
+// Revenue/profit on every endpoint here come from PAID invoices by payment date —
+// see services/salesMetrics.js. Order counts and statuses still use the order date.
 
 // GET /api/sales-reports/overview - Get sales overview data
 router.get('/overview', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    
+
     // Default to today if no dates provided
     const today = new Date();
     const defaultStartDate = startDate || today.toISOString().split('T')[0];
     const defaultEndDate = endDate || today.toISOString().split('T')[0];
-    
+
     console.log('Fetching sales overview for period:', defaultStartDate, 'to', defaultEndDate);
-    
-    // Get sales overview data
+
+    // Orders placed in the period (counts, customers, units) — not used for revenue.
     const salesOverview = await pool.query(`
       WITH period_orders AS (
-        SELECT 
+        SELECT
           o.order_id,
           o.name,
           o.customer_id,
-          o.total_cost,
           o.status,
-          o.total_profit_estimation,
-          SUM(op.quantity) as total_quantity,
-          SUM(op.quantity * (COALESCE(op.unit_price, 0) - op.cost_price))
-            FILTER (WHERE op.cost_price IS NOT NULL) as gross_margin,
-          COUNT(*) FILTER (WHERE op.sku IS NOT NULL) as line_count,
-          COUNT(*) FILTER (WHERE op.sku IS NOT NULL AND op.cost_price IS NULL) as lines_missing_cost
+          SUM(op.quantity) as total_quantity
         FROM all_orders o
         LEFT JOIN all_order_products op ON o.order_id = op.order_id
         WHERE o.order_date::date BETWEEN $1 AND $2
-        GROUP BY o.order_id, o.name, o.customer_id, o.total_cost, o.status, o.total_profit_estimation
+        GROUP BY o.order_id, o.name, o.customer_id, o.status
       )
       SELECT
-        COALESCE(SUM(CASE
-          WHEN status IN ('Order Received', 'Completed')
-          THEN total_cost
-          ELSE 0
-        END), 0) as total_revenue,
         COUNT(*) as total_orders,
         COALESCE(SUM(CASE
           WHEN status IN ('Order Received', 'Completed')
           THEN total_quantity
           ELSE 0
         END), 0) as total_units_sold,
-        COALESCE(SUM(CASE
-          WHEN status IN ('Order Received', 'Completed')
-          THEN gross_margin
-          ELSE 0
-        END), 0) as total_profit,
-        COALESCE(SUM(line_count), 0) as line_count,
-        COALESCE(SUM(lines_missing_cost), 0) as lines_missing_cost,
         COUNT(DISTINCT COALESCE(customer_id::text, lower(trim(name)))) as total_customers
       FROM period_orders
     `, [defaultStartDate, defaultEndDate]);
@@ -72,13 +58,9 @@ router.get('/overview', async (req, res) => {
       ORDER BY count DESC
     `, [defaultStartDate, defaultEndDate]);
 
-    // Payment status — sourced from invoices (the same table customer-orders.js
-    // uses for remaining_balance/total_verified_payments), joined per order within
-    // the period, so Outstanding Payments / Paid Amount reflect real invoice data.
+    // Balance still owed on (non-cancelled) orders placed in the period.
     const paymentSummary = await pool.query(`
       SELECT
-        COALESCE(SUM(o.total_cost), 0) as total_order_value,
-        COALESCE(SUM(pay.amount_paid), 0) as paid_amount,
         COALESCE(SUM(GREATEST(o.total_cost - pay.amount_paid, 0)), 0) as outstanding_amount
       FROM all_orders o
       LEFT JOIN LATERAL (
@@ -94,56 +76,34 @@ router.get('/overview', async (req, res) => {
     const previousPeriodStart = new Date(defaultStartDate);
     const previousPeriodEnd = new Date(defaultEndDate);
     const periodLength = Math.ceil((new Date(defaultEndDate) - new Date(defaultStartDate)) / (1000 * 60 * 60 * 24));
-    
+
     previousPeriodStart.setDate(previousPeriodStart.getDate() - periodLength - 1);
     previousPeriodEnd.setDate(previousPeriodEnd.getDate() - periodLength - 1);
+    const previousStart = previousPeriodStart.toISOString().split('T')[0];
+    const previousEnd = previousPeriodEnd.toISOString().split('T')[0];
 
-    const previousPeriodData = await pool.query(`
-      WITH period_orders AS (
-        SELECT 
-          o.order_id,
-          o.name,
-          o.customer_id,
-          o.total_cost,
-          o.status,
-          o.total_profit_estimation,
-          SUM(op.quantity) as total_quantity,
-          SUM(op.quantity * (COALESCE(op.unit_price, 0) - op.cost_price))
-            FILTER (WHERE op.cost_price IS NOT NULL) as gross_margin,
-          COUNT(*) FILTER (WHERE op.sku IS NOT NULL) as line_count,
-          COUNT(*) FILTER (WHERE op.sku IS NOT NULL AND op.cost_price IS NULL) as lines_missing_cost
-        FROM all_orders o
-        LEFT JOIN all_order_products op ON o.order_id = op.order_id
-        WHERE o.order_date::date BETWEEN $1 AND $2
-        GROUP BY o.order_id, o.name, o.customer_id, o.total_cost, o.status, o.total_profit_estimation
-      )
-      SELECT
-        COALESCE(SUM(CASE
-          WHEN status IN ('Order Received', 'Completed')
-          THEN total_cost
-          ELSE 0
-        END), 0) as total_revenue,
-        COUNT(*) as total_orders,
-        COALESCE(SUM(CASE
-          WHEN status IN ('Order Received', 'Completed')
-          THEN gross_margin
-          ELSE 0
-        END), 0) as total_profit
-      FROM period_orders
-    `, [previousPeriodStart.toISOString().split('T')[0], previousPeriodEnd.toISOString().split('T')[0]]);
+    const previousOrders = await pool.query(`
+      SELECT COUNT(*) as total_orders
+      FROM all_orders o
+      WHERE o.order_date::date BETWEEN $1 AND $2
+    `, [previousStart, previousEnd]);
+
+    // Money received in this period and the one before it.
+    const [paid, previousPaid] = await Promise.all([
+      getPaidSalesTotals(pool, defaultStartDate, defaultEndDate),
+      getPaidSalesTotals(pool, previousStart, previousEnd),
+    ]);
 
     const currentData = salesOverview.rows[0];
-    const previousData = previousPeriodData.rows[0];
+    const previousData = previousOrders.rows[0];
 
     // Calculate trends
-    const revenueTrend = calculateTrend(currentData.total_revenue, previousData.total_revenue);
-    const ordersTrend = calculateTrend(currentData.total_orders, previousData.total_orders);
-    const profitTrend = calculateTrend(currentData.total_profit, previousData.total_profit);
+    const revenueTrend = calculateTrend(paid.revenue, previousPaid.revenue);
+    const ordersTrend = calculateTrend(Number(currentData.total_orders), Number(previousData.total_orders));
+    const profitTrend = calculateTrend(paid.profit, previousPaid.profit);
 
-    // Calculate average order value
-    const avgOrderValue = currentData.total_orders > 0 
-      ? currentData.total_revenue / currentData.total_orders 
-      : 0;
+    // Average received per order that paid something in the period
+    const avgOrderValue = paid.paidOrders > 0 ? paid.revenue / paid.paidOrders : 0;
 
     // Orders by status — real status strings as counted, e.g.
     // { "Order Placed": 3, "Completed": 10, "Cancelled": 2 }
@@ -160,20 +120,23 @@ router.get('/overview', async (req, res) => {
     const payments = paymentSummary.rows[0];
 
     const responseData = {
-      totalRevenue: parseFloat(currentData.total_revenue) || 0,
+      revenueBasis: 'paid_invoices',
+      totalRevenue: paid.revenue,
       totalOrders: parseInt(currentData.total_orders) || 0,
+      paidOrders: paid.paidOrders,
       avgOrderValue: parseFloat(avgOrderValue) || 0,
-      totalProfit: parseFloat(currentData.total_profit) || 0,
-      marginCoverage: {
-        lineCount: parseInt(currentData.line_count, 10) || 0,
-        linesMissingCost: parseInt(currentData.lines_missing_cost, 10) || 0
-      },
+      totalProfit: paid.profit,
+      profitMarginPct: paid.profitMarginPct,
+      actualMarginPct: paid.actualMarginPct,
+      targetMarginPct: Math.round(TARGET_PROFIT_MARGIN * 100),
+      // Orders whose profit used the target margin because a product cost is missing.
+      estimatedProfitOrders: paid.estimatedOrders,
       totalUnitsSold: parseInt(currentData.total_units_sold) || 0,
       totalCustomers: parseInt(currentData.total_customers) || 0,
       completedOrders: completedCount,
       cancelledOrders: cancelledCount,
       pendingOrders: pendingCount,
-      paidAmount: parseFloat(payments.paid_amount) || 0,
+      paidAmount: paid.revenue,
       outstandingAmount: parseFloat(payments.outstanding_amount) || 0,
       ordersByStatus: statusData,
       revenueTrend,
@@ -201,45 +164,60 @@ router.get('/overview', async (req, res) => {
 });
 
 // GET /api/sales-reports/top-products - Get top selling products
+//
+// Each payment is shared across its order's products in proportion to their value
+// (qty × unit_price). Units count once per order, when its down payment is paid.
 router.get('/top-products', async (req, res) => {
   try {
     const { startDate, endDate, limit = 10 } = req.query;
-    
+
     const today = new Date();
     const defaultStartDate = startDate || today.toISOString().split('T')[0];
     const defaultEndDate = endDate || today.toISOString().split('T')[0];
-    
+
     const result = await pool.query(`
-      WITH product_sales AS (
-        SELECT 
+      WITH ${paidSalesCtes()},
+      lines AS (
+        SELECT
+          op.order_id::text AS order_id,
           op.sku,
-          SUM(op.quantity) as units_sold,
-          SUM(op.quantity * COALESCE(op.unit_price, i.unit_price)) as sales_value,
-          AVG(COALESCE(op.unit_price, i.unit_price)) as avg_price,
-          SUM(op.quantity * (COALESCE(op.unit_price, i.unit_price) - op.cost_price))
-            FILTER (WHERE op.cost_price IS NOT NULL) as gross_margin
+          op.quantity,
+          COALESCE(op.unit_price, i.unit_price) AS unit_price
         FROM all_order_products op
-        JOIN all_orders o ON op.order_id = o.order_id
         JOIN inventory_items i ON op.sku = i.sku
-        WHERE o.status IN ('Order Received', 'Completed')
-        AND o.order_date::date BETWEEN $1 AND $2
-        GROUP BY op.sku
+        WHERE op.order_id::text IN (SELECT order_id FROM payments)
+      ),
+      order_values AS (
+        SELECT order_id, SUM(quantity * unit_price) AS goods_value
+        FROM lines
+        GROUP BY order_id
+      ),
+      product_sales AS (
+        SELECT
+          l.sku,
+          SUM(p.amount * (l.quantity * l.unit_price) / NULLIF(v.goods_value, 0)) AS sales_value,
+          SUM(p.amount * p.margin_rate * (l.quantity * l.unit_price) / NULLIF(v.goods_value, 0)) AS gross_margin,
+          SUM(CASE WHEN p.invoice_type = 'DOWN_PAYMENT' THEN l.quantity ELSE 0 END) AS units_sold
+        FROM priced_payments p
+        JOIN lines l ON l.order_id = p.order_id
+        JOIN order_values v ON v.order_id = p.order_id
+        GROUP BY l.sku
       )
-      SELECT 
+      SELECT
         i.sku,
         i.name,
         i.category,
         i.unit_price,
         COALESCE(ps.units_sold, 0) as units_sold,
-        COALESCE(ps.sales_value, 0) as sales_value,
-        COALESCE(ps.avg_price, i.unit_price) as avg_price,
-        ps.gross_margin
-      FROM inventory_items i
-      LEFT JOIN product_sales ps ON i.sku = ps.sku
-      WHERE COALESCE(ps.units_sold, 0) > 0
-      ORDER BY units_sold DESC, sales_value DESC
-      LIMIT $3
-    `, [defaultStartDate, defaultEndDate, parseInt(limit)]);
+        ROUND(COALESCE(ps.sales_value, 0), 2) as sales_value,
+        i.unit_price as avg_price,
+        ROUND(ps.gross_margin, 2) as gross_margin
+      FROM product_sales ps
+      JOIN inventory_items i ON i.sku = ps.sku
+      WHERE COALESCE(ps.sales_value, 0) > 0
+      ORDER BY sales_value DESC, units_sold DESC
+      LIMIT $4
+    `, [defaultStartDate, defaultEndDate, TARGET_PROFIT_MARGIN, parseInt(limit, 10) || 10]);
 
     res.json({
       success: true,
@@ -257,58 +235,60 @@ router.get('/top-products', async (req, res) => {
 });
 
 // GET /api/sales-reports/customer-analysis - Get customer analysis
+// Customers ranked by what they actually paid in the period.
 router.get('/customer-analysis', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    
+
     const today = new Date();
     const defaultStartDate = startDate || today.toISOString().split('T')[0];
     const defaultEndDate = endDate || today.toISOString().split('T')[0];
-    
+
     // Get customer analysis data
     const customerData = await pool.query(`
-      WITH customer_orders AS (
-        SELECT 
+      WITH ${paidSalesCtes()},
+      customer_orders AS (
+        SELECT
           o.name,
           o.email_address,
           o.telephone,
-          COUNT(*) as order_count,
-          SUM(o.total_cost) as total_spent,
-          AVG(o.total_cost) as avg_order_value,
+          COUNT(DISTINCT p.order_id) as order_count,
+          SUM(p.amount) as total_spent,
           MAX(o.order_date) as last_order_date,
           MIN(o.order_date) as first_order_date
-        FROM all_orders o
-        WHERE o.order_date::date BETWEEN $1 AND $2
+        FROM priced_payments p
+        JOIN all_orders o ON o.order_id::text = p.order_id
         GROUP BY o.name, o.email_address, o.telephone
       )
-      SELECT 
+      SELECT
         name,
         email_address,
         telephone,
         order_count,
-        total_spent,
-        avg_order_value,
+        ROUND(total_spent, 2) as total_spent,
+        ROUND(total_spent / NULLIF(order_count, 0), 2) as avg_order_value,
         last_order_date,
         first_order_date,
-        CASE 
+        CASE
           WHEN order_count = 1 THEN 'New'
           WHEN order_count BETWEEN 2 AND 5 THEN 'Regular'
           ELSE 'VIP'
         END as customer_type
       FROM customer_orders
       ORDER BY total_spent DESC
-    `, [defaultStartDate, defaultEndDate]);
+    `, [defaultStartDate, defaultEndDate, TARGET_PROFIT_MARGIN]);
 
     // Get summary statistics
     const summary = await pool.query(`
-      SELECT 
+      WITH ${paidSalesCtes()}
+      SELECT
         COUNT(DISTINCT COALESCE(o.customer_id::text, lower(trim(o.name)))) as total_customers,
-        COUNT(*) as total_orders,
-        AVG(o.total_cost) as avg_order_value,
-        SUM(o.total_cost) as total_revenue
-      FROM all_orders o
-      WHERE o.order_date::date BETWEEN $1 AND $2
-    `, [defaultStartDate, defaultEndDate]);
+        COUNT(DISTINCT p.order_id) as total_orders,
+        ROUND(COALESCE(SUM(p.amount), 0) / NULLIF(COUNT(DISTINCT p.order_id), 0), 2) as avg_order_value,
+        ROUND(COALESCE(SUM(p.amount), 0), 2) as total_revenue
+      FROM priced_payments p
+      JOIN all_orders o ON o.order_id::text = p.order_id
+    `, [defaultStartDate, defaultEndDate, TARGET_PROFIT_MARGIN]);
 
     res.json({
       success: true,
@@ -329,58 +309,78 @@ router.get('/customer-analysis', async (req, res) => {
 });
 
 // GET /api/sales-reports/trends - Get sales trends over time
+// revenue/profit per bucket come from payments; order_count is orders placed.
 router.get('/trends', async (req, res) => {
   try {
     const { startDate, endDate, groupBy = 'day' } = req.query;
-    
+
     const today = new Date();
     const defaultStartDate = startDate || new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const defaultEndDate = endDate || today.toISOString().split('T')[0];
-    
-    let dateFormat, interval;
-    switch (groupBy) {
-      case 'hour':
-        dateFormat = "DATE_TRUNC('hour', o.order_date)";
-        interval = "1 hour";
-        break;
-      case 'day':
-        dateFormat = "DATE(o.order_date)";
-        interval = "1 day";
-        break;
-      case 'week':
-        dateFormat = "DATE_TRUNC('week', o.order_date)";
-        interval = "1 week";
-        break;
-      case 'month':
-        dateFormat = "DATE_TRUNC('month', o.order_date)";
-        interval = "1 month";
-        break;
-      default:
-        dateFormat = "DATE(o.order_date)";
-        interval = "1 day";
-    }
-    
-    const result = await pool.query(`
-      SELECT 
-        ${dateFormat} as period,
-        COUNT(*) as order_count,
-        SUM(CASE WHEN o.status IN ('Order Received', 'Completed') THEN o.total_cost ELSE 0 END) as revenue,
-        SUM(CASE WHEN o.status IN ('Order Received', 'Completed') THEN COALESCE(m.gross_margin, 0) ELSE 0 END) as profit,
-        COUNT(DISTINCT COALESCE(o.customer_id::text, lower(trim(o.name)))) as unique_customers
-      FROM all_orders o
-      LEFT JOIN LATERAL (
-        SELECT SUM(op.quantity * (COALESCE(op.unit_price, 0) - op.cost_price)) as gross_margin
-        FROM all_order_products op
-        WHERE op.order_id = o.order_id AND op.cost_price IS NOT NULL
-      ) m ON true
-      WHERE o.order_date::date BETWEEN $1 AND $2
-      GROUP BY ${dateFormat}
-      ORDER BY period ASC
-    `, [defaultStartDate, defaultEndDate]);
+
+    // Both sides bucket plain (time-zone-free) values the same way so rows line up.
+    const bucket = (column) => {
+      switch (groupBy) {
+        case 'hour':
+          return `DATE_TRUNC('hour', ${column})`;
+        case 'week':
+          return `DATE_TRUNC('week', ${column})::date`;
+        case 'month':
+          return `DATE_TRUNC('month', ${column})::date`;
+        default:
+          return `(${column})::date`;
+      }
+    };
+
+    const [ordersResult, paymentsResult] = await Promise.all([
+      pool.query(`
+        SELECT
+          ${bucket('o.order_date::timestamp')} as period,
+          COUNT(*) as order_count,
+          COUNT(DISTINCT COALESCE(o.customer_id::text, lower(trim(o.name)))) as unique_customers
+        FROM all_orders o
+        WHERE o.order_date::date BETWEEN $1 AND $2
+        GROUP BY 1
+      `, [defaultStartDate, defaultEndDate]),
+      pool.query(`
+        WITH ${paidSalesCtes()}
+        SELECT
+          ${bucket('paid_local')} as period,
+          ROUND(SUM(amount), 2) as revenue,
+          ROUND(SUM(amount * margin_rate), 2) as profit,
+          COUNT(DISTINCT order_id) as paid_orders
+        FROM priced_payments
+        GROUP BY 1
+      `, [defaultStartDate, defaultEndDate, TARGET_PROFIT_MARGIN]),
+    ]);
+
+    const keyOf = (value) => (value instanceof Date ? value.toISOString() : String(value));
+    const rows = new Map();
+    const rowFor = (period) => {
+      const key = keyOf(period);
+      if (!rows.has(key)) {
+        rows.set(key, { period, order_count: 0, revenue: 0, profit: 0, paid_orders: 0, unique_customers: 0 });
+      }
+      return rows.get(key);
+    };
+
+    ordersResult.rows.forEach((r) => {
+      const row = rowFor(r.period);
+      row.order_count = Number(r.order_count) || 0;
+      row.unique_customers = Number(r.unique_customers) || 0;
+    });
+    paymentsResult.rows.forEach((r) => {
+      const row = rowFor(r.period);
+      row.revenue = Number(r.revenue) || 0;
+      row.profit = Number(r.profit) || 0;
+      row.paid_orders = Number(r.paid_orders) || 0;
+    });
+
+    const data = Array.from(rows.values()).sort((a, b) => new Date(a.period) - new Date(b.period));
 
     res.json({
       success: true,
-      data: result.rows
+      data
     });
 
   } catch (error) {
@@ -463,6 +463,14 @@ router.post('/test-data/insert', requireTestDataAccess(), async (req, res) => {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    // Columns the sales report reads (services/salesMetrics.js).
+    await client.query(`
+      ALTER TABLE invoices
+        ADD COLUMN IF NOT EXISTS down_payment_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS issued_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ
+    `);
 
     // Some deployed databases have an `orders` table whose order_id column
     // was never given a primary key / unique constraint, which makes any
@@ -489,20 +497,21 @@ router.post('/test-data/insert', requireTestDataAccess(), async (req, res) => {
 
     const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
 
+    // cost_price is set so profit uses real costs; a couple sit below the 70% target.
     const testProducts = [
-      { sku: 'TEST-GFT-001', name: 'Premium Gift Box', category: 'Gift Boxes', quantity: 120, unit_price: 350.00, reorder_level: 30 },
-      { sku: 'TEST-MUG-001', name: 'Personalized Mug', category: 'Personalized Gifts', quantity: 45, unit_price: 275.00, reorder_level: 15 },
-      { sku: 'TEST-FLR-001', name: 'Floral Gift Set', category: 'Gift Sets', quantity: 15, unit_price: 620.00, reorder_level: 10 },
-      { sku: 'TEST-WED-001', name: 'Wedding Invitation Set', category: 'Wedding', quantity: 72, unit_price: 45.00, reorder_level: 50 },
-      { sku: 'TEST-COR-001', name: 'Corporate Gift Bundle', category: 'Corporate', quantity: 22, unit_price: 950.00, reorder_level: 8 },
-      { sku: 'TEST-TOT-001', name: 'Custom Tote Bag', category: 'Personalized Gifts', quantity: 60, unit_price: 220.00, reorder_level: 15 }
+      { sku: 'TEST-GFT-001', name: 'Premium Gift Box', category: 'Gift Boxes', quantity: 120, unit_price: 350.00, cost_price: 105.00, reorder_level: 30 },
+      { sku: 'TEST-MUG-001', name: 'Personalized Mug', category: 'Personalized Gifts', quantity: 45, unit_price: 275.00, cost_price: 82.50, reorder_level: 15 },
+      { sku: 'TEST-FLR-001', name: 'Floral Gift Set', category: 'Gift Sets', quantity: 15, unit_price: 620.00, cost_price: 310.00, reorder_level: 10 },
+      { sku: 'TEST-WED-001', name: 'Wedding Invitation Set', category: 'Wedding', quantity: 72, unit_price: 45.00, cost_price: 13.50, reorder_level: 50 },
+      { sku: 'TEST-COR-001', name: 'Corporate Gift Bundle', category: 'Corporate', quantity: 22, unit_price: 950.00, cost_price: 380.00, reorder_level: 8 },
+      { sku: 'TEST-TOT-001', name: 'Custom Tote Bag', category: 'Personalized Gifts', quantity: 60, unit_price: 220.00, cost_price: 66.00, reorder_level: 15 }
     ];
     for (const p of testProducts) {
       await client.query(`
-        INSERT INTO inventory_items (sku, name, description, quantity, unit_price, category, reorder_level)
-        VALUES ($1, $2, 'Temporary test data — safe to delete', $3, $4, $5, $6)
+        INSERT INTO inventory_items (sku, name, description, quantity, unit_price, cost_price, category, reorder_level)
+        VALUES ($1, $2, 'Temporary test data — safe to delete', $3, $4, $5, $6, $7)
         ON CONFLICT (sku) DO NOTHING
-      `, [p.sku, p.name, p.quantity, p.unit_price, p.category, p.reorder_level]);
+      `, [p.sku, p.name, p.quantity, p.unit_price, p.cost_price, p.category, p.reorder_level]);
     }
 
     // Customers spread across "New" / "Regular" / "VIP" segments (by order
@@ -538,17 +547,18 @@ router.post('/test-data/insert', requireTestDataAccess(), async (req, res) => {
       if (existing.rows.length === 0) {
         const product = testProducts.find(p => p.sku === o.sku);
         await client.query(`
-          INSERT INTO order_products (order_id, sku, quantity, unit_price)
-          VALUES ($1, $2, $3, $4)
-        `, [o.order_id, o.sku, o.qty, product.unit_price]);
+          INSERT INTO order_products (order_id, sku, quantity, unit_price, cost_price)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [o.order_id, o.sku, o.qty, product.unit_price, product.cost_price]);
       }
 
+      // Revenue is counted by payment date, so give each paid invoice one.
       if (o.status === 'Completed' || o.status === 'Order Received') {
         await client.query(`
-          INSERT INTO invoices (invoice_number, order_id, invoice_type, status, subtotal, total_order_amount, amount_due, amount_paid)
-          VALUES ($1, $2, 'DOWN_PAYMENT', 'PAID', $3, $3, 0, $3)
+          INSERT INTO invoices (invoice_number, order_id, invoice_type, status, subtotal, total_order_amount, amount_due, amount_paid, paid_at)
+          VALUES ($1, $2, 'DOWN_PAYMENT', 'PAID', $3, $3, 0, $3, $4)
           ON CONFLICT (invoice_number) DO NOTHING
-        `, [`TEST-SALE-INV-${o.order_id}`, o.order_id, o.total_cost]);
+        `, [`TEST-SALE-INV-${o.order_id}`, o.order_id, o.total_cost, orderDate]);
       }
     }
 

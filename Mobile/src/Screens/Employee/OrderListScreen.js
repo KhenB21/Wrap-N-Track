@@ -1,448 +1,336 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  Alert,
-  Modal,
-  Dimensions,
-  TextInput
+  TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button } from 'react-native-paper';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../Context/ThemeContext';
 import { useOrders } from '../../Context/OrdersContext';
-import { useNavigation } from '@react-navigation/native';
+import { orderAPI } from '../../services/api';
 import { SkeletonCard } from '../../Components/Skeleton/Skeleton';
+import {
+  BOARD_TABS,
+  WINDOWS,
+  URGENCY_COLORS,
+  boardTabFor,
+  byDelivery,
+  deliveryMeta,
+  formatLongDate,
+  inWindow,
+  orderTotal,
+  peso,
+  statusTone,
+} from '../../constants/orderBoard';
 
-const { width } = Dimensions.get('window');
-
-// Custom Chip component
-const CustomChip = ({ icon, children, style, iconColor = '#fff' }) => (
-  <View style={[styles.customChip, style]}>
-    {icon && <MaterialCommunityIcons name={icon} size={16} color={iconColor} style={styles.chipIcon} />}
-    <Text style={[styles.chipText, { color: iconColor }]}>{children}</Text>
-  </View>
-);
+/* Mobile version of the Website staff Orders board (Website/client/src/Pages/OrderDetails/OrderBoard.js):
+   Pending / To Be Packed / Ready for Delivery as tabs, ordered by delivery date, with the same
+   delivery-window filters — plus a History tab for completed and cancelled orders. */
 
 export default function OrderListScreen() {
-  const theme = useTheme();
+  const { colors } = useTheme();
   const navigation = useNavigation();
-  const {
-    orders,
-    loading,
-    error,
-    loadOrders,
-    clearError
-  } = useOrders();
+  const { orders, loading, error, loadOrders } = useOrders();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({ status: 'all' });
-  const [filteredOrders, setFilteredOrders] = useState([]);
+  const [activeTab, setActiveTab] = useState('pending');
+  const [windowKey, setWindowKey] = useState('all');
+  const [direction, setDirection] = useState('asc'); // asc = soonest first
 
-  useEffect(() => {
-    loadOrders();
+  const [archived, setArchived] = useState(null);
+  const [archivedLoading, setArchivedLoading] = useState(false);
+  const [archivedNote, setArchivedNote] = useState('');
+
+  const isHistory = activeTab === 'history';
+
+  // Reload whenever the screen comes back into view, e.g. after confirming or cancelling an order.
+  useFocusEffect(
+    useCallback(() => {
+      loadOrders();
+    }, [loadOrders])
+  );
+
+  const loadArchived = useCallback(async () => {
+    setArchivedLoading(true);
+    setArchivedNote('');
+    try {
+      const data = await orderAPI.getArchivedOrders({ limit: 100 });
+      setArchived(Array.isArray(data) ? data : data?.orders || []);
+    } catch (err) {
+      setArchived([]);
+      setArchivedNote(
+        err.response?.status === 403
+          ? 'Completed orders are not available for your role — showing cancelled orders only.'
+          : "Couldn't load completed orders. Pull down to retry."
+      );
+    } finally {
+      setArchivedLoading(false);
+    }
   }, []);
 
-  // Filter orders based on search query and filters
   useEffect(() => {
-    if (!orders) return;
-    
-    let filtered = [...orders];
-    
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter(order => 
-        order.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.order_id?.toString().includes(searchQuery)
-      );
-    }
-    
-    // Apply status filter. filters.status holds the exact status string
-    // (e.g. "Order Placed") set by the chip's onPress below, or 'all'.
-    if (filters.status && filters.status !== 'all') {
-      filtered = filtered.filter(order => order?.status === filters.status);
-    }
-
-    // Apply date range filter
-    if (filters.dateRange && filters.dateRange !== 'all') {
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      filtered = filtered.filter(order => {
-        if (!order?.order_date) return false;
-        const orderDate = new Date(order.order_date);
-        if (isNaN(orderDate.getTime())) return false;
-
-        if (filters.dateRange === 'today') {
-          return orderDate >= startOfToday;
-        }
-        if (filters.dateRange === 'week') {
-          const startOfWeek = new Date(startOfToday);
-          startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-          return orderDate >= startOfWeek;
-        }
-        if (filters.dateRange === 'month') {
-          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-          return orderDate >= startOfMonth;
-        }
-        return true;
-      });
-    }
-
-    setFilteredOrders(filtered);
-  }, [orders, searchQuery, filters]);
+    if (isHistory && archived === null && !archivedLoading) loadArchived();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHistory]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadOrders();
-    setRefreshing(false);
+    try {
+      await Promise.all([loadOrders(), isHistory ? loadArchived() : null]);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
-  const handleSearch = (query) => {
-    setSearchQuery(query);
-  };
+  const matchesSearch = useCallback(
+    (order) => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      return [order.name, order.customer_name, order.order_id, order.email_address, order.cellphone, order.shipped_to]
+        .some((value) => String(value || '').toLowerCase().includes(q));
+    },
+    [searchQuery]
+  );
 
-  const handleFilter = (filterType, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterType]: value
-    }));
-  };
-
-  const getStatusColor = (status) => {
-    const statusColors = {
-      'Order Placed': '#17a2b8',
-      'Order Paid': '#28a745',
-      'To Be Packed': '#ffc107',
-      'Order Shipped Out': '#007bff',
-      'Ready for Delivery': '#6f42c1',
-      'Order Received': '#20c997',
-      'Completed': '#28a745',
-      'Cancelled': '#dc3545'
-    };
-    return statusColors[status] || '#6c757d';
-  };
-
-  const getStatusIcon = (status) => {
-    const statusIcons = {
-      'Order Placed': 'clipboard-text',
-      'Order Paid': 'credit-card',
-      'To Be Packed': 'package-variant-closed',
-      'Order Shipped Out': 'truck-delivery',
-      'Ready for Delivery': 'truck',
-      'Order Received': 'check-circle',
-      'Completed': 'check-circle',
-      'Cancelled': 'close-circle'
-    };
-    return statusIcons[status] || 'help-circle';
-  };
-
-  const handleOrderPress = (order) => {
-    navigation.navigate('OrderDetail', { order });
-  };
-
-  const handleStatusUpdate = (order) => {
-    navigation.navigate('OrderStatusUpdate', { order });
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-PH', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+  const buckets = useMemo(() => {
+    const result = { pending: [], toBePacked: [], ready: [], history: [] };
+    (orders || []).forEach((order) => {
+      const key = boardTabFor(order.status);
+      if (key && matchesSearch(order)) result[key].push(order);
     });
-  };
 
-  const renderOrderItem = ({ item }) => {
-    if (!item) return null;
-    
-    const status = item?.status || 'Unknown';
-    const statusColor = getStatusColor(status);
-    const statusIcon = getStatusIcon(status);
+    // Completed orders live in order_history; cancelled ones stay in the orders table.
+    const seen = new Set(result.history.map((o) => String(o.order_id)));
+    (archived || []).forEach((order) => {
+      if (!seen.has(String(order.order_id)) && matchesSearch(order)) {
+        seen.add(String(order.order_id));
+        result.history.push({ ...order, archived: true });
+      }
+    });
+    result.history.sort((a, b) => new Date(b.order_date || 0) - new Date(a.order_date || 0));
+    return result;
+  }, [orders, archived, matchesSearch]);
+
+  // Window counts come from every active column combined, so switching tabs never hides an overdue order.
+  const activeOrders = useMemo(() => [...buckets.pending, ...buckets.toBePacked, ...buckets.ready], [buckets]);
+  const windowCounts = useMemo(
+    () => WINDOWS.reduce((acc, w) => ({ ...acc, [w.key]: activeOrders.filter((o) => inWindow(o, w.key)).length }), {}),
+    [activeOrders]
+  );
+  const overdueCount = windowCounts.overdue || 0;
+
+  const columnFor = useCallback(
+    (key) => buckets[key].filter((o) => inWindow(o, windowKey)).slice().sort(byDelivery(direction)),
+    [buckets, windowKey, direction]
+  );
+
+  const shown = useMemo(() => (isHistory ? buckets.history : columnFor(activeTab)), [isHistory, buckets, columnFor, activeTab]);
+  const next = !isHistory && shown.length ? deliveryMeta(shown[0]) : null;
+
+  const tabCount = (key) => (key === 'history' ? buckets.history.length : columnFor(key).length);
+
+  const emptyHint = searchQuery
+    ? 'No orders match your search'
+    : isHistory
+    ? 'No completed or cancelled orders yet'
+    : windowKey === 'all'
+    ? 'Nothing here right now'
+    : 'Nothing in this delivery window';
+
+  const renderCard = ({ item }) => {
+    const meta = deliveryMeta(item);
+    const urgency = URGENCY_COLORS[meta.bucket];
+    const tone = isHistory ? statusTone(item.status) : urgency;
+    const boxes = Number(item.order_quantity ?? item.total_boxes ?? 0);
+    const itemCount = (item.products || []).length;
 
     return (
       <TouchableOpacity
-        style={[styles.orderCard, { backgroundColor: theme.colors.surface }]}
-        onPress={() => handleOrderPress(item)}
+        activeOpacity={0.8}
+        style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: tone }]}
+        onPress={() => navigation.navigate('OrderDetail', { order: item })}
       >
-        <View style={styles.orderHeader}>
-          <View style={styles.orderInfo}>
-            <Text style={[styles.orderId, { color: theme.colors.primary }]}>
-              #{item.order_id}
-            </Text>
-            <Text style={[styles.customerName, { color: theme.colors.onSurface }]}>
-              {item.customer_name}
-            </Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-            <MaterialCommunityIcons name={statusIcon} size={16} color="#fff" />
-            <Text style={styles.statusText}>{status}</Text>
+        <View style={styles.cardTop}>
+          <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
+            {item.name || item.customer_name || 'Unnamed order'}
+          </Text>
+          <View style={[styles.chip, { backgroundColor: `${tone}1F` }]}>
+            <Text style={[styles.chipText, { color: tone }]}>{isHistory ? item.status : meta.chip}</Text>
           </View>
         </View>
 
-        <View style={styles.orderDetails}>
-          <View style={styles.detailRow}>
-            <MaterialCommunityIcons name="calendar" size={16} color={theme.colors.onSurfaceVariant} />
-            <Text style={[styles.detailText, { color: theme.colors.onSurfaceVariant }]}>
-              {formatDate(item.order_date)}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <MaterialCommunityIcons name="currency-usd" size={16} color={theme.colors.onSurfaceVariant} />
-            <Text style={[styles.detailText, { color: theme.colors.onSurfaceVariant }]}>
-              {formatCurrency(item.total_cost)}
-            </Text>
-          </View>
-          {item.payment_method && (
-            <View style={styles.detailRow}>
-              <MaterialCommunityIcons name="credit-card" size={16} color={theme.colors.onSurfaceVariant} />
-              <Text style={[styles.detailText, { color: theme.colors.onSurfaceVariant }]}>
-                {item.payment_method}
+        <Text style={[styles.cardId, { color: colors.subText }]}>{item.order_id}</Text>
+
+        <View style={styles.cardFoot}>
+          <View style={styles.footItems}>
+            <View style={styles.footItem}>
+              <MaterialCommunityIcons name="calendar-blank-outline" size={14} color={colors.subText} />
+              <Text style={[styles.footText, { color: colors.subText }]}>
+                {isHistory ? formatLongDate(item.order_date) : meta.full}
               </Text>
             </View>
-          )}
-        </View>
-
-        <View style={styles.orderActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
-            onPress={() => handleOrderPress(item)}
-          >
-            <MaterialCommunityIcons name="eye" size={16} color="#fff" />
-            <Text style={styles.actionButtonText}>View</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#FF9800' }]}
-            onPress={() => handleStatusUpdate(item)}
-          >
-            <MaterialCommunityIcons name="pencil" size={16} color="#fff" />
-            <Text style={styles.actionButtonText}>Update</Text>
-          </TouchableOpacity>
+            {boxes > 0 && (
+              <View style={styles.footItem}>
+                <MaterialCommunityIcons name="package-variant-closed" size={14} color={colors.subText} />
+                <Text style={[styles.footText, { color: colors.subText }]}>
+                  {boxes} box{boxes === 1 ? '' : 'es'}
+                </Text>
+              </View>
+            )}
+            {itemCount > 0 && (
+              <View style={styles.footItem}>
+                <MaterialCommunityIcons name="gift-outline" size={14} color={colors.subText} />
+                <Text style={[styles.footText, { color: colors.subText }]}>
+                  {itemCount} item{itemCount === 1 ? '' : 's'}
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.cardTotal, { color: colors.text }]}>{peso(orderTotal(item))}</Text>
         </View>
       </TouchableOpacity>
     );
   };
 
-  const renderFilterModal = () => (
-    <Modal
-      visible={showFilters}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={() => setShowFilters(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: theme.colors.onSurface }]}>
-              Filter Orders
-            </Text>
-            <TouchableOpacity onPress={() => setShowFilters(false)}>
-              <MaterialCommunityIcons name="close" size={24} color={theme.colors.onSurface} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterSectionTitle, { color: theme.colors.onSurface }]}>
-              Status
-            </Text>
-            <View style={styles.chipContainer}>
-              {[
-                'All Orders', 'Order Placed', 'Order Paid', 'To Be Packed',
-                'Order Shipped Out', 'Ready for Delivery', 'Order Received', 'Completed', 'Cancelled'
-              ].map((status) => {
-                const chipValue = status === 'All Orders' ? 'all' : status;
-                const isSelected = filters.status === chipValue;
-                return (
-                  <TouchableOpacity
-                    key={status}
-                    style={[
-                      styles.filterChip,
-                      {
-                        backgroundColor: isSelected ? theme.colors.primary : theme.colors.surface,
-                        borderColor: theme.colors.outline,
-                        borderWidth: 1
-                      }
-                    ]}
-                    onPress={() => handleFilter('status', chipValue)}
-                  >
-                    <Text style={[
-                      styles.filterChipText,
-                      { color: isSelected ? '#fff' : theme.colors.onSurface }
-                    ]}>
-                      {status}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          <View style={styles.filterSection}>
-            <Text style={[styles.filterSectionTitle, { color: theme.colors.onSurface }]}>
-              Date Range
-            </Text>
-            <View style={styles.dateFilterContainer}>
-              <Button
-                mode="outlined"
-                onPress={() => handleFilter('dateRange', 'today')}
-                style={styles.dateButton}
-              >
-                Today
-              </Button>
-              <Button
-                mode="outlined"
-                onPress={() => handleFilter('dateRange', 'week')}
-                style={styles.dateButton}
-              >
-                This Week
-              </Button>
-              <Button
-                mode="outlined"
-                onPress={() => handleFilter('dateRange', 'month')}
-                style={styles.dateButton}
-              >
-                This Month
-              </Button>
-            </View>
-          </View>
-
-          <View style={styles.modalActions}>
-            <Button
-              mode="outlined"
-              onPress={() => {
-                handleFilter('status', 'all');
-                handleFilter('dateRange', 'all');
-                setShowFilters(false);
-              }}
-              style={styles.clearButton}
-            >
-              Clear All
-            </Button>
-            <Button
-              mode="contained"
-              onPress={() => setShowFilters(false)}
-              style={styles.applyButton}
-            >
-              Apply Filters
-            </Button>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <MaterialCommunityIcons name="shopping" size={64} color={theme.colors.outline} />
-      <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>
-        No Orders Found
-      </Text>
-      <Text style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        {searchQuery || filters.status !== 'all' 
-          ? 'Try adjusting your search or filters'
-          : 'No orders have been placed yet'
-        }
-      </Text>
-    </View>
-  );
-
-  const renderStats = () => {
-    const ordersList = orders || [];
-    const stats = {
-      total: ordersList.length,
-      placed: ordersList.filter(o => (o?.status || '') === 'Order Placed').length,
-      paid: ordersList.filter(o => (o?.status || '') === 'Order Paid').length,
-      packed: ordersList.filter(o => (o?.status || '') === 'To Be Packed').length,
-      shipped: ordersList.filter(o => (o?.status || '') === 'Order Shipped Out').length,
-      delivered: ordersList.filter(o => (o?.status || '') === 'Ready for Delivery').length,
-      completed: ordersList.filter(o => (o?.status || '') === 'Completed').length,
-      cancelled: ordersList.filter(o => (o?.status || '') === 'Cancelled').length
-    };
-
-    return (
-      <View style={styles.statsContainer}>
-        <CustomChip icon="shopping" style={styles.statChip}>
-          Total: {stats.total}
-        </CustomChip>
-        <CustomChip icon="clipboard-text" style={[styles.statChip, { backgroundColor: '#17a2b8' }]}>
-          Placed: {stats.placed}
-        </CustomChip>
-        <CustomChip icon="credit-card" style={[styles.statChip, { backgroundColor: '#28a745' }]}>
-          Paid: {stats.paid}
-        </CustomChip>
-        <CustomChip icon="package-variant-closed" style={[styles.statChip, { backgroundColor: '#ffc107' }]}>
-          Packed: {stats.packed}
-        </CustomChip>
-        <CustomChip icon="truck-delivery" style={[styles.statChip, { backgroundColor: '#007bff' }]}>
-          Shipped: {stats.shipped}
-        </CustomChip>
-        <CustomChip icon="check-circle" style={[styles.statChip, { backgroundColor: '#20c997' }]}>
-          Completed: {stats.completed}
-        </CustomChip>
-      </View>
-    );
-  };
+  const listLoading = isHistory ? archivedLoading && shown.length === 0 : loading && (orders || []).length === 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
-        <TextInput
-          placeholder="Search orders..."
-          onChangeText={handleSearch}
-          value={searchQuery}
-          style={[styles.searchBar, { backgroundColor: theme.colors.surface, color: theme.colors.onSurface }]}
-          placeholderTextColor={theme.colors.placeholder}
-        />
-        <TouchableOpacity
-          style={[styles.filterButton, { backgroundColor: theme.colors.primary }]}
-          onPress={() => setShowFilters(true)}
-        >
-          <MaterialCommunityIcons name="filter" size={20} color="#fff" />
-        </TouchableOpacity>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* ── Search + sort ────────────────────────────────────────────────── */}
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <View style={styles.searchRow}>
+          <View style={[styles.searchBox, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+            <MaterialCommunityIcons name="magnify" size={20} color={colors.subText} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.text }]}
+              placeholder="Search name, order ID, email…"
+              placeholderTextColor={colors.placeholder}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {!!searchQuery && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <MaterialCommunityIcons name="close-circle" size={18} color={colors.subText} />
+              </TouchableOpacity>
+            )}
+          </View>
+          {!isHistory && (
+            <TouchableOpacity
+              style={[styles.sortBtn, { borderColor: colors.border }]}
+              onPress={() => setDirection((d) => (d === 'asc' ? 'desc' : 'asc'))}
+            >
+              <MaterialCommunityIcons name="swap-vertical" size={18} color={colors.primary} />
+              <Text style={[styles.sortText, { color: colors.primary }]}>{direction === 'asc' ? 'Soonest' : 'Latest'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* ── Status tabs ────────────────────────────────────────────────── */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRow}>
+          {BOARD_TABS.map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key)}
+                style={[
+                  styles.tab,
+                  { borderColor: active ? tab.tone : colors.border, backgroundColor: active ? tab.tone : colors.card },
+                ]}
+              >
+                <View style={[styles.tabDot, { backgroundColor: active ? '#fff' : tab.tone }]} />
+                <Text style={[styles.tabText, { color: active ? '#fff' : colors.text }]}>{tab.label}</Text>
+                <View style={[styles.tabCount, { backgroundColor: active ? 'rgba(255,255,255,0.25)' : colors.inputBackground }]}>
+                  <Text style={[styles.tabCountText, { color: active ? '#fff' : colors.subText }]}>
+                    {tab.key === 'history' && archived === null ? '…' : tabCount(tab.key)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* ── Delivery-window filters ────────────────────────────────────── */}
+        {!isHistory && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.windowRow}>
+            {WINDOWS.map((w) => {
+              const active = windowKey === w.key;
+              const alert = w.key === 'overdue' && overdueCount > 0;
+              const accent = alert ? URGENCY_COLORS.overdue : colors.primary;
+              return (
+                <TouchableOpacity
+                  key={w.key}
+                  onPress={() => setWindowKey(w.key)}
+                  style={[
+                    styles.windowChip,
+                    { borderColor: active || alert ? accent : colors.border, backgroundColor: active ? accent : 'transparent' },
+                  ]}
+                >
+                  <Text style={[styles.windowText, { color: active ? '#fff' : alert ? accent : colors.subText }]}>
+                    {w.label} {windowCounts[w.key] ?? 0}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
       </View>
 
-      {/* Stats */}
-      {renderStats()}
+      {/* ── Context line ─────────────────────────────────────────────────── */}
+      <View style={styles.noteRow}>
+        <Text style={[styles.noteText, { color: colors.subText }]}>
+          {isHistory
+            ? `${shown.length} finished order${shown.length === 1 ? '' : 's'}, newest first.`
+            : `Showing ${shown.length} order${shown.length === 1 ? '' : 's'}, ordered by delivery date.`}
+        </Text>
+        {!isHistory && overdueCount > 0 && windowKey !== 'overdue' && (
+          <TouchableOpacity onPress={() => setWindowKey('overdue')}>
+            <Text style={styles.alertLink}>{overdueCount} past due</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {!!next && next.date && (
+        <Text style={[styles.nextOut, { color: URGENCY_COLORS[next.bucket] }]}>
+          Next out: <Text style={styles.bold}>{next.full}</Text> · {next.chip}
+        </Text>
+      )}
+      {isHistory && !!archivedNote && <Text style={[styles.nextOut, { color: colors.subText }]}>{archivedNote}</Text>}
+      {!isHistory && !!error && (orders || []).length === 0 && (
+        <Text style={[styles.nextOut, { color: colors.error }]}>Couldn't load orders. Pull down to retry.</Text>
+      )}
 
-      {/* Order List */}
-      {loading && (filteredOrders || []).length === 0 ? (
+      {/* ── Orders ───────────────────────────────────────────────────────── */}
+      {listLoading ? (
         <View style={styles.listContainer}>
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: 4 }).map((_, i) => (
             <SkeletonCard key={i} withImage={false} lines={3} style={{ marginBottom: 12 }} />
           ))}
         </View>
       ) : (
         <FlatList
-          data={filteredOrders || []}
-          renderItem={renderOrderItem}
-          keyExtractor={(item) => item?.order_id?.toString() || Math.random().toString()}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          data={shown}
+          renderItem={renderCard}
+          keyExtractor={(item, index) => `${item.order_id || 'order'}-${index}`}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={renderEmptyState}
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <MaterialCommunityIcons name="inbox-outline" size={56} color={colors.outline} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>{emptyHint}</Text>
+            </View>
+          }
         />
       )}
-
-      {/* Filter Modal */}
-      {renderFilterModal()}
     </View>
   );
 }
@@ -452,204 +340,194 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    paddingTop: 12,
+    borderBottomWidth: 1,
+  },
+  searchRow: {
     flexDirection: 'row',
-    padding: 16,
     alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    paddingHorizontal: 16,
+    gap: 10,
   },
-  searchBar: {
+  searchBox: {
     flex: 1,
-    marginRight: 12,
-  },
-  filterButton: {
-    padding: 12,
-    borderRadius: 8,
-  },
-  statsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    height: 42,
+    gap: 6,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 0,
+  },
+  sortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    height: 42,
+    gap: 4,
+  },
+  sortText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  tabRow: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
     gap: 8,
   },
-  statChip: {
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  customChip: {
+  tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#696a8f',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingVertical: 7,
+    paddingLeft: 10,
+    paddingRight: 6,
+    gap: 6,
+  },
+  tabDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  tabCount: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabCountText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  windowRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  windowChip: {
+    borderWidth: 1,
     borderRadius: 16,
-    marginRight: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
-  chipIcon: {
-    marginRight: 4,
-  },
-  chipText: {
+  windowText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  noteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    gap: 8,
+  },
+  noteText: {
+    flex: 1,
+    fontSize: 12,
+  },
+  alertLink: {
+    color: '#E53935',
+    fontSize: 12,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  nextOut: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    fontSize: 12,
+  },
+  bold: {
+    fontWeight: '700',
   },
   listContainer: {
     padding: 16,
-    paddingBottom: 80,
+    paddingBottom: 40,
   },
-  orderCard: {
+  card: {
     borderRadius: 12,
-    padding: 16,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    padding: 14,
     marginBottom: 12,
-    elevation: 2,
+    elevation: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
   },
-  orderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  orderInfo: {
-    flex: 1,
-  },
-  orderId: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  customerName: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  statusBadge: {
+  cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    justifyContent: 'space-between',
+    gap: 10,
   },
-  statusText: {
-    color: '#fff',
+  cardName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  chip: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  chipText: {
     fontSize: 12,
-    fontWeight: 'bold',
-    marginLeft: 4,
+    fontWeight: '700',
   },
-  orderDetails: {
-    marginBottom: 12,
+  cardId: {
+    fontSize: 12,
+    marginTop: 3,
   },
-  detailRow: {
+  cardFoot: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  detailText: {
-    fontSize: 14,
-    marginLeft: 8,
-  },
-  orderActions: {
-    flexDirection: 'row',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    gap: 12,
+    marginTop: 10,
+    gap: 10,
   },
-  actionButton: {
+  footItems: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  filterSection: {
-    marginBottom: 20,
-  },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    columnGap: 12,
+    rowGap: 4,
   },
-  filterChip: {
-    marginRight: 8,
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+  footItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  filterChipText: {
+  footText: {
     fontSize: 12,
-    fontWeight: '600',
   },
-  dateFilterContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dateButton: {
-    flex: 1,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
-  clearButton: {
-    flex: 1,
-    marginRight: 8,
-  },
-  applyButton: {
-    flex: 1,
-    marginLeft: 8,
+  cardTotal: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   emptyState: {
     alignItems: 'center',
-    padding: 40,
+    paddingVertical: 48,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 12,
     textAlign: 'center',
-    lineHeight: 24,
   },
 });

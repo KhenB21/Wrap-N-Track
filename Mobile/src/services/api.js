@@ -328,10 +328,36 @@ export const inventoryAPI = {
   }
 };
 
+// Same on-demand image endpoint the Website uses; GET /cart returns image_data
+// as raw bytes, which can't be turned into a data: URI directly.
+// `version` (the product's updated_at) busts the endpoint's 24h cache after a photo change.
+export const getProductImageUrl = (sku, version) => {
+  if (!sku) return null;
+  const base = `${BASE_URL}/inventory/${encodeURIComponent(sku)}/image`;
+  return version ? `${base}?v=${encodeURIComponent(version)}` : base;
+};
+
+export const otpAPI = {
+  // Same call the Website order page makes after a successful OTP.
+  markVerified: async () => {
+    const response = await api.put('/customer/mark-verified', {});
+    return response.data;
+  },
+  sendOtp: async (email) => {
+    const response = await api.post('/otp/send-otp', { email });
+    return response.data;
+  },
+  verifyOtp: async (email, code) => {
+    const response = await api.post('/otp/verify-otp', { email, code });
+    return response.data;
+  },
+};
+
 export const cartAPI = {
-  addToCart: async (item) => {
+  // Only sku + quantity: the product object's `quantity` is its stock level.
+  addToCart: async (sku, quantity = 1) => {
     try {
-      const response = await api.post('/cart/add', item);
+      const response = await api.post('/cart/add', { sku, quantity });
       return response.data;
     } catch (error) {
       console.error('Error adding to cart:', error);
@@ -434,6 +460,28 @@ export const orderAPI = {
       console.error('Error fetching order history:', error);
       throw error;
     }
+  },
+  // The calls below are the ones the Website staff Orders page makes
+  // (Website/client/src/Pages/OrderDetails/OrderDetails.js).
+  getOrderProducts: async (orderId) => {
+    const response = await api.get(`/orders/${encodeURIComponent(orderId)}/products`);
+    return response.data;
+  },
+  // Confirm Order / Confirm Delivery / Complete Order. The server enforces the
+  // 70% down payment and delivery-info gates on this route.
+  updateOrder: async (orderId, payload) => {
+    const response = await api.put(`/orders/${encodeURIComponent(orderId)}`, payload);
+    return response.data;
+  },
+  // Cancels (status -> Cancelled) and restocks if stock had been deducted.
+  cancelOrder: async (orderId) => {
+    const response = await api.delete(`/orders/${encodeURIComponent(orderId)}`);
+    return response.data;
+  },
+  // Completed/cancelled orders moved to order_history (staff roles only).
+  getArchivedOrders: async (params) => {
+    const response = await api.get('/order-management/archived-orders', params ? { params } : undefined);
+    return response.data;
   }
 };
 
@@ -505,6 +553,19 @@ export const authAPI = {
       console.error('Error changing password:', error);
       throw error;
     }
+  },
+  // Forgot-password flow — same endpoints as Website ForgotPassword/ResetPassword pages.
+  forgotPassword: async (email) => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+  verifyResetCode: async (email, code) => {
+    const response = await api.post('/auth/verify-reset-code', { email, code });
+    return response.data;
+  },
+  resetPassword: async (email, code, newPassword) => {
+    const response = await api.post('/auth/reset-password', { email, code, newPassword });
+    return response.data;
   }
 };
 
@@ -683,10 +744,31 @@ export const supplierAPI = {
   }
 };
 
+// Same analytics endpoints the Website dashboard reads (Website/client/src/hooks/useDashboardData.js).
+// Each returns the server's { success, data } body; financial endpoints 403 for non-financial roles.
+export const analyticsAPI = {
+  getKpis: async (period) => (await api.get('/analytics/kpis', { params: { period } })).data,
+  getTimeseries: async (metric, period) => (await api.get('/analytics/timeseries', { params: { metric, period } })).data,
+  getOperations: async (period) => (await api.get('/analytics/operations', { params: { period } })).data,
+  getInventoryHealth: async () => (await api.get('/analytics/inventory-health')).data,
+  getWorkQueue: async () => (await api.get('/analytics/work-queue')).data,
+  getInsights: async () => (await api.get('/analytics/insights')).data,
+  getBreakdown: async (period, dimension = 'product', limit = 10) =>
+    (await api.get('/analytics/breakdown', { params: { period, dimension, limit } })).data,
+  getRevenueForecast: async (horizon = 30) => (await api.get('/analytics/forecast/revenue', { params: { horizon } })).data,
+  getActivity: async ({ before, limit = 20 } = {}) =>
+    (await api.get('/analytics/activity', { params: before ? { before, limit } : { limit } })).data,
+  getTeamPerformance: async () => (await api.get('/analytics/team-performance')).data,
+  getMyActivity: async () => (await api.get('/analytics/my-activity')).data,
+  // Per-SKU demand forecast used by the Inventory Report's Demand Forecast tab.
+  getDemandForecast: async () => (await api.get('/analytics/forecast/demand')).data,
+};
+
 export const customerOrderAPI = {
-  getMyOrders: async () => {
+  // params: optional { page, limit, status } — the endpoint pages at 20 by default.
+  getMyOrders: async (params) => {
     try {
-      const response = await api.get('/customer-orders/orders');
+      const response = await api.get('/customer-orders/orders', params ? { params } : undefined);
       return response.data;
     } catch (error) {
       console.error('Error fetching customer orders:', error);
@@ -932,6 +1014,10 @@ export const salesReportsAPI = {
     const response = await api.get('/sales-reports/recent', { params: { limit } });
     return response.data;
   },
+  getCustomerAnalysis: async (startDate, endDate) => {
+    const response = await api.get('/sales-reports/customer-analysis', { params: { startDate, endDate } });
+    return response.data;
+  },
 };
 
 // Mirrors Website/server/routes/inventory-reports.js — same endpoints the Web
@@ -951,6 +1037,22 @@ export const inventoryReportsAPI = {
   },
   getCategoryBreakdown: async () => {
     const response = await api.get('/inventory-reports/category-breakdown');
+    return response.data;
+  },
+  getReplenishmentSuggestions: async (days) => {
+    const response = await api.get('/inventory-reports/replenishment-suggestions', { params: { days } });
+    return response.data;
+  },
+  getMovementAnalysis: async (days) => {
+    const response = await api.get('/inventory-reports/movement-analysis', { params: { days } });
+    return response.data;
+  },
+  getAdvancedAnalytics: async (days) => {
+    const response = await api.get('/inventory-reports/advanced-analytics', { params: { days } });
+    return response.data;
+  },
+  getStockFlow: async (days) => {
+    const response = await api.get('/inventory-reports/stock-flow', { params: { days } });
     return response.data;
   },
 };

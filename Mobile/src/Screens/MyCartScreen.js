@@ -16,6 +16,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCart } from "../Context/CartContext";
 import { useTheme } from "../Context/ThemeContext";
 import { SkeletonCard } from "../Components/Skeleton/Skeleton";
+import { getProductImageUrl } from "../services/api";
 
 const { width } = Dimensions.get("window");
 
@@ -35,13 +36,26 @@ export default function MyCartScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState("cart");
   const [selectedIds, setSelectedIds] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [failedImages, setFailedImages] = useState({});
   const { darkMode } = useTheme();
 
-  const handleQuantityChange = async (sku, value) => {
+  // Load the cart from the server when the screen opens.
+  useEffect(() => {
+    loadCartItems();
+  }, [loadCartItems]);
+
+  const handleQuantityChange = async (item, value) => {
+    const stock = Number(item.available_stock);
+    let quantity = Math.max(1, value);
+    if (Number.isFinite(stock) && quantity > stock) {
+      quantity = Math.max(1, stock);
+      Alert.alert("Limited Stock", `Only ${stock} available in stock.`);
+    }
+    if (quantity === item.quantity) return;
     try {
-      await updateQuantity(sku, Math.max(1, value));
+      await updateQuantity(item.sku, quantity);
     } catch (error) {
-      Alert.alert("Error", "Failed to update quantity. Please try again.");
+      Alert.alert("Error", error.message || "Failed to update quantity. Please try again.");
     }
   };
 
@@ -122,10 +136,11 @@ export default function MyCartScreen({ navigation }) {
             <View style={[styles.radioDot, { backgroundColor: radioDot }]} />
           )}
         </TouchableOpacity>
-        {item.image_data ? (
-          <Image 
-            source={{ uri: `data:image/png;base64,${item.image_data}` }} 
-            style={styles.itemImage} 
+        {!failedImages[item.sku] ? (
+          <Image
+            source={{ uri: getProductImageUrl(item.sku) }}
+            style={styles.itemImage}
+            onError={() => setFailedImages((prev) => ({ ...prev, [item.sku]: true }))}
           />
         ) : (
           <View style={[styles.itemImage, { backgroundColor: border, justifyContent: 'center', alignItems: 'center' }]}>
@@ -166,7 +181,7 @@ export default function MyCartScreen({ navigation }) {
               onChangeText={(v) => {
                 const num = v.replace(/[^0-9]/g, "");
                 handleQuantityChange(
-                  item.sku,
+                  item,
                   num === "" ? 1 : parseInt(num, 10)
                 );
               }}

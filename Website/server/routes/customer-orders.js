@@ -4,6 +4,18 @@ const pool = require('../config/db');
 const verifyJwt = require('../middleware/verifyJwt');
 const { ensureDeliverySchema, TRACKING_UNAVAILABLE_MESSAGE } = require('../services/deliveryService');
 
+// A live order can be confirmed as received once it is out for (or marked) delivered.
+const RECEIPT_CONFIRMABLE_DELIVERY_STATUSES = ['Sent / Shipped', 'Delivered'];
+const CUSTOMER_RECEIPT_NOTE = 'Marked received by customer';
+
+// Whether the customer can still tap "Order Received": a live order that has shipped,
+// or an order staff completed (archived) that the customer has not confirmed yet.
+const canConfirmReceipt = (order) => (
+  order.archived
+    ? order.status === 'Completed' && !order.receipt_confirmed
+    : RECEIPT_CONFIRMABLE_DELIVERY_STATUSES.includes(order.delivery_status)
+);
+
 // Apply authentication middleware to all routes
 router.use(verifyJwt());
 router.use(async (_req, res, next) => {
@@ -105,6 +117,9 @@ router.get('/orders', async (req, res) => {
         o.sent_at,
         o.picked_up_at,
         o.delivered_at,
+        -- A live order is never receipt-confirmed: confirming archives it.
+        false AS receipt_confirmed,
+        (COALESCE(o.delivery_status, 'Pending') IN ('Sent / Shipped', 'Delivered')) AS can_confirm_receipt,
         COALESCE(prod.products, '[]'::json) as products
       FROM orders o
       LEFT JOIN LATERAL (
@@ -173,6 +188,8 @@ router.get('/orders', async (req, res) => {
         oh.sent_at,
         oh.picked_up_at,
         oh.delivered_at,
+        (oh.receipt_confirmed_at IS NOT NULL) AS receipt_confirmed,
+        (oh.status = 'Completed' AND oh.receipt_confirmed_at IS NULL) AS can_confirm_receipt,
         COALESCE(
           json_agg(
             json_build_object(
@@ -203,7 +220,8 @@ router.get('/orders', async (req, res) => {
                oh.delivery_status, oh.delivery_method, oh.delivery_type, oh.courier_name,
                oh.tracking_number, oh.tracking_link_available, oh.tracking_link,
                oh.tracking_unavailable_message, oh.proof_image_url, oh.proof_uploaded_at,
-               oh.delivery_remarks, oh.sent_at, oh.picked_up_at, oh.delivered_at
+               oh.delivery_remarks, oh.sent_at, oh.picked_up_at, oh.delivered_at,
+               oh.receipt_confirmed_at
     `, [customerId, TRACKING_UNAVAILABLE_MESSAGE]);
 
     // Combine both results
@@ -413,14 +431,18 @@ router.get('/orders/:orderId', async (req, res) => {
       ORDER BY created_at ASC
     `, [orderId]);
 
-    // Determine current tracking stage for customer view
+    // Determine current tracking stage for customer view. Only archived rows can
+    // carry a receipt confirmation; a live order has not been confirmed yet.
     const order = orderResult.rows[0];
-    const trackingStage = getCustomerTrackingStage(order.status);
+    const receiptConfirmed = isArchived ? Boolean(order.receipt_confirmed_at) : false;
+    const trackingStage = getCustomerTrackingStage(order.status, receiptConfirmed);
 
     res.json({
       success: true,
       order: {
         ...order,
+        receipt_confirmed: receiptConfirmed,
+        can_confirm_receipt: canConfirmReceipt({ ...order, archived: isArchived, receipt_confirmed: receiptConfirmed }),
         products: productsResult.rows,
         statusHistory: historyResult.rows,
         deliveryHistory: deliveryHistoryResult.rows,
@@ -488,7 +510,9 @@ router.get('/tracking/:orderId', async (req, res) => {
           o.order_received_at,
           o.expected_delivery,
           o.shipping_address,
-          o.total_cost
+          o.total_cost,
+          false AS archived,
+          false AS receipt_confirmed
         FROM orders o
         WHERE o.order_id = $1 AND o.customer_id = $2
       `, [orderId, customerId]);
@@ -505,7 +529,9 @@ router.get('/tracking/:orderId', async (req, res) => {
           o.order_received_at,
           o.expected_delivery,
           o.shipping_address,
-          o.total_cost
+          o.total_cost,
+          false AS archived,
+          false AS receipt_confirmed
         FROM orders o
         WHERE o.order_id = $1
       `, [orderId]);
@@ -525,7 +551,9 @@ router.get('/tracking/:orderId', async (req, res) => {
             oh.archived_at as order_received_at,
             oh.expected_delivery,
             oh.shipping_address,
-            oh.total_cost
+            oh.total_cost,
+            true AS archived,
+            (oh.receipt_confirmed_at IS NOT NULL) AS receipt_confirmed
           FROM order_history oh
           LEFT JOIN customer_details cd ON cd.customer_id = $2
           WHERE oh.order_id = $1 AND (
@@ -549,7 +577,9 @@ router.get('/tracking/:orderId', async (req, res) => {
             oh.archived_at as order_received_at,
             oh.expected_delivery,
             oh.shipping_address,
-            oh.total_cost
+            oh.total_cost,
+            true AS archived,
+            (oh.receipt_confirmed_at IS NOT NULL) AS receipt_confirmed
           FROM order_history oh
           WHERE oh.order_id = $1
         `, [orderId]);
@@ -564,7 +594,7 @@ router.get('/tracking/:orderId', async (req, res) => {
     }
 
     const order = result.rows[0];
-    const trackingStage = getCustomerTrackingStage(order.status);
+    const trackingStage = getCustomerTrackingStage(order.status, order.receipt_confirmed);
     const trackingSteps = getTrackingSteps(order, trackingStage);
 
     res.json({
@@ -573,6 +603,8 @@ router.get('/tracking/:orderId', async (req, res) => {
         orderId: order.order_id,
         currentStage: trackingStage,
         deliveryStatus: order.delivery_status,
+        receiptConfirmed: Boolean(order.receipt_confirmed),
+        canConfirmReceipt: canConfirmReceipt(order),
         steps: trackingSteps,
         expectedDelivery: order.expected_delivery,
         shippingAddress: order.shipping_address,
@@ -614,13 +646,15 @@ router.patch('/orders/:orderId/receive', async (req, res) => {
     );
 
     if (orderResult.rows.length === 0) {
-      // Not in the live table — check whether it's already been archived
-      // (completed/cancelled) so the error is meaningful instead of a bare 404.
+      // Not in the live table — it may already be archived. Staff "Complete Order"
+      // archives an order without the customer's confirmation, so a Completed order
+      // that hasn't been confirmed can still be confirmed here; anything else gets a
+      // meaningful error instead of a bare 404.
       // Some archived orders have a NULL customer_id (placed before customer_id
       // linking existed), so fall back to matching by email/name/phone against
       // this customer's own profile — same rule the tracking endpoint uses.
       const archivedResult = await client.query(
-        `SELECT oh.status
+        `SELECT oh.*
          FROM order_history oh
          LEFT JOIN customer_details cd ON cd.customer_id = $2
          WHERE oh.order_id = $1 AND (
@@ -633,18 +667,53 @@ router.patch('/orders/:orderId/receive', async (req, res) => {
          )`,
         [orderId, customerId]
       );
-      if (archivedResult.rows.length > 0) {
+      if (archivedResult.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Order not found' });
+      }
+
+      const archived = archivedResult.rows[0];
+      if (archived.status !== 'Completed') {
         return res.status(400).json({
           success: false,
-          message: `This order is already ${archivedResult.rows[0].status.toLowerCase()} — there's nothing left to confirm.`
+          message: `This order is already ${String(archived.status).toLowerCase()} — there's nothing left to confirm.`
         });
       }
-      return res.status(404).json({ success: false, message: 'Order not found' });
+      if (archived.receipt_confirmed_at) {
+        return res.status(400).json({ success: false, message: 'You have already confirmed receiving this order.' });
+      }
+
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE order_history
+         SET receipt_confirmed_at = NOW(),
+             delivery_status = 'Delivered',
+             delivered_at = COALESCE(delivered_at, NOW())
+         WHERE order_id = $1`,
+        [orderId]
+      );
+      await client.query(
+        `INSERT INTO delivery_status_history (order_id, status, remarks, delivery_method, delivery_mode_id, delivery_type, courier_name, tracking_number, tracking_link, proof_image_url, updated_by)
+         VALUES ($1, 'Delivered', $2, $3, $4, $5, $6, $7, $8, $9, NULL)`,
+        [
+          orderId,
+          CUSTOMER_RECEIPT_NOTE,
+          archived.delivery_method || null,
+          archived.delivery_mode_id || null,
+          archived.delivery_type || null,
+          archived.courier_name || null,
+          archived.tracking_number || null,
+          archived.tracking_link || null,
+          archived.proof_image_url || null,
+        ]
+      );
+      await client.query('COMMIT');
+
+      return res.json({ success: true, message: 'Order marked as received', status: 'Completed' });
     }
 
     const order = orderResult.rows[0];
     const currentStatus = order.status;
-    if (order.delivery_status !== 'Sent / Shipped') {
+    if (!RECEIPT_CONFIRMABLE_DELIVERY_STATUSES.includes(order.delivery_status)) {
       return res.status(400).json({
         success: false,
         message: 'This order is not yet out for delivery, so it cannot be marked as received.'
@@ -684,9 +753,9 @@ router.patch('/orders/:orderId/receive', async (req, res) => {
         tracking_number, tracking_link, tracking_link_available, tracking_unavailable_message,
         proof_image_url, proof_uploaded_by, proof_uploaded_at,
         sent_at, picked_up_at, delivered_at, delivery_remarks,
-        delivery_updated_by, delivery_updated_at, order_quantity
+        delivery_updated_by, delivery_updated_at, order_quantity, receipt_confirmed_at
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,
-        $19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37)`,
+        $19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,NOW())`,
       [
         order.order_id,
         order.name || 'Customer',
@@ -755,7 +824,7 @@ router.patch('/orders/:orderId/receive', async (req, res) => {
 });
 
 // Helper function to determine customer tracking stage
-function getCustomerTrackingStage(status) {
+function getCustomerTrackingStage(status, receiptConfirmed = true) {
   const statusMap = {
     'Order Placed': 'Order Placed',
     'Order Paid': 'Order Paid',
@@ -767,7 +836,9 @@ function getCustomerTrackingStage(status) {
     'Cancelled': 'Cancelled'
   };
 
-  return statusMap[status] || 'Order Placed';
+  const stage = statusMap[status] || 'Order Placed';
+  // Completed by staff is still "shipped" to the customer until they confirm receipt.
+  return stage === 'Order Received' && !receiptConfirmed ? 'Order Shipped Out' : stage;
 }
 
 // Helper function to get tracking steps with status
@@ -803,9 +874,10 @@ function getTrackingSteps(order, currentStage) {
       id: 'order-received',
       title: 'Order Received',
       description: 'Your order has been delivered',
-      completed: ['Order Received', 'Completed'].includes(order.status),
+      // Needs the customer's own confirmation, not just a staff status change.
+      completed: ['Order Received', 'Completed'].includes(order.status) && order.receipt_confirmed !== false,
       timestamp: order.order_received_at,
-      status: ['Order Received', 'Completed'].includes(order.status) ? 'completed' : 'pending'
+      status: ['Order Received', 'Completed'].includes(order.status) && order.receipt_confirmed !== false ? 'completed' : 'pending'
     }
   ];
 

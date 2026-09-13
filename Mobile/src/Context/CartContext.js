@@ -37,7 +37,11 @@ const cartReducer = (state, action) => {
       };
 
     case CART_ACTIONS.SET_CART_ITEMS:
-      const items = action.payload;
+      // GET /cart names the field product_name; screens read item.name.
+      const items = (Array.isArray(action.payload) ? action.payload : []).map((item) => ({
+        ...item,
+        name: item.name || item.product_name,
+      }));
       const totalItems = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
       const totalPrice = items.reduce((sum, item) => sum + ((item.unit_price || 0) * (item.quantity || 0)), 0);
       
@@ -86,6 +90,7 @@ const cartReducer = (state, action) => {
         cartItems: filteredItems,
         totalItems: filteredTotalItems,
         totalPrice: filteredTotalPrice,
+        loading: false,
       };
 
     case CART_ACTIONS.UPDATE_QUANTITY:
@@ -102,6 +107,7 @@ const cartReducer = (state, action) => {
         cartItems: updatedQuantityItems,
         totalItems: updatedTotalItems,
         totalPrice: updatedTotalPrice,
+        loading: false,
       };
 
     case CART_ACTIONS.CLEAR_CART:
@@ -110,6 +116,7 @@ const cartReducer = (state, action) => {
         cartItems: [],
         totalItems: 0,
         totalPrice: 0,
+        loading: false,
       };
 
     case CART_ACTIONS.SET_ERROR:
@@ -156,11 +163,7 @@ export function CartProvider({ children }) {
       dispatch({ type: CART_ACTIONS.SET_LOADING, payload: true });
       const response = await cartAPI.getCartItems();
       
-      if (response.success && response.cart) {
-        dispatch({ type: CART_ACTIONS.SET_CART_ITEMS, payload: response.cart });
-      } else {
-        dispatch({ type: CART_ACTIONS.SET_CART_ITEMS, payload: response || [] });
-      }
+      dispatch({ type: CART_ACTIONS.SET_CART_ITEMS, payload: response?.cart || [] });
     } catch (error) {
       console.error('Error loading cart items:', error);
       dispatch({ 
@@ -177,21 +180,25 @@ export function CartProvider({ children }) {
   // }, [loadCartItems]);
 
   // Add item to cart
-  const addToCart = async (item) => {
+  const addToCart = async (item, quantity = 1) => {
+    let message = 'Failed to add item to cart';
     try {
       dispatch({ type: CART_ACTIONS.SET_LOADING, payload: true });
-      const response = await cartAPI.addToCart(item);
-      
+      const response = await cartAPI.addToCart(item.sku, quantity);
+
       if (response.success) {
         // Reload cart items to get updated data from server
         await loadCartItems();
-      } else {
-        dispatch({ type: CART_ACTIONS.SET_ERROR, payload: response.message || 'Failed to add item to cart' });
+        return;
       }
+      message = response.message || message;
     } catch (error) {
       console.error('Error adding to cart:', error);
-      dispatch({ type: CART_ACTIONS.SET_ERROR, payload: error.message || 'Failed to add item to cart' });
+      message = error.response?.data?.message || error.message || message;
     }
+    // Callers show their own failure toast, so surface the server message to them.
+    dispatch({ type: CART_ACTIONS.SET_LOADING, payload: false });
+    throw new Error(message);
   };
 
   // Remove item from cart
@@ -207,7 +214,8 @@ export function CartProvider({ children }) {
       }
     } catch (error) {
       console.error('Error removing from cart:', error);
-      dispatch({ type: CART_ACTIONS.SET_ERROR, payload: error.message || 'Failed to remove item from cart' });
+      dispatch({ type: CART_ACTIONS.SET_LOADING, payload: false });
+      throw new Error(error.response?.data?.message || error.message || 'Failed to remove item from cart');
     }
   };
 
@@ -224,7 +232,8 @@ export function CartProvider({ children }) {
       }
     } catch (error) {
       console.error('Error updating quantity:', error);
-      dispatch({ type: CART_ACTIONS.SET_ERROR, payload: error.message || 'Failed to update quantity' });
+      dispatch({ type: CART_ACTIONS.SET_LOADING, payload: false });
+      throw new Error(error.response?.data?.message || error.message || 'Failed to update quantity');
     }
   };
 
@@ -260,8 +269,9 @@ export function CartProvider({ children }) {
       }
     } catch (error) {
       console.error('Error during checkout:', error);
-      dispatch({ type: CART_ACTIONS.SET_ERROR, payload: error.message || 'Checkout failed' });
-      return { success: false, message: error.message };
+      const message = error.response?.data?.message || error.message || 'Checkout failed';
+      dispatch({ type: CART_ACTIONS.SET_LOADING, payload: false });
+      return { success: false, message };
     }
   };
 

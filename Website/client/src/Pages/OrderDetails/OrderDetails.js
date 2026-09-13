@@ -14,7 +14,7 @@ import { useConfirm } from '../../Context/ConfirmContext';
 import PortalModal from '../../Components/Modal/PortalModal';
 import OrderInvoiceSection from '../Invoices/OrderInvoiceSection';
 import AddOrderModal from './AddOrderModal';
-import OrderBoard from './OrderBoard';
+import OrderBoard, { parseDeliveryDate } from './OrderBoard';
 
 // Add these styles at the top of the file
 const styles = {
@@ -253,6 +253,30 @@ const normalizeStatus = (status) => {
   return status.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
 };
 
+// Order columns the Edit Order form saves through PUT /api/orders/:order_id.
+// Status and products are deliberately not among them: status changes go
+// through Confirm Order / Confirm Delivery / Complete Order / Cancel Order,
+// which carry their own checks, and leaving products out keeps the route from
+// touching order lines or stock.
+const EDITABLE_ORDER_FIELDS = [
+  'account_name', 'name', 'package_name', 'payment_method', 'payment_type',
+  'shipped_to', 'shipping_address', 'remarks', 'telephone', 'cellphone', 'email_address',
+];
+
+// <input type="date"> only accepts YYYY-MM-DD, but orders arrive with DATE
+// columns serialised as UTC instants.
+const toDateInputValue = (raw) => {
+  const d = parseDeliveryDate(raw);
+  if (!d) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// Keep an order's stored value selectable even when it is not one of the
+// form's preset options ("Handpick", "Pending", …); otherwise the required
+// <select> falls back to "" and blocks the form from submitting.
+const withCurrentOption = (options, current) =>
+  current && !options.includes(current) ? [current, ...options] : options;
+
 // Heuristically detect MIME type from base64 and construct a proper data URL
 function buildDataUrlFromBase64(possibleBase64) {
   if (!possibleBase64) return null;
@@ -313,6 +337,7 @@ export default function OrderDetails() {
   const [productError, setProductError] = useState('');
   const [placingOrder, setPlacingOrder] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [orderProducts, setOrderProducts] = useState([]);
   const [editingProducts, setEditingProducts] = useState(false); 
@@ -351,7 +376,42 @@ export default function OrderDetails() {
     // For example: setForm(prev => ({...prev, products: [...prev.products, {name: 'Sample Product', quantity: 1, price: 100}]})); 
     setShowProductModal(false);
   };
-  const handleEditOrderSubmit = (e) => { e.preventDefault(); console.log('handleEditOrderSubmit called', form); setShowEditModal(false); /* Add API call here */ };
+  const handleEditOrderSubmit = async (e) => {
+    e.preventDefault();
+    const orderId = form.order_id ? String(form.order_id).trim() : '';
+    if (!orderId) {
+      toast.error('No order selected.');
+      return;
+    }
+
+    // Only the order-detail columns: no status (so no payment gate or stock
+    // move is triggered) and no products (so order lines are left untouched).
+    const payload = {
+      order_date: form.order_date,
+      expected_delivery: form.expected_delivery,
+    };
+    EDITABLE_ORDER_FIELDS.forEach((field) => {
+      const value = form[field];
+      payload[field] = typeof value === 'string' ? value.trim() : value;
+    });
+
+    setSavingEdit(true);
+    try {
+      const response = await api.put(`/api/orders/${encodeURIComponent(orderId)}`, payload);
+      // Merge the saved header into the open details view right away; its
+      // products are kept because the response omits unit prices.
+      const { products, build, ...updatedHeader } = response.data || {};
+      setSelectedOrder((prev) => (prev && prev.order_id === orderId ? { ...prev, ...updatedHeader } : prev));
+      setShowEditModal(false);
+      toast.success(`Order ${orderId} updated.`);
+      await fetchOrders();
+    } catch (error) {
+      console.error('Failed to update order:', error.response || error);
+      toast.error(`Failed to update order. ${error.response?.data?.error || error.response?.data?.message || error.message}`);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
   const handleUpdateProducts = () => { console.log('handleUpdateProducts called'); setShowEditProductsModal(false); /* Add API call here */ };
   const handleCompleteConfirm = () => { console.log('handleCompleteConfirm called'); setShowCompleteConfirm(false); /* Add API call here */ };
   
@@ -425,10 +485,25 @@ export default function OrderDetails() {
     }
   };
 
-  const handleEditOrder = (orderToEdit) => { 
-    console.log('handleEditOrder called', orderToEdit); 
-    setForm(orderToEdit); // Populate form with selected order data
-    setSelectedOrder(orderToEdit);
+  const handleEditOrder = (orderToEdit) => {
+    if (!orderToEdit || !orderToEdit.order_id) {
+      toast.error('No order selected.');
+      return;
+    }
+    // Build the form from the order rather than copying the row wholesale:
+    // null columns would make the inputs uncontrolled, and DATE columns need
+    // reformatting for <input type="date">.
+    const nextForm = {
+      order_id: orderToEdit.order_id,
+      status: orderToEdit.status || '',
+      total_cost: orderTotal(orderToEdit),
+      order_date: toDateInputValue(orderToEdit.order_date),
+      expected_delivery: toDateInputValue(orderToEdit.expected_delivery),
+    };
+    EDITABLE_ORDER_FIELDS.forEach((field) => {
+      nextForm[field] = orderToEdit[field] ?? '';
+    });
+    setForm(nextForm);
     setShowEditModal(true);
   };
   const handleCancelPendingOrder = async () => {
@@ -502,16 +577,6 @@ export default function OrderDetails() {
       
       const allOrders = response.data;
       console.log('Orders data from response.data:', allOrders);
-
-      // Log details for the specific order we're tracking
-      const updatedOrderId = '#CO1749485124796'; // The ID from the user's log
-      const specificOrder = allOrders.find(o => o.order_id === updatedOrderId);
-      if (specificOrder) {
-        console.log(`[TrackOrder] Found order ${updatedOrderId}:`, specificOrder);
-        console.log(`[TrackOrder] Status: '${specificOrder.status}', Normalized: '${normalizeStatus(specificOrder.status)}'`);
-      } else {
-        console.log(`[TrackOrder] Order ${updatedOrderId} not found in fetched data.`);
-      }
 
       if (!Array.isArray(allOrders)) {
         console.error('Error: response.data is not an array!', allOrders);
@@ -757,7 +822,7 @@ export default function OrderDetails() {
 
         {/* Edit Order Modal */}
         {showEditModal && (
-          <div className={`modal-backdrop${showCompleteConfirm ? ' order-details-modal-dim' : ''}`} style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <div className={`modal-backdrop${showCompleteConfirm ? ' order-details-modal-dim' : ''}`} style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',zIndex:3000,display:'flex',alignItems:'center',justifyContent:'center'}}>
             <div className="modal" style={{
               borderRadius:16,
               maxWidth:1400,
@@ -804,22 +869,21 @@ export default function OrderDetails() {
                     <label>Order ID<input name="order_id" value={form.order_id} onChange={handleFormChange} required className="modal-input" disabled /></label>
                     <label>Name<input name="name" value={form.name} onChange={handleFormChange} required className="modal-input" /></label>
                     <label>Status
-                      <select name="status" value={form.status} onChange={handleFormChange} required className="modal-input">
-                        <option value="">Select status</option>
-                        <option value="Pending">Pending</option>
-                        <option value="To be pack">To be pack</option>
-                        <option value="Ready to ship">Ready to ship</option>
-                        <option value="En Route">En Route</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Invoice">Invoice</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
+                      <input
+                        name="status"
+                        value={form.status || ''}
+                        readOnly
+                        disabled
+                        className="modal-input"
+                        title="Change status with Confirm Order, Confirm Delivery, Complete Order or Cancel Order."
+                      />
                     </label>
                     <label>Package Name
                       <select name="package_name" value={form.package_name} onChange={handleFormChange} required className="modal-input">
                         <option value="">Select package</option>
-                        <option value="Carlo">Carlo</option>
-                        <option value="Custom">Custom</option>
+                        {withCurrentOption(['Carlo', 'Custom'], form.package_name).map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
                       </select>
                     </label>
                     <label>Order Date<input name="order_date" type="date" value={form.order_date} onChange={handleFormChange} required className="modal-input" /></label>
@@ -843,18 +907,17 @@ export default function OrderDetails() {
                     <label>Payment Type
                       <select name="payment_type" value={form.payment_type} onChange={handleFormChange} className="modal-input" required>
                         <option value="">Select payment type</option>
-                        <option value="50% paid">50% paid</option>
-                        <option value="70% paid">70% paid</option>
-                        <option value="100% Paid">100% Paid</option>
+                        {withCurrentOption(['50% paid', '70% paid', '100% Paid'], form.payment_type).map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
                       </select>
                     </label>
                     <label>Payment Method
                       <select name="payment_method" value={form.payment_method} onChange={handleFormChange} className="modal-input" required>
                         <option value="">Select payment method</option>
-                        <option value="Cash">Cash</option>
-                        <option value="Online Banking">Online Banking</option>
-                        <option value="E-Wallet">E-Wallet</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
+                        {withCurrentOption(['Cash', 'Online Banking', 'E-Wallet', 'Bank Transfer'], form.payment_method).map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
                       </select>
                     </label>
                     <label>Account Name<input name="account_name" value={form.account_name} onChange={handleFormChange} className="modal-input" /></label>
@@ -864,7 +927,7 @@ export default function OrderDetails() {
                   {/* Footer Buttons */}
                   <div className="modal-footer" style={{width:'100%',marginTop:32,display:'flex',justifyContent:'flex-end',gap:12}}>
                     <button type="button" className="btn btn-secondary" onClick={()=>setShowEditModal(false)} style={{minWidth:100}}>Cancel</button>
-                    <button type="submit" className="btn btn-primary" style={{minWidth:100}}>Save</button>
+                    <button type="submit" className="btn btn-primary" style={{minWidth:100}} disabled={savingEdit}>{savingEdit ? 'Saving…' : 'Save'}</button>
                   </div>
                 </div>
                 {/* Divider */}
@@ -883,6 +946,9 @@ export default function OrderDetails() {
                   maxHeight:'calc(95vh - 80px)'
                 }}>
                   <div style={{fontWeight:700,fontSize:18,marginBottom:16,letterSpacing:1,fontFamily:'Cormorant Garamond,serif',color:'#2c3e50'}}>PRODUCTS</div>
+                  <div style={{fontSize:13,color:'#6b7280',marginBottom:12}}>
+                    Product changes are not saved from this form yet — Save updates the order details on the left.
+                  </div>
                   <div style={{marginBottom:18,border:'1px solid #eee',borderRadius:8,padding:0,width:'100%',background:'#fff',maxHeight:500,overflowY:'auto',overflowX:'hidden'}}>
                     <table style={{width:'100%',borderCollapse:'collapse',tableLayout:'auto'}}>
                       <thead style={{position:'sticky',top:0,zIndex:1,background:'#f8f8f8'}}>
@@ -1161,7 +1227,7 @@ export default function OrderDetails() {
                 <button 
                   className="edit-btn"
                   style={{ ...styles.button, ...styles.primaryButton, marginRight: 16 }}
-                  onClick={handleEditOrder}
+                  onClick={() => handleEditOrder(selectedOrder)}
                 >
                   Edit Order
                 </button>
