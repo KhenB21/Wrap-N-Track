@@ -30,8 +30,7 @@ export default function ProductDetailScreen({ navigation, route }) {
     if (adding) return;
     setAdding(true);
     try {
-      const productWithQuantity = { ...product, quantity };
-      await addToCart(productWithQuantity);
+      await addToCart(product, quantity);
       Animated.sequence([
         Animated.timing(bounceAnim, { toValue: 1.15, duration: 120, useNativeDriver: true }),
         Animated.spring(bounceAnim, { toValue: 1, friction: 4, useNativeDriver: true }),
@@ -46,7 +45,9 @@ export default function ProductDetailScreen({ navigation, route }) {
 
   const handleQuantityChange = (change) => {
     const newQuantity = quantity + change;
-    if (newQuantity >= 1) {
+    // product.quantity is the available stock, not a cart quantity.
+    const maxQuantity = Number(product.quantity);
+    if (newQuantity >= 1 && (!Number.isFinite(maxQuantity) || newQuantity <= maxQuantity)) {
       setQuantity(newQuantity);
     }
   };

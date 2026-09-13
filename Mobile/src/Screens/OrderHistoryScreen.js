@@ -91,6 +91,8 @@ export default function OrderHistoryScreen({ navigation }) {
   // an order to To Be Packed, show that instead of the stale "Pending"
   // delivery_status.
   const getDisplayStatus = (item) => {
+    // Completed by staff but not yet confirmed by the customer.
+    if (normalizeOrderStatus(item.status) === 'completed' && item.receipt_confirmed === false) return 'Confirm Receipt';
     if (normalizeOrderStatus(item.status) === 'tobepacked') return 'To Be Packed';
     return item.delivery_status || 'Pending';
   };
@@ -112,6 +114,8 @@ export default function OrderHistoryScreen({ navigation }) {
       case 'delivered':
       case 'picked up':
         return '#4CAF50';
+      case 'confirm receipt':
+        return '#FFA726';
       case 'failed delivery':
       case 'cancelled':
         return '#EF5350';
@@ -137,6 +141,8 @@ export default function OrderHistoryScreen({ navigation }) {
       case 'delivered':
       case 'picked up':
         return 'check-circle';
+      case 'confirm receipt':
+        return 'hand-okay';
       case 'failed delivery':
       case 'cancelled':
         return 'close-circle-outline';
@@ -175,7 +181,7 @@ export default function OrderHistoryScreen({ navigation }) {
           borderColor: darkMode ? "#393A3B" : "#EDECF3",
         }
       ]}
-      onPress={() => navigation.navigate("OrderTracking", { orderId: item.order_id || item.id })}
+      onPress={() => navigation.navigate("OrderTracking", { orderId: item.order_id || item.id, order: item })}
     >
       <View style={styles.orderHeader}>
         <View style={styles.orderInfo}>

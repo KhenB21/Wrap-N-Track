@@ -28,6 +28,48 @@ const DELIVERY_MODE_SEEDS = [
 
 let deliverySchemaReady = false;
 
+// An order only reaches 100% on the customer's tracker once the customer confirms
+// receipt ("Order Received"). Staff "Complete Order" archives an order without that
+// confirmation, so it is recorded on the archived row. The first time the column is
+// created, every order already Completed is backfilled as confirmed so orders that
+// finished before this rule existed keep showing as received.
+async function ensureReceiptConfirmationColumn(db) {
+  const existing = await db.query(`
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = current_schema()
+      AND table_name = 'order_history'
+      AND column_name = 'receipt_confirmed_at'
+  `);
+  if (existing.rows.length) return;
+
+  const statements = [
+    'ALTER TABLE order_history ADD COLUMN IF NOT EXISTS receipt_confirmed_at TIMESTAMPTZ',
+    `UPDATE order_history
+       SET receipt_confirmed_at = COALESCE(delivered_at, archived_at, NOW())
+     WHERE status = 'Completed' AND receipt_confirmed_at IS NULL`,
+  ];
+
+  // A pool gets its own transaction; a client passed in is already inside the
+  // caller's transaction, so just run the statements on it.
+  if (typeof db.connect !== 'function') {
+    for (const sql of statements) await db.query(sql);
+    return;
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    for (const sql of statements) await client.query(sql);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function ensureDeliverySchema(db) {
   if (deliverySchemaReady) return;
 
@@ -94,6 +136,8 @@ async function ensureDeliverySchema(db) {
 
   await db.query('CREATE INDEX IF NOT EXISTS idx_delivery_history_order_id ON delivery_status_history(order_id);');
   await db.query('CREATE INDEX IF NOT EXISTS idx_orders_delivery_status ON orders(delivery_status);');
+
+  await ensureReceiptConfirmationColumn(db);
 
   for (const seed of DELIVERY_MODE_SEEDS) {
     await db.query(`

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,118 +6,362 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Dimensions,
-  Linking
+  Linking,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Card, Divider, Chip } from 'react-native-paper';
-import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
-import { useOrders } from '../../Context/OrdersContext';
+import { useTheme } from '../../Context/ThemeContext';
 import { useAuth } from '../../Context/AuthContext';
-import { invoiceAPI } from '../../services/api';
+import { invoiceAPI, orderAPI } from '../../services/api';
+import ProductImage from '../../Components/ProductImage';
 import { SkeletonCard, SkeletonText } from '../../Components/Skeleton/Skeleton';
+import {
+  URGENCY_COLORS,
+  boardTabFor,
+  deliveryInfoComplete,
+  deliveryMeta,
+  formatLongDate,
+  isCancellable,
+  isPickupOrder,
+  normalizeStatus,
+  orderTotal,
+  peso,
+  statusTone,
+  stockWasDeducted,
+} from '../../constants/orderBoard';
+
+/* Mobile version of the Website staff order details (Website/client/src/Pages/OrderDetails/OrderDetails.js):
+   customer + order information, what's inside, invoices, and the same guided actions —
+   Confirm Order -> Confirm Delivery -> Complete Order, with a typed CONFIRM and the same gates. */
 
 const INVOICE_ROLES = ['operations_manager', 'sales_manager', 'super_admin', 'admin'];
+// Same roles that get the Deliveries tab (navigation/SimpleEmployeeNavigator.js).
+const DELIVERY_ROLES = ['operations_manager', 'sales_manager', 'social_media_manager', 'super_admin', 'admin'];
 
-const { width } = Dimensions.get('window');
+const INVOICE_TYPE_LABELS = {
+  DOWN_PAYMENT: 'Down Payment Invoice',
+  REMAINING_BALANCE: 'Remaining Balance Invoice',
+};
+const DOWN_PAYMENT_RATE = 0.7;
+const CHALLENGE_TEXT = 'CONFIRM';
+
+const invoiceStatusColor = (status) =>
+  status === 'PAID' ? '#2E7D32' : status === 'CANCELLED' ? '#757575' : '#FB8C00';
+
+// The list endpoint names products `name` (with unit_price/profit_margin); the
+// single-order endpoint names them `product_name`. Keep whichever details we have.
+const mergeProducts = (fresh, previous) => {
+  const prevBySku = new Map((previous || []).map((p) => [p.sku, p]));
+  const source = fresh && fresh.length ? fresh : previous || [];
+  return source.map((p) => {
+    const prev = prevBySku.get(p.sku) || {};
+    return { ...prev, ...p, name: p.name || p.product_name || prev.name, quantity: Number(p.quantity) || 0 };
+  });
+};
 
 export default function OrderDetailScreen({ navigation }) {
-  const theme = useTheme();
+  const { colors } = useTheme();
   const route = useRoute();
-  const { order: initialOrder } = route.params;
-  const { getOrder, updateOrderStatus } = useOrders();
-
+  const { order: initialOrder } = route.params || {};
   const { user } = useAuth();
-  const [order, setOrder] = useState(initialOrder);
-  const [loading, setLoading] = useState(false);
-  const [downloadingInvoices, setDownloadingInvoices] = useState(false);
-  const canViewInvoice = INVOICE_ROLES.includes(user?.role);
+  const role = user?.role;
+  const canDownloadInvoices = INVOICE_ROLES.includes(role);
+  const canOpenDelivery = DELIVERY_ROLES.includes(role);
 
-  useEffect(() => {
-    if (initialOrder?.order_id) {
-      fetchOrderDetails();
-    }
-  }, [initialOrder?.order_id]);
+  const [order, setOrder] = useState(
+    initialOrder ? { ...initialOrder, products: mergeProducts(initialOrder.products) } : null
+  );
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [invoices, setInvoices] = useState([]);
+  const [paymentSummary, setPaymentSummary] = useState(null);
+  const [invoicesLoaded, setInvoicesLoaded] = useState(false);
+  const [invoicesError, setInvoicesError] = useState('');
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [challenge, setChallenge] = useState(null);
+  const [challengeInput, setChallengeInput] = useState('');
+  const [working, setWorking] = useState(false);
 
-  const fetchOrderDetails = async () => {
+  const orderId = initialOrder?.order_id;
+
+  const loadOrder = useCallback(async () => {
+    if (!orderId) return;
     try {
-      setLoading(true);
-      const orderDetails = await getOrder(initialOrder.order_id);
-      setOrder(orderDetails);
+      const response = await orderAPI.getOrder(orderId);
+      const fresh = response?.order;
+      if (fresh) {
+        setOrder((prev) => ({
+          ...(prev || {}),
+          ...fresh,
+          // Archived rows come from order_history; keep that flag from the list.
+          archived: prev?.archived || fresh.archived,
+          products: mergeProducts(fresh.products, prev?.products),
+        }));
+      }
     } catch (error) {
       console.error('Error fetching order details:', error);
-      Alert.alert('Error', 'Failed to fetch order details');
+    }
+  }, [orderId]);
+
+  const loadInvoices = useCallback(async () => {
+    if (!orderId) return;
+    try {
+      const data = await invoiceAPI.getOrderInvoices(orderId);
+      setInvoices(Array.isArray(data) ? data : data?.invoices || []);
+      setPaymentSummary(data?.payment_summary || null);
+      setInvoicesError('');
+    } catch (error) {
+      console.error('Error loading invoices:', error);
+      setInvoices([]);
+      setPaymentSummary(null);
+      setInvoicesError("Couldn't load invoices for this order.");
     } finally {
-      setLoading(false);
+      setInvoicesLoaded(true);
+    }
+  }, [orderId]);
+
+  useEffect(() => {
+    Promise.all([loadOrder(), loadInvoices()]).finally(() => setLoading(false));
+  }, [loadOrder, loadInvoices]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([loadOrder(), loadInvoices()]);
+    } finally {
+      setRefreshing(false);
     }
   };
 
-  const getStatusColor = (status) => {
-    const statusColors = {
-      'Order Placed': '#17a2b8',
-      'Order Paid': '#28a745',
-      'To Be Packed': '#ffc107',
-      'Order Shipped Out': '#007bff',
-      'Ready for Delivery': '#6f42c1',
-      'Order Received': '#20c997',
-      'Completed': '#28a745',
-      'Cancelled': '#dc3545'
-    };
-    return statusColors[status] || '#6c757d';
+  if (!order) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+        {loading ? (
+          <View style={{ padding: 16, alignSelf: 'stretch' }}>
+            <SkeletonText width="50%" height={20} style={{ marginBottom: 12 }} />
+            <SkeletonCard lines={4} />
+          </View>
+        ) : (
+          <>
+            <MaterialCommunityIcons name="alert-circle" size={48} color={colors.error} />
+            <Text style={[styles.errorText, { color: colors.error }]}>Order not found</Text>
+            <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 16 }]} onPress={() => navigation.goBack()}>
+              <Text style={styles.primaryBtnText}>Go Back</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    );
+  }
+
+  /* ── Derived state (same rules as the Website) ─────────────────────────── */
+  const status = normalizeStatus(order.status);
+  const isArchived = order.archived === true || boardTabFor(order.status) === 'history';
+  const isPendingLike = ['pending', 'orderplaced', 'orderpaid'].includes(status);
+  const isToBePacked = ['tobepacked', 'tobepack'].includes(status);
+  const isReady = ['readyfordelivery', 'readyfordeliver', 'confirmed'].includes(status);
+
+  const downPaymentInvoice = invoices.find((i) => i.invoice_type === 'DOWN_PAYMENT' && i.status !== 'CANCELLED');
+  const invoicesReady = !!downPaymentInvoice && downPaymentInvoice.status === 'PAID';
+  const outstanding = paymentSummary ? Number(paymentSummary.remaining_balance) || 0 : null;
+  const awaitingPayment = outstanding !== null && outstanding > 0.004;
+
+  const total = orderTotal(order);
+  const downPaymentAmount = Math.round(total * DOWN_PAYMENT_RATE * 100) / 100;
+  const remainingAmount = Math.max(0, Math.round((total - downPaymentAmount) * 100) / 100);
+
+  const meta = deliveryMeta(order);
+  const urgency = URGENCY_COLORS[meta.bucket];
+  const tone = statusTone(order.status);
+  const products = order.products || [];
+  const phone = order.cellphone || order.telephone;
+  const address =
+    (order.shipping_address && String(order.shipping_address).trim()) ||
+    (order.address && String(order.address).trim()) ||
+    'Unknown Address';
+
+  let primary = null;
+  if (!isArchived) {
+    if (isPendingLike) {
+      primary = {
+        label: 'Confirm Order',
+        nextStatus: 'To Be Packed',
+        blocked: invoicesLoaded && !invoicesReady,
+        reason:
+          'Generate the 70% down payment invoice and mark it paid before moving this order to To Be Packed. The 30% balance can be settled later.',
+      };
+    } else if (isToBePacked) {
+      primary = {
+        label: 'Confirm Delivery',
+        nextStatus: 'Ready for Delivery',
+        blocked: !deliveryInfoComplete(order),
+        reason: `Delivery tracking info is not filled out yet. Go to Delivery Tracking and set the delivery mode${
+          isPickupOrder(order) ? '' : ', courier, and tracking number/link'
+        } before confirming.`,
+      };
+    } else if (isReady) {
+      primary = {
+        label: awaitingPayment ? `Awaiting ${peso(outstanding)} balance` : 'Complete Order',
+        nextStatus: 'Completed',
+        blocked: awaitingPayment,
+        reason: `${peso(outstanding)} is still unpaid. The remaining 30% must be paid before the items are sent out.`,
+      };
+    }
+  }
+
+  /* ── Actions ───────────────────────────────────────────────────────────── */
+  const submitStatus = async (nextStatus, payload, successMessage) => {
+    setWorking(true);
+    try {
+      await orderAPI.updateOrder(order.order_id, payload);
+      setChallenge(null);
+      Alert.alert('Order updated', successMessage || `Order ${order.order_id} status updated to ${nextStatus}.`, [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        `Failed to update order status. ${error.response?.data?.error || error.response?.data?.message || error.message}`
+      );
+    } finally {
+      setWorking(false);
+    }
   };
 
-  const getStatusIcon = (status) => {
-    const statusIcons = {
-      'Order Placed': 'clipboard-text',
-      'Order Paid': 'credit-card',
-      'To Be Packed': 'package-variant-closed',
-      'Order Shipped Out': 'truck-delivery',
-      'Ready for Delivery': 'truck',
-      'Order Received': 'check-circle',
-      'Completed': 'check-circle',
-      'Cancelled': 'close-circle'
-    };
-    return statusIcons[status] || 'help-circle';
+  // Same lightweight product payload the Website sends with a status change.
+  const loadPayloadProducts = async () => {
+    try {
+      const response = await orderAPI.getOrderProducts(order.order_id);
+      return (response?.products || []).map((p) => ({
+        sku: p.sku,
+        quantity: Number(p.quantity),
+        name: p.name,
+        profit_margin: p.profit_margin,
+      }));
+    } catch (error) {
+      console.error('Error loading order products:', error);
+      Alert.alert('Error', "Could not load this order's products. Please try again.");
+      return null;
+    }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
+  const handlePrimary = async () => {
+    if (!primary || working) return;
+    if (!invoicesLoaded && isPendingLike) return;
+    if (primary.blocked) {
+      Alert.alert(primary.label, primary.reason);
+      return;
+    }
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-PH', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    if (primary.nextStatus === 'Completed') {
+      Alert.alert('Complete Order', 'Mark this order as Completed? It will move to Order History.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Complete',
+          onPress: () => submitStatus('Completed', { status: 'Completed' }, 'Order completed and moved to Order History.'),
+        },
+      ]);
+      return;
+    }
+
+    setWorking(true);
+    const payloadProducts = await loadPayloadProducts();
+    setWorking(false);
+    if (!payloadProducts) return;
+
+    let payload = { products: payloadProducts };
+    let message;
+    if (primary.nextStatus === 'Ready for Delivery') {
+      payload.status = 'Ready for Delivery';
+      message = 'This order will be marked as Ready for Delivery. Proceed?';
+    } else {
+      message =
+        'Are you sure you want to confirm this order? This will finalize the details and prepare it for processing.';
+      payload = {
+        ...payload,
+        account_name: order.account_name,
+        name: order.name,
+        order_date: order.order_date,
+        expected_delivery: order.expected_delivery,
+        status: 'To Be Packed',
+        package_name: order.package_name,
+        payment_method: order.payment_method,
+        payment_type: order.payment_type,
+        shipped_to: order.shipped_to,
+        shipping_address: order.shipping_address,
+        remarks: order.remarks,
+        telephone: order.telephone,
+        cellphone: order.cellphone,
+        email_address: order.email_address,
+        order_quantity: order.order_quantity,
+      };
+    }
+
+    setChallengeInput('');
+    setChallenge({
+      title: primary.nextStatus === 'To Be Packed' ? 'Confirm Order' : 'Confirm Delivery',
+      message,
+      nextStatus: primary.nextStatus,
+      payload,
     });
   };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleTimeString('en-PH', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const confirmChallenge = () => {
+    if (!challenge) return;
+    if (challengeInput.trim().toUpperCase() !== CHALLENGE_TEXT) {
+      Alert.alert('Confirmation required', `Please type ${CHALLENGE_TEXT} to continue.`);
+      return;
+    }
+    submitStatus(challenge.nextStatus, challenge.payload);
   };
 
-  const handleStatusUpdate = () => {
-    navigation.navigate('OrderStatusUpdate', { order });
+  const handleCancelOrder = () => {
+    if (!isCancellable(order.status)) {
+      Alert.alert('Cannot cancel', `An order that is "${order.status}" can no longer be cancelled — it has already left.`);
+      return;
+    }
+    const restock = stockWasDeducted(order.status);
+    Alert.alert(
+      'Cancel Order',
+      `Are you sure you want to cancel order ${order.order_id}?` +
+        (restock ? ' Its products will be returned to inventory.' : ' No inventory change — this order had not been packed yet.'),
+      [
+        { text: 'Keep Order', style: 'cancel' },
+        {
+          text: 'Cancel Order',
+          style: 'destructive',
+          onPress: async () => {
+            setWorking(true);
+            try {
+              await orderAPI.cancelOrder(order.order_id);
+              Alert.alert(
+                'Order cancelled',
+                `Order ${order.order_id} cancelled successfully.${restock ? ' Products have been restocked.' : ''}`,
+                [{ text: 'OK', onPress: () => navigation.goBack() }]
+              );
+            } catch (error) {
+              Alert.alert('Error', `Failed to cancel order. ${error.response?.data?.message || 'Please try again.'}`);
+            } finally {
+              setWorking(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
-  const INVOICE_TYPE_LABELS = {
-    DOWN_PAYMENT: 'Down Payment Invoice',
-    REMAINING_BALANCE: 'Remaining Balance Invoice',
+  const openDeliveryTracking = () => {
+    navigation.navigate('Deliveries', { screen: 'EmployeeDeliveryUpdate', params: { orderId: order.order_id } });
   };
 
   const downloadInvoice = async (invoice) => {
-    setDownloadingInvoices(true);
+    setDownloadingId(invoice.id);
     try {
       const label = INVOICE_TYPE_LABELS[invoice.invoice_type] || invoice.invoice_type;
       await invoiceAPI.downloadInvoicePdf(invoice.id, `${label} - ${invoice.invoice_number}`);
@@ -125,343 +369,339 @@ export default function OrderDetailScreen({ navigation }) {
       console.error('Error downloading invoice:', error);
       Alert.alert('Error', 'Failed to download invoice PDF. Please try again.');
     } finally {
-      setDownloadingInvoices(false);
+      setDownloadingId(null);
     }
   };
 
-  // Downloads the order's invoice PDF directly instead of navigating to a list
-  // screen — mobile-only behavior; the website keeps its invoice list UI. An
-  // order can have both a Down Payment and a Remaining Balance invoice, so
-  // when both exist, let the user pick which one to download.
-  const handleDownloadInvoices = async () => {
-    if (downloadingInvoices) return;
-    setDownloadingInvoices(true);
-    try {
-      const data = await invoiceAPI.getOrderInvoices(order.order_id);
-      const invoices = Array.isArray(data) ? data : (data.invoices || []);
-
-      if (invoices.length === 0) {
-        setDownloadingInvoices(false);
-        Alert.alert('No Invoices', 'No invoices have been generated for this order yet.');
-        return;
-      }
-
-      if (invoices.length === 1) {
-        await downloadInvoice(invoices[0]);
-        return;
-      }
-
-      setDownloadingInvoices(false);
-      Alert.alert(
-        'Select Invoice',
-        'Which invoice would you like to download?',
-        [
-          ...invoices.map((invoice) => ({
-            text: INVOICE_TYPE_LABELS[invoice.invoice_type] || invoice.invoice_type,
-            onPress: () => downloadInvoice(invoice),
-          })),
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
-    } catch (error) {
-      console.error('Error downloading invoices:', error);
-      Alert.alert('Error', 'Failed to load invoices. Please try again.');
-      setDownloadingInvoices(false);
-    }
+  const openLink = (url, failMessage) => {
+    Linking.openURL(url).catch(() => Alert.alert('Error', failMessage));
   };
 
-  const handleCallCustomer = () => {
-    if (!order.telephone) {
-      Alert.alert('No Phone Number', 'Customer phone number is not available');
-      return;
-    }
-    Alert.alert(
-      'Call Customer',
-      `Call ${order.customer_name} at ${order.telephone}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Call',
-          onPress: () => {
-            Linking.openURL(`tel:${order.telephone}`).catch(() =>
-              Alert.alert('Error', 'Unable to open the phone dialer on this device')
-            );
-          }
-        }
-      ]
-    );
-  };
-
-  const handleEmailCustomer = () => {
-    if (!order.email_address) {
-      Alert.alert('No Email', 'Customer email address is not available');
-      return;
-    }
-    Alert.alert(
-      'Email Customer',
-      `Send email to ${order.customer_name} at ${order.email_address}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Email',
-          onPress: () => {
-            Linking.openURL(`mailto:${order.email_address}`).catch(() =>
-              Alert.alert('Error', 'No email app is available on this device')
-            );
-          }
-        }
-      ]
-    );
-  };
-
-  const renderOrderHeader = () => (
-    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-      <Card.Content>
-        <View style={styles.orderHeader}>
-          <View style={styles.orderInfo}>
-            <Text style={[styles.orderId, { color: theme.colors.primary }]}>
-              Order #{order.order_id}
-            </Text>
-            <Text style={[styles.orderDate, { color: theme.colors.onSurfaceVariant }]}>
-              {formatDate(order.order_date)}
-            </Text>
+  /* ── Render helpers ────────────────────────────────────────────────────── */
+  const Section = ({ title, badge, children }) => (
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.sectionHead}>
+        <Text style={[styles.sectionTitle, { color: colors.primary }]}>{title}</Text>
+        {!!badge && (
+          <View style={[styles.countBadge, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+            <Text style={[styles.countBadgeText, { color: colors.subText }]}>{badge}</Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}>
-            <MaterialCommunityIcons 
-              name={getStatusIcon(order.status)} 
-              size={20} 
-              color="#fff" 
-            />
-            <Text style={styles.statusText}>{order.status}</Text>
-          </View>
-        </View>
-      </Card.Content>
-    </Card>
-  );
-
-  const renderOrderSummary = () => (
-    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-      <Card.Content>
-        <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-          Order Summary
-        </Text>
-        <View style={styles.summaryRow}>
-          <Text style={[styles.summaryLabel, { color: theme.colors.onSurfaceVariant }]}>
-            Total Cost:
-          </Text>
-          <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]}>
-            {formatCurrency(order.total_cost)}
-          </Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={[styles.summaryLabel, { color: theme.colors.onSurfaceVariant }]}>
-            Payment Method:
-          </Text>
-          <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]}>
-            {order.payment_method || 'N/A'}
-          </Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={[styles.summaryLabel, { color: theme.colors.onSurfaceVariant }]}>
-            Expected Delivery:
-          </Text>
-          <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]}>
-            {formatDate(order.expected_delivery)}
-          </Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={[styles.summaryLabel, { color: theme.colors.onSurfaceVariant }]}>
-            Last Updated:
-          </Text>
-          <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]}>
-            {formatDate(order.status_updated_at)}
-          </Text>
-        </View>
-      </Card.Content>
-    </Card>
-  );
-
-  const renderCustomerInfo = () => (
-    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-      <Card.Content>
-        <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-          Customer Information
-        </Text>
-        <View style={styles.customerHeader}>
-          <View style={styles.customerAvatar}>
-            <MaterialCommunityIcons name="account" size={24} color={theme.colors.primary} />
-          </View>
-          <View style={styles.customerInfo}>
-            <Text style={[styles.customerName, { color: theme.colors.onSurface }]}>
-              {order.customer_name}
-            </Text>
-            <Text style={[styles.customerEmail, { color: theme.colors.onSurfaceVariant }]}>
-              {order.email_address}
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.contactActions}>
-          <TouchableOpacity
-            style={[styles.contactButton, { backgroundColor: '#4CAF50' }]}
-            onPress={handleCallCustomer}
-          >
-            <MaterialCommunityIcons name="phone" size={16} color="#fff" />
-            <Text style={styles.contactButtonText}>Call</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.contactButton, { backgroundColor: '#2196F3' }]}
-            onPress={handleEmailCustomer}
-          >
-            <MaterialCommunityIcons name="email" size={16} color="#fff" />
-            <Text style={styles.contactButtonText}>Email</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Divider style={styles.divider} />
-
-        <View style={styles.shippingInfo}>
-          <Text style={[styles.shippingTitle, { color: theme.colors.onSurface }]}>
-            Shipping Address
-          </Text>
-          <Text style={[styles.shippingAddress, { color: theme.colors.onSurfaceVariant }]}>
-            {order.shipped_to}
-          </Text>
-          <Text style={[styles.shippingAddress, { color: theme.colors.onSurfaceVariant }]}>
-            {order.shipping_address}
-          </Text>
-          <Text style={[styles.shippingPhone, { color: theme.colors.onSurfaceVariant }]}>
-            Phone: {order.telephone}
-          </Text>
-        </View>
-      </Card.Content>
-    </Card>
-  );
-
-  const renderOrderItems = () => (
-    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-      <Card.Content>
-        <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-          Order Items ({order.products?.length || 0})
-        </Text>
-        {order.products?.map((product, index) => (
-          <View key={index} style={styles.productItem}>
-            <View style={styles.productInfo}>
-              <Text style={[styles.productName, { color: theme.colors.onSurface }]}>
-                {product.product_name}
-              </Text>
-              <Text style={[styles.productSku, { color: theme.colors.onSurfaceVariant }]}>
-                SKU: {product.sku}
-              </Text>
-              {product.description && (
-                <Text style={[styles.productDescription, { color: theme.colors.onSurfaceVariant }]}>
-                  {product.description}
-                </Text>
-              )}
-            </View>
-            <View style={styles.productQuantity}>
-              <Text style={[styles.quantityText, { color: theme.colors.onSurface }]}>
-                Qty: {product.quantity}
-              </Text>
-            </View>
-            <View style={styles.productPrice}>
-              <Text style={[styles.priceText, { color: theme.colors.onSurface }]}>
-                {formatCurrency(product.total_price)}
-              </Text>
-            </View>
-          </View>
-        ))}
-      </Card.Content>
-    </Card>
-  );
-
-  const renderSpecialInstructions = () => {
-    if (!order.remarks) return null;
-
-    return (
-      <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-        <Card.Content>
-          <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-            Special Instructions
-          </Text>
-          <Text style={[styles.remarksText, { color: theme.colors.onSurfaceVariant }]}>
-            {order.remarks}
-          </Text>
-        </Card.Content>
-      </Card>
-    );
-  };
-
-  const renderActionButtons = () => (
-    <View style={styles.actionButtons}>
-      <Button
-        mode="outlined"
-        onPress={() => navigation.goBack()}
-        style={styles.actionButton}
-      >
-        Back
-      </Button>
-      {canViewInvoice && (
-        <Button
-          mode="outlined"
-          onPress={handleDownloadInvoices}
-          style={styles.actionButton}
-          icon="file-document-outline"
-          loading={downloadingInvoices}
-          disabled={downloadingInvoices}
-        >
-          Invoices
-        </Button>
-      )}
-      <Button
-        mode="contained"
-        onPress={handleStatusUpdate}
-        style={[styles.actionButton, styles.primaryButton]}
-      >
-        Update Status
-      </Button>
+        )}
+      </View>
+      {children}
     </View>
   );
 
-  if (loading && !order) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={{ padding: 16 }}>
-          <SkeletonText width="50%" height={20} style={{ marginBottom: 12 }} />
-          <SkeletonCard lines={4} />
-        </View>
-      </View>
-    );
-  }
-
-  if (!order) {
-    return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background }]}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color={theme.colors.error} />
-        <Text style={[styles.errorText, { color: theme.colors.error }]}>
-          Order not found
+  const Field = ({ label, value, muted, onPress, icon }) => (
+    <TouchableOpacity style={styles.field} disabled={!onPress} onPress={onPress} activeOpacity={0.7}>
+      <Text style={[styles.fieldLabel, { color: colors.subText }]}>{label}</Text>
+      <View style={styles.fieldValueRow}>
+        <Text style={[styles.fieldValue, { color: muted ? colors.subText : onPress ? colors.primary : colors.text }]}>
+          {value}
         </Text>
-        <Button
-          mode="contained"
-          onPress={() => navigation.goBack()}
-          style={styles.retryButton}
-        >
-          Go Back
-        </Button>
+        {!!icon && <MaterialCommunityIcons name={icon} size={16} color={colors.primary} />}
       </View>
-    );
-  }
+    </TouchableOpacity>
+  );
+
+  const Stat = ({ label, value, color }) => (
+    <View style={styles.stat}>
+      <Text style={[styles.statLabel, { color: colors.subText }]}>{label}</Text>
+      <Text style={[styles.statValue, { color: color || colors.text }]}>{value}</Text>
+    </View>
+  );
+
+  const showBottomBar = !isArchived && (primary || isCancellable(order.status) || canOpenDelivery);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {renderOrderHeader()}
-        {renderOrderSummary()}
-        {renderCustomerInfo()}
-        {renderOrderItems()}
-        {renderSpecialInstructions()}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.headRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.title, { color: colors.text }]}>Order Details</Text>
+              <Text style={[styles.orderId, { color: colors.subText }]}>{order.order_id}</Text>
+            </View>
+            <View style={[styles.statusPill, { backgroundColor: `${tone}1F` }]}>
+              <Text style={[styles.statusPillText, { color: tone }]}>{(order.status || '-').toUpperCase()}</Text>
+            </View>
+          </View>
+          {!isArchived && (
+            <View style={[styles.dueRow, { borderTopColor: colors.border }]}>
+              <MaterialCommunityIcons name="calendar-clock" size={18} color={urgency} />
+              <Text style={[styles.dueText, { color: colors.text }]}>{meta.full}</Text>
+              <View style={[styles.dueChip, { backgroundColor: `${urgency}1F` }]}>
+                <Text style={[styles.dueChipText, { color: urgency }]}>{meta.chip}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {!!primary?.blocked && (
+          <View style={[styles.notice, { backgroundColor: '#FFF4E0' }]}>
+            <MaterialCommunityIcons name="information-outline" size={18} color="#B26A00" />
+            <Text style={styles.noticeText}>{primary.reason}</Text>
+          </View>
+        )}
+
+        {/* ── Customer ───────────────────────────────────────────────────── */}
+        <Section title="CUSTOMER INFORMATION">
+          <Field label="Name" value={order.name || order.customer_name || '-'} />
+          <Field
+            label="Contact Number"
+            value={phone || '-'}
+            icon={phone ? 'phone' : null}
+            onPress={phone ? () => openLink(`tel:${phone}`, 'Unable to open the phone dialer on this device') : null}
+          />
+          <Field
+            label="Email Address"
+            value={order.email_address || '-'}
+            icon={order.email_address ? 'email-outline' : null}
+            onPress={order.email_address ? () => openLink(`mailto:${order.email_address}`, 'No email app is available on this device') : null}
+          />
+        </Section>
+
+        {/* ── Order ──────────────────────────────────────────────────────── */}
+        <Section title="ORDER INFORMATION">
+          <View style={styles.fieldGrid}>
+            <View style={styles.fieldHalf}>
+              <Field label="Total Number of Boxes" value={String(order.order_quantity ?? order.total_boxes ?? '-')} />
+            </View>
+            <View style={styles.fieldHalf}>
+              <Field label="Order Total" value={peso(total)} />
+            </View>
+            <View style={styles.fieldHalf}>
+              <Field label="Date of Event" value={formatLongDate(order.expected_delivery)} />
+            </View>
+            <View style={styles.fieldHalf}>
+              <Field label="Date Ordered" value={formatLongDate(order.order_date)} />
+            </View>
+          </View>
+          {!!order.package_name && <Field label="Package / Styling" value={order.package_name} />}
+          {!!order.shipped_to && <Field label="Receiver" value={order.shipped_to} />}
+          <Field label="Shipping Location" value={address} muted={address === 'Unknown Address'} />
+          {!!order.remarks && <Field label="Remarks" value={order.remarks} />}
+        </Section>
+
+        {/* ── What's inside ──────────────────────────────────────────────── */}
+        <Section title="WHAT'S INSIDE" badge={products.length ? `${products.length} item${products.length === 1 ? '' : 's'}` : null}>
+          {products.length === 0 ? (
+            <Text style={[styles.emptyText, { color: colors.subText }]}>No products added to this order yet.</Text>
+          ) : (
+            products.map((p, i) => (
+              <View key={`${p.sku}-${i}`} style={[styles.productRow, { borderColor: colors.border }]}>
+                <ProductImage
+                  sku={p.sku}
+                  style={styles.productThumb}
+                  colors={{ wash: colors.inputBackground, textMute: colors.subText }}
+                  iconSize={20}
+                  showLabel={false}
+                />
+                <View style={styles.productInfo}>
+                  <Text style={[styles.productName, { color: colors.text }]} numberOfLines={2}>
+                    {p.name || p.sku}
+                  </Text>
+                  <View style={[styles.qtyChip, { backgroundColor: colors.primaryContainer }]}>
+                    <Text style={[styles.qtyChipText, { color: colors.primary }]}>QTY {p.quantity}</Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
+        </Section>
+
+        {/* ── Payment & invoices ─────────────────────────────────────────── */}
+        <Section title="PAYMENT & INVOICES">
+          {total > 0 && (
+            <Text style={[styles.splitNote, { color: colors.subText }]}>
+              Required split: 70% down payment ({peso(downPaymentAmount)}) and 30% remaining balance ({peso(remainingAmount)}).
+            </Text>
+          )}
+          {!!paymentSummary && (
+            <View style={[styles.statGrid, { borderColor: colors.border }]}>
+              <Stat label="Total Paid" value={peso(paymentSummary.total_verified_payments)} />
+              <Stat
+                label="Remaining Balance"
+                value={peso(paymentSummary.remaining_balance)}
+                color={awaitingPayment ? '#C62828' : '#2E7D32'}
+              />
+              <Stat label="Payment Status" value={paymentSummary.payment_status || '-'} />
+            </View>
+          )}
+          {!invoicesLoaded ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
+          ) : invoicesError ? (
+            <Text style={[styles.emptyText, { color: colors.error }]}>{invoicesError}</Text>
+          ) : invoices.length === 0 ? (
+            <Text style={[styles.emptyText, { color: colors.subText }]}>
+              No invoices generated for this order yet. Invoices are generated and marked paid on the Website.
+            </Text>
+          ) : (
+            invoices.map((invoice) => {
+              const badgeColor = invoiceStatusColor(invoice.status);
+              return (
+                <View key={invoice.id} style={[styles.invoiceRow, { borderColor: colors.border }]}>
+                  <View style={styles.invoiceTop}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.invoiceNumber, { color: colors.text }]}>{invoice.invoice_number}</Text>
+                      <Text style={[styles.invoiceType, { color: colors.subText }]}>
+                        {INVOICE_TYPE_LABELS[invoice.invoice_type] || invoice.invoice_type}
+                      </Text>
+                    </View>
+                    <View style={[styles.invoiceBadge, { backgroundColor: `${badgeColor}1F` }]}>
+                      <Text style={[styles.invoiceBadgeText, { color: badgeColor }]}>{invoice.status || 'UNPAID'}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.invoiceStats}>
+                    <Stat label="Invoice Amount" value={peso(invoice.invoice_amount)} />
+                    <Stat label="Amount Paid" value={peso(invoice.amount_paid)} />
+                    <Stat label="Remaining" value={peso(invoice.remaining_balance_amount)} />
+                    <Stat label="Payment Status" value={invoice.payment_status || '-'} />
+                  </View>
+                  {canDownloadInvoices && (
+                    <TouchableOpacity
+                      style={[styles.outlineBtn, { borderColor: colors.primary }]}
+                      onPress={() => downloadInvoice(invoice)}
+                      disabled={downloadingId === invoice.id}
+                    >
+                      {downloadingId === invoice.id ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                      ) : (
+                        <>
+                          <MaterialCommunityIcons name="file-download-outline" size={16} color={colors.primary} />
+                          <Text style={[styles.outlineBtnText, { color: colors.primary }]}>Download PDF</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })
+          )}
+        </Section>
+
+        {/* ── Delivery ───────────────────────────────────────────────────── */}
+        <Section title="DELIVERY">
+          <View style={styles.fieldGrid}>
+            <View style={styles.fieldHalf}>
+              <Field label="Delivery Status" value={order.delivery_status || 'Pending'} />
+            </View>
+            <View style={styles.fieldHalf}>
+              <Field label="Method" value={order.delivery_method || 'Not set'} muted={!order.delivery_method} />
+            </View>
+            {!!order.courier_name && (
+              <View style={styles.fieldHalf}>
+                <Field label="Courier" value={order.courier_name} />
+              </View>
+            )}
+            {!!order.tracking_number && (
+              <View style={styles.fieldHalf}>
+                <Field label="Tracking No." value={order.tracking_number} />
+              </View>
+            )}
+          </View>
+          {order.tracking_link_available && !!order.tracking_link && (
+            <Field
+              label="Tracking Link"
+              value="Open tracking link"
+              icon="open-in-new"
+              onPress={() => openLink(order.tracking_link, 'Could not open the tracking link.')}
+            />
+          )}
+          {!!order.delivery_remarks && <Field label="Delivery Remarks" value={order.delivery_remarks} />}
+        </Section>
       </ScrollView>
-      {renderActionButtons()}
+
+      {/* ── Actions ──────────────────────────────────────────────────────── */}
+      {showBottomBar && (
+        <View style={[styles.bottomBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+          <View style={styles.secondaryRow}>
+            {isCancellable(order.status) && (
+              <TouchableOpacity style={[styles.outlineBtn, styles.flex1, { borderColor: '#C62828' }]} onPress={handleCancelOrder} disabled={working}>
+                <MaterialCommunityIcons name="close-circle-outline" size={16} color="#C62828" />
+                <Text style={[styles.outlineBtnText, { color: '#C62828' }]}>Cancel Order</Text>
+              </TouchableOpacity>
+            )}
+            {canOpenDelivery && (
+              <TouchableOpacity style={[styles.outlineBtn, styles.flex1, { borderColor: colors.primary }]} onPress={openDeliveryTracking} disabled={working}>
+                <MaterialCommunityIcons name="truck-delivery-outline" size={16} color={colors.primary} />
+                <Text style={[styles.outlineBtnText, { color: colors.primary }]}>Delivery Tracking</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {!!primary && (
+            <TouchableOpacity
+              style={[
+                styles.primaryBtn,
+                { backgroundColor: primary.blocked ? '#A5D6B7' : '#2E7D32' },
+                (working || (!invoicesLoaded && isPendingLike)) && { opacity: 0.6 },
+              ]}
+              onPress={handlePrimary}
+              disabled={working}
+            >
+              {working ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name={primary.blocked ? 'lock-outline' : 'check-circle-outline'} size={18} color="#fff" />
+                  <Text style={styles.primaryBtnText}>{primary.label}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* ── Typed CONFIRM, same as the Website ─────────────────────────────── */}
+      <Modal visible={!!challenge} transparent animationType="fade" onRequestClose={() => !working && setChallenge(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{challenge?.title}</Text>
+            <Text style={[styles.modalMessage, { color: colors.subText }]}>{challenge?.message}</Text>
+            <Text style={[styles.modalPrompt, { color: colors.text }]}>
+              Type <Text style={styles.bold}>{CHALLENGE_TEXT}</Text> to continue.
+            </Text>
+            <TextInput
+              style={[styles.modalInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+              value={challengeInput}
+              onChangeText={setChallengeInput}
+              placeholder={CHALLENGE_TEXT}
+              placeholderTextColor={colors.placeholder}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              autoFocus
+            />
+            <Text style={[styles.modalMeta, { color: colors.subText }]}>
+              Order ID: {order.order_id} | New status: {challenge?.nextStatus}
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.outlineBtn, styles.flex1, { borderColor: colors.border }]}
+                onPress={() => setChallenge(null)}
+                disabled={working}
+              >
+                <Text style={[styles.outlineBtnText, { color: colors.subText }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.primaryBtn,
+                  styles.flex1,
+                  { backgroundColor: challengeInput.trim().toUpperCase() === CHALLENGE_TEXT ? '#1F9D55' : '#94A3B8' },
+                ]}
+                onPress={confirmChallenge}
+                disabled={working || challengeInput.trim().toUpperCase() !== CHALLENGE_TEXT}
+              >
+                {working ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Confirm</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -474,199 +714,326 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  scrollView: {
-    flex: 1,
+  scrollContent: {
     padding: 16,
+    paddingBottom: 24,
   },
   card: {
-    marginBottom: 16,
-    elevation: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+    elevation: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
   },
-  orderHeader: {
+  headRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: 12,
   },
-  orderInfo: {
-    flex: 1,
+  title: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia' }),
   },
   orderId: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  orderDate: {
-    fontSize: 14,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginLeft: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  summaryLabel: {
-    fontSize: 14,
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  customerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  customerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  customerInfo: {
-    flex: 1,
-  },
-  customerName: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
-    marginBottom: 4,
-  },
-  customerEmail: {
-    fontSize: 14,
-  },
-  contactActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  contactButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  contactButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  divider: {
-    marginVertical: 16,
-  },
-  shippingInfo: {
-    marginTop: 8,
-  },
-  shippingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  shippingAddress: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  shippingPhone: {
-    fontSize: 14,
     marginTop: 4,
   },
-  productItem: {
+  statusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  dueRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    gap: 8,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  dueText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dueChip: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  dueChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#8A5300',
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  countBadge: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+  },
+  countBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  field: {
+    paddingVertical: 7,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 3,
+  },
+  fieldValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  fieldValue: {
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  fieldGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  fieldHalf: {
+    width: '50%',
+    paddingRight: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 10,
+  },
+  productRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+  },
+  productThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
   },
   productInfo: {
     flex: 1,
+    marginLeft: 12,
   },
   productName: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '700',
     marginBottom: 4,
   },
-  productSku: {
+  qtyChip: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+  },
+  qtyChipText: {
     fontSize: 12,
-    marginBottom: 2,
+    fontWeight: '700',
   },
-  productDescription: {
-    fontSize: 12,
-    fontStyle: 'italic',
+  splitNote: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 10,
   },
-  productQuantity: {
-    marginHorizontal: 12,
-  },
-  quantityText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  productPrice: {
-    alignItems: 'flex-end',
-  },
-  priceText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  remarksText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontStyle: 'italic',
-  },
-  actionButtons: {
+  statGrid: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    flexWrap: 'wrap',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 12,
+  },
+  stat: {
+    width: '50%',
+    paddingVertical: 6,
+    paddingRight: 8,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  statValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  invoiceRow: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+  },
+  invoiceTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  invoiceNumber: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  invoiceType: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  invoiceBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  invoiceBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  invoiceStats: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  bottomBar: {
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 26 : 12,
+    gap: 8,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
   },
-  actionButton: {
+  secondaryRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  flex1: {
     flex: 1,
   },
-  primaryButton: {
-    backgroundColor: '#2E7D32',
+  outlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 4,
   },
-  loadingText: {
-    fontSize: 16,
-    marginTop: 16,
+  outlineBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  primaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 10,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+  },
+  primaryBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
   },
   errorText: {
     fontSize: 16,
     textAlign: 'center',
     marginTop: 16,
   },
-  retryButton: {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    borderRadius: 14,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  modalMessage: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  modalPrompt: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 14,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginTop: 8,
+  },
+  modalMeta: {
+    fontSize: 12,
+    marginTop: 10,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
     marginTop: 16,
+  },
+  bold: {
+    fontWeight: '700',
   },
 });

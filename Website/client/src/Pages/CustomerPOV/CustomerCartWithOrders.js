@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../Context/AuthContext';
 import TopbarCustomer from '../../Components/TopbarCustomer';
 import api from '../../api';
+import { useConfirm } from '../../Context/ConfirmContext';
 import './OrderTracker.css';
 
 /* ===========================================================================
@@ -79,7 +80,12 @@ const fmtDate = (raw, withYear = true) => {
 
 /* Everything the UI needs to describe one order's progress. */
 const trackOrder = (order) => {
-  const stageKey = stageKeyFor(order.status);
+  // Only the customer's own "Order Received" finishes an order. One staff marked
+  // Completed (receipt_confirmed === false) stays on Out for Delivery at 80% until
+  // the customer confirms.
+  const rawStageKey = stageKeyFor(order.status);
+  const awaitingConfirmation = rawStageKey === 'received' && order.receipt_confirmed === false;
+  const stageKey = awaitingConfirmation ? 'shipped' : rawStageKey;
   const cancelled = stageKey === 'cancelled';
   const index = STAGES.findIndex((s) => s.key === stageKey);
   const currentIndex = index < 0 ? 0 : index;
@@ -103,7 +109,22 @@ const trackOrder = (order) => {
     else etaNote = `${days} days to go`;
   }
 
-  return { stageKey, cancelled, currentIndex, percent, etaLabel, etaNote, late };
+  if (awaitingConfirmation) {
+    etaNote = 'Waiting for your confirmation';
+    late = false;
+  }
+
+  return {
+    stageKey,
+    cancelled,
+    currentIndex,
+    percent,
+    etaLabel,
+    etaNote,
+    late,
+    awaitingConfirmation,
+    canConfirm: order.can_confirm_receipt === true,
+  };
 };
 
 /* A readable name for an order. Prefers the styling/package the customer
@@ -203,7 +224,7 @@ function Stepper({ currentIndex }) {
 }
 
 /* ── Order card ───────────────────────────────────────────────────────────── */
-function OrderCard({ order, open, onToggle }) {
+function OrderCard({ order, open, onToggle, onConfirmReceived, confirming }) {
   const t = trackOrder(order);
   const items = order.products || [];
   const boxes = order.total_boxes ?? order.order_quantity ?? 0;
@@ -211,7 +232,7 @@ function OrderCard({ order, open, onToggle }) {
   const title = orderTitle(order);
 
   const chipClass = t.cancelled ? 'ot-chip-cancel' : t.stageKey === 'received' ? 'ot-chip-done' : 'ot-chip-live';
-  const chipText = t.cancelled ? 'Cancelled' : STAGES[t.currentIndex].label;
+  const chipText = t.cancelled ? 'Cancelled' : t.awaitingConfirmation ? 'Confirm receipt' : STAGES[t.currentIndex].label;
 
   const trackingUnavailable = !t.cancelled
     && !(order.tracking_link_available && order.tracking_link)
@@ -308,6 +329,27 @@ function OrderCard({ order, open, onToggle }) {
               </div>
 
               <Stepper currentIndex={t.currentIndex} />
+
+              {t.canConfirm && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginTop: 16 }}>
+                  <p className="ot-note" style={{ flex: '1 1 260px', margin: 0 }}>
+                    <IconInfo />
+                    <span>
+                      {t.awaitingConfirmation
+                        ? 'Our team has marked this order as complete. Tap Order Received once your boxes are with you.'
+                        : 'Your order is on its way. Tap Order Received once your boxes are with you.'}
+                    </span>
+                  </p>
+                  <button
+                    type="button"
+                    className="ot-btn ot-btn-primary"
+                    onClick={onConfirmReceived}
+                    disabled={confirming}
+                  >
+                    {confirming ? 'Confirming…' : 'Order Received'}
+                  </button>
+                </div>
+              )}
 
               <div className="ot-section">
                 <h4>What&apos;s in your box</h4>
@@ -412,12 +454,14 @@ function OrderCard({ order, open, onToggle }) {
 export default function CustomerOrders() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [openId, setOpenId] = useState(null);   // one order open at a time
   const [sortBy, setSortBy] = useState('newest');
+  const [confirmingId, setConfirmingId] = useState(null);
 
   const isCustomer = Boolean(user && user.source === 'customer');
 
@@ -466,9 +510,25 @@ export default function CustomerOrders() {
   }, [orders, sortBy]);
 
   const activeCount = useMemo(
-    () => orders.filter((o) => !['received', 'cancelled'].includes(stageKeyFor(o.status))).length,
+    () => orders.filter((o) => !['received', 'cancelled'].includes(trackOrder(o).stageKey)).length,
     [orders]
   );
+
+  // Same endpoint the mobile app's "Order Received" button uses.
+  const confirmReceived = async (order) => {
+    const ok = await confirm({ message: 'Confirm that you have received this order? This marks it as complete.' });
+    if (!ok) return;
+    setConfirmingId(order.order_id);
+    setError('');
+    try {
+      await api.patch(`/api/customer-orders/orders/${encodeURIComponent(order.order_id)}/receive`);
+      await fetchOrders();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not confirm that you received this order. Please try again.');
+    } finally {
+      setConfirmingId(null);
+    }
+  };
 
   if (!isCustomer && !loading) {
     return (
@@ -559,6 +619,8 @@ export default function CustomerOrders() {
                 order={order}
                 open={openId === order.order_id}
                 onToggle={() => setOpenId(openId === order.order_id ? null : order.order_id)}
+                confirming={confirmingId === order.order_id}
+                onConfirmReceived={() => confirmReceived(order)}
               />
             ))}
           </>

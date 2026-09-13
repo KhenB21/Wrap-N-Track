@@ -15,33 +15,35 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCart } from "../Context/CartContext";
 import { useProfile } from "../Context/ProfileContext";
 import { useTheme } from "../Context/ThemeContext";
-
-const PAYMENT_METHODS = [
-  "Cash on Delivery",
-  "GCash",
-  "Bank Transfer",
-  "Credit Card",
-  "PayMaya",
-];
-
-const PAYMENT_TYPES = ["Online", "Cash on Delivery"];
+import { useAuth } from "../Context/AuthContext";
+import { otpAPI } from "../services/api";
 
 export default function CheckoutScreen({ navigation, route }) {
   const { selectedItems } = route.params || {};
   const { cartItems, totalPrice, checkout, clearCart } = useCart();
   const { profile } = useProfile();
+  const { user } = useAuth();
   const { darkMode } = useTheme();
 
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [shippingAddress, setShippingAddress] = useState("");
   const [contactNumber, setContactNumber] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
-  const [paymentType, setPaymentType] = useState("Cash on Delivery");
   const [eventDate, setEventDate] = useState("");
   const [remarks, setRemarks] = useState("");
-  const [orderQuantity, setOrderQuantity] = useState("1");
-  const [paymentMethodModal, setPaymentMethodModal] = useState(false);
+  // Order confirmation by email OTP — same /api/otp endpoints as the Website order page.
+  const [otpModalVisible, setOtpModalVisible] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [resendCountdown, setResendCountdown] = useState(0);
+
+  const customerEmail = user?.email || user?.email_address || profile?.email || profile?.email_address || "";
+
+  useEffect(() => {
+    if (resendCountdown <= 0) return undefined;
+    const timer = setTimeout(() => setResendCountdown((prev) => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCountdown]);
 
   useEffect(() => {
     if (profile) {
@@ -64,10 +66,6 @@ export default function CheckoutScreen({ navigation, route }) {
       Alert.alert("Error", "Please enter your contact number");
       return false;
     }
-    if (!paymentMethod) {
-      Alert.alert("Error", "Please select a payment method");
-      return false;
-    }
     if (!eventDate.trim()) {
       Alert.alert("Error", "Please enter the event/delivery date (e.g. 2025-12-25)");
       return false;
@@ -77,12 +75,24 @@ export default function CheckoutScreen({ navigation, route }) {
       Alert.alert("Error", "Event date must be in YYYY-MM-DD format (e.g. 2025-12-25)");
       return false;
     }
-    const qty = parseInt(orderQuantity, 10);
-    if (isNaN(qty) || qty < 1) {
-      Alert.alert("Error", "Order quantity must be at least 1");
+    return true;
+  };
+
+  // Mirrors the Website's sendOtp error handling (OrderBoutique.js).
+  const sendOtp = async () => {
+    try {
+      await otpAPI.sendOtp(customerEmail);
+      setResendCountdown(30);
+      setOtpError("");
+      return true;
+    } catch (err) {
+      const status = err.response?.status;
+      const message = err.response?.data?.message;
+      if (status === 429) setOtpError(message || "Please wait before requesting another code.");
+      else if (status === 400) setOtpError(message || "Unable to send the code. Please check your email.");
+      else setOtpError("Failed to send the code. Use Resend, or check your email.");
       return false;
     }
-    return true;
   };
 
   const handleCheckout = async () => {
@@ -93,21 +103,60 @@ export default function CheckoutScreen({ navigation, route }) {
       Alert.alert("Error", "No items to checkout");
       return;
     }
+    if (!customerEmail) {
+      Alert.alert("Error", "No email on this account. Please update your profile.");
+      return;
+    }
+
+    setOtpCode("");
+    setOtpError("");
+    setOtpModalVisible(true);
+    setLoading(true);
+    await sendOtp();
+    setLoading(false);
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCountdown > 0 || loading) return;
+    setLoading(true);
+    await sendOtp();
+    setLoading(false);
+  };
+
+  const handleVerifyAndPlaceOrder = async () => {
+    setOtpError("");
+    if (!otpCode || otpCode.trim().length < 6) {
+      setOtpError("Please enter the 6-digit code.");
+      return;
+    }
 
     setLoading(true);
     try {
+      try {
+        await otpAPI.verifyOtp(customerEmail, otpCode.trim());
+      } catch (err) {
+        const status = err.response?.status;
+        const message = err.response?.data?.message;
+        if (status === 400) setOtpError(message || "Invalid or expired code.");
+        else if (status === 429) setOtpError(message || "Too many attempts. Request a new code.");
+        else setOtpError("Server error verifying the code.");
+        return;
+      }
+
+      // Payment is coordinated by the team afterwards, as on the Website.
       const checkoutData = {
         shipping_address: shippingAddress.trim(),
-        payment_method: paymentMethod,
-        payment_type: paymentType,
+        payment_method: "Pending",
+        payment_type: "Pending",
         expected_delivery: eventDate.trim(),
         remarks: remarks.trim(),
-        order_quantity: parseInt(orderQuantity, 10),
       };
 
       const result = await checkout(checkoutData);
 
       if (result.success) {
+        setOtpModalVisible(false);
+        setOtpCode("");
         Alert.alert(
           "Order Placed Successfully!",
           `Your order has been placed.\nOrder ID: ${result.orderId}\n\nWe will contact you shortly to confirm your order.`,
@@ -129,11 +178,11 @@ export default function CheckoutScreen({ navigation, route }) {
           ]
         );
       } else {
-        Alert.alert("Error", result.message || "Failed to place order");
+        setOtpError(result.message || "Failed to place order");
       }
     } catch (error) {
       console.error("Checkout error:", error);
-      Alert.alert("Error", error.response?.data?.message || "Failed to place order. Please try again.");
+      setOtpError(error.response?.data?.message || "Failed to place order. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -228,58 +277,6 @@ export default function CheckoutScreen({ navigation, route }) {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: sub }]}>Number of Boxes / Quantity *</Text>
-            <TextInput
-              style={[styles.textInput, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              value={orderQuantity}
-              onChangeText={setOrderQuantity}
-              placeholder="1"
-              placeholderTextColor={sub}
-              keyboardType="number-pad"
-            />
-          </View>
-        </View>
-
-        {/* Payment */}
-        <View style={[styles.section, { backgroundColor: card }]}>
-          <Text style={[styles.sectionTitle, { color: text }]}>Payment</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: sub }]}>Payment Method *</Text>
-            <TouchableOpacity
-              style={[styles.selectorButton, { backgroundColor: inputBg, borderColor: border }]}
-              onPress={() => setPaymentMethodModal(true)}
-            >
-              <Text style={[styles.selectorText, { color: paymentMethod ? text : sub }]}>
-                {paymentMethod || "Select payment method"}
-              </Text>
-              <MaterialCommunityIcons name="chevron-down" size={20} color={sub} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: sub }]}>Payment Type</Text>
-            <View style={styles.paymentTypeRow}>
-              {PAYMENT_TYPES.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.paymentTypeChip,
-                    {
-                      backgroundColor: paymentType === type ? "#6B6593" : inputBg,
-                      borderColor: paymentType === type ? "#6B6593" : border,
-                    },
-                  ]}
-                  onPress={() => setPaymentType(type)}
-                >
-                  <Text style={[styles.paymentTypeText, { color: paymentType === type ? "#fff" : sub }]}>
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
         </View>
 
         {/* Remarks */}
@@ -313,38 +310,47 @@ export default function CheckoutScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      {/* Payment Method Modal */}
+      {/* Order Confirmation (email OTP) Modal */}
       <Modal
-        visible={paymentMethodModal}
+        visible={otpModalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setPaymentMethodModal(false)}
+        onRequestClose={() => !loading && setOtpModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: card }]}>
-            <Text style={[styles.modalTitle, { color: text }]}>Select Payment Method</Text>
-            {PAYMENT_METHODS.map((method) => (
+            <Text style={[styles.modalTitle, { color: text }]}>Confirm Your Order</Text>
+            <View style={{ paddingHorizontal: 20 }}>
+              <Text style={[styles.inputLabel, { color: sub }]}>
+                We sent a 6-digit confirmation code to {customerEmail}. Enter it below to place your order.
+              </Text>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: inputBg, color: text, borderColor: border, textAlign: "center", letterSpacing: 4 }]}
+                value={otpCode}
+                onChangeText={(v) => { setOtpCode(v.replace(/[^0-9]/g, "")); setOtpError(""); }}
+                placeholder="000000"
+                placeholderTextColor={sub}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+              {!!otpError && <Text style={styles.otpErrorText}>{otpError}</Text>}
               <TouchableOpacity
-                key={method}
-                style={[
-                  styles.modalOption,
-                  { borderBottomColor: border },
-                  paymentMethod === method && { backgroundColor: darkMode ? "#393A3B" : "#F0EFF8" },
-                ]}
-                onPress={() => {
-                  setPaymentMethod(method);
-                  setPaymentMethodModal(false);
-                }}
+                style={[styles.checkoutButton, { backgroundColor: "#6B6593", marginTop: 16 }, (loading || otpCode.length !== 6) && styles.checkoutButtonDisabled]}
+                onPress={handleVerifyAndPlaceOrder}
+                disabled={loading || otpCode.length !== 6}
               >
-                <Text style={[styles.modalOptionText, { color: text }]}>{method}</Text>
-                {paymentMethod === method && (
-                  <MaterialCommunityIcons name="check" size={20} color="#6B6593" />
-                )}
+                <Text style={styles.checkoutButtonText}>{loading ? "Please wait..." : "Verify & Place Order"}</Text>
               </TouchableOpacity>
-            ))}
+              <TouchableOpacity onPress={handleResendOtp} disabled={resendCountdown > 0 || loading} style={{ paddingVertical: 12, alignItems: "center" }}>
+                <Text style={{ color: resendCountdown > 0 ? sub : "#6B6593", fontWeight: "600" }}>
+                  {resendCountdown > 0 ? `Resend Code (${resendCountdown}s)` : "Resend Code"}
+                </Text>
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity
               style={[styles.modalCancelButton, { borderTopColor: border }]}
-              onPress={() => setPaymentMethodModal(false)}
+              onPress={() => setOtpModalVisible(false)}
+              disabled={loading}
             >
               <Text style={[styles.modalCancelText, { color: sub }]}>Cancel</Text>
             </TouchableOpacity>
@@ -464,4 +470,5 @@ const styles = StyleSheet.create({
   modalOptionText: { fontSize: 16 },
   modalCancelButton: { paddingVertical: 16, alignItems: "center", borderTopWidth: 1, marginTop: 4 },
   modalCancelText: { fontSize: 16 },
+  otpErrorText: { color: "#D9534F", fontSize: 13, marginTop: 8 },
 });
