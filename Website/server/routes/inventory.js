@@ -344,6 +344,22 @@ router.get('/', async (req, res) => {
   try {
     await ensureInventorySchema();
     console.log('Inventory route called');
+
+    // `?images=none` returns image_data as NULL for every row. The default
+    // select base64-encodes each product's image inline, which makes this
+    // response grow with the size of the whole photo library — costly to
+    // serialise on the server and to hold in memory on the client. Callers
+    // that only need to LIST products (the customer order builder) ask for the
+    // slim payload and pull each picture from GET /api/inventory/:sku/image
+    // instead, which is binary and cacheable for a day.
+    // Opt-in, so every existing caller keeps the payload it expects.
+    const slimImages = String(req.query.images || '').toLowerCase() === 'none';
+    const selectColumns = slimImages
+      ? inventorySelect.replace(
+          /CASE\s+WHEN i\.image_data IS NOT NULL THEN encode\(i\.image_data, 'base64'\)\s+ELSE NULL\s+END as image_data/,
+          'NULL as image_data'
+        )
+      : inventorySelect;
     // Optimized inventory query with better performance
     const result = await pool.query(`
       WITH order_quantities AS (
@@ -364,7 +380,7 @@ router.get('/', async (req, res) => {
         GROUP BY op.sku
       )
       SELECT
-        ${inventorySelect},
+        ${selectColumns},
         COALESCE(oq.ordered_quantity, 0) AS ordered_quantity,
         COALESCE(oq.delivered_quantity, 0) AS delivered_quantity
       FROM inventory_items i
@@ -450,6 +466,21 @@ router.get('/movements/:sku', async (req, res) => {
 });
 
 // GET /api/inventory/:sku - Get specific inventory item
+// Product images are stored exactly as uploaded, so the column holds a mix of
+// formats. Read the real one off the magic bytes rather than trusting a
+// hardcoded type — see the nosniff note in the route below.
+const detectImageMime = (buffer) => {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return 'application/octet-stream';
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'image/png';
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg';
+  if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) return 'image/gif';
+  if (buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+  if (buffer.toString('ascii', 4, 8) === 'ftyp' && buffer.toString('ascii', 8, 12).startsWith('avif')) return 'image/avif';
+  // A leading '<' is almost always SVG; serve it as binary rather than
+  // image/svg+xml, which the browser would treat as an active document.
+  return 'application/octet-stream';
+};
+
 // GET /api/inventory/:sku/image - Serve a single product's image as binary,
 // so bulk list endpoints (order history, etc.) can skip embedding base64
 // image data per row and fetch it on demand instead.
@@ -465,9 +496,24 @@ router.get('/:sku/image', async (req, res) => {
       return res.status(404).end();
     }
 
-    res.set('Content-Type', 'image/jpeg');
+    const image = result.rows[0].image_data;
+
+    // Content-Type used to be hardcoded to image/jpeg, but uploads are stored
+    // as-is and most of them are PNG. That mismatch is fatal rather than
+    // cosmetic: the app sets X-Content-Type-Options: nosniff (helmet.noSniff),
+    // so the browser refuses to decode bytes that disagree with the declared
+    // type and every <img> pointing here failed.
+    res.set('Content-Type', detectImageMime(image));
+
+    // helmet's default Cross-Origin-Resource-Policy is same-origin, which
+    // blocks another origin from embedding this response in an <img> at all —
+    // and the website is served from a different origin than this API in both
+    // development (3000 vs 3001) and production (wrapntrack.xyz vs
+    // api.wrapntrack.xyz). These are public, unauthenticated product photos, so
+    // opt this response out.
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     res.set('Cache-Control', 'public, max-age=86400');
-    return res.send(result.rows[0].image_data);
+    return res.send(image);
   } catch (error) {
     console.error('Error fetching inventory item image:', { sku, error: error.message });
     return res.status(500).end();

@@ -1,0 +1,1485 @@
+/* ===========================================================================
+   Order Boutique — single-page product catalogue for /order
+   ---------------------------------------------------------------------------
+   Replaces the five-step OrderProcess wizard with one scrollable page: every
+   available product is on screen at once, grouped under category headings,
+   with a sticky basket alongside.
+
+   Density
+   -------
+   `--ob-s` is a single scale multiplier applied to spacing, card widths and
+   imagery — the whole page is authored at 0.8 (20% tighter than a standard
+   e-commerce grid). Change that one number to re-scale everything.
+
+   Type deliberately does NOT ride that multiplier. Scaling 15px body copy by
+   0.8 lands at 12px, which fails the legibility floor; instead the type scale
+   is set one step down by hand and bottoms out at 12px for meta text.
+   =========================================================================== */
+
+/* Tokens are declared on every top-level root this page renders, not on
+   `.ob-page` alone: the modals and the mobile dock are siblings of <main>, not
+   descendants of it, so tokens scoped to `.ob-page` would not inherit down to
+   them and every var() inside a dialog would resolve to nothing. */
+.ob-page,
+.ob-overlay,
+.ob-dock {
+  /* Density dial — spacing and card geometry only */
+  --ob-s: 0.8;
+
+  /* Palette — lifted from CustomerPOV.css :root so the page matches the site */
+  --ob-accent: #6a698f;
+  --ob-accent-soft: #8c8ba8;
+  --ob-accent-wash: #eeedf4;
+  --ob-cream: #f1f0e2;
+  --ob-cream-soft: #f9f8ef;
+  --ob-text: #33373d;
+  --ob-text-soft: #5c6066;
+  --ob-text-mute: #7c8087;
+  --ob-border: #e4e2d6;
+  --ob-border-soft: #efeee4;
+  --ob-dark: #3f444b;
+  --ob-surface: #ffffff;
+  --ob-success: #5b8266;
+  --ob-danger: #b0413e;
+
+  --ob-font-head: 'Cormorant Garamond', Georgia, serif;
+  --ob-font-body: 'Karla', system-ui, -apple-system, sans-serif;
+  --ob-font-label: 'Red Hat Display', 'Karla', system-ui, sans-serif;
+
+  /* Spacing scale (scaled) */
+  --ob-sp-1: calc(6px * var(--ob-s));
+  --ob-sp-2: calc(10px * var(--ob-s));
+  --ob-sp-3: calc(16px * var(--ob-s));
+  --ob-sp-4: calc(24px * var(--ob-s));
+  --ob-sp-5: calc(36px * var(--ob-s));
+  --ob-sp-6: calc(56px * var(--ob-s));
+
+  --ob-radius: calc(14px * var(--ob-s));
+  --ob-radius-sm: calc(8px * var(--ob-s));
+
+  --ob-shadow-sm: 0 2px 8px rgba(51, 55, 61, 0.05);
+  --ob-shadow-md: 0 8px 22px rgba(51, 55, 61, 0.09);
+  --ob-shadow-lg: 0 22px 48px rgba(51, 55, 61, 0.16);
+
+  /* Offsets for the sticky site header (60px) + this page's category rail */
+  --ob-topbar-h: 60px;
+  --ob-rail-h: calc(54px * var(--ob-s));
+}
+
+.ob-page {
+  background: var(--ob-cream-soft);
+  color: var(--ob-text);
+  font-family: var(--ob-font-body);
+  min-height: 100vh;
+  padding-bottom: var(--ob-sp-6);
+}
+
+/* CustomerPOV.css applies `* { font-family: Cinder; }` globally, and a bare
+   universal selector still matches our descendants directly — beating anything
+   they would otherwise inherit. Re-asserting the families at `.ob-* *`
+   specificity reclaims them no matter which stylesheet loads first. */
+.ob-page, .ob-page *,
+.ob-overlay, .ob-overlay *,
+.ob-dock, .ob-dock * {
+  font-family: var(--ob-font-body);
+}
+
+.ob-page .ob-hero-title,
+.ob-page .ob-section-title,
+.ob-page .ob-card-name,
+.ob-page .ob-basket-title,
+.ob-page .ob-empty h2,
+.ob-overlay .ob-detail-title,
+.ob-overlay .ob-form-head h2 {
+  font-family: var(--ob-font-head);
+}
+
+.ob-page .ob-chip,
+.ob-page .ob-add,
+.ob-page .ob-cta,
+.ob-page .ob-price,
+.ob-page .ob-hero-eyebrow,
+.ob-overlay .ob-cta,
+.ob-overlay .ob-field > label,
+.ob-dock .ob-cta {
+  font-family: var(--ob-font-label);
+}
+
+/* Keyboard focus must stay visible even with the sticky header + rail above
+   it (WCAG 2.2 "Focus Not Obscured"). */
+.ob-page :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--ob-accent);
+  outline-offset: 2px;
+  border-radius: var(--ob-radius-sm);
+}
+
+/* ── Hero ──────────────────────────────────────────────────────────────── */
+.ob-hero {
+  background: var(--ob-cream);
+  border-bottom: 1px solid var(--ob-border);
+  padding: var(--ob-sp-5) var(--ob-sp-4) var(--ob-sp-4);
+  text-align: center;
+}
+
+.ob-hero-inner {
+  max-width: calc(760px * var(--ob-s) + 180px);
+  margin: 0 auto;
+}
+
+.ob-hero-eyebrow {
+  font-family: var(--ob-font-label);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ob-accent);
+  margin: 0 0 var(--ob-sp-2);
+}
+
+.ob-hero-title {
+  font-family: var(--ob-font-head);
+  font-weight: 400;
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  margin: 0 0 var(--ob-sp-2);
+  color: var(--ob-text);
+}
+
+.ob-hero-sub {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ob-text-soft);
+  margin: 0 auto var(--ob-sp-4);
+  max-width: 54ch;
+}
+
+.ob-hero-steps {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--ob-sp-3);
+}
+
+.ob-hero-step {
+  display: flex;
+  align-items: center;
+  gap: var(--ob-sp-2);
+  background: var(--ob-surface);
+  border: 1px solid var(--ob-border);
+  border-radius: 999px;
+  padding: var(--ob-sp-1) var(--ob-sp-3) var(--ob-sp-1) var(--ob-sp-1);
+  font-size: 0.8rem;
+  color: var(--ob-text-soft);
+}
+
+.ob-hero-step b {
+  width: calc(24px * var(--ob-s) + 6px);
+  height: calc(24px * var(--ob-s) + 6px);
+  border-radius: 50%;
+  background: var(--ob-accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: var(--ob-font-label);
+  font-size: 0.72rem;
+  flex: none;
+}
+
+/* ── Sticky category rail ──────────────────────────────────────────────── */
+.ob-rail {
+  position: sticky;
+  top: var(--ob-topbar-h);
+  z-index: 40;
+  background: rgba(249, 248, 239, 0.94);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--ob-border);
+}
+
+.ob-rail-scroll {
+  display: flex;
+  gap: var(--ob-sp-2);
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: var(--ob-sp-2) var(--ob-sp-4);
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.ob-rail-scroll::-webkit-scrollbar { display: none; }
+
+.ob-chip {
+  flex: none;
+  border: 1px solid var(--ob-border);
+  background: var(--ob-surface);
+  color: var(--ob-text-soft);
+  font-family: var(--ob-font-label);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: calc(8px * var(--ob-s) + 2px) calc(16px * var(--ob-s));
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 34px;
+  transition: background 0.22s ease, color 0.22s ease, border-color 0.22s ease,
+    transform 0.18s ease;
+}
+
+.ob-chip:hover {
+  border-color: var(--ob-accent-soft);
+  color: var(--ob-text);
+  transform: translateY(-1px);
+}
+
+.ob-chip.is-active {
+  background: var(--ob-accent);
+  border-color: var(--ob-accent);
+  color: #fff;
+}
+
+.ob-chip-count {
+  opacity: 0.65;
+  margin-left: 6px;
+  font-size: 0.68rem;
+}
+
+/* ── Page body: catalogue + basket ─────────────────────────────────────── */
+.ob-body {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: var(--ob-sp-5) var(--ob-sp-4) 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) calc(330px * var(--ob-s) + 60px);
+  gap: var(--ob-sp-5);
+  align-items: start;
+}
+
+/* ── Category sections ─────────────────────────────────────────────────── */
+.ob-section {
+  /* Clears the sticky header + rail when jumped to from the chip nav */
+  scroll-margin-top: calc(var(--ob-topbar-h) + var(--ob-rail-h) + 16px);
+  margin-bottom: var(--ob-sp-6);
+}
+
+.ob-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ob-sp-3);
+  margin-bottom: var(--ob-sp-4);
+  padding-bottom: var(--ob-sp-2);
+  border-bottom: 1px solid var(--ob-border);
+}
+
+.ob-section-title {
+  font-family: var(--ob-font-head);
+  font-weight: 500;
+  font-size: clamp(1.25rem, 2.4vw, 1.65rem);
+  margin: 0;
+  color: var(--ob-text);
+}
+
+.ob-section-count {
+  font-family: var(--ob-font-label);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ob-text-mute);
+  white-space: nowrap;
+}
+
+.ob-section-rule {
+  font-family: var(--ob-font-label);
+  font-size: 0.62rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ob-accent);
+  background: var(--ob-accent-wash);
+  border: 1px solid var(--ob-accent-soft);
+  border-radius: 999px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+
+.ob-section-blurb {
+  margin: 0 0 0 auto;
+  font-size: 0.8rem;
+  color: var(--ob-text-mute);
+  text-align: right;
+  max-width: 34ch;
+}
+
+.ob-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(230px * var(--ob-s) + 24px), 1fr));
+  gap: var(--ob-sp-3);
+}
+
+/* ── Product card ──────────────────────────────────────────────────────── */
+
+/* Carries the reveal animation so the card's own className can change freely
+   (see the comment in ProductCard). Stretches so cards in a row match height. */
+.ob-card-wrap { display: flex; }
+.ob-card-wrap > .ob-card { flex: 1; min-width: 0; }
+
+.ob-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--ob-surface);
+  border: 1px solid var(--ob-border-soft);
+  border-radius: var(--ob-radius);
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: var(--ob-shadow-sm);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s ease, border-color 0.22s ease;
+}
+
+.ob-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--ob-shadow-md);
+  border-color: var(--ob-border);
+}
+
+.ob-card.is-selected {
+  border-color: var(--ob-accent);
+  box-shadow: 0 0 0 1px var(--ob-accent), var(--ob-shadow-sm);
+}
+
+.ob-card-media {
+  position: relative;
+  aspect-ratio: 4 / 3;      /* reserved space — no layout shift as images load */
+  background: var(--ob-cream);
+  overflow: hidden;
+}
+
+/* ── Product image: loading / loaded / unavailable ─────────────────────── */
+.ob-img {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: var(--ob-cream);
+  overflow: hidden;
+}
+
+.ob-img > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.3s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Shimmer placeholder occupying the reserved box until the photo decodes, so
+   nothing reflows when it arrives. */
+.ob-img-loading {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #efeee5 25%, #f7f6ef 50%, #efeee5 75%);
+  background-size: 200% 100%;
+  animation: ob-shimmer 1.4s ease-in-out infinite;
+}
+
+/* No photo on the product, or the request failed. Drawn, not fetched — this
+   state must never cost another round trip. */
+.ob-img-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--ob-cream),
+    var(--ob-cream) 8px,
+    var(--ob-cream-soft) 8px,
+    var(--ob-cream-soft) 16px
+  );
+  color: var(--ob-text-mute);
+  text-align: center;
+  padding: var(--ob-sp-2);
+}
+
+.ob-img-empty svg { width: 22px; height: 22px; opacity: 0.65; }
+
+.ob-img-empty span {
+  font-family: var(--ob-font-label);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+.ob-card:hover .ob-img > img { transform: scale(1.05); }
+
+/* Small slots have no room for the caption — the icon alone reads as "no photo" */
+.ob-basket-thumb.ob-img-empty span,
+.ob-staff-thumb.ob-img-empty span { display: none; }
+
+.ob-basket-thumb.ob-img-empty svg,
+.ob-staff-thumb.ob-img-empty svg { width: 16px; height: 16px; }
+
+.ob-card-tag {
+  position: absolute;
+  top: var(--ob-sp-2);
+  left: var(--ob-sp-2);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ob-text-soft);
+  font-family: var(--ob-font-label);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.ob-card-check {
+  position: absolute;
+  top: var(--ob-sp-2);
+  right: var(--ob-sp-2);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ob-accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  box-shadow: 0 2px 6px rgba(51, 55, 61, 0.25);
+  animation: ob-pop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ob-card-body {
+  padding: var(--ob-sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ob-sp-1);
+  flex: 1;
+}
+
+.ob-card-name {
+  font-family: var(--ob-font-head);
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0;
+  color: var(--ob-text);
+}
+
+/* Truncated only because the modal is a one-click full-detail path for the
+   same copy — never the sole route to the text. */
+.ob-card-desc {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ob-text-mute);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: calc(2 * 1.45 * 0.78rem);
+}
+
+.ob-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ob-sp-2);
+  margin-top: auto;
+  padding-top: var(--ob-sp-2);
+}
+
+.ob-price {
+  font-family: var(--ob-font-label);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ob-text);
+  white-space: nowrap;
+}
+
+.ob-card-hint {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--ob-text-mute);
+  font-family: var(--ob-font-body);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ── Add to basket button ──────────────────────────────────────────────── */
+.ob-add {
+  flex: none;
+  border: 1px solid var(--ob-accent);
+  background: var(--ob-accent);
+  color: #fff;
+  font-family: var(--ob-font-label);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: calc(9px * var(--ob-s) + 3px) calc(14px * var(--ob-s) + 2px);
+  min-height: 34px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease,
+    transform 0.12s ease;
+}
+
+.ob-add:hover { background: var(--ob-dark); border-color: var(--ob-dark); }
+.ob-add:active { transform: scale(0.95); }
+
+.ob-add.is-in {
+  background: transparent;
+  color: var(--ob-accent);
+}
+
+.ob-add.is-in:hover {
+  background: var(--ob-danger);
+  border-color: var(--ob-danger);
+  color: #fff;
+}
+
+/* ── Assistant-suggested state ─────────────────────────────────────────── */
+.ob-card.is-suggested {
+  border-color: var(--ob-accent);
+  animation: ob-suggest-ring 1.5s ease-out 3;
+}
+
+.ob-badge-ai {
+  position: absolute;
+  bottom: var(--ob-sp-2);
+  left: var(--ob-sp-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--ob-accent);
+  color: #fff;
+  font-family: var(--ob-font-label);
+  font-size: 0.6rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(51, 55, 61, 0.28);
+}
+
+.ob-badge-ai svg { width: 11px; height: 11px; }
+
+.ob-suggest-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ob-sp-2);
+  background: var(--ob-accent-wash);
+  border: 1px solid var(--ob-accent-soft);
+  border-radius: var(--ob-radius);
+  padding: var(--ob-sp-3);
+  margin-bottom: var(--ob-sp-4);
+  font-size: 0.84rem;
+  color: var(--ob-text);
+  line-height: 1.5;
+}
+
+.ob-suggest-note svg { flex: none; width: 17px; height: 17px; color: var(--ob-accent); margin-top: 1px; }
+.ob-suggest-note strong { font-family: var(--ob-font-label); font-weight: 600; }
+
+.ob-suggest-dismiss {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--ob-text-mute);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 2px 4px;
+  flex: none;
+}
+
+/* ── Basket (sticky aside) ─────────────────────────────────────────────── */
+.ob-basket {
+  position: sticky;
+  top: calc(var(--ob-topbar-h) + var(--ob-rail-h) + 16px);
+  background: var(--ob-surface);
+  border: 1px solid var(--ob-border);
+  border-radius: var(--ob-radius);
+  box-shadow: var(--ob-shadow-sm);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--ob-topbar-h) - var(--ob-rail-h) - 40px);
+}
+
+.ob-basket-head {
+  padding: var(--ob-sp-3);
+  border-bottom: 1px solid var(--ob-border-soft);
+  display: flex;
+  align-items: center;
+  gap: var(--ob-sp-2);
+}
+
+.ob-basket-title {
+  font-family: var(--ob-font-head);
+  font-size: 1.18rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.ob-basket-badge {
+  margin-left: auto;
+  background: var(--ob-accent);
+  color: #fff;
+  font-family: var(--ob-font-label);
+  font-size: 0.7rem;
+  border-radius: 999px;
+  padding: 3px 10px;
+  /* Fixed min-width keeps the header from reflowing as the count changes */
+  min-width: 28px;
+  text-align: center;
+}
+
+.ob-basket-list {
+  overflow-y: auto;
+  padding: var(--ob-sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ob-sp-1);
+  flex: 1;
+}
+
+.ob-basket-item {
+  display: flex;
+  align-items: center;
+  gap: var(--ob-sp-2);
+  padding: var(--ob-sp-1);
+  border-radius: var(--ob-radius-sm);
+  animation: ob-slide-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background 0.18s ease;
+}
+
+.ob-basket-item:hover { background: var(--ob-cream-soft); }
+
+.ob-basket-thumb {
+  width: calc(42px * var(--ob-s) + 8px);
+  height: calc(42px * var(--ob-s) + 8px);
+  border-radius: var(--ob-radius-sm);
+  background: var(--ob-cream);
+  flex: none;
+}
+
+.ob-basket-text { min-width: 0; flex: 1; }
+
+.ob-basket-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ob-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-basket-meta { font-size: 0.72rem; color: var(--ob-text-mute); margin: 0; }
+
+.ob-basket-remove {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--ob-border);
+  background: var(--ob-surface);
+  color: var(--ob-text-mute);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  line-height: 1;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.ob-basket-remove:hover {
+  background: var(--ob-danger);
+  border-color: var(--ob-danger);
+  color: #fff;
+}
+
+.ob-basket-empty {
+  padding: var(--ob-sp-5) var(--ob-sp-3);
+  text-align: center;
+  color: var(--ob-text-mute);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.ob-basket-empty svg {
+  width: 34px;
+  height: 34px;
+  color: var(--ob-border);
+  margin-bottom: var(--ob-sp-2);
+}
+
+.ob-basket-foot {
+  border-top: 1px solid var(--ob-border-soft);
+  padding: var(--ob-sp-3);
+  background: var(--ob-cream-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ob-sp-2);
+}
+
+.ob-guest-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ob-sp-2);
+}
+
+.ob-guest-row label { font-size: 0.8rem; color: var(--ob-text-soft); margin: 0; }
+
+.ob-guest-input {
+  width: calc(74px * var(--ob-s) + 16px);
+  padding: 7px 10px;
+  border: 1px solid var(--ob-border);
+  border-radius: var(--ob-radius-sm);
+  font-family: var(--ob-font-body);
+  font-size: 0.86rem;
+  text-align: center;
+  background: var(--ob-surface);
+  color: var(--ob-text);
+}
+
+.ob-total-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-family: var(--ob-font-label);
+}
+
+.ob-total-row span { font-size: 0.76rem; color: var(--ob-text-soft); }
+.ob-total-row b { font-size: 1.12rem; color: var(--ob-text); }
+
+.ob-total-note {
+  font-size: 0.68rem;
+  color: var(--ob-text-mute);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Order-composition checklist above the CTA */
+.ob-rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ob-rules li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.74rem;
+  color: var(--ob-text-mute);
+  line-height: 1.35;
+}
+
+.ob-rules li span {
+  flex: none;
+  width: 14px;
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.ob-rules li.is-met { color: var(--ob-success); font-weight: 600; }
+
+.ob-cta {
+  width: 100%;
+  border: none;
+  background: var(--ob-accent);
+  color: #fff;
+  font-family: var(--ob-font-label);
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: calc(12px * var(--ob-s) + 4px);
+  min-height: 44px;
+  border-radius: var(--ob-radius-sm);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.12s ease, box-shadow 0.2s ease;
+}
+
+.ob-cta:hover:not(:disabled) {
+  background: var(--ob-dark);
+  box-shadow: 0 6px 16px rgba(51, 55, 61, 0.2);
+}
+
+.ob-cta:active:not(:disabled) { transform: scale(0.985); }
+
+.ob-cta:disabled {
+  background: var(--ob-border);
+  color: var(--ob-text-mute);
+  cursor: not-allowed;
+}
+
+.ob-cta-ghost {
+  background: transparent;
+  color: var(--ob-text-soft);
+  border: 1px solid var(--ob-border);
+}
+
+.ob-cta-ghost:hover:not(:disabled) { background: var(--ob-cream); color: var(--ob-text); box-shadow: none; }
+
+/* ── Mobile basket dock ────────────────────────────────────────────────── */
+.ob-dock { display: none; }
+
+/* ── Modal shell (shared by product detail, checkout, OTP, address) ────── */
+.ob-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(38, 40, 45, 0.55);
+  backdrop-filter: blur(3px);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ob-sp-4);
+  animation: ob-fade 0.22s ease;
+}
+
+.ob-modal {
+  background: var(--ob-surface);
+  border-radius: calc(18px * var(--ob-s));
+  box-shadow: var(--ob-shadow-lg);
+  width: 100%;
+  max-width: calc(860px * var(--ob-s) + 120px);
+  max-height: calc(100vh - 2 * var(--ob-sp-4));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: ob-modal-in 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ob-modal-sm { max-width: calc(440px * var(--ob-s) + 90px); }
+.ob-modal-md { max-width: calc(620px * var(--ob-s) + 110px); }
+
+.ob-modal-close {
+  position: absolute;
+  top: var(--ob-sp-2);
+  right: var(--ob-sp-2);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ob-text);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+  box-shadow: var(--ob-shadow-sm);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.ob-modal-close:hover { background: #fff; transform: rotate(90deg); }
+
+/* ── Product detail modal ──────────────────────────────────────────────── */
+.ob-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  position: relative;
+  /* Flex children default to min-height:auto and refuse to shrink below their
+     content — without this the panel outgrows the modal's max-height instead of
+     letting .ob-detail-body scroll. */
+  min-height: 0;
+}
+
+.ob-detail-media {
+  background: var(--ob-cream);
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+}
+
+.ob-detail-media > .ob-img { width: 100%; height: 100%; }
+
+.ob-detail-body {
+  padding: var(--ob-sp-5) var(--ob-sp-4);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ob-sp-3);
+}
+
+.ob-detail-eyebrow {
+  font-family: var(--ob-font-label);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ob-accent);
+  margin: 0;
+}
+
+.ob-detail-title {
+  font-family: var(--ob-font-head);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 500;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.ob-detail-price {
+  font-family: var(--ob-font-label);
+  font-size: 1.28rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ob-text);
+}
+
+.ob-detail-desc {
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: var(--ob-text-soft);
+  margin: 0;
+}
+
+.ob-detail-specs {
+  border-top: 1px solid var(--ob-border-soft);
+  border-bottom: 1px solid var(--ob-border-soft);
+  padding: var(--ob-sp-3) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ob-sp-2);
+  margin: 0;
+}
+
+.ob-spec {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ob-sp-3);
+  font-size: 0.8rem;
+}
+
+.ob-spec dt { color: var(--ob-text-mute); margin: 0; }
+.ob-spec dd { color: var(--ob-text); margin: 0; font-weight: 600; text-align: right; }
+
+.ob-detail-actions { margin-top: auto; display: flex; flex-direction: column; gap: var(--ob-sp-2); }
+
+/* ── Checkout / form modal ─────────────────────────────────────────────── */
+.ob-form-head {
+  padding: var(--ob-sp-4) var(--ob-sp-4) var(--ob-sp-3);
+  border-bottom: 1px solid var(--ob-border-soft);
+  position: relative;
+}
+
+.ob-form-head h2 {
+  font-family: var(--ob-font-head);
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0 0 4px;
+}
+
+.ob-form-head p { font-size: 0.82rem; color: var(--ob-text-soft); margin: 0; }
+
+.ob-form-body {
+  padding: var(--ob-sp-4);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ob-sp-3);
+}
+
+.ob-field { display: flex; flex-direction: column; gap: 6px; }
+
+.ob-field > label {
+  font-family: var(--ob-font-label);
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ob-text-soft);
+  margin: 0;
+  font-weight: 500;
+}
+
+.ob-field input,
+.ob-field select,
+.ob-field textarea {
+  width: 100%;
+  padding: calc(11px * var(--ob-s) + 2px) calc(13px * var(--ob-s) + 2px);
+  border: 1.5px solid var(--ob-border);
+  border-radius: var(--ob-radius-sm);
+  font-family: var(--ob-font-body);
+  font-size: 0.9rem;
+  color: var(--ob-text);
+  background: var(--ob-surface);
+  min-height: 42px;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.ob-field textarea { min-height: 84px; resize: vertical; }
+
+.ob-field input:focus,
+.ob-field select:focus,
+.ob-field textarea:focus {
+  outline: none;
+  border-color: var(--ob-accent);
+  box-shadow: 0 0 0 3px rgba(105, 106, 143, 0.15);
+}
+
+.ob-field input[type="date"] { cursor: pointer; accent-color: var(--ob-accent); }
+
+.ob-field input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(38%) sepia(9%) saturate(1116%) hue-rotate(202deg) brightness(90%) contrast(88%);
+  cursor: pointer;
+}
+
+.ob-field .ob-help { font-size: 0.72rem; color: var(--ob-text-mute); margin: 0; }
+
+.ob-field.has-error input,
+.ob-field.has-error select { border-color: var(--ob-danger); }
+
+.ob-field.has-error input:focus { box-shadow: 0 0 0 3px rgba(176, 65, 62, 0.15); }
+
+/* Inline, next to the field it belongs to — never only at the top of the form */
+.ob-error {
+  font-size: 0.74rem;
+  color: var(--ob-danger);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Informational callout — a promise, not a problem, so it wears the accent
+   rather than the warning colour. */
+.ob-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ob-sp-2);
+  background: var(--ob-accent-wash);
+  border: 1px solid var(--ob-accent-soft);
+  border-radius: var(--ob-radius-sm);
+  padding: var(--ob-sp-3);
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ob-text);
+}
+
+.ob-notice svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--ob-accent);
+}
+
+.ob-notice strong { font-family: var(--ob-font-label); font-weight: 600; }
+
+.ob-warn {
+  font-size: 0.76rem;
+  color: #8a6d1f;
+  background: #fdf6e3;
+  border: 1px solid #f0e3bd;
+  border-radius: var(--ob-radius-sm);
+  padding: var(--ob-sp-2);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.ob-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ob-sp-3);
+}
+
+.ob-form-foot {
+  border-top: 1px solid var(--ob-border-soft);
+  padding: var(--ob-sp-3) var(--ob-sp-4);
+  background: var(--ob-cream-soft);
+  display: flex;
+  gap: var(--ob-sp-2);
+}
+
+.ob-form-foot .ob-cta { flex: 1; }
+
+.ob-summary {
+  background: var(--ob-cream-soft);
+  border: 1px solid var(--ob-border);
+  border-radius: var(--ob-radius-sm);
+  padding: var(--ob-sp-3);
+}
+
+.ob-summary h3 {
+  font-family: var(--ob-font-label);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ob-text-soft);
+  margin: 0 0 var(--ob-sp-2);
+  font-weight: 600;
+}
+
+.ob-summary-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.ob-summary-chip {
+  background: var(--ob-surface);
+  border: 1px solid var(--ob-border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.74rem;
+  color: var(--ob-text-soft);
+}
+
+/* ── OTP ───────────────────────────────────────────────────────────────── */
+.ob-otp-input {
+  font-family: var(--ob-font-label);
+  font-size: 1.5rem;
+  letter-spacing: 0.5em;
+  text-align: center;
+  text-indent: 0.5em;
+}
+
+.ob-link-btn {
+  background: none;
+  border: none;
+  color: var(--ob-accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px;
+}
+
+.ob-link-btn:disabled { color: var(--ob-text-mute); cursor: not-allowed; text-decoration: none; }
+
+/* ── Loading skeletons ─────────────────────────────────────────────────── */
+.ob-skeleton {
+  background: var(--ob-surface);
+  border: 1px solid var(--ob-border-soft);
+  border-radius: var(--ob-radius);
+  overflow: hidden;
+}
+
+.ob-skeleton-media { aspect-ratio: 4 / 3; }
+.ob-skeleton-line { height: 11px; border-radius: 4px; margin: var(--ob-sp-2) var(--ob-sp-3); }
+.ob-skeleton-line.short { width: 55%; }
+
+.ob-skeleton-media,
+.ob-skeleton-line {
+  background: linear-gradient(90deg, #f0efe6 25%, #f7f6ef 50%, #f0efe6 75%);
+  background-size: 200% 100%;
+  animation: ob-shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── Empty catalogue state ─────────────────────────────────────────────── */
+.ob-empty {
+  text-align: center;
+  padding: var(--ob-sp-6) var(--ob-sp-4);
+  color: var(--ob-text-soft);
+}
+
+.ob-empty h2 { font-family: var(--ob-font-head); font-size: 1.5rem; font-weight: 500; margin: 0 0 var(--ob-sp-2); }
+.ob-empty p { font-size: 0.9rem; margin: 0 auto; max-width: 46ch; line-height: 1.6; }
+
+/* ── Staff availability panel ──────────────────────────────────────────── */
+.ob-staff {
+  background: #f4ecd8;
+  border: 1px solid #d9c393;
+  border-radius: var(--ob-radius);
+  padding: var(--ob-sp-3);
+  margin-bottom: var(--ob-sp-4);
+}
+
+.ob-staff-head {
+  display: flex;
+  align-items: center;
+  gap: var(--ob-sp-2);
+  font-size: 0.8rem;
+  color: #6b5420;
+  flex-wrap: wrap;
+}
+
+.ob-staff-head svg { flex: none; }
+.ob-staff-head > span { flex: 1; min-width: 200px; line-height: 1.45; }
+.ob-staff-head b { font-family: var(--ob-font-label); font-weight: 700; }
+
+.ob-staff-btn {
+  margin-left: auto;
+  flex: none;
+  border: 1px solid #c8a95c;
+  background: #fffaf0;
+  color: #6b5420;
+  font-family: var(--ob-font-label);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: calc(9px * var(--ob-s) + 3px) calc(16px * var(--ob-s));
+  min-height: 38px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
+}
+
+.ob-staff-btn:hover { background: #6b5420; border-color: #6b5420; color: #fffaf0; }
+.ob-staff-btn:active { transform: scale(0.97); }
+
+/* ── Staff picker modal ────────────────────────────────────────────────── */
+.ob-staff-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: var(--ob-sp-2) var(--ob-sp-4);
+  border-bottom: 1px solid var(--ob-border-soft);
+  background: var(--ob-cream-soft);
+  flex: none;
+}
+
+.ob-staff-tabs::-webkit-scrollbar { display: none; }
+
+.ob-staff-tab {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ob-text-soft);
+  font-family: var(--ob-font-label);
+  font-size: 0.72rem;
+  padding: 7px 12px;
+  min-height: 34px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.ob-staff-tab:hover { background: var(--ob-surface); color: var(--ob-text); }
+
+.ob-staff-tab.is-active {
+  background: var(--ob-accent);
+  border-color: var(--ob-accent);
+  color: #fff;
+}
+
+.ob-staff-tab-count {
+  font-size: 0.64rem;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.ob-staff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(220px * var(--ob-s) + 30px), 1fr));
+  gap: var(--ob-sp-2);
+}
+
+.ob-staff-item {
+  display: flex;
+  align-items: center;
+  gap: var(--ob-sp-2);
+  border: 1.5px solid var(--ob-border);
+  border-radius: var(--ob-radius-sm);
+  padding: var(--ob-sp-2);
+  cursor: pointer;
+  background: var(--ob-surface);
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.ob-staff-item:hover { border-color: var(--ob-accent-soft); }
+
+.ob-staff-item.is-chosen { border-color: var(--ob-accent); background: var(--ob-accent-wash); }
+
+.ob-staff-item input {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  accent-color: var(--ob-accent);
+  cursor: pointer;
+}
+
+.ob-staff-thumb {
+  width: calc(44px * var(--ob-s) + 10px);
+  height: calc(44px * var(--ob-s) + 10px);
+  border-radius: 6px;
+  background: var(--ob-cream);
+  flex: none;
+}
+
+.ob-staff-item-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+
+.ob-staff-item-text b {
+  font-size: 0.8rem;
+  color: var(--ob-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-staff-item-text em {
+  font-style: normal;
+  font-size: 0.68rem;
+  color: var(--ob-text-mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-staff-total {
+  flex: 1;
+  min-width: 0;
+  align-self: center;
+  font-family: var(--ob-font-label);
+  font-size: 0.74rem;
+  color: var(--ob-text-soft);
+}
+
+/* The checkout footer wants two equal full-width buttons; this one wants a
+   status line plus two buttons sized to their labels. `.ob-cta` carries
+   `width: 100%`, so `flex: none` alone leaves each button as wide as the whole
+   footer — the width has to be reset too. Scoped to its own class so the
+   checkout footer keeps its original layout. */
+.ob-form-foot--staff { flex-wrap: wrap; }
+
+.ob-form-foot--staff .ob-cta {
+  flex: none;
+  width: auto;
+  padding-inline: var(--ob-sp-4);
+}
+
+/* ── Scroll-reveal ─────────────────────────────────────────────────────── */
+.ob-reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: calc(var(--i, 0) * 45ms);
+}
+
+.ob-reveal.is-in { opacity: 1; transform: none; }
+
+/* ── Keyframes ─────────────────────────────────────────────────────────── */
+@keyframes ob-fade { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes ob-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes ob-pop {
+  0%   { transform: scale(0); }
+  70%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+@keyframes ob-slide-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes ob-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@keyframes ob-suggest-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(105, 106, 143, 0.45); }
+  70%  { box-shadow: 0 0 0 12px rgba(105, 106, 143, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(105, 106, 143, 0); }
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 1080px) {
+  .ob-body { grid-template-columns: minmax(0, 1fr); }
+
+  /* The aside becomes a bottom dock so the basket stays reachable without
+     eating a third of a narrow viewport. */
+  .ob-basket { display: none; }
+
+  .ob-dock {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    background: var(--ob-surface);
+    border-top: 1px solid var(--ob-border);
+    box-shadow: 0 -6px 22px rgba(51, 55, 61, 0.12);
+    padding: var(--ob-sp-2) var(--ob-sp-3);
+    padding-bottom: calc(var(--ob-sp-2) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .ob-dock-row { display: flex; align-items: center; gap: var(--ob-sp-3); max-width: 700px; margin: 0 auto; }
+  .ob-dock-text { flex: 1; min-width: 0; }
+  .ob-dock-text b { display: block; font-family: var(--ob-font-label); font-size: 0.92rem; }
+  .ob-dock-text span { font-size: 0.74rem; color: var(--ob-text-mute); }
+  .ob-dock .ob-cta { width: auto; padding-inline: var(--ob-sp-4); flex: none; }
+
+  /* Clear the dock so the last row of cards is never trapped underneath it */
+  .ob-page { padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+
+  .ob-section-blurb { display: none; }
+
+  /* The assistant launcher is fixed at bottom-right of the viewport and would
+     sit squarely on top of the dock's Review button. Lift it clear while this
+     page is mounted — OrderBoutique toggles `ob-has-dock` on <body>, so the
+     override is scoped to this page even though the stylesheet stays loaded
+     after navigating away. */
+  body.ob-has-dock .gcb-bubble {
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.ob-has-dock .gcb-panel {
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(100vh - 116px - env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 720px) {
+  .ob-detail { grid-template-columns: 1fr; }
+  .ob-detail-media { aspect-ratio: 16 / 10; }
+  .ob-form-grid { grid-template-columns: 1fr; }
+  .ob-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .ob-hero-steps { gap: var(--ob-sp-2); }
+  .ob-overlay { padding: 0; align-items: flex-end; }
+  .ob-modal { max-width: 100%; max-height: 92vh; border-radius: calc(18px * var(--ob-s)) calc(18px * var(--ob-s)) 0 0; }
+}
+
+@media (max-width: 420px) {
+  .ob-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .ob-card-foot { flex-direction: column; align-items: stretch; gap: var(--ob-sp-1); }
+  .ob-add { width: 100%; }
+}
+
+/* Comfortable hit areas on touch devices, where hover cannot help */
+@media (hover: none) and (pointer: coarse) {
+  .ob-add, .ob-chip, .ob-basket-remove { min-height: 44px; }
+  .ob-basket-remove { width: 44px; height: 44px; }
+  .ob-card:hover { transform: none; }
+  .ob-card:hover .ob-card-media img { transform: none; }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────
+   Every animated element resolves to its final, readable state rather than
+   simply animating faster. */
+@media (prefers-reduced-motion: reduce) {
+  .ob-page *,
+  .ob-overlay,
+  .ob-modal {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .ob-reveal { opacity: 1; transform: none; }
+  .ob-card:hover { transform: none; }
+  .ob-card:hover .ob-card-media img { transform: none; }
+  .ob-modal-close:hover { transform: none; }
+  .ob-skeleton-media, .ob-skeleton-line { animation: none; background: #f0efe6; }
+}

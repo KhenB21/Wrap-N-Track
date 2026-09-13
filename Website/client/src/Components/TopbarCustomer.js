@@ -4,7 +4,7 @@ import './TopbarCustomer.css';
 import { useAuth } from '../Context/AuthContext';
 import { useAuthModal } from '../Context/AuthModalContext';
 import { useCart } from '../Context/CartContext';
-import ZapierChatbotEmbed from './ZapierChatbotEmbed';
+import GeminiChatbotWidget from './GeminiChatbotWidget';
 
 const navLinks = [
   { label: 'HOME', path: '/customer-home' },
@@ -273,7 +273,7 @@ export default function TopbarCustomer() {
           )}
         </div>
       </nav>
-      <ZapierChatbotEmbed chatbotId="cmsw6ivzl00437q29npj4ylh3" isPopup />
+      <GeminiChatbotWidget />
     </header>
   );
 }

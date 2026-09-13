@@ -120,7 +120,8 @@ router.get('/orders', async (req, res) => {
             'name', i.name,
             'quantity', op.quantity,
             'unit_price', i.unit_price,
-            'has_image', i.image_data IS NOT NULL
+            'has_image', i.image_data IS NOT NULL,
+              'image_version', i.updated_at
           )
         ) AS products
         FROM order_products op
@@ -179,7 +180,8 @@ router.get('/orders', async (req, res) => {
               'name', i.name,
               'quantity', ohp.quantity,
               'unit_price', ohp.unit_price,
-              'has_image', i.image_data IS NOT NULL
+              'has_image', i.image_data IS NOT NULL,
+              'image_version', i.updated_at
             )
           ) FILTER (WHERE ohp.sku IS NOT NULL),
           '[]'::json
@@ -845,7 +847,8 @@ async function getAllOrdersForEmployee(req, res) {
             'name', i.name,
             'quantity', op.quantity,
             'unit_price', i.unit_price,
-            'has_image', i.image_data IS NOT NULL
+            'has_image', i.image_data IS NOT NULL,
+              'image_version', i.updated_at
           )
         ) AS products
         FROM order_products op
@@ -884,7 +887,8 @@ async function getAllOrdersForEmployee(req, res) {
               'name', i.name,
               'quantity', ohp.quantity,
               'unit_price', ohp.unit_price,
-              'has_image', i.image_data IS NOT NULL
+              'has_image', i.image_data IS NOT NULL,
+              'image_version', i.updated_at
             )
           ) FILTER (WHERE ohp.sku IS NOT NULL),
           '[]'::json

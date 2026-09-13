@@ -1,0 +1,389 @@
+/* Gemini customer assistant — floating bubble + chat panel.
+   Palette and fonts mirror the customer POV (CustomerPOV.css) so the widget
+   reads as part of the site rather than a third-party embed. */
+
+.gcb-root {
+  --gcb-brand: #4a4a6a;
+  --gcb-brand-dark: #3a3a5a;
+  --gcb-accent: #696a8f;
+  --gcb-ink: #2c3e50;
+  --gcb-muted: #6c757d;
+  --gcb-line: #e2e8f0;
+  --gcb-surface: #ffffff;
+  --gcb-surface-alt: #f8f9fa;
+}
+
+/* CustomerPOV.css sets `* { font-family: Cinder; }` globally. A universal
+   selector has zero specificity but it still matches our descendants directly,
+   which beats anything they would otherwise inherit from .gcb-root. Scoping the
+   reset to `.gcb-root *` (specificity 0,1,0) reclaims them, and the headings
+   below are scoped one level deeper so they win in turn regardless of the order
+   the stylesheets happen to load in. */
+.gcb-root,
+.gcb-root * {
+  font-family: 'Karla', sans-serif;
+}
+
+.gcb-root .gcb-header-title,
+.gcb-root .gcb-card-title,
+.gcb-root .gcb-gate-title {
+  font-family: 'Cormorant Garamond', serif;
+}
+
+.gcb-root .gcb-card-tag,
+.gcb-root .gcb-card-cta,
+.gcb-root .gcb-gate-btn {
+  font-family: 'Red Hat Display', sans-serif;
+}
+
+/* ─── Launcher bubble ──────────────────────────────────────────────────────── */
+.gcb-bubble {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9998;
+  width: 58px;
+  height: 58px;
+  border: none;
+  border-radius: 50%;
+  background: var(--gcb-brand);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 20px rgba(74, 74, 106, 0.35);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+.gcb-bubble:hover { background: var(--gcb-brand-dark); transform: translateY(-2px); }
+.gcb-bubble:focus-visible { outline: 3px solid var(--gcb-accent); outline-offset: 3px; }
+.gcb-bubble svg { width: 26px; height: 26px; }
+
+/* ─── Panel ────────────────────────────────────────────────────────────────── */
+.gcb-panel {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9999;
+  width: 384px;
+  max-width: calc(100vw - 32px);
+  height: 580px;
+  max-height: calc(100vh - 48px);
+  background: var(--gcb-surface);
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(28, 28, 45, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: gcb-rise 0.22s ease-out;
+}
+
+@keyframes gcb-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gcb-panel { animation: none; }
+  .gcb-bubble { transition: none; }
+}
+
+.gcb-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--gcb-brand);
+  color: #fff;
+  flex-shrink: 0;
+}
+.gcb-header-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0;
+}
+.gcb-header-sub {
+  font-size: 0.72rem;
+  opacity: 0.82;
+  margin: 2px 0 0;
+  letter-spacing: 0.02em;
+}
+.gcb-header-text { flex: 1; min-width: 0; }
+.gcb-close {
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  line-height: 0;
+}
+.gcb-close:hover { background: rgba(255, 255, 255, 0.16); }
+
+/* ─── Messages ─────────────────────────────────────────────────────────────── */
+.gcb-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--gcb-surface-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gcb-msg { max-width: 86%; display: flex; flex-direction: column; gap: 8px; }
+.gcb-msg-user { align-self: flex-end; align-items: flex-end; }
+.gcb-msg-bot  { align-self: flex-start; }
+
+.gcb-bubble-text {
+  padding: 10px 13px;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.gcb-msg-user .gcb-bubble-text {
+  background: var(--gcb-brand);
+  color: #fff;
+  border-bottom-right-radius: 3px;
+}
+.gcb-msg-bot .gcb-bubble-text {
+  background: var(--gcb-surface);
+  color: var(--gcb-ink);
+  border: 1px solid var(--gcb-line);
+  border-bottom-left-radius: 3px;
+}
+.gcb-msg-error .gcb-bubble-text {
+  background: #fdf2f2;
+  border-color: #f0c9c9;
+  color: #9b3b38;
+}
+
+/* ─── Recommendation cards ─────────────────────────────────────────────────── */
+.gcb-cards { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+
+.gcb-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--gcb-surface);
+  border: 1px solid var(--gcb-line);
+  border-radius: 10px;
+  padding: 11px 13px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  font-family: inherit;
+}
+.gcb-card:hover {
+  border-color: var(--gcb-accent);
+  box-shadow: 0 4px 14px rgba(74, 74, 106, 0.14);
+  transform: translateY(-1px);
+}
+.gcb-card:focus-visible { outline: 2px solid var(--gcb-accent); outline-offset: 2px; }
+
+.gcb-card-tag {
+  display: inline-block;
+  font-family: 'Red Hat Display', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 3px;
+  margin-bottom: 6px;
+}
+.gcb-tag-bundle  { background: #ece9f5; color: #5a4b8a; }
+.gcb-tag-product { background: #eef2f6; color: #4a6180; }
+
+.gcb-card-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--gcb-ink);
+  margin: 0 0 3px;
+  line-height: 1.25;
+}
+.gcb-card-meta {
+  font-size: 0.75rem;
+  color: var(--gcb-muted);
+  margin: 0 0 5px;
+}
+.gcb-card-price { font-weight: 700; color: var(--gcb-brand); }
+.gcb-card-reason {
+  font-size: 0.78rem;
+  color: #555;
+  line-height: 1.45;
+  margin: 0;
+  font-style: italic;
+}
+.gcb-card-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-family: 'Red Hat Display', sans-serif;
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--gcb-brand);
+}
+
+/* ─── Suggested replies ────────────────────────────────────────────────────── */
+.gcb-suggestions { display: flex; flex-wrap: wrap; gap: 6px; }
+.gcb-chip {
+  background: var(--gcb-surface);
+  border: 1px solid var(--gcb-accent);
+  color: var(--gcb-accent);
+  border-radius: 14px;
+  padding: 6px 12px;
+  font-size: 0.76rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.gcb-chip:hover { background: var(--gcb-accent); color: #fff; }
+.gcb-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ─── Sign-up gate ─────────────────────────────────────────────────────────── */
+.gcb-gate {
+  background: var(--gcb-surface);
+  border: 1px solid var(--gcb-line);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+}
+.gcb-gate-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.05rem;
+  color: var(--gcb-ink);
+  margin: 0 0 5px;
+}
+.gcb-gate-text {
+  font-size: 0.8rem;
+  color: var(--gcb-muted);
+  line-height: 1.45;
+  margin: 0 0 12px;
+}
+.gcb-gate-actions { display: flex; gap: 8px; }
+.gcb-gate-btn {
+  flex: 1;
+  padding: 9px 10px;
+  border-radius: 5px;
+  font-family: 'Red Hat Display', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--gcb-brand);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.gcb-gate-primary { background: var(--gcb-brand); color: #fff; }
+.gcb-gate-primary:hover { background: var(--gcb-brand-dark); }
+.gcb-gate-secondary { background: transparent; color: var(--gcb-brand); }
+.gcb-gate-secondary:hover { background: #eeeef4; }
+
+/* ─── Typing indicator ─────────────────────────────────────────────────────── */
+.gcb-typing { display: flex; gap: 4px; padding: 13px; }
+.gcb-typing span {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--gcb-accent);
+  animation: gcb-blink 1.2s infinite ease-in-out;
+}
+.gcb-typing span:nth-child(2) { animation-delay: 0.18s; }
+.gcb-typing span:nth-child(3) { animation-delay: 0.36s; }
+@keyframes gcb-blink {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40%           { opacity: 1;    transform: translateY(-3px); }
+}
+
+/* ─── Composer ─────────────────────────────────────────────────────────────── */
+.gcb-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 11px 12px;
+  border-top: 1px solid var(--gcb-line);
+  background: var(--gcb-surface);
+  flex-shrink: 0;
+}
+.gcb-input {
+  flex: 1;
+  resize: none;
+  border: 1px solid var(--gcb-line);
+  border-radius: 9px;
+  padding: 9px 11px;
+  font-family: inherit;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  max-height: 92px;
+  color: var(--gcb-ink);
+}
+.gcb-input:focus { outline: none; border-color: var(--gcb-accent); }
+.gcb-input:disabled { background: var(--gcb-surface-alt); cursor: not-allowed; }
+
+.gcb-send {
+  width: 38px; height: 38px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 9px;
+  background: var(--gcb-brand);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gcb-send:hover:not(:disabled) { background: var(--gcb-brand-dark); }
+.gcb-send:disabled { opacity: 0.45; cursor: not-allowed; }
+.gcb-send svg { width: 17px; height: 17px; }
+
+.gcb-guest-note {
+  font-size: 0.68rem;
+  color: var(--gcb-muted);
+  text-align: center;
+  padding: 0 12px 8px;
+  background: var(--gcb-surface);
+}
+
+/* ─── Small screens ────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .gcb-panel {
+    right: 0; bottom: 0;
+    width: 100vw; height: 100dvh;
+    max-width: 100vw; max-height: 100dvh;
+    border-radius: 0;
+  }
+  .gcb-bubble { right: 16px; bottom: 16px; }
+}
+
+/* ─── "Add all to basket" ──────────────────────────────────────────────────
+   Shown under the cards when a reply suggests more than one loose product.
+   Filled rather than outlined so it reads as the primary action of the set,
+   distinct from the individual cards above it. */
+.gcb-add-all {
+  width: 100%;
+  margin-top: 2px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--gcb-brand);
+  color: #fff;
+  font-family: 'Red Hat Display', sans-serif;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.12s ease;
+}
+
+.gcb-add-all:hover { background: var(--gcb-brand-dark); }
+.gcb-add-all:active { transform: scale(0.98); }
+.gcb-add-all:focus-visible { outline: 3px solid var(--gcb-accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gcb-add-all { transition: none; }
+  .gcb-add-all:active { transform: none; }
+}

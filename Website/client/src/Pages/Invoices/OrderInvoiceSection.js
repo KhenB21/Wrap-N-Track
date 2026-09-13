@@ -80,14 +80,23 @@ export default function OrderInvoiceSection({ order, onInvoicesChange }) {
   const computedRemainingBalance = Math.max(0, Math.round((orderTotal - computedDownPayment) * 100) / 100);
   const canGenerateRemainingBalance = orderTotal > 0 && downPayment && downPayment.status === 'PAID';
 
+  // The endpoint returns a server-computed payment_summary alongside the
+  // invoices. It used to be dropped on the floor here, which left the order
+  // screen with no choice but to re-derive "is this paid?" from raw invoice
+  // rows. Passing it up means the UI gate and the server gate
+  // (services/orderPayments.js) read the same number.
+  const [paymentSummary, setPaymentSummary] = useState(null);
+
   const fetchInvoices = useCallback(async () => {
     if (!orderId) return;
     try {
       const response = await api.get(`/api/orders/${encodeURIComponent(orderId)}/invoices`);
       setInvoices(response.data?.invoices || []);
+      setPaymentSummary(response.data?.payment_summary || null);
     } catch (error) {
       console.error('Failed to fetch order invoices:', error);
       setInvoices([]);
+      setPaymentSummary(null);
     }
   }, [orderId]);
 
@@ -96,8 +105,8 @@ export default function OrderInvoiceSection({ order, onInvoicesChange }) {
   }, [fetchInvoices]);
 
   useEffect(() => {
-    if (onInvoicesChange) onInvoicesChange(invoices);
-  }, [invoices, onInvoicesChange]);
+    if (onInvoicesChange) onInvoicesChange(invoices, paymentSummary);
+  }, [invoices, paymentSummary, onInvoicesChange]);
 
   const generateDownPayment = async () => {
     if (!orderTotal || orderTotal <= 0) {

@@ -1,0 +1,683 @@
+/* ===========================================================================
+   Customer order tracker (/customer-cart)
+   ---------------------------------------------------------------------------
+   A collapsed card is a glance: what was ordered, how far along it is, when it
+   arrives. Opening one reveals the full journey — a horizontal stepper with a
+   completion percentage and the days remaining.
+
+   Deliberately no order ID anywhere. A customer cannot recognise
+   "SEED-20260819-02459"; they recognise what they bought and when it is due.
+   =========================================================================== */
+
+.ot-page {
+  --ot-accent: #6a698f;
+  --ot-accent-soft: #8c8ba8;
+  --ot-accent-wash: #eeedf4;
+  --ot-cream: #f1f0e2;
+  --ot-cream-soft: #f9f8ef;
+  --ot-text: #33373d;
+  --ot-text-soft: #5c6066;
+  --ot-text-mute: #7c8087;
+  --ot-border: #e4e2d6;
+  --ot-border-soft: #efeee4;
+  --ot-surface: #ffffff;
+
+  /* The step rail and the progress bar share one hue so "how far along" reads
+     the same in both places. */
+  --ot-live: #d9644a;
+  --ot-live-wash: #fdeee9;
+  --ot-done: #5b8266;
+  --ot-warn: #b0413e;
+
+  --ot-font-head: 'Cormorant Garamond', Georgia, serif;
+  --ot-font-body: 'Karla', system-ui, -apple-system, sans-serif;
+  --ot-font-label: 'Red Hat Display', 'Karla', system-ui, sans-serif;
+
+  --ot-radius: 16px;
+  --ot-radius-sm: 9px;
+  --ot-shadow-sm: 0 2px 10px rgba(51, 55, 61, 0.05);
+  --ot-shadow-md: 0 10px 28px rgba(51, 55, 61, 0.1);
+
+  background: var(--ot-cream-soft);
+  min-height: 100vh;
+  color: var(--ot-text);
+  padding-bottom: 64px;
+}
+
+/* CustomerPOV.css sets `* { font-family: Cinder }` globally; a bare universal
+   selector still beats inheritance, so the families are re-asserted here. */
+.ot-page, .ot-page * { font-family: var(--ot-font-body); }
+
+.ot-page h1, .ot-page .ot-card-title, .ot-page .ot-detail-title, .ot-page .ot-empty h2 {
+  font-family: var(--ot-font-head);
+}
+
+.ot-page .ot-chip, .ot-page .ot-pct, .ot-page .ot-eyebrow,
+.ot-page .ot-btn, .ot-page .ot-step-label, .ot-page .ot-meta-value {
+  font-family: var(--ot-font-label);
+}
+
+.ot-page :where(button, a, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--ot-accent);
+  outline-offset: 2px;
+  border-radius: var(--ot-radius-sm);
+}
+
+/* ── Header ────────────────────────────────────────────────────────────── */
+.ot-header {
+  background: var(--ot-cream);
+  border-bottom: 1px solid var(--ot-border);
+  padding: 40px 24px 32px;
+  text-align: center;
+}
+
+.ot-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ot-accent);
+  margin: 0 0 8px;
+}
+
+.ot-header h1 {
+  font-size: clamp(1.9rem, 4vw, 2.5rem);
+  font-weight: 400;
+  margin: 0 0 8px;
+  letter-spacing: 0.01em;
+}
+
+.ot-header p { margin: 0; color: var(--ot-text-soft); font-size: 0.94rem; }
+
+.ot-shell { max-width: 880px; margin: 0 auto; padding: 26px 20px 0; }
+
+/* ── Toolbar ───────────────────────────────────────────────────────────── */
+.ot-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.ot-count { font-size: 0.86rem; color: var(--ot-text-soft); margin: 0; }
+.ot-count strong { color: var(--ot-text); }
+
+.ot-toolbar-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+.ot-select {
+  border: 1px solid var(--ot-border);
+  background: var(--ot-surface);
+  color: var(--ot-text);
+  border-radius: var(--ot-radius-sm);
+  padding: 8px 12px;
+  font-size: 0.84rem;
+  min-height: 38px;
+  cursor: pointer;
+}
+
+.ot-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ot-border);
+  background: var(--ot-surface);
+  color: var(--ot-text-soft);
+  border-radius: var(--ot-radius-sm);
+  padding: 8px 14px;
+  min-height: 38px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.ot-btn:hover { background: var(--ot-cream); color: var(--ot-text); }
+.ot-btn svg { width: 14px; height: 14px; }
+
+.ot-btn-primary {
+  background: var(--ot-accent);
+  border-color: var(--ot-accent);
+  color: #fff;
+}
+
+.ot-btn-primary:hover { background: #585879; color: #fff; }
+
+/* ── Order card ────────────────────────────────────────────────────────── */
+.ot-card {
+  background: var(--ot-surface);
+  border: 1px solid var(--ot-border);
+  border-radius: var(--ot-radius);
+  box-shadow: var(--ot-shadow-sm);
+  margin-bottom: 14px;
+  overflow: hidden;
+  transition: box-shadow 0.24s ease, border-color 0.24s ease;
+}
+
+.ot-card.is-open { box-shadow: var(--ot-shadow-md); border-color: var(--ot-accent-soft); }
+
+/* The collapsed row: the whole thing is the toggle */
+.ot-summary {
+  display: grid;
+  /* thumbs · title · status chip · progress · caret — five children, so five
+     tracks. With four, the caret wrapped onto a second row. */
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 16px 18px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.ot-summary:hover { background: var(--ot-cream-soft); }
+
+/* Overlapping item thumbnails — the fastest way to recognise an order */
+.ot-thumbs { display: flex; flex: none; }
+
+.ot-thumb {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 2px solid var(--ot-surface);
+  background: var(--ot-cream);
+  object-fit: cover;
+  display: block;
+  overflow: hidden;
+}
+
+.ot-thumb + .ot-thumb { margin-left: -12px; }
+
+.ot-thumb-more {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 2px solid var(--ot-surface);
+  background: var(--ot-accent-wash);
+  color: var(--ot-accent);
+  display: grid;
+  place-items: center;
+  font-family: var(--ot-font-label);
+  font-size: 0.76rem;
+  font-weight: 700;
+  margin-left: -12px;
+  flex: none;
+}
+
+.ot-summary-main { min-width: 0; }
+
+.ot-card-title {
+  font-size: 1.12rem;
+  font-weight: 600;
+  margin: 0 0 3px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ot-card-sub {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ot-text-mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Compact progress read-out in the collapsed row */
+.ot-mini { flex: none; width: 116px; }
+
+.ot-mini-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.ot-mini-pct { font-family: var(--ot-font-label); font-size: 0.82rem; font-weight: 700; }
+.ot-mini-eta { font-size: 0.68rem; color: var(--ot-text-mute); white-space: nowrap; }
+
+.ot-bar {
+  /* A <span>, so it must be told to be a block — inline elements ignore
+     height, which left the track invisible everywhere it was used. */
+  display: block;
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--ot-border-soft);
+  overflow: hidden;
+}
+
+.ot-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ot-live);
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ot-bar.is-done span { background: var(--ot-done); }
+
+.ot-caret {
+  flex: none;
+  color: var(--ot-text-mute);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  transition: transform 0.26s ease;
+}
+
+.ot-caret svg { width: 16px; height: 16px; }
+.ot-card.is-open .ot-caret { transform: rotate(180deg); }
+
+/* ── Status chip ───────────────────────────────────────────────────────── */
+.ot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: var(--ot-accent-wash);
+  color: var(--ot-accent);
+}
+
+.ot-chip-live   { background: var(--ot-live-wash); color: #a8452a; }
+.ot-chip-done   { background: #e8f0ea; color: #3f6349; }
+.ot-chip-cancel { background: #fbeceb; color: var(--ot-warn); }
+
+/* ── Expanded detail ───────────────────────────────────────────────────── */
+.ot-detail {
+  border-top: 1px solid var(--ot-border-soft);
+  padding: 22px 20px 24px;
+  animation: ot-open 0.3s ease;
+}
+
+/* Inspiration row: title + completion + expected date */
+.ot-detail-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(140px, 1fr) auto;
+  gap: 22px;
+  align-items: start;
+  padding-bottom: 22px;
+}
+
+.ot-detail-title { font-size: 1.4rem; font-weight: 600; margin: 0 0 6px; }
+
+.ot-detail-meta { display: flex; flex-direction: column; gap: 2px; }
+
+.ot-detail-meta span {
+  font-size: 0.78rem;
+  color: var(--ot-text-mute);
+}
+
+.ot-detail-meta span b { color: var(--ot-text-soft); font-weight: 600; }
+
+.ot-block-label {
+  font-family: var(--ot-font-label);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ot-text-mute);
+  margin: 0 0 6px;
+}
+
+.ot-pct { font-size: 1.85rem; font-weight: 700; line-height: 1; margin: 0 0 9px; }
+
+.ot-eta-value {
+  font-family: var(--ot-font-label);
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 2px;
+  white-space: nowrap;
+}
+
+.ot-eta-sub { font-size: 0.76rem; color: var(--ot-text-mute); margin: 0; white-space: nowrap; }
+.ot-eta-sub.is-late { color: var(--ot-warn); font-weight: 700; }
+
+.ot-detail-right { text-align: right; }
+
+/* ── Stepper ───────────────────────────────────────────────────────────── */
+.ot-steps {
+  position: relative;
+  display: grid;
+  padding: 26px 0 4px;
+  border-top: 1px solid var(--ot-border-soft);
+}
+
+.ot-step {
+  position: relative;
+  text-align: center;
+  padding: 0 4px;
+}
+
+/* The rail is drawn per-step so a half-finished journey can colour exactly
+   the segments behind the current dot. */
+.ot-step::before {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: 0;
+  right: 50%;
+  height: 2px;
+  background: var(--ot-border);
+}
+
+.ot-step::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  right: 0;
+  height: 2px;
+  background: var(--ot-border);
+}
+
+.ot-step:first-child::before,
+.ot-step:last-child::after { display: none; }
+
+.ot-step.is-done::before,
+.ot-step.is-done::after,
+.ot-step.is-current::before { background: var(--ot-live); }
+
+.ot-dot {
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  background: var(--ot-surface);
+  border: 2px solid var(--ot-border);
+  display: grid;
+  place-items: center;
+  color: transparent;
+}
+
+.ot-dot svg { width: 10px; height: 10px; }
+
+.ot-step.is-done .ot-dot {
+  background: var(--ot-live);
+  border-color: var(--ot-live);
+  color: #fff;
+}
+
+/* The live step is a ring, so "where we are now" differs from "what is done"
+   by shape as well as colour. */
+.ot-step.is-current .ot-dot {
+  border-color: var(--ot-live);
+  border-width: 3px;
+  background: var(--ot-surface);
+  box-shadow: 0 0 0 4px var(--ot-live-wash);
+}
+
+.ot-step-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ot-text-mute);
+  line-height: 1.3;
+  display: block;
+}
+
+.ot-step.is-done .ot-step-label { color: var(--ot-text-soft); }
+.ot-step.is-current .ot-step-label { color: var(--ot-text); }
+
+.ot-step-date {
+  display: block;
+  font-size: 0.64rem;
+  color: var(--ot-text-mute);
+  margin-top: 2px;
+}
+
+/* ── Detail sections ───────────────────────────────────────────────────── */
+.ot-section { margin-top: 24px; }
+
+.ot-section > h4 {
+  font-family: var(--ot-font-label);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ot-text-mute);
+  margin: 0 0 11px;
+  font-weight: 700;
+}
+
+.ot-items { display: flex; flex-direction: column; gap: 8px; }
+
+.ot-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--ot-cream-soft);
+  border: 1px solid var(--ot-border-soft);
+  border-radius: var(--ot-radius-sm);
+  padding: 9px 12px;
+}
+
+.ot-item-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--ot-cream);
+  flex: none;
+  overflow: hidden;
+}
+
+.ot-item-name { flex: 1; min-width: 0; font-size: 0.88rem; font-weight: 600; }
+
+.ot-item-qty {
+  font-family: var(--ot-font-label);
+  font-size: 0.78rem;
+  color: var(--ot-text-soft);
+  white-space: nowrap;
+}
+
+/* Payment / delivery facts */
+.ot-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--ot-border-soft);
+  border: 1px solid var(--ot-border-soft);
+  border-radius: var(--ot-radius-sm);
+  overflow: hidden;
+}
+
+.ot-fact { background: var(--ot-surface); padding: 11px 13px; }
+
+.ot-fact dt {
+  font-size: 0.7rem;
+  color: var(--ot-text-mute);
+  margin: 0 0 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ot-meta-value { font-size: 0.94rem; font-weight: 700; margin: 0; color: var(--ot-text); }
+.ot-meta-value.is-due { color: var(--ot-warn); }
+.ot-meta-value.is-clear { color: var(--ot-done); }
+
+.ot-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  background: var(--ot-accent-wash);
+  border: 1px solid var(--ot-accent-soft);
+  border-radius: var(--ot-radius-sm);
+  padding: 11px 13px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin-top: 12px;
+}
+
+.ot-note svg { width: 15px; height: 15px; flex: none; margin-top: 2px; color: var(--ot-accent); }
+
+.ot-track-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  background: var(--ot-accent);
+  color: #fff;
+  text-decoration: none;
+  border-radius: var(--ot-radius-sm);
+  padding: 10px 16px;
+  font-family: var(--ot-font-label);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.ot-track-link:hover { background: #585879; }
+
+.ot-proof img {
+  margin-top: 10px;
+  max-width: 240px;
+  width: 100%;
+  border-radius: var(--ot-radius-sm);
+  border: 1px solid var(--ot-border);
+  display: block;
+}
+
+/* Cancelled orders get a plain statement instead of a progress bar */
+.ot-cancelled {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fbeceb;
+  border: 1px solid #f1cfcd;
+  color: #8d3532;
+  border-radius: var(--ot-radius-sm);
+  padding: 13px 15px;
+  font-size: 0.86rem;
+}
+
+.ot-cancelled svg { width: 17px; height: 17px; flex: none; }
+
+/* ── Images ────────────────────────────────────────────────────────────── */
+.ot-img { width: 100%; height: 100%; display: block; position: relative; overflow: hidden; }
+.ot-img > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* No photo, or the request failed — drawn, never another round trip. */
+.ot-img-empty {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: repeating-linear-gradient(45deg, var(--ot-cream), var(--ot-cream) 6px, var(--ot-cream-soft) 6px, var(--ot-cream-soft) 12px);
+  color: var(--ot-text-mute);
+}
+
+.ot-img-empty svg { width: 40%; height: 40%; max-width: 18px; max-height: 18px; opacity: 0.6; }
+
+/* ── Empty + loading ───────────────────────────────────────────────────── */
+.ot-empty {
+  text-align: center;
+  padding: 60px 24px;
+  background: var(--ot-surface);
+  border: 1px solid var(--ot-border);
+  border-radius: var(--ot-radius);
+}
+
+.ot-empty svg { width: 40px; height: 40px; color: var(--ot-border); margin-bottom: 12px; }
+.ot-empty h2 { font-size: 1.5rem; font-weight: 500; margin: 0 0 8px; }
+.ot-empty p { margin: 0 auto 20px; max-width: 40ch; color: var(--ot-text-soft); font-size: 0.9rem; line-height: 1.6; }
+
+.ot-skeleton {
+  background: var(--ot-surface);
+  border: 1px solid var(--ot-border);
+  border-radius: var(--ot-radius);
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ot-sk {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0efe6 25%, #f7f6ef 50%, #f0efe6 75%);
+  background-size: 200% 100%;
+  animation: ot-shimmer 1.4s ease-in-out infinite;
+}
+
+.ot-sk-thumb { width: 42px; height: 42px; border-radius: 10px; flex: none; }
+.ot-sk-lines { flex: 1; }
+.ot-sk-line { height: 12px; width: 55%; }
+.ot-sk-line + .ot-sk-line { margin-top: 7px; width: 35%; height: 10px; }
+.ot-sk-bar { width: 116px; height: 20px; flex: none; }
+
+.ot-error {
+  background: #fbeceb;
+  border: 1px solid #f1cfcd;
+  color: #8d3532;
+  border-radius: var(--ot-radius-sm);
+  padding: 12px 14px;
+  font-size: 0.86rem;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ot-error button { margin-left: auto; }
+
+@keyframes ot-open {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes ot-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .ot-summary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'thumbs main caret' 'mini mini mini';
+    row-gap: 12px;
+  }
+  .ot-thumbs { grid-area: thumbs; }
+  .ot-summary-main { grid-area: main; }
+  .ot-caret { grid-area: caret; }
+  .ot-chip { display: none; }          /* the stepper says it better inside */
+  .ot-mini { grid-area: mini; width: 100%; }
+
+  .ot-detail-head { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .ot-detail-right { text-align: left; }
+
+  /* A 5-step rail cannot stay legible at phone widths — stack it */
+  .ot-steps { grid-template-columns: minmax(0, 1fr) !important; padding-top: 18px; }
+  .ot-step { text-align: left; display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 12px; padding: 0 0 16px; }
+  .ot-step:last-child { padding-bottom: 0; }
+  .ot-dot { margin: 0; }
+  .ot-step::before { display: none; }
+  .ot-step::after {
+    top: 22px; bottom: -4px; left: 9px; right: auto;
+    width: 2px; height: auto;
+  }
+  .ot-step:last-child::after { display: none; }
+  .ot-step-label { text-align: left; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .ot-btn, .ot-select { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ot-detail { animation: none; }
+  .ot-sk { animation: none; background: #f0efe6; }
+  .ot-bar span, .ot-caret, .ot-card, .ot-btn { transition: none; }
+}

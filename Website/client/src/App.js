@@ -34,7 +34,7 @@ const UserManagement = lazy(() => import("./Pages/UserManagement/UserManagement"
 const AccountManagement = lazy(() => import("./Pages/AccountManagement/AccountManagement"));
 const Register = lazy(() => import("./Pages/Register/Register"));
 const OrderHistory = lazy(() => import("./Pages/OrderHistory/OrderHistory"));
-const OrderProcess = lazy(() => import("./Pages/CustomerPOV/OrderProcess"));
+const OrderBoutique = lazy(() => import("./Pages/CustomerPOV/OrderBoutique"));
 const CarloPreview = lazy(() => import("./Pages/CustomerPOV/CarloPreview"));
 const CustomerHome = lazy(() => import("./Pages/CustomerPOV/CustomerHome"));
 const CustomerPOV = lazy(() => import("./Pages/CustomerPOV/CustomerPOV"));
@@ -127,7 +127,7 @@ function App() {
         <Route path="/orders/:orderId" element={<OrderDetails />} />
         <Route path="/order-history" element={<OrderHistory />} />
         <Route path="/wedding" element={<CustomerPOV />} />
-        <Route path="/order" element={<OrderProcess />} />
+        <Route path="/order" element={<OrderBoutique />} />
         <Route path="/corporate" element={<CustomerCorporate />} />
 
         <Route path="/forgot-password" element={<ForgotPassword />} />

@@ -4,6 +4,8 @@ const pool = require('../config/db');
 const verifyJwt = require('../middleware/verifyJwt');
 const requireRole = require('../middleware/requireRole');
 const { initializeDeliveryForReadyOrder } = require('../services/deliveryService');
+const { applyStatusStockChange } = require('../services/orderStock');
+const { checkPaymentGate } = require('../services/orderPayments');
 
 // Apply authentication middleware to all routes
 router.use(verifyJwt());
@@ -158,28 +160,62 @@ router.put('/orders/:orderId/status', requireRole(['admin', 'super_admin', 'oper
     // automatically when going directly against the table).
     const oldStatus = orderResult.rows[0].status;
     if (oldStatus !== status) {
-      // $1 (assigned into the enum `status` column) and $4 (plain-text CASE
-      // comparisons) both hold the same `status` value — kept as separate
-      // parameters because Postgres won't reconcile a single placeholder used
-      // both as an enum value and under an explicit ::text cast in the same
-      // statement ("inconsistent types deduced for parameter $1").
-      await pool.query(
-        `UPDATE orders
-         SET status = $1,
-             status_updated_by = $2,
-             status_updated_at = CURRENT_TIMESTAMP,
-             order_placed_at = CASE WHEN $4 = 'Order Placed' THEN CURRENT_TIMESTAMP ELSE order_placed_at END,
-             order_paid_at = CASE WHEN $4 = 'Order Paid' THEN CURRENT_TIMESTAMP ELSE order_paid_at END,
-             order_shipped_at = CASE WHEN $4 = 'Order Shipped Out' THEN CURRENT_TIMESTAMP ELSE order_shipped_at END,
-             order_received_at = CASE WHEN $4 = 'Order Received' THEN CURRENT_TIMESTAMP ELSE order_received_at END
-         WHERE order_id = $3`,
-        [status, updatedBy, orderId, status]
-      );
-      await pool.query(
-        `INSERT INTO order_status_history (order_id, old_status, new_status, updated_by, notes)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [orderId, oldStatus, status, updatedBy, notes || null]
-      );
+      // The status write, its history row and the inventory movement it implies
+      // have to commit or fail together — this route previously ran on `pool`
+      // with no transaction AND never touched inventory at all, so advancing an
+      // order to To Be Packed from the Order Management dashboard or the mobile
+      // app left its products on the shelf indefinitely.
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // Same 70% down-payment rule the /orders board enforces.
+        // No client.release() here — the finally block below owns that.
+        const paymentBlock = await checkPaymentGate(orderId, oldStatus, status, client);
+        if (paymentBlock) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ success: false, message: paymentBlock });
+        }
+
+        // $1 (assigned into the enum `status` column) and $4 (plain-text CASE
+        // comparisons) both hold the same `status` value — kept as separate
+        // parameters because Postgres won't reconcile a single placeholder used
+        // both as an enum value and under an explicit ::text cast in the same
+        // statement ("inconsistent types deduced for parameter $1").
+        await client.query(
+          `UPDATE orders
+           SET status = $1,
+               status_updated_by = $2,
+               status_updated_at = CURRENT_TIMESTAMP,
+               order_placed_at = CASE WHEN $4 = 'Order Placed' THEN CURRENT_TIMESTAMP ELSE order_placed_at END,
+               order_paid_at = CASE WHEN $4 = 'Order Paid' THEN CURRENT_TIMESTAMP ELSE order_paid_at END,
+               order_shipped_at = CASE WHEN $4 = 'Order Shipped Out' THEN CURRENT_TIMESTAMP ELSE order_shipped_at END,
+               order_received_at = CASE WHEN $4 = 'Order Received' THEN CURRENT_TIMESTAMP ELSE order_received_at END
+           WHERE order_id = $3`,
+          [status, updatedBy, orderId, status]
+        );
+        await client.query(
+          `INSERT INTO order_status_history (order_id, old_status, new_status, updated_by, notes)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [orderId, oldStatus, status, updatedBy, notes || null]
+        );
+
+        // Deducts when crossing into a committed status, restores when crossing
+        // back out, does nothing otherwise.
+        await applyStatusStockChange(client, orderId, oldStatus, status);
+
+        await client.query('COMMIT');
+      } catch (stockError) {
+        await client.query('ROLLBACK');
+        // Insufficient stock and missing SKUs are the caller's problem to see,
+        // not a 500 — orderStock tags those with statusCode 400.
+        if (stockError.statusCode === 400) {
+          return res.status(400).json({ success: false, message: stockError.message });
+        }
+        throw stockError;
+      } finally {
+        client.release();
+      }
     }
 
     // Update payment method if provided

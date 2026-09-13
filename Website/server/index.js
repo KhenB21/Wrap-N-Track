@@ -82,6 +82,7 @@ const cartRouter = require('./routes/cart');
 const orderManagementRouter = require('./routes/order-management');
 const customerOrdersRouter = require('./routes/customer-orders');
 const showcaseRouter = require('./routes/showcase');
+const chatbotRouter = require('./routes/chatbot');
 const verifyJwt = require('./middleware/verifyJwt')();
 const requireRole = require('./middleware/requireRole');
 const requireReadOnly = require('./middleware/requireReadOnly');
@@ -471,6 +472,9 @@ app.use('/api/cart', cartRouter);
 app.use('/api/order-management', orderManagementRouter);
 app.use('/api/customer-orders', customerOrdersRouter);
 app.use('/api/showcase', showcaseRouter);
+// Customer assistant (Gemini). Auth is optional — guests get a limited number of
+// replies before the route asks them to sign in, so no verifyJwt here.
+app.use('/api/chatbot', chatbotRouter);
 
 // Add error handling middleware
 app.use((err, req, res, next) => {

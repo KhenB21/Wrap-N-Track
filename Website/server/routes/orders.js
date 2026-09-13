@@ -3,6 +3,13 @@ const express = require('express');
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
 const { initializeDeliveryForReadyOrder } = require('../services/deliveryService');
+const {
+  normalizeOrderStatus,
+  hasStockDeducted,
+  isCancellable,
+  restoreOrderStock,
+} = require('../services/orderStock');
+const { checkPaymentGate } = require('../services/orderPayments');
 // dotenv is loaded once at startup in index.js — no second call needed here.
 
 const router = express.Router();
@@ -505,9 +512,12 @@ router.put('/:order_id', async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
     const existingOrder = existingOrderResult.rows[0];
-    const normalize = (s) => (typeof s === 'string' ? s.toLowerCase().replace(/\s+/g, '').replace(/-/g, '') : '');
+    const normalize = normalizeOrderStatus;
     const currentNorm = normalize(existingOrder.status);
-    const statusHasDeducted = ['tobepack','readyfordeliver','readyfordelivery','enroute','completed'].includes(currentNorm);
+    // Was: a hand-written list that omitted 'tobepacked' — the very status the
+    // app sends — so orders confirmed into To Be Packed were never deducted.
+    // Now shared with the cancel path via services/orderStock.js.
+    const statusHasDeducted = hasStockDeducted(existingOrder.status);
 
     // Block To Be Packed -> Ready for Delivery until the Delivery Tracking
     // page has actually recorded how this order is shipping (mode, and for
@@ -535,6 +545,18 @@ router.put('/:order_id', async (req, res) => {
       }
     }
 
+    // Payment gate: the 70% down payment must be settled before an order is
+    // confirmed into production. Checked here, not just in the browser, because
+    // To Be Packed now commits real stock — and because the mobile app and the
+    // Order Management dashboard reach this same transition.
+    if (status) {
+      const paymentBlock = await checkPaymentGate(order_id, existingOrder.status, status, client);
+      if (paymentBlock) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: paymentBlock });
+      }
+    }
+
     // If we are replacing products, first restore inventory only if it was previously deducted
     const existingLinesResult = await client.query('SELECT line_id, sku, quantity FROM order_products WHERE order_id = $1', [order_id]);
     const existingLines = existingLinesResult.rows;
@@ -548,8 +570,12 @@ router.put('/:order_id', async (req, res) => {
       // Remove old lines before inserting new ones
       await client.query('DELETE FROM order_products WHERE order_id = $1', [order_id]);
       // Insert new lines & conditionally deduct inventory
-      const newStatusNorm = normalize(status);
-      const shouldDeductNow = statusHasDeducted || ['tobepack','readyfordeliver','readyfordelivery','enroute','completed'].includes(newStatusNorm);
+      // Deduct based on where the order ENDS UP, not where it came from.
+      // `statusHasDeducted || ...` looks equivalent but is not: on a
+      // To Be Packed -> Cancelled update carrying products it restored the
+      // lines above and then immediately re-deducted them, so a cancelled
+      // order kept holding its stock.
+      const shouldDeductNow = hasStockDeducted(status || existingOrder.status);
       for (const p of products) {
         // Validate sku exists
         const skuCheck = await client.query('SELECT unit_price FROM inventory_items WHERE sku = $1', [p.sku]);
@@ -573,8 +599,11 @@ router.put('/:order_id', async (req, res) => {
           }
         }
       }
-    } else if (status && normalize(status) === 'tobepack' && !statusHasDeducted) {
-      // Status-only move from Pending -> To Be Pack: deduct existing lines now
+    } else if (status && hasStockDeducted(status) && !statusHasDeducted) {
+      // Status-only move across the committed boundary (Pending -> To Be
+      // Packed, or straight to Ready for Delivery): deduct the existing lines.
+      // Was `normalize(status) === 'tobepack'`, which never matched the
+      // "To Be Packed" the app actually sends.
       for (const line of existingLines) {
         const invResult = await client.query('UPDATE inventory_items SET quantity = quantity - $1 WHERE sku = $2 RETURNING quantity', [line.quantity, line.sku]);
         if (invResult.rowCount === 0) {
@@ -586,6 +615,12 @@ router.put('/:order_id', async (req, res) => {
           return res.status(400).json({ error: `Insufficient stock for SKU ${line.sku}` });
         }
       }
+    } else if (status && statusHasDeducted && !hasStockDeducted(status)) {
+      // The mirror of the branch above, which was missing: a status-only move
+      // back across the boundary (To Be Packed -> Cancelled or -> Pending)
+      // must put the stock back, or it stays committed to an order that no
+      // longer holds it.
+      await restoreOrderStock(client, order_id, existingLines);
     }
 
     // Recalculate total cost from fresh lines
@@ -808,19 +843,24 @@ router.delete('/:order_id', async (req, res) => {
     }
 
     const currentStatus = orderStatusResult.rows[0].status;
-    const normalizeDBStatus = (status) => {
-      if (typeof status !== 'string') return '';
-      return status.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
-    };
-    const normalizedDBStatus = normalizeDBStatus(currentStatus);
 
-    if (normalizedDBStatus !== 'pending' && normalizedDBStatus !== 'orderplaced' && normalizedDBStatus !== 'tobepack' && normalizedDBStatus !== 'tobepacked') {
+    // Ready for Delivery is cancellable: the box is packed but has not left, so
+    // the stock can still go back on the shelf. En Route and beyond cannot —
+    // those goods are physically gone. See CANCELLABLE_STATUSES.
+    if (!isCancellable(currentStatus)) {
       await client.query('ROLLBACK');
-      return res.status(403).json({ success: false, message: 'Order cannot be cancelled. Only orders with status "Pending" or "To Be Pack" can be cancelled.' });
+      return res.status(403).json({
+        success: false,
+        message: `Order cannot be cancelled once it is "${currentStatus}". Cancellation is only possible up to Ready for Delivery.`
+      });
     }
 
-    // If order was already deducted ('To Be Pack' and beyond), restock. If still 'Pending', skip restock.
-    const wasDeducted = ['tobepack','tobepacked','readyfordeliver','readyfordelivery','enroute','completed'].includes(normalizedDBStatus);
+    // Restock only if the stock was actually taken off the shelf. This is the
+    // SAME predicate the deduct path uses (services/orderStock.js), which is
+    // the whole point: the old code restocked "To Be Packed" orders whose
+    // deduction had silently been skipped, inflating inventory on every
+    // cancellation.
+    const wasDeducted = hasStockDeducted(currentStatus);
     if (wasDeducted) {
       console.log(`[CancelOrder-${order_id}] Order was deducted (status=${currentStatus}). Restocking inventory before cancelling.`);
       // Fetch products for the order

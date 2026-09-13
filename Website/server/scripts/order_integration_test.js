@@ -45,7 +45,7 @@ async function run(){
 
   // 2. Update order: modify quantities and add another duplicate line
   const updatePayload = {
-    status:'To Be Pack',
+    status:'To Be Packed',
     remarks:'After update',
     products:[
       { sku:'SKU123', quantity:1, profit_margin:0.12 },
