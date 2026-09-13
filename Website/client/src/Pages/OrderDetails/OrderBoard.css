@@ -1,0 +1,459 @@
+/* ===========================================================================
+   Order board (/orders)
+   ---------------------------------------------------------------------------
+   Colours come from the App.css token set, which is redefined under
+   `body.dark` — so every value here is a var() and the board follows the app's
+   theme without a second set of rules.
+
+   Urgency is expressed twice, never by colour alone: each card carries a text
+   chip ("Due today", "3 days late") alongside its accent, so the board still
+   reads correctly in greyscale or with a colour-vision deficiency.
+   =========================================================================== */
+
+.odb-toolbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px 12px;
+}
+
+.odb-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.odb-toolbar-note {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+.odb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 9px 16px;
+  min-height: 38px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease,
+    transform 0.12s ease, box-shadow 0.18s ease;
+}
+
+.odb-btn svg { width: 15px; height: 15px; }
+
+.odb-btn-primary {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.odb-btn-primary:hover { background: var(--brand-dark); }
+.odb-btn-primary:active { transform: scale(0.98); }
+
+.odb-btn-ghost {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-soft);
+}
+
+.odb-btn-ghost:hover { background: var(--hover); color: var(--text); border-color: var(--border-strong); }
+
+.odb-sort { margin-left: auto; }
+
+.odb-toolbar :focus-visible,
+.odb-columns :focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* ── Delivery-window filter ────────────────────────────────────────────── */
+.odb-filters {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  flex-wrap: wrap;
+}
+
+.odb-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 12px;
+  min-height: 32px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.odb-filter:hover { background: var(--hover); color: var(--text); }
+
+.odb-filter.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.odb-filter-count {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 1px 7px;
+  min-width: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.odb-filter.is-active .odb-filter-count { background: var(--brand-soft); color: var(--brand-deep); }
+
+/* An overdue count is the one thing on this bar worth colouring unprompted */
+.odb-filter.is-alert { color: var(--danger); }
+.odb-filter.is-alert .odb-filter-count { background: var(--danger); color: #fff; }
+
+.odb-alert-link {
+  border: none;
+  background: none;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.odb-alert-link:hover { background: var(--hover); }
+
+/* ── Columns ───────────────────────────────────────────────────────────── */
+.odb-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  padding: 18px 24px 24px;
+  background: var(--app-bg);
+  align-items: start;
+}
+
+.odb-column {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  /* Long columns scroll on their own rather than stretching the page, so all
+     three headers stay side by side and comparable. */
+  max-height: calc(100vh - 250px);
+}
+
+.odb-column-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.odb-column-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.odb-tone-pending { background: var(--warning); }
+.odb-tone-packing { background: var(--brand); }
+.odb-tone-ready   { background: var(--success); }
+
+.odb-column-title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+
+.odb-column-count {
+  margin-left: auto;
+  background: var(--surface-muted);
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 9px;
+  min-width: 24px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.odb-column-next {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  border-radius: 7px;
+  padding: 6px 9px;
+  line-height: 1.35;
+}
+
+.odb-column-next strong { color: var(--text-soft); font-weight: 700; }
+
+/* The header summary inherits the urgency of the soonest card beneath it */
+.odb-column-next.odb-u-overdue,
+.odb-column-next.odb-u-today {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.odb-column-next.odb-u-overdue strong,
+.odb-column-next.odb-u-today strong { color: var(--danger); }
+
+.odb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 12px;
+  overflow-y: auto;
+  padding-right: 2px;
+  flex: 1;
+}
+
+/* ── Card ──────────────────────────────────────────────────────────────── */
+.odb-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 12px 13px 11px 16px;
+  cursor: pointer;
+  overflow: hidden;
+  /* The list is a height-bounded flex column, so cards would otherwise shrink
+     below their content (flex-shrink defaults to 1) and the clipped footer —
+     the delivery date and total — would simply vanish. Keep their natural
+     height and let the list scroll instead. */
+  flex: none;
+  text-align: left;
+  display: block;
+  width: 100%;
+  transition: border-color 0.18s ease, box-shadow 0.2s ease, transform 0.18s ease;
+  animation: odb-in 0.26s ease both;
+}
+
+/* Urgency stripe down the leading edge */
+.odb-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--odb-accent, var(--border-strong));
+}
+
+.odb-card:hover {
+  border-color: var(--brand);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.odb-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 9px;
+}
+
+.odb-card-name {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.odb-card-id {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.odb-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--border);
+}
+
+.odb-card-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.odb-card-date svg { width: 13px; height: 13px; flex: none; color: var(--odb-accent, var(--text-muted)); }
+
+.odb-card-total {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Urgency chip ──────────────────────────────────────────────────────── */
+.odb-chip {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  background: var(--odb-chip-bg, var(--surface-muted));
+  color: var(--odb-chip-fg, var(--text-muted));
+}
+
+/* One declaration per urgency level feeds the stripe, the chip and the icon */
+.odb-u-overdue {
+  --odb-accent: var(--danger);
+  --odb-chip-bg: var(--danger);
+  --odb-chip-fg: #fff;
+}
+
+.odb-u-today {
+  --odb-accent: var(--danger);
+  --odb-chip-bg: color-mix(in srgb, var(--danger) 15%, transparent);
+  --odb-chip-fg: var(--danger);
+}
+
+.odb-u-tomorrow {
+  --odb-accent: var(--warning);
+  --odb-chip-bg: color-mix(in srgb, var(--warning) 18%, transparent);
+  --odb-chip-fg: #92610a;
+}
+
+body.dark .odb-u-tomorrow { --odb-chip-fg: var(--warning); }
+
+.odb-u-soon {
+  --odb-accent: var(--brand);
+  --odb-chip-bg: var(--brand-soft);
+  --odb-chip-fg: var(--brand-deep);
+}
+
+body.dark .odb-u-soon { --odb-chip-fg: var(--brand); }
+
+.odb-u-later {
+  --odb-accent: var(--border-strong);
+  --odb-chip-bg: var(--surface-muted);
+  --odb-chip-fg: var(--text-muted);
+}
+
+.odb-u-unscheduled {
+  --odb-accent: var(--border);
+  --odb-chip-bg: var(--surface-muted);
+  --odb-chip-fg: var(--text-muted);
+}
+
+/* An overdue card should be findable at a glance from across the board */
+.odb-card.odb-u-overdue { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
+
+/* ── Empty + skeleton ──────────────────────────────────────────────────── */
+.odb-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 34px 16px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.odb-empty svg { width: 30px; height: 30px; opacity: 0.5; }
+.odb-empty p { margin: 0; font-size: 12.5px; }
+
+.odb-card-skeleton { cursor: default; pointer-events: none; animation: none; }
+.odb-card-skeleton::before { background: var(--border); }
+
+.odb-sk {
+  display: block;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--surface-muted) 25%, var(--hover) 50%, var(--surface-muted) 75%);
+  background-size: 200% 100%;
+  animation: odb-shimmer 1.4s ease-in-out infinite;
+}
+
+.odb-sk-title { width: 62%; height: 13px; }
+.odb-sk-id    { width: 40%; height: 10px; margin-top: 7px; }
+.odb-sk-foot  { width: 100%; height: 12px; margin-top: 14px; }
+
+@keyframes odb-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes odb-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .odb-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .odb-column { max-height: none; }
+}
+
+@media (max-width: 760px) {
+  .odb-columns { grid-template-columns: minmax(0, 1fr); padding: 14px; }
+  .odb-toolbar { padding: 12px 14px; }
+  .odb-sort { margin-left: 0; }
+  .odb-filters { width: 100%; }
+  .odb-btn-primary { width: 100%; justify-content: center; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .odb-card:hover { transform: none; }
+  .odb-filter, .odb-btn { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .odb-card, .odb-sk { animation: none; }
+  .odb-card, .odb-btn, .odb-filter { transition: none; }
+  .odb-card:hover { transform: none; }
+  .odb-sk { background: var(--surface-muted); }
+}

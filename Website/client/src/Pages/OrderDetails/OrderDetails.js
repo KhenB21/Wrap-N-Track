@@ -14,6 +14,7 @@ import { useConfirm } from '../../Context/ConfirmContext';
 import PortalModal from '../../Components/Modal/PortalModal';
 import OrderInvoiceSection from '../Invoices/OrderInvoiceSection';
 import AddOrderModal from './AddOrderModal';
+import OrderBoard from './OrderBoard';
 
 // Add these styles at the top of the file
 const styles = {
@@ -239,6 +240,13 @@ const calculateOrderTotal = (order) => {
   return 0;
 };
 
+// The board showed this expression inline in all three columns: trust the
+// stored total when there is one, otherwise price the products.
+const orderTotal = (order) =>
+  (order?.total_cost && Number(order.total_cost) > 0)
+    ? Number(order.total_cost)
+    : calculateOrderTotal(order);
+
 const normalizeStatus = (status) => {
   if (typeof status !== 'string') return '';
   // Converts to lowercase, removes all spaces, and removes hyphens
@@ -270,6 +278,9 @@ export default function OrderDetails() {
 
   // State variables
   const [selectedOrderInvoices, setSelectedOrderInvoices] = useState([]);
+  // Server-computed payment totals for the selected order, supplied by
+  // OrderInvoiceSection. Used to gate 'Complete Order' on full payment.
+  const [selectedOrderPayment, setSelectedOrderPayment] = useState(null);
   const [pendingOrders, setPendingOrders] = useState([]);
   const [toBePackOrders, setToBePackOrders] = useState([]);
   const [readyToDeliverOrders, setReadyToDeliverOrders] = useState([]);
@@ -427,14 +438,25 @@ export default function OrderDetails() {
       return;
     }
 
+    // Mirrors CANCELLABLE_STATUSES in server/services/orderStock.js. Ready for
+    // Delivery is included: the box is packed but has not shipped, so the stock
+    // can still be returned to the shelf.
     const normalizedStatus = normalizeStatus(selectedOrder.status);
-    if (normalizedStatus !== 'pending' && normalizedStatus !== 'orderplaced' && normalizedStatus !== 'tobepacked') {
-      toast.error('Only orders with status "Pending" or "To Be Packed" can be cancelled.');
+    const cancellable = ['pending', 'orderplaced', 'orderpaid', 'tobepack', 'tobepacked', 'readyfordeliver', 'readyfordelivery'];
+    if (!cancellable.includes(normalizedStatus)) {
+      toast.error(`An order that is "${selectedOrder.status}" can no longer be cancelled — it has already left.`);
       return;
     }
 
+    // Only promise a restock when there is actually stock to give back. A
+    // Pending order was never deducted, and saying otherwise taught staff to
+    // expect an inventory change that never came.
+    const stockWasDeducted = ['tobepack', 'tobepacked', 'readyfordeliver', 'readyfordelivery'].includes(normalizedStatus);
     const confirmDelete = await confirm({
-      message: `Are you sure you want to cancel order ${selectedOrder.order_id}? All products will go back to the inventory.`,
+      message: `Are you sure you want to cancel order ${selectedOrder.order_id}?`
+        + (stockWasDeducted
+          ? ' Its products will be returned to inventory.'
+          : ' No inventory change — this order had not been packed yet.'),
       danger: true,
     });
 
@@ -558,6 +580,7 @@ export default function OrderDetails() {
 
   useEffect(() => {
     setSelectedOrderInvoices([]);
+    setSelectedOrderPayment(null);
   }, [selectedOrderId]);
 
   useEffect(() => {
@@ -628,153 +651,16 @@ export default function OrderDetails() {
           onSearchChange={(e) => setSearchTerm(e.target.value)}
         />
         
-        {/* Action Bar */}
-        <div className="od-action-bar" style={styles.actionBar}>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button 
-              style={{...styles.button, ...styles.primaryButton}} 
-              onClick={handleAddOrder}
-            >
-              Add Order
-            </button>
-            {/* More button removed */}
-          </div>
-        </div>
-
-        {/* Main Order Columns */}
-        <div className="od-columns-container" style={styles.columnsContainer}>
-          {/* Pending Orders Column */}
-          <div className="od-column" style={styles.column}>
-            <div className="od-column-header" style={styles.columnHeader}>
-              <h3 className="od-column-title" style={styles.columnTitle}>Pending Orders</h3>
-              <span className="od-order-count" style={styles.orderCount}>{filteredPendingOrders.length}</span>
-            </div>
-            <div style={styles.orderList}>
-              {loading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="od-order-card" style={{ ...styles.orderCard, pointerEvents: 'none' }}>
-                    <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', marginBottom: '8px' }} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                      <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
-                      <div className="skeleton-shimmer skeleton-text" style={{ width: '30%', height: '12px' }} />
-                    </div>
-                  </div>
-                ))
-              ) : filteredPendingOrders.length === 0 ? (
-                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>{searchTerm ? 'No matching orders' : 'No orders found'}</div>
-              ) : (
-                filteredPendingOrders.map(order => (
-                  <div 
-                    key={order.order_id} 
-                    className="od-order-card"
-                    style={styles.orderCard}
-                    onClick={() => setSelectedOrderId(order.order_id)}
-                  >
-                    <div className="od-order-name" style={styles.orderName}>{order.name}</div>
-                    <div className="od-order-info" style={styles.orderInfo}>
-                      <span>{order.order_id}</span>
-                      <span>
-                        ₱{
-                          (order.total_cost && Number(order.total_cost) > 0)
-                            ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                            : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        }
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* To Be Pack Column */}
-          <div className="od-column" style={styles.column}>
-            <div className="od-column-header" style={styles.columnHeader}>
-              <h3 className="od-column-title" style={styles.columnTitle}>To Be Packed</h3>
-              <span className="od-order-count" style={styles.orderCount}>{filteredToBePackOrders.length}</span>
-            </div>
-            <div style={styles.orderList}>
-              {loading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="od-order-card" style={{ ...styles.orderCard, pointerEvents: 'none' }}>
-                    <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', marginBottom: '8px' }} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                      <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
-                      <div className="skeleton-shimmer skeleton-text" style={{ width: '30%', height: '12px' }} />
-                    </div>
-                  </div>
-                ))
-              ) : filteredToBePackOrders.length === 0 ? (
-                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>{searchTerm ? 'No matching orders' : 'No orders found'}</div>
-              ) : (
-                filteredToBePackOrders.map(order => (
-                  <div 
-                    key={order.order_id} 
-                    className="od-order-card"
-                    style={styles.orderCard}
-                    onClick={() => setSelectedOrderId(order.order_id)}
-                  >
-                    <div className="od-order-name" style={styles.orderName}>{order.name}</div>
-                    <div className="od-order-info" style={styles.orderInfo}>
-                      <span>{order.order_id}</span>
-                      <span>
-                        ₱{
-                          (order.total_cost && Number(order.total_cost) > 0)
-                            ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                            : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        }
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Ready to Deliver Column */}
-          <div className="od-column" style={styles.column}>
-            <div className="od-column-header" style={styles.columnHeader}>
-              <h3 className="od-column-title" style={styles.columnTitle}>Ready for Delivery</h3>
-              <span className="od-order-count" style={styles.orderCount}>{filteredReadyToDeliverOrders.length}</span>
-            </div>
-            <div style={styles.orderList}>
-              {loading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="od-order-card" style={{ ...styles.orderCard, pointerEvents: 'none' }}>
-                    <div className="skeleton-shimmer skeleton-text" style={{ width: '80%', height: '16px', marginBottom: '8px' }} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                      <div className="skeleton-shimmer skeleton-text" style={{ width: '40%', height: '12px' }} />
-                      <div className="skeleton-shimmer skeleton-text" style={{ width: '30%', height: '12px' }} />
-                    </div>
-                  </div>
-                ))
-              ) : filteredReadyToDeliverOrders.length === 0 ? (
-                <div className="od-empty-column" style={{ textAlign: 'center', padding: '20px', fontSize: '14px' }}>{searchTerm ? 'No matching orders' : 'No orders found'}</div>
-              ) : (
-                filteredReadyToDeliverOrders.map(order => (
-                  <div 
-                    key={order.order_id} 
-                    className="od-order-card"
-                    style={styles.orderCard}
-                    onClick={() => setSelectedOrderId(order.order_id)}
-                  >
-                    <div className="od-order-name" style={styles.orderName}>{order.name}</div>
-                    <div className="od-order-info" style={styles.orderInfo}>
-                      <span>{order.order_id}</span>
-                      <span>
-                        ₱{
-                          (order.total_cost && Number(order.total_cost) > 0)
-                            ? Number(order.total_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                            : calculateOrderTotal(order).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        }
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+        <OrderBoard
+          pending={filteredPendingOrders}
+          toBePacked={filteredToBePackOrders}
+          readyForDelivery={filteredReadyToDeliverOrders}
+          loading={loading}
+          searchTerm={searchTerm}
+          totalFor={orderTotal}
+          onSelectOrder={setSelectedOrderId}
+          onAddOrder={handleAddOrder}
+        />
 
         {/* More modal removed */}
 
@@ -1262,7 +1148,13 @@ export default function OrderDetails() {
                   )}
                 </div>
               )}
-              <OrderInvoiceSection order={selectedOrder} onInvoicesChange={setSelectedOrderInvoices} />
+              <OrderInvoiceSection
+                order={selectedOrder}
+                onInvoicesChange={(invoices, summary) => {
+                  setSelectedOrderInvoices(invoices);
+                  setSelectedOrderPayment(summary);
+                }}
+              />
 
               {/* Action Buttons */}
               <div style={{display:'flex',gap:18,marginTop:20,paddingTop:24,borderTop:'1px solid var(--border)', justifyContent:'center', alignItems:'center'}}>
@@ -1298,14 +1190,18 @@ export default function OrderDetails() {
                   const remainingBalanceInvoice = selectedOrderInvoices.find(
                     (inv) => inv.invoice_type === 'REMAINING_BALANCE' && inv.status !== 'CANCELLED'
                   );
-                  const invoicesReady = !!downPaymentInvoice && downPaymentInvoice.status === 'PAID'
-                    && !!remainingBalanceInvoice && remainingBalanceInvoice.status === 'PAID';
+                  // Confirming into production needs the 70% down payment only.
+                  // The 30% balance is collected later, so requiring the
+                  // remaining-balance invoice here (as this used to) stalled
+                  // every order that had correctly paid its deposit.
+                  // Server-side counterpart: services/orderPayments.js.
+                  const invoicesReady = !!downPaymentInvoice && downPaymentInvoice.status === 'PAID';
                   const blockedByInvoices = isPendingLike && !invoicesReady;
 
                   return (
                 <button
                   disabled={blockedByInvoices}
-                  title={blockedByInvoices ? 'Generate the down payment and remaining balance invoices and mark both as paid before moving this order to To Be Packed.' : undefined}
+                  title={blockedByInvoices ? 'Generate the 70% down payment invoice and mark it paid before moving this order to To Be Packed. The 30% balance can be settled later.' : undefined}
                   style={{
                     padding: '12px 24px',
                     fontSize: '15px',
@@ -1323,7 +1219,7 @@ export default function OrderDetails() {
                   onMouseOut={(e) => { if (!blockedByInvoices) e.currentTarget.style.backgroundColor = '#2ecc71'; }}
                   onClick={async () => {
                     if (blockedByInvoices) {
-                      toast.error('Both the down payment and remaining balance invoices must be generated and marked as paid before this order can move to To Be Packed.');
+                      toast.error('The 70% down payment invoice must be generated and marked as paid before this order can move to To Be Packed. The remaining 30% can be collected later.');
                       return;
                     }
                     if (!selectedOrder) {
@@ -1447,22 +1343,50 @@ export default function OrderDetails() {
                 </button>
                   );
                 })()}
-              {(normalizeStatus(selectedOrder.status) === normalizeStatus('Ready for Delivery') || normalizeStatus(selectedOrder.status) === normalizeStatus('ready for deliver') || normalizeStatus(selectedOrder.status) === normalizeStatus('confirmed')) && (
+              {(normalizeStatus(selectedOrder.status) === normalizeStatus('Ready for Delivery') || normalizeStatus(selectedOrder.status) === normalizeStatus('ready for deliver') || normalizeStatus(selectedOrder.status) === normalizeStatus('confirmed')) && (() => {
+                // Nothing leaves the shop with money outstanding. The order can
+                // sit in Ready for Delivery while the remaining 30% is chased,
+                // but completing it needs the balance settled.
+                // `payment_summary` is computed by the server
+                // (routes/invoices.js) and enforced again on the PUT
+                // (services/orderPayments.js) — this only mirrors it so the
+                // button explains itself instead of failing on click.
+                const outstanding = selectedOrderPayment
+                  ? Number(selectedOrderPayment.remaining_balance) || 0
+                  : null;
+                const awaitingPayment = outstanding === null ? false : outstanding > 0.004;
+                const pesoDue = (outstanding || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                return (
                 <button
-                  style={{ padding:'12px 24px', fontSize:15, fontWeight:700, background:'#4caf50', color:'#fff', border:'none', borderRadius:8, cursor:'pointer' }}
+                  disabled={awaitingPayment}
+                  title={awaitingPayment
+                    ? `₱${pesoDue} is still unpaid. Record the remaining balance payment before completing this order.`
+                    : undefined}
+                  style={{
+                    padding:'12px 24px', fontSize:15, fontWeight:700,
+                    background: awaitingPayment ? '#a5d6b7' : '#4caf50',
+                    color:'#fff', border:'none', borderRadius:8,
+                    cursor: awaitingPayment ? 'not-allowed' : 'pointer'
+                  }}
                   onClick={async ()=>{
+                    if (awaitingPayment) {
+                      toast.error(`This order still has ₱${pesoDue} outstanding. The remaining 30% must be paid before the items are sent out.`);
+                      return;
+                    }
                     try {
                       const encodedOrderId = encodeURIComponent(String(selectedOrder.order_id));
-                      const response = await api.put(`/api/orders/${encodedOrderId}`, { status: 'Completed' });
+                      await api.put(`/api/orders/${encodedOrderId}`, { status: 'Completed' });
                       toast.success('Order completed and moved to Order History.');
                       fetchOrders();
                       setSelectedOrderId(null);
                     } catch (e) {
-                      toast.error('Failed to complete order.');
+                      toast.error(e.response?.data?.error || 'Failed to complete order.');
                     }
                   }}
-                >Complete Order</button>
-              )}
+                >{awaitingPayment ? `Awaiting ₱${pesoDue} balance` : 'Complete Order'}</button>
+                );
+              })()}
             </div>
           </>
           );

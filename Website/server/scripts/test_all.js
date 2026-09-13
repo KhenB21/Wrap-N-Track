@@ -55,7 +55,7 @@ async function createOrder(){
 
 async function updateOrder(orderId){
   const payload = {
-    status:'To Be Pack',
+    status:'To Be Packed',
     products:[
       { sku:'SKU123', quantity:1, profit_margin:0.12 },
       { sku:'SKU123', quantity:1, profit_margin:0.18 },
