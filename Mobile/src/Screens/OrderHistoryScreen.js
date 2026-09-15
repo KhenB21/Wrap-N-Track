@@ -10,6 +10,7 @@ import {
 import Header from "../Components/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { customerOrderAPI } from "../services/api";
+import { formatLongDate, parseDeliveryDate } from "../constants/orderBoard";
 import { useTheme } from "../Context/ThemeContext";
 import { SkeletonCard } from "../Components/Skeleton/Skeleton";
 
@@ -159,15 +160,19 @@ export default function OrderHistoryScreen({ navigation }) {
           : normalizeOrderStatus(order.status) === statusFilter
       ));
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  // order_date is a date with no time, so formatting it with hours always showed 12:00 AM.
+  // Show the real time from order_placed_at when it belongs to the same day; otherwise
+  // (e.g. archived orders, where that field is the archive time) show the date only.
+  const formatDate = (order) => {
+    const day = parseDeliveryDate(order.order_date || order.created_at);
+    const placed = order.order_placed_at ? new Date(order.order_placed_at) : null;
+    const placedValid = placed && !Number.isNaN(placed.getTime());
+    const sameDay = placedValid && day && placed.toDateString() === day.toDateString();
+    if (sameDay || (placedValid && !day)) {
+      const time = placed.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+      return `${formatLongDate(placed)}, ${time}`;
+    }
+    return day ? formatLongDate(day) : '-';
   };
 
   const renderOrderItem = ({ item }) => {
@@ -189,7 +194,7 @@ export default function OrderHistoryScreen({ navigation }) {
             Order #{item.order_id || item.id}
           </Text>
           <Text style={[styles.orderDate, { color: darkMode ? "#B0B3B8" : "#6B6593" }]}>
-            {formatDate(item.order_date || item.created_at)}
+            {formatDate(item)}
           </Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(displayStatus) }]}>

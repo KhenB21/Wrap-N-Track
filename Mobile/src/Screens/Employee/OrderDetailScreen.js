@@ -15,12 +15,14 @@ import {
   Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRoute } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useTheme } from '../../Context/ThemeContext';
 import { useAuth } from '../../Context/AuthContext';
 import { invoiceAPI, orderAPI } from '../../services/api';
 import ProductImage from '../../Components/ProductImage';
 import { SkeletonCard, SkeletonText } from '../../Components/Skeleton/Skeleton';
+import MarkPaidModal from '../../Components/Invoices/MarkPaidModal';
+import EmailInvoiceModal from '../../Components/Invoices/EmailInvoiceModal';
 import {
   URGENCY_COLORS,
   boardTabFor,
@@ -37,8 +39,9 @@ import {
 } from '../../constants/orderBoard';
 
 /* Mobile version of the Website staff order details (Website/client/src/Pages/OrderDetails/OrderDetails.js):
-   customer + order information, what's inside, invoices, and the same guided actions —
-   Confirm Order -> Confirm Delivery -> Complete Order, with a typed CONFIRM and the same gates. */
+   customer + order information, what's inside, invoices (generate, mark paid, email, cancel), Edit Order,
+   and the same guided actions — Confirm Order -> Confirm Delivery -> Complete Order, with a typed CONFIRM
+   and the same gates. */
 
 const INVOICE_ROLES = ['operations_manager', 'sales_manager', 'super_admin', 'admin'];
 // Same roles that get the Deliveries tab (navigation/SimpleEmployeeNavigator.js).
@@ -87,6 +90,9 @@ export default function OrderDetailScreen({ navigation }) {
   const [challenge, setChallenge] = useState(null);
   const [challengeInput, setChallengeInput] = useState('');
   const [working, setWorking] = useState(false);
+  const [invoiceBusy, setInvoiceBusy] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState(null);
+  const [emailInvoice, setEmailInvoice] = useState(null);
 
   const orderId = initialOrder?.order_id;
 
@@ -126,9 +132,12 @@ export default function OrderDetailScreen({ navigation }) {
     }
   }, [orderId]);
 
-  useEffect(() => {
-    Promise.all([loadOrder(), loadInvoices()]).finally(() => setLoading(false));
-  }, [loadOrder, loadInvoices]);
+  // Reload on focus so returning from Edit Order or Delivery Tracking shows the saved values.
+  useFocusEffect(
+    useCallback(() => {
+      Promise.all([loadOrder(), loadInvoices()]).finally(() => setLoading(false));
+    }, [loadOrder, loadInvoices])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -168,6 +177,7 @@ export default function OrderDetailScreen({ navigation }) {
   const isReady = ['readyfordelivery', 'readyfordeliver', 'confirmed'].includes(status);
 
   const downPaymentInvoice = invoices.find((i) => i.invoice_type === 'DOWN_PAYMENT' && i.status !== 'CANCELLED');
+  const remainingBalanceInvoice = invoices.find((i) => i.invoice_type === 'REMAINING_BALANCE' && i.status !== 'CANCELLED');
   const invoicesReady = !!downPaymentInvoice && downPaymentInvoice.status === 'PAID';
   const outstanding = paymentSummary ? Number(paymentSummary.remaining_balance) || 0 : null;
   const awaitingPayment = outstanding !== null && outstanding > 0.004;
@@ -373,6 +383,66 @@ export default function OrderDetailScreen({ navigation }) {
     }
   };
 
+  const generateInvoice = async (type) => {
+    setInvoiceBusy(true);
+    try {
+      const result =
+        type === 'DOWN_PAYMENT'
+          ? await invoiceAPI.generateDownPayment(order.order_id)
+          : await invoiceAPI.generateRemainingBalance(order.order_id);
+      await loadInvoices();
+      Alert.alert('Invoice ready', result?.existing ? 'This invoice already exists.' : `${INVOICE_TYPE_LABELS[type]} generated.`);
+    } catch (error) {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to generate invoice.');
+    } finally {
+      setInvoiceBusy(false);
+    }
+  };
+
+  const confirmGenerateDownPayment = () => {
+    if (total <= 0) {
+      Alert.alert('Order total required', 'This order needs a total before an invoice can be generated.');
+      return;
+    }
+    Alert.alert(
+      'Generate Down Payment Invoice',
+      `Order total: ${peso(total)}\nDown payment (70%): ${peso(downPaymentAmount)}\nRemaining balance (30%): ${peso(remainingAmount)}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Generate', onPress: () => generateInvoice('DOWN_PAYMENT') },
+      ]
+    );
+  };
+
+  const handleGenerateRemaining = () => {
+    if (!downPaymentInvoice || downPaymentInvoice.status !== 'PAID') {
+      Alert.alert('Down payment unpaid', 'Mark the down payment invoice as paid before generating the remaining balance invoice.');
+      return;
+    }
+    generateInvoice('REMAINING_BALANCE');
+  };
+
+  const handleCancelInvoice = (invoice) => {
+    Alert.alert('Cancel invoice', `Cancel invoice ${invoice.invoice_number}?`, [
+      { text: 'Keep', style: 'cancel' },
+      {
+        text: 'Cancel Invoice',
+        style: 'destructive',
+        onPress: async () => {
+          setInvoiceBusy(true);
+          try {
+            await invoiceAPI.cancelInvoice(invoice.id);
+            await loadInvoices();
+          } catch (error) {
+            Alert.alert('Error', error.response?.data?.message || 'Failed to cancel invoice.');
+          } finally {
+            setInvoiceBusy(false);
+          }
+        },
+      },
+    ]);
+  };
+
   const openLink = (url, failMessage) => {
     Linking.openURL(url).catch(() => Alert.alert('Error', failMessage));
   };
@@ -411,7 +481,7 @@ export default function OrderDetailScreen({ navigation }) {
     </View>
   );
 
-  const showBottomBar = !isArchived && (primary || isCancellable(order.status) || canOpenDelivery);
+  const showBottomBar = !isArchived;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -539,7 +609,7 @@ export default function OrderDetailScreen({ navigation }) {
             <Text style={[styles.emptyText, { color: colors.error }]}>{invoicesError}</Text>
           ) : invoices.length === 0 ? (
             <Text style={[styles.emptyText, { color: colors.subText }]}>
-              No invoices generated for this order yet. Invoices are generated and marked paid on the Website.
+              No invoices generated for this order yet.
             </Text>
           ) : (
             invoices.map((invoice) => {
@@ -564,24 +634,96 @@ export default function OrderDetailScreen({ navigation }) {
                     <Stat label="Payment Status" value={invoice.payment_status || '-'} />
                   </View>
                   {canDownloadInvoices && (
-                    <TouchableOpacity
-                      style={[styles.outlineBtn, { borderColor: colors.primary }]}
-                      onPress={() => downloadInvoice(invoice)}
-                      disabled={downloadingId === invoice.id}
-                    >
-                      {downloadingId === invoice.id ? (
-                        <ActivityIndicator size="small" color={colors.primary} />
-                      ) : (
-                        <>
-                          <MaterialCommunityIcons name="file-download-outline" size={16} color={colors.primary} />
-                          <Text style={[styles.outlineBtnText, { color: colors.primary }]}>Download PDF</Text>
-                        </>
+                    <View style={styles.invoiceActions}>
+                      <TouchableOpacity
+                        style={[styles.smallBtn, { borderColor: colors.primary }]}
+                        onPress={() => downloadInvoice(invoice)}
+                        disabled={downloadingId === invoice.id}
+                      >
+                        {downloadingId === invoice.id ? (
+                          <ActivityIndicator size="small" color={colors.primary} />
+                        ) : (
+                          <>
+                            <MaterialCommunityIcons name="file-download-outline" size={15} color={colors.primary} />
+                            <Text style={[styles.smallBtnText, { color: colors.primary }]}>PDF</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                      {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && !isArchived && (
+                        <TouchableOpacity
+                          style={[styles.smallBtn, { borderColor: '#2E7D32', backgroundColor: '#2E7D32' }]}
+                          onPress={() => setPaymentInvoice(invoice)}
+                          disabled={invoiceBusy}
+                        >
+                          <MaterialCommunityIcons name="cash-check" size={15} color="#fff" />
+                          <Text style={[styles.smallBtnText, { color: '#fff' }]}>Mark as Paid</Text>
+                        </TouchableOpacity>
                       )}
-                    </TouchableOpacity>
+                      {invoice.status === 'PAID' && (
+                        <TouchableOpacity style={[styles.smallBtn, { borderColor: colors.primary }]} onPress={() => setEmailInvoice(invoice)}>
+                          <MaterialCommunityIcons name="email-outline" size={15} color={colors.primary} />
+                          <Text style={[styles.smallBtnText, { color: colors.primary }]}>Email</Text>
+                        </TouchableOpacity>
+                      )}
+                      {invoice.status !== 'CANCELLED' && !isArchived && (
+                        <TouchableOpacity
+                          style={[styles.smallBtn, { borderColor: '#C62828' }]}
+                          onPress={() => handleCancelInvoice(invoice)}
+                          disabled={invoiceBusy}
+                        >
+                          <MaterialCommunityIcons name="close-circle-outline" size={15} color="#C62828" />
+                          <Text style={[styles.smallBtnText, { color: '#C62828' }]}>Cancel</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   )}
                 </View>
               );
             })
+          )}
+          {canDownloadInvoices && !isArchived && invoicesLoaded && !invoicesError && (!downPaymentInvoice || !remainingBalanceInvoice) && (
+            <View style={styles.invoiceGenerate}>
+              {!downPaymentInvoice ? (
+                <TouchableOpacity
+                  style={[styles.primaryBtn, { backgroundColor: colors.primary }, (invoiceBusy || total <= 0) && { opacity: 0.6 }]}
+                  onPress={confirmGenerateDownPayment}
+                  disabled={invoiceBusy}
+                >
+                  {invoiceBusy ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="file-document-plus-outline" size={18} color="#fff" />
+                      <Text style={styles.primaryBtnText}>Generate Down Payment Invoice</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[
+                    styles.primaryBtn,
+                    { backgroundColor: colors.primary },
+                    (invoiceBusy || downPaymentInvoice.status !== 'PAID') && { opacity: 0.6 },
+                  ]}
+                  onPress={handleGenerateRemaining}
+                  disabled={invoiceBusy}
+                >
+                  {invoiceBusy ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="file-document-plus-outline" size={18} color="#fff" />
+                      <Text style={styles.primaryBtnText}>Generate Remaining Balance Invoice</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+          {!canDownloadInvoices && !isArchived && invoices.length === 0 && invoicesLoaded && (
+            <Text style={[styles.emptyText, { color: colors.subText }]}>
+              Ask an Operations Manager, Sales Manager or Admin to generate the invoice.
+            </Text>
           )}
         </Section>
 
@@ -621,6 +763,14 @@ export default function OrderDetailScreen({ navigation }) {
       {showBottomBar && (
         <View style={[styles.bottomBar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
           <View style={styles.secondaryRow}>
+            <TouchableOpacity
+              style={[styles.outlineBtn, styles.flex1, { borderColor: colors.primary }]}
+              onPress={() => navigation.navigate('EditOrder', { order })}
+              disabled={working}
+            >
+              <MaterialCommunityIcons name="pencil-outline" size={16} color={colors.primary} />
+              <Text style={[styles.outlineBtnText, { color: colors.primary }]}>Edit</Text>
+            </TouchableOpacity>
             {isCancellable(order.status) && (
               <TouchableOpacity style={[styles.outlineBtn, styles.flex1, { borderColor: '#C62828' }]} onPress={handleCancelOrder} disabled={working}>
                 <MaterialCommunityIcons name="close-circle-outline" size={16} color="#C62828" />
@@ -655,6 +805,27 @@ export default function OrderDetailScreen({ navigation }) {
             </TouchableOpacity>
           )}
         </View>
+      )}
+
+      {!!paymentInvoice && (
+        <MarkPaidModal
+          invoice={paymentInvoice}
+          colors={colors}
+          onClose={() => setPaymentInvoice(null)}
+          onSaved={async () => {
+            setPaymentInvoice(null);
+            await loadInvoices();
+            Alert.alert('Payment saved', 'The invoice is now marked as paid.');
+          }}
+        />
+      )}
+      {!!emailInvoice && (
+        <EmailInvoiceModal
+          invoice={emailInvoice}
+          recipientEmail={order.email_address}
+          colors={colors}
+          onClose={() => setEmailInvoice(null)}
+        />
       )}
 
       {/* ── Typed CONFIRM, same as the Website ─────────────────────────────── */}
@@ -936,6 +1107,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: 8,
+  },
+  invoiceActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  smallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1.5,
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+  },
+  smallBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  invoiceGenerate: {
+    marginTop: 6,
+    gap: 8,
   },
   bottomBar: {
     borderTopWidth: 1,

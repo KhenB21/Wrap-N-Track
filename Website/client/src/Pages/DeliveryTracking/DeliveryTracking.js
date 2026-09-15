@@ -16,6 +16,7 @@ const STATUSES = [
   'Sent / Shipped',
   'Delivered',
   'Picked Up',
+  'Failed Delivery',
 ];
 
 // "Delivered"/"Picked Up" are the terminal states for the two delivery

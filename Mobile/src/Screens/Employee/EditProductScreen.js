@@ -20,6 +20,17 @@ import { useInventory } from '../../Context/InventoryContext';
 import { inventoryAPI, supplierAPI } from '../../services/api';
 import { useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import { useAuth } from '../../Context/AuthContext';
+import StockReasonPicker from '../../Components/StockReasonPicker';
+import { toUploadFile } from '../../services/uploadFile';
+import { buildStockReason, canAdjustStockRole, validateStockReason } from '../../constants/stockReasons';
+
+// Digits and one decimal point, at most 2 decimal places (e.g. 1250.50).
+const toMoneyInput = (value) => {
+  const [whole, ...rest] = String(value || '').replace(/[^0-9.]/g, '').split('.');
+  return rest.length ? `${whole}.${rest.join('').slice(0, 2)}` : whole;
+};
+
 
 // Generate unique SKU
 const generateUniqueSku = () => {
@@ -71,6 +82,8 @@ export default function EditProductScreen({ navigation }) {
   const route = useRoute();
   const { initialData, isEdit, isAddStockMode } = route?.params || {};
   const { fetchInventory } = useInventory();
+  const { user, userType } = useAuth();
+  const canAdjust = userType === 'employee' && canAdjustStockRole(user?.role);
 
   const [formData, setFormData] = useState({
     sku: isEdit || isAddStockMode ? (initialData?.sku || '') : generateUniqueSku(),
@@ -87,6 +100,8 @@ export default function EditProductScreen({ navigation }) {
   });
 
   const [quantityToAdd, setQuantityToAdd] = useState('0');
+  const [stockReason, setStockReason] = useState('');
+  const [stockReasonNotes, setStockReasonNotes] = useState('');
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(initialData?.image_data ? `data:image/jpeg;base64,${initialData.image_data}` : null);
   const [loading, setLoading] = useState(false);
@@ -162,6 +177,8 @@ export default function EditProductScreen({ navigation }) {
       if (isNaN(qty) || !Number.isInteger(qty) || qty <= 0) {
         newErrors.quantity = 'Please enter a valid positive integer to add';
       }
+      const reasonError = validateStockReason(stockReason, stockReasonNotes, 'STOCK_IN');
+      if (reasonError) newErrors.stock_reason = reasonError;
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     }
@@ -195,7 +212,11 @@ export default function EditProductScreen({ navigation }) {
 
       if (isAddStockMode) {
         // Add stock mode
-        await inventoryAPI.addStock(formData.sku, parseInt(quantityToAdd));
+        if (!canAdjust) {
+          Alert.alert('Not Authorized', 'Only Admin and Operations Manager accounts can add stock.');
+          return;
+        }
+        await inventoryAPI.addStock(formData.sku, parseInt(quantityToAdd), buildStockReason(stockReason, stockReasonNotes));
         Alert.alert('Success', 'Stock added successfully', [
           { text: 'OK', onPress: () => {
             fetchInventory();
@@ -220,13 +241,7 @@ export default function EditProductScreen({ navigation }) {
       dataToSend.append('expiration', formData.expiration || '');
 
       if (image) {
-        const uriParts = image.uri.split('.');
-        const fileType = uriParts[uriParts.length - 1];
-        dataToSend.append('image', {
-          uri: image.uri,
-          name: `product.${fileType}`,
-          type: `image/${fileType}`
-        });
+        dataToSend.append('image', toUploadFile(image, `product-${formData.sku || 'image'}`));
       }
 
       if (isEdit) {
@@ -396,13 +411,25 @@ export default function EditProductScreen({ navigation }) {
                 <Text style={[styles.label, { color: theme.colors.onSurface }]}>Quantity to Add *</Text>
                 <TextInput
                   value={quantityToAdd}
-                  onChangeText={setQuantityToAdd}
-                  keyboardType="numeric"
+                  onChangeText={(value) => setQuantityToAdd(value.replace(/[^0-9]/g, '').slice(0, 7))}
+                  keyboardType="number-pad"
                   placeholder="Enter quantity to add"
                   placeholderTextColor={theme.colors.onSurfaceVariant}
                   style={[styles.input, { color: theme.colors.onSurface, borderColor: errors.quantity ? '#F44336' : theme.colors.outline }]}
                 />
                 {errors.quantity && <Text style={styles.errorText}>{errors.quantity}</Text>}
+
+                <View style={{ marginTop: 12 }}>
+                  <StockReasonPicker
+                    action="STOCK_IN"
+                    reason={stockReason}
+                    notes={stockReasonNotes}
+                    onChangeReason={(value) => { setStockReason(value); setErrors((prev) => ({ ...prev, stock_reason: null })); }}
+                    onChangeNotes={(value) => { setStockReasonNotes(value); setErrors((prev) => ({ ...prev, stock_reason: null })); }}
+                    error={errors.stock_reason}
+                    colors={theme.colors}
+                  />
+                </View>
               </>
             ) : (
               <>
@@ -410,8 +437,8 @@ export default function EditProductScreen({ navigation }) {
                 <Text style={[styles.label, { color: theme.colors.onSurface }]}>Quantity (Base Unit) *</Text>
                 <TextInput
                   value={formData.quantity}
-                  onChangeText={(value) => handleInputChange('quantity', value)}
-                  keyboardType="numeric"
+                  onChangeText={(value) => handleInputChange('quantity', value.replace(/[^0-9]/g, '').slice(0, 7))}
+                  keyboardType="number-pad"
                   placeholder="0"
                   placeholderTextColor={theme.colors.onSurfaceVariant}
                   editable={!isEdit}
@@ -441,8 +468,8 @@ export default function EditProductScreen({ navigation }) {
                     <Text style={[styles.label, { color: theme.colors.onSurface }]}>Units per {formData.uom} *</Text>
                     <TextInput
                       value={formData.conversion_qty}
-                      onChangeText={(value) => handleInputChange('conversion_qty', value)}
-                      keyboardType="numeric"
+                      onChangeText={(value) => handleInputChange('conversion_qty', value.replace(/[^0-9]/g, '').slice(0, 5))}
+                      keyboardType="number-pad"
                       placeholder={`How many units in one ${formData.uom}?`}
                       placeholderTextColor={theme.colors.onSurfaceVariant}
                       style={[styles.input, { color: theme.colors.onSurface, borderColor: errors.conversion_qty ? '#F44336' : theme.colors.outline }]}
@@ -460,8 +487,8 @@ export default function EditProductScreen({ navigation }) {
                 <Text style={[styles.label, { color: theme.colors.onSurface }]}>Unit Price (Per UOM) *</Text>
                 <TextInput
                   value={formData.unit_price}
-                  onChangeText={(value) => handleInputChange('unit_price', value)}
-                  keyboardType="numeric"
+                  onChangeText={(value) => handleInputChange('unit_price', toMoneyInput(value))}
+                  keyboardType="decimal-pad"
                   placeholder="0.00"
                   placeholderTextColor={theme.colors.onSurfaceVariant}
                   style={[styles.input, { color: theme.colors.onSurface, borderColor: errors.unit_price ? '#F44336' : theme.colors.outline }]}

@@ -534,7 +534,7 @@ export default function SupplierManagementScreen({ navigation }) {
         showCart
         logoType="image"
         onBackPress={() => navigation.goBack()}
-        onCartPress={() => navigation.navigate("MyCart")}
+        onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })}
         darkMode={darkMode}
       />
 

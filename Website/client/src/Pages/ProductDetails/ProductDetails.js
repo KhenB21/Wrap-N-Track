@@ -9,13 +9,19 @@ import api from '../../api';
 import * as bwipjs from 'bwip-js/browser';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import usePermissions from '../../hooks/usePermissions';
+import { STOCK_REASONS, buildStockReason, validateStockReason } from '../../constants/stockReasons';
+
+const EMPTY_STOCK_FORM = { type: 'STOCK_IN', quantity: '', reason: '', notes: '' };
 
 export default function ProductDetails() {
+  const { canAdjustStock } = usePermissions();
+  const canAdjust = canAdjustStock();
   const { sku } = useParams();
   const [products, setProducts] = useState([]);
   const [product, setProduct] = useState(null);
   const [movements, setMovements] = useState([]);
-  const [stockForm, setStockForm] = useState({ type: 'STOCK_IN', quantity: '', reason: '' });
+  const [stockForm, setStockForm] = useState(EMPTY_STOCK_FORM);
   const [stockActionLoading, setStockActionLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -232,6 +238,11 @@ export default function ProductDetails() {
       toast.error('Enter a positive whole-number quantity.');
       return;
     }
+    const reasonError = validateStockReason(stockForm.reason, stockForm.notes);
+    if (reasonError) {
+      toast.error(reasonError);
+      return;
+    }
 
     setStockActionLoading(true);
     try {
@@ -239,10 +250,10 @@ export default function ProductDetails() {
       await api.post(endpoint, {
         sku: product.sku,
         quantity,
-        reason: stockForm.reason
+        reason: buildStockReason(stockForm.reason, stockForm.notes)
       });
       toast.success(stockForm.type === 'STOCK_OUT' ? 'Stock removed successfully.' : 'Stock added successfully.');
-      setStockForm({ type: 'STOCK_IN', quantity: '', reason: '' });
+      setStockForm(EMPTY_STOCK_FORM);
       const [productRes, movementsRes] = await Promise.all([
         api.get(`/api/inventory/${product.sku}`),
         api.get(`/api/inventory/movements/${product.sku}`)
@@ -560,6 +571,7 @@ export default function ProductDetails() {
                     </div>
                   </div>
 
+                  {canAdjust && (
                   <div className="details-card stock-action-card">
                     <div className="card-header">
                       <h3>Stock Movement</h3>
@@ -570,7 +582,7 @@ export default function ProductDetails() {
                           Type
                           <select
                             value={stockForm.type}
-                            onChange={(e) => setStockForm(prev => ({ ...prev, type: e.target.value }))}
+                            onChange={(e) => setStockForm(prev => ({ ...prev, type: e.target.value, reason: '' }))}
                           >
                             <option value="STOCK_IN">Stock In</option>
                             <option value="STOCK_OUT">Stock Out</option>
@@ -588,11 +600,23 @@ export default function ProductDetails() {
                           />
                         </label>
                         <label className="stock-reason-field">
-                          Reason
-                          <input
+                          Reason *
+                          <select
                             value={stockForm.reason}
                             onChange={(e) => setStockForm(prev => ({ ...prev, reason: e.target.value }))}
-                            placeholder="Supplier delivery, order correction, damage, etc."
+                            required
+                          >
+                            <option value="">Select a reason</option>
+                            {STOCK_REASONS[stockForm.type].map((r) => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                        </label>
+                        <label className="stock-reason-field">
+                          {stockForm.reason === 'Other' ? 'Describe the reason *' : 'Notes (optional)'}
+                          <input
+                            value={stockForm.notes}
+                            onChange={(e) => setStockForm(prev => ({ ...prev, notes: e.target.value }))}
+                            placeholder="PO number, order ID, count details, etc."
+                            required={stockForm.reason === 'Other'}
                           />
                         </label>
                         <button type="submit" className="label-action-btn" disabled={stockActionLoading}>
@@ -601,6 +625,7 @@ export default function ProductDetails() {
                       </form>
                     </div>
                   </div>
+                  )}
 
                   <div className="details-card movements-card">
                     <div className="card-header">

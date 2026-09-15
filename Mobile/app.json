@@ -10,7 +10,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Wrap N Track to scan product barcode and QR labels."
+          "cameraPermission": "Allow Wrap N Track to scan product barcode and QR labels.",
+          "recordAudioAndroid": false
         }
       ],
       [
@@ -21,7 +22,6 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-audio",
       "expo-asset",
       "expo-sharing"
     ],
@@ -35,17 +35,17 @@
     "android": {
       "package": "com.wrapntrack.mobile",
       "permissions": [
-        "CAMERA",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        "android.permission.CAMERA"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./src/Images/Logo/pensee-logo-square.png",
         "backgroundColor": "#FFFFFF"
-      }
+      },
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "web": {
       "favicon": "./src/Images/Logo/pensee-logo-square.png"

@@ -331,6 +331,16 @@ export default function OrderListScreen() {
           }
         />
       )}
+
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => navigation.navigate('AddOrder')}
+        accessibilityLabel="Add order"
+        activeOpacity={0.85}
+      >
+        <MaterialCommunityIcons name="plus" size={22} color="#fff" />
+        <Text style={styles.fabText}>New Order</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -338,6 +348,27 @@ export default function OrderListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  fab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 28,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
   },
   header: {
     paddingTop: 12,
@@ -456,7 +487,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 96,
   },
   card: {
     borderRadius: 12,

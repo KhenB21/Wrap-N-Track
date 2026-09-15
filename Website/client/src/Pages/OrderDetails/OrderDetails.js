@@ -386,9 +386,15 @@ export default function OrderDetails() {
 
     // Only the order-detail columns: no status (so no payment gate or stock
     // move is triggered) and no products (so order lines are left untouched).
+    const boxCount = Number(form.order_quantity);
+    if (!Number.isInteger(boxCount) || boxCount < 1) {
+      toast.error('Total boxes is required. Every order needs at least 1 box.');
+      return;
+    }
     const payload = {
       order_date: form.order_date,
       expected_delivery: form.expected_delivery,
+      order_quantity: boxCount,
     };
     EDITABLE_ORDER_FIELDS.forEach((field) => {
       const value = form[field];
@@ -499,6 +505,7 @@ export default function OrderDetails() {
       total_cost: orderTotal(orderToEdit),
       order_date: toDateInputValue(orderToEdit.order_date),
       expected_delivery: toDateInputValue(orderToEdit.expected_delivery),
+      order_quantity: orderToEdit.order_quantity ?? 1,
     };
     EDITABLE_ORDER_FIELDS.forEach((field) => {
       nextForm[field] = orderToEdit[field] ?? '';
@@ -618,6 +625,19 @@ export default function OrderDetails() {
       console.log('Finished fetchOrders attempt.');
     }
   }, []);
+
+  // Orders created or updated from the mobile app show up when staff come back to this tab.
+  useEffect(() => {
+    const refreshOnReturn = () => {
+      if (document.visibilityState === 'visible') fetchOrders();
+    };
+    window.addEventListener('focus', refreshOnReturn);
+    document.addEventListener('visibilitychange', refreshOnReturn);
+    return () => {
+      window.removeEventListener('focus', refreshOnReturn);
+      document.removeEventListener('visibilitychange', refreshOnReturn);
+    };
+  }, [fetchOrders]);
 
   useEffect(() => {
     fetchOrders();
@@ -921,6 +941,18 @@ export default function OrderDetails() {
                       </select>
                     </label>
                     <label>Account Name<input name="account_name" value={form.account_name} onChange={handleFormChange} className="modal-input" /></label>
+                    <label>Total Boxes *
+                      <input
+                        name="order_quantity"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={form.order_quantity ?? ''}
+                        onChange={(e) => setForm((prev) => ({ ...prev, order_quantity: e.target.value.replace(/[^0-9]/g, '').slice(0, 4) }))}
+                        required
+                        className="modal-input"
+                      />
+                    </label>
                     {/* Remarks - span both columns */}
                     <label style={{gridColumn:'1 / span 2'}}>Remarks<input name="remarks" value={form.remarks} onChange={handleFormChange} className="modal-input" /></label>
                   </div>

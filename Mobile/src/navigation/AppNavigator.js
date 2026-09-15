@@ -31,6 +31,8 @@ import CustomerManagementScreen from '../Screens/CustomerManagementScreen';
 import SupplierManagementScreen from '../Screens/SupplierManagementScreen';
 import ReportsScreen from '../Screens/ReportsScreen';
 import SettingsScreen from '../Screens/SettingsScreen';
+import AboutScreen from '../Screens/AboutScreen';
+import HelpScreen from '../Screens/HelpScreen';
 
 // Import employee navigator
 import SimpleEmployeeNavigator from './SimpleEmployeeNavigator';
@@ -55,6 +57,8 @@ function CustomerSettingsStack() {
     >
       <Stack.Screen name="SettingsHome" component={SettingsScreen} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Stack.Screen name="About" component={AboutScreen} />
+      <Stack.Screen name="Help" component={HelpScreen} />
     </Stack.Navigator>
   );
 }
@@ -225,6 +229,8 @@ function MainStackNavigator() {
       <Stack.Screen name="SupplierManagement" component={SupplierManagementScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Stack.Screen name="About" component={AboutScreen} />
+      <Stack.Screen name="Help" component={HelpScreen} />
     </Stack.Navigator>
   );
 }

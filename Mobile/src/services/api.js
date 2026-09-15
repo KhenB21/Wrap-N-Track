@@ -102,6 +102,14 @@ const api = axios.create({
   },
 });
 
+// React Native's FormData must go out as multipart as-is. With the instance's JSON
+// default header axios serialised it, so product photos never reached the server.
+const MULTIPART = {
+  headers: { 'Content-Type': 'multipart/form-data' },
+  transformRequest: (data) => data,
+};
+const isFormData = (data) => typeof FormData !== 'undefined' && data instanceof FormData;
+
 // Request interceptor for adding auth token and logging
 api.interceptors.request.use(
   async (config) => {
@@ -265,7 +273,7 @@ export const inventoryAPI = {
   },
   addInventoryItem: async (itemData) => {
     try {
-      const response = await api.post('/inventory', itemData);
+      const response = await api.post('/inventory', itemData, isFormData(itemData) ? MULTIPART : undefined);
       return response.data;
     } catch (error) {
       console.error('Error adding inventory item:', error);
@@ -841,6 +849,17 @@ export const invoiceAPI = {
       throw error;
     }
   },
+  // Same calls as Website/client/src/Pages/Invoices/OrderInvoiceSection.js, PaymentModal.js and EmailInvoiceModal.js.
+  generateDownPayment: async (orderId) =>
+    (await api.post(`/orders/${encodeURIComponent(orderId)}/invoices/down-payment`)).data,
+  generateRemainingBalance: async (orderId) =>
+    (await api.post(`/orders/${encodeURIComponent(orderId)}/invoices/remaining-balance`)).data,
+  cancelInvoice: async (invoiceId) =>
+    (await api.patch(`/invoices/${invoiceId}/status`, { status: 'CANCELLED' })).data,
+  markPaid: async (invoiceId, formData) =>
+    (await api.patch(`/invoices/${invoiceId}/mark-paid`, formData, MULTIPART)).data,
+  emailInvoice: async (invoiceId) =>
+    (await api.post(`/invoices/${invoiceId}/email`, {})).data,
   getPdfUrl: () => `${BASE_URL.replace('/api', '')}/api`,
   // Downloads an invoice PDF to local storage and opens the OS share sheet
   // (Save to Files / open in a PDF viewer / etc). Used by the mobile "Invoices"

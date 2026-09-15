@@ -247,8 +247,8 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
       return;
     }
     const boxCount = Number(fields.order_quantity);
-    if (!Number.isInteger(boxCount) || boxCount < 0) {
-      setFormError('Total boxes must be a non-negative whole number.');
+    if (!Number.isInteger(boxCount) || boxCount < 1) {
+      setFormError('Total boxes is required. Every order needs at least 1 box.');
       return;
     }
 
@@ -522,11 +522,11 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
               <div className="aom-field-group">
                 <label className="aom-sublabel" htmlFor="aom-boxes">Total Boxes *</label>
                 <div className="aom-qty-stepper aom-boxes-stepper">
-                  <button type="button" onClick={() => setFields((prev) => ({ ...prev, order_quantity: Math.max(0, Number(prev.order_quantity || 0) - 1) }))}>−</button>
+                  <button type="button" onClick={() => setFields((prev) => ({ ...prev, order_quantity: Math.max(1, Number(prev.order_quantity || 0) - 1) }))}>−</button>
                   <input
                     id="aom-boxes"
                     type="number"
-                    min="0"
+                    min="1"
                     max="9999"
                     step="1"
                     maxLength={4}

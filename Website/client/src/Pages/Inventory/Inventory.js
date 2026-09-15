@@ -12,14 +12,16 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import usePermissions from '../../hooks/usePermissions';
+import { STOCK_REASONS, buildStockReason, validateStockReason } from '../../constants/stockReasons';
 import { useTheme } from '../../Context/ThemeContext';
 import { useConfirm } from '../../Context/ConfirmContext';
 
 const UOMS_REQUIRING_CONVERSION = ['Dozen', 'Box', 'Bundle', 'Set', 'Kit'];
 
 function Inventory() {
-  const { checkPermission, isReadOnly } = usePermissions();
+  const { checkPermission, isReadOnly, canAdjustStock } = usePermissions();
   const readOnly = isReadOnly();
+  const canAdjust = canAdjustStock();
   const { theme } = useTheme();
   const confirm = useConfirm();
 
@@ -51,6 +53,7 @@ function Inventory() {
   const [psAction, setPsAction] = useState('STOCK_IN');
   const [psQty, setPsQty] = useState('');
   const [psReason, setPsReason] = useState('');
+  const [psReasonNotes, setPsReasonNotes] = useState('');
   const [psQtyError, setPsQtyError] = useState('');
   const [psPhoneOnline, setPsPhoneOnline] = useState(false);
   const [psProduct, setPsProduct] = useState(null);   // confirmed product
@@ -307,6 +310,7 @@ function Inventory() {
     setPsApplyError('');
     setPsQty('');
     setPsReason('');
+    setPsReasonNotes('');
     setPsQtyError('');
     setPsAction('STOCK_IN');
     psMountedRef.current = false;
@@ -502,6 +506,7 @@ function Inventory() {
     setPsApplyError('');
     setPsQty('');
     setPsReason('');
+    setPsReasonNotes('');
     setPsQtyError('');
     setPsAction('STOCK_IN');
     // Connect WS immediately so phone can connect
@@ -510,7 +515,7 @@ function Inventory() {
   };
 
   const handlePsStartScan = () => {
-    const err = psValidateQty(psQty, psAction, undefined);
+    const err = psValidateQty(psQty, psAction, undefined) || validateStockReason(psReason, psReasonNotes);
     if (err) { setPsQtyError(err); return; }
     setPsQtyError('');
     setPsStep('scan_ready');
@@ -531,7 +536,7 @@ function Inventory() {
       await api.post(endpoint, {
         sku: psProduct.sku,
         quantity: qty,
-        reason: psReason || (psAction === 'STOCK_IN' ? 'Stock In via Phone Scanner' : 'Stock Out via Phone Scanner'),
+        reason: buildStockReason(psReason, psReasonNotes),
         source: 'barcode_scan',
       });
 
@@ -727,7 +732,7 @@ function Inventory() {
                 <span style={{ fontSize: '10px' }}>{rtStatus === 'live' ? '●' : '○'}</span>
                 {rtStatus === 'live' ? 'Live' : rtStatus === 'reconnecting' ? 'Reconnecting…' : rtStatus === 'offline' ? 'Offline' : 'Connecting…'}
               </span>
-              {!readOnly && (
+              {canAdjust && (
                 <button
                   className="phone-scanner-btn"
                   onClick={handlePsOpen}
@@ -1003,6 +1008,7 @@ function Inventory() {
                           <span style={{ fontSize: '12px', color: '#9ca3af' }}>View only</span>
                         ) : (
                           <>
+                            {canAdjust && (
                             <button className="action-btn add" title="Add Stock" onClick={e => {
                               e.stopPropagation();
                               setModalMode('addStock');
@@ -1013,6 +1019,7 @@ function Inventory() {
                                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                               </svg>
                             </button>
+                            )}
                             <button className="action-btn edit" title="Edit" onClick={e => {
                               e.stopPropagation();
                               setModalMode('edit');
@@ -1087,7 +1094,7 @@ function Inventory() {
                     <div className="ps-action-row">
                       <button
                         className={`ps-action-card ${psAction === 'STOCK_IN' ? 'ps-action-card--add' : ''}`}
-                        onClick={() => setPsAction('STOCK_IN')}
+                        onClick={() => { setPsAction('STOCK_IN'); setPsReason(''); }}
                       >
                         <span className="ps-action-icon">📦</span>
                         <span className="ps-action-name">Add Stock</span>
@@ -1095,7 +1102,7 @@ function Inventory() {
                       </button>
                       <button
                         className={`ps-action-card ${psAction === 'STOCK_OUT' ? 'ps-action-card--remove' : ''}`}
-                        onClick={() => setPsAction('STOCK_OUT')}
+                        onClick={() => { setPsAction('STOCK_OUT'); setPsReason(''); }}
                       >
                         <span className="ps-action-icon">📤</span>
                         <span className="ps-action-name">Remove Stock</span>
@@ -1114,12 +1121,20 @@ function Inventory() {
                       onChange={e => { setPsQty(e.target.value); if (psQtyError) setPsQtyError(''); }}
                     />
                     {psQtyError && <p className="ps-error-msg">{psQtyError}</p>}
+                    <select
+                      className="ps-reason-input"
+                      value={psReason}
+                      onChange={e => { setPsReason(e.target.value); if (psQtyError) setPsQtyError(''); }}
+                    >
+                      <option value="">Select a reason (required)</option>
+                      {STOCK_REASONS[psAction].map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
                     <input
                       className="ps-reason-input"
                       type="text"
-                      placeholder="Reason (optional)"
-                      value={psReason}
-                      onChange={e => setPsReason(e.target.value)}
+                      placeholder={psReason === 'Other' ? 'Describe the reason (required)' : 'Notes (optional)'}
+                      value={psReasonNotes}
+                      onChange={e => { setPsReasonNotes(e.target.value); if (psQtyError) setPsQtyError(''); }}
                     />
 
                     {/* Step 3 — Scan */}
@@ -1229,7 +1244,7 @@ function Inventory() {
                             {Number(newQty).toLocaleString()}
                           </strong>
                         </div>
-                        {psReason && <p className="ps-reason-preview">Reason: {psReason}</p>}
+                        {psReason && <p className="ps-reason-preview">Reason: {buildStockReason(psReason, psReasonNotes)}</p>}
                       </div>
                       {isRemove && (
                         <div className="ps-warning-banner">

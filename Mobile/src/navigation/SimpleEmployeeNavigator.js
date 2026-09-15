@@ -15,6 +15,8 @@ import OrderListScreen from '../Screens/Employee/OrderListScreen';
 import OrderDetailScreen from '../Screens/Employee/OrderDetailScreen';
 import OrderStatusUpdateScreen from '../Screens/Employee/OrderStatusUpdateScreen';
 import InvoiceScreen from '../Screens/Employee/InvoiceScreen';
+import AddOrderScreen from '../Screens/Employee/AddOrderScreen';
+import EditOrderScreen from '../Screens/Employee/EditOrderScreen';
 import CustomerListScreen from '../Screens/Employee/CustomerListScreen';
 import CustomerDetailScreen from '../Screens/Employee/CustomerDetailScreen';
 import AddEditCustomerScreen from '../Screens/Employee/AddEditCustomerScreen';
@@ -60,6 +62,8 @@ function OrdersStack() {
       <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
       <Stack.Screen name="OrderStatusUpdate" component={OrderStatusUpdateScreen} />
       <Stack.Screen name="InvoiceScreen" component={InvoiceScreen} />
+      <Stack.Screen name="AddOrder" component={AddOrderScreen} />
+      <Stack.Screen name="EditOrder" component={EditOrderScreen} />
     </Stack.Navigator>
   );
 }

@@ -81,7 +81,7 @@ export default function ItemPreviewScreen({ navigation, route }) {
         showCart
         logoType="image"
         onMenuPress={() => setMenuVisible(true)}
-        onCartPress={() => navigation.navigate("MyCart")}
+        onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })}
         darkMode={darkMode}
       />
       {/* Custom Back Button */}

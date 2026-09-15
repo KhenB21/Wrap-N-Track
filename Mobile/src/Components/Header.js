@@ -51,7 +51,7 @@ const Header = ({
 
   const handleCartPress = () => {
     if (onCartPress) return onCartPress();
-    navigation.navigate('MyCart');
+    navigation.navigate('CustomerTabs', { screen: 'Cart' });
   };
 
   const handleProfilePress = () => {
@@ -170,8 +170,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 56,
-    paddingHorizontal: 16,
+    // Compact bar: the status-bar padding above already adds height on Android.
+    height: 44,
+    paddingHorizontal: 12,
   },
   leftSection: {
     flexDirection: 'row',
@@ -179,11 +180,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconButton: {
-    padding: 8,
-    marginRight: 8,
+    padding: 6,
+    marginRight: 6,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     flex: 1,
   },
