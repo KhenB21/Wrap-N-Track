@@ -15,24 +15,29 @@ import { useTheme } from '../../Context/ThemeContext';
 import { deliveryAPI } from '../../services/api';
 import { SkeletonCard, SkeletonText } from '../../Components/Skeleton/Skeleton';
 
+// Same lists as Website/client/src/Pages/DeliveryTracking/DeliveryTracking.js and
+// Website/server/services/deliveryService.js. The server rejects any other value.
 const DELIVERY_STATUSES = [
-  'Pending',
-  'Preparing',
+  'Scheduled',
   'Ready for Delivery',
   'Awaiting Pick-up',
-  'Out for Delivery',
   'Sent / Shipped',
   'Delivered',
   'Picked Up',
   'Failed Delivery',
-  'Rescheduled',
-  'Cancelled',
 ];
 
-const PICKUP_STATUSES = ['Ready for Delivery', 'Awaiting Pick-up', 'Picked Up', 'Cancelled'];
+const PICKUP_STATUSES = ['Scheduled', 'Ready for Delivery', 'Awaiting Pick-up', 'Picked Up'];
+
+// "Delivered"/"Picked Up" are the terminal states for the two delivery tracks.
+const STATUS_LABELS = {
+  Delivered: 'Delivered (Completed)',
+  'Picked Up': 'Picked Up (Completed)',
+};
 
 const STATUS_COLORS = {
   Pending: '#9E9E9E',
+  Scheduled: '#607D8B',
   Preparing: '#FF9800',
   'Ready for Delivery': '#2196F3',
   'Awaiting Pick-up': '#9C27B0',
@@ -60,7 +65,7 @@ export default function EmployeeDeliveryUpdateScreen({ navigation, route }) {
   const [refreshing, setRefreshing] = useState(false);
 
   const [form, setForm] = useState({
-    delivery_status: initialDelivery?.delivery_status || 'Pending',
+    delivery_status: initialDelivery?.delivery_status || 'Ready for Delivery',
     delivery_mode_id: initialDelivery?.delivery_mode_id ? String(initialDelivery.delivery_mode_id) : '',
     courier_name: initialDelivery?.courier_name || '',
     tracking_number: initialDelivery?.tracking_number || '',
@@ -92,7 +97,7 @@ export default function EmployeeDeliveryUpdateScreen({ navigation, route }) {
       setHistory(historyData.history || []);
 
       setForm({
-        delivery_status: d.delivery_status || 'Pending',
+        delivery_status: d.delivery_status || 'Ready for Delivery',
         delivery_mode_id: d.delivery_mode_id ? String(d.delivery_mode_id) : '',
         courier_name: d.courier_name || '',
         tracking_number: d.tracking_number || '',
@@ -143,8 +148,12 @@ export default function EmployeeDeliveryUpdateScreen({ navigation, route }) {
       Alert.alert('Validation', 'Delivery status is required');
       return false;
     }
-    if (['Failed Delivery', 'Rescheduled'].includes(form.delivery_status) && !form.delivery_remarks.trim()) {
-      Alert.alert('Validation', 'Remarks are required for failed or rescheduled deliveries');
+    if (!availableStatuses.includes(form.delivery_status)) {
+      Alert.alert('Validation', 'Select one of the delivery statuses shown');
+      return false;
+    }
+    if (form.delivery_status === 'Failed Delivery' && !form.delivery_remarks.trim()) {
+      Alert.alert('Validation', 'Remarks are required for failed deliveries');
       return false;
     }
     if (!isPickup && trackingAvailable && !form.tracking_link.trim()) {
@@ -268,7 +277,7 @@ export default function EmployeeDeliveryUpdateScreen({ navigation, route }) {
                   ]}
                   onPress={() => updateForm('delivery_status', status)}
                 >
-                  <Text style={[styles.statusChipText, { color: active ? '#fff' : sub }]}>{status}</Text>
+                  <Text style={[styles.statusChipText, { color: active ? '#fff' : sub }]}>{STATUS_LABELS[status] || status}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -338,7 +347,7 @@ export default function EmployeeDeliveryUpdateScreen({ navigation, route }) {
         {/* Remarks */}
         <View style={[styles.section, { backgroundColor: card }]}>
           <Text style={[styles.sectionTitle, { color: text }]}>
-            Remarks {['Failed Delivery', 'Rescheduled'].includes(form.delivery_status) ? '*' : '(optional)'}
+            Remarks {form.delivery_status === 'Failed Delivery' ? '*' : '(optional)'}
           </Text>
           <TextInput
             style={[styles.textInput, styles.textArea, { backgroundColor: inputBg, color: text, borderColor: border }]}

@@ -19,6 +19,14 @@ import { useTheme } from '../../Context/ThemeContext';
 import { useInventory } from '../../Context/InventoryContext';
 import { inventoryAPI, supplierAPI } from '../../services/api';
 import * as ImagePicker from 'expo-image-picker';
+import { toUploadFile } from '../../services/uploadFile';
+
+// Digits and one decimal point, at most 2 decimal places (e.g. 1250.50).
+const toMoneyInput = (value) => {
+  const [whole, ...rest] = String(value || '').replace(/[^0-9.]/g, '').split('.');
+  return rest.length ? `${whole}.${rest.join('').slice(0, 2)}` : whole;
+};
+
 
 // Generate unique SKU
 const generateUniqueSku = () => {
@@ -211,13 +219,7 @@ export default function AddProductScreen({ route, navigation }) {
       dataToSend.append('barcode', formData.barcode || '');
 
       if (image) {
-        const uriParts = image.uri.split('.');
-        const fileType = uriParts[uriParts.length - 1];
-        dataToSend.append('image', {
-          uri: image.uri,
-          name: `product.${fileType}`,
-          type: `image/${fileType}`
-        });
+        dataToSend.append('image', toUploadFile(image, `product-${formData.sku || 'image'}`));
       }
       
       if (isEdit) {
@@ -400,8 +402,8 @@ export default function AddProductScreen({ route, navigation }) {
                 <Text style={[styles.label, { color: theme.colors.onSurface }]}>Quantity to Add *</Text>
                 <TextInput
                   value={quantityToAdd}
-                  onChangeText={setQuantityToAdd}
-                  keyboardType="numeric"
+                  onChangeText={(value) => setQuantityToAdd(value.replace(/[^0-9]/g, '').slice(0, 7))}
+                  keyboardType="number-pad"
                   placeholder="Enter quantity to add"
                   placeholderTextColor={theme.colors.onSurfaceVariant}
                   style={[styles.input, { color: theme.colors.onSurface, borderColor: errors.quantity ? '#F44336' : theme.colors.outline }]}
@@ -414,8 +416,8 @@ export default function AddProductScreen({ route, navigation }) {
                 <Text style={[styles.label, { color: theme.colors.onSurface }]}>Quantity (Base Unit) *</Text>
                 <TextInput
                   value={formData.quantity}
-                  onChangeText={(value) => handleInputChange('quantity', value)}
-                  keyboardType="numeric"
+                  onChangeText={(value) => handleInputChange('quantity', value.replace(/[^0-9]/g, '').slice(0, 7))}
+                  keyboardType="number-pad"
                   placeholder="0"
                   placeholderTextColor={theme.colors.onSurfaceVariant}
                   editable={!isEdit}
@@ -445,8 +447,8 @@ export default function AddProductScreen({ route, navigation }) {
                     <Text style={[styles.label, { color: theme.colors.onSurface }]}>Units per {formData.uom} *</Text>
                     <TextInput
                       value={formData.conversion_qty}
-                      onChangeText={(value) => handleInputChange('conversion_qty', value)}
-                      keyboardType="numeric"
+                      onChangeText={(value) => handleInputChange('conversion_qty', value.replace(/[^0-9]/g, '').slice(0, 5))}
+                      keyboardType="number-pad"
                       placeholder={`How many units in one ${formData.uom}?`}
                       placeholderTextColor={theme.colors.onSurfaceVariant}
                       style={[styles.input, { color: theme.colors.onSurface, borderColor: errors.conversion_qty ? '#F44336' : theme.colors.outline }]}
@@ -464,8 +466,8 @@ export default function AddProductScreen({ route, navigation }) {
                 <Text style={[styles.label, { color: theme.colors.onSurface }]}>Unit Price (Per UOM) *</Text>
                 <TextInput
                   value={formData.unit_price}
-                  onChangeText={(value) => handleInputChange('unit_price', value)}
-                  keyboardType="numeric"
+                  onChangeText={(value) => handleInputChange('unit_price', toMoneyInput(value))}
+                  keyboardType="decimal-pad"
                   placeholder="0.00"
                   placeholderTextColor={theme.colors.onSurfaceVariant}
                   style={[styles.input, { color: theme.colors.onSurface, borderColor: errors.unit_price ? '#F44336' : theme.colors.outline }]}

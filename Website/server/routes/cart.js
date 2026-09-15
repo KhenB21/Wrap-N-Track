@@ -401,6 +401,25 @@ router.post('/checkout', async (req, res) => {
       WHERE cc.customer_id = $1
     `, [customerId]);
 
+    // Every order ships in a box: at least one cart item must be a product staff
+    // published under Packaging (same rule as the mobile/website gift builder).
+    if (cartResult.rows.length > 0) {
+      const boxResult = await client.query(`
+        SELECT 1
+        FROM customer_cart cc
+        JOIN public.available_inventory ai ON ai.sku = cc.sku AND ai.category = 'packaging'
+        WHERE cc.customer_id = $1
+        LIMIT 1
+      `, [customerId]);
+      if (boxResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          success: false,
+          message: 'Your order has no box. Every order must include one box from Packaging. Orders with only products cannot be placed.'
+        });
+      }
+    }
+
     if (cartResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({
@@ -416,6 +435,9 @@ router.post('/checkout', async (req, res) => {
 
     // Generate order ID
     const orderId = `#CO${Date.now()}`;
+    // order_date is a DATE column: use today's date in the Philippines. toISOString()
+    // is UTC, which stamped orders placed before 8:00 AM with the previous day.
+    const orderDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date());
 
     // Create order
     await client.query(`
@@ -426,7 +448,7 @@ router.post('/checkout', async (req, res) => {
         customer_id, order_placed_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
     `, [
-      orderId, customer.name, customer.name, new Date().toISOString().split('T')[0],
+      orderId, customer.name, customer.name, orderDate,
       expected_delivery, 'Order Placed', shipping_address, totalCost,
       payment_type, payment_method, customer.name, remarks,
       customer.phone_number, customer.phone_number, customer.email_address,

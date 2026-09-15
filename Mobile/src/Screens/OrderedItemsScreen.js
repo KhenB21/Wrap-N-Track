@@ -59,7 +59,7 @@ export default function OrderedItemsScreen() {
         logoType="image"
         showCart
         onBackPress={() => navigation.goBack()}
-        onCartPress={() => navigation.navigate("MyCart")}
+        onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })}
         darkMode={darkMode}
         title="My Orders"
       />

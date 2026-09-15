@@ -249,7 +249,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
   const success = darkMode ? "#81C784" : "#2E7D32";
 
   const header = (
-    <Header showBack showCart logoType="image" onBackPress={() => navigation.goBack()} onCartPress={() => navigation.navigate("MyCart")} darkMode={darkMode} />
+    <Header showBack showCart logoType="image" onBackPress={() => navigation.goBack()} onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })} darkMode={darkMode} />
   );
 
   if (!tracking && !order) {

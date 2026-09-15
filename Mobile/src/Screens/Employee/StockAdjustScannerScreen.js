@@ -2,7 +2,7 @@
  * StockAdjustScannerScreen
  *
  * Full barcode-scan workflow for stock adjustments.
- * Phase 1 — Setup:   choose Add/Remove, enter quantity, optional reason
+ * Phase 1 — Setup:   choose Add/Remove, enter quantity, required reason
  * Phase 2 — Scan:    CameraView (reuses InventoryScannerScreen patterns)
  * Phase 3 — Confirm: product details + before→after preview; explicit Apply button
  * Phase 4 — Success: result summary; "Scan Another" shortcut
@@ -29,8 +29,8 @@ import { useTheme } from '../../Context/ThemeContext';
 import { useAuth } from '../../Context/AuthContext';
 import { useInventory } from '../../Context/InventoryContext';
 import { inventoryAPI } from '../../services/api';
-
-const MANAGER_ROLES = ['operations_manager', 'sales_manager', 'admin', 'super_admin', 'director'];
+import StockReasonPicker from '../../Components/StockReasonPicker';
+import { buildStockReason, canAdjustStockRole, validateStockReason } from '../../constants/stockReasons';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ export default function StockAdjustScannerScreen({ navigation }) {
   // Authorization
   const canAdjust =
     userType === 'employee' &&
-    MANAGER_ROLES.includes(String(user?.role || '').toLowerCase());
+    canAdjustStockRole(user?.role);
 
   // ── phase state ────────────────────────────────────────────────────────────
   const [phase, setPhase] = useState('setup'); // setup | scanning | confirming | applying | success
@@ -68,6 +68,8 @@ export default function StockAdjustScannerScreen({ navigation }) {
   const [action, setAction] = useState('STOCK_IN');
   const [qtyInput, setQtyInput] = useState('');
   const [reason, setReason] = useState('');
+  const [reasonNotes, setReasonNotes] = useState('');
+  const [reasonError, setReasonError] = useState('');
   const [qtyError, setQtyError] = useState('');
 
   // ── scan state ─────────────────────────────────────────────────────────────
@@ -95,7 +97,7 @@ export default function StockAdjustScannerScreen({ navigation }) {
         <MaterialCommunityIcons name="lock-alert" size={64} color="#D32F2F" />
         <Text style={[styles.h2, { color: theme.colors.onSurface }]}>Not Authorized</Text>
         <Text style={[styles.sub, { color: theme.colors.onSurfaceVariant }]}>
-          You do not have permission to adjust stock.
+          Only Admin and Operations Manager accounts can add or remove stock.
         </Text>
         <TouchableOpacity style={styles.btnSecondary} onPress={() => navigation.goBack()}>
           <Text style={styles.btnSecondaryText}>Go Back</Text>
@@ -108,8 +110,10 @@ export default function StockAdjustScannerScreen({ navigation }) {
 
   const handleStartScan = () => {
     const err = validateQty(qtyInput, action, undefined);
-    if (err) { setQtyError(err); return; }
-    setQtyError('');
+    const reasonErr = validateStockReason(reason, reasonNotes, action);
+    setQtyError(err || '');
+    setReasonError(reasonErr || '');
+    if (err || reasonErr) return;
     setScanError('');
     setScanned(false);
     setPhase('scanning');
@@ -176,8 +180,8 @@ export default function StockAdjustScannerScreen({ navigation }) {
     try {
       const apiCall =
         action === 'STOCK_IN'
-          ? inventoryAPI.stockIn(product.sku, qty, reason || 'Stock In via Barcode Scan', 'barcode_scan')
-          : inventoryAPI.stockOut(product.sku, qty, reason || 'Stock Out via Barcode Scan', 'barcode_scan');
+          ? inventoryAPI.stockIn(product.sku, qty, buildStockReason(reason, reasonNotes), 'barcode_scan')
+          : inventoryAPI.stockOut(product.sku, qty, buildStockReason(reason, reasonNotes), 'barcode_scan');
 
       await apiCall;
 
@@ -331,20 +335,18 @@ export default function StockAdjustScannerScreen({ navigation }) {
               <Text style={styles.errorText}>{qtyError}</Text>
             ) : null}
 
-            {/* Reason */}
-            <TextInput
-              style={[styles.reasonInput, {
-                borderColor: theme.colors.outline,
-                backgroundColor: theme.colors.surface,
-                color: theme.colors.onSurface,
-              }]}
-              placeholder="Reason (optional)"
-              placeholderTextColor={theme.colors.onSurfaceVariant}
-              value={reason}
-              onChangeText={setReason}
-              multiline
-              numberOfLines={2}
-            />
+            {/* Reason (required) */}
+            <View style={{ marginTop: 18 }}>
+              <StockReasonPicker
+                action={action}
+                reason={reason}
+                notes={reasonNotes}
+                onChangeReason={(value) => { setReason(value); setReasonError(''); }}
+                onChangeNotes={(value) => { setReasonNotes(value); setReasonError(''); }}
+                error={reasonError}
+                colors={theme.colors}
+              />
+            </View>
 
             {/* Step 3 — Scan */}
             <Text style={[styles.stepLabel, { color: theme.colors.onSurfaceVariant, marginTop: 24 }]}>
@@ -550,7 +552,7 @@ export default function StockAdjustScannerScreen({ navigation }) {
 
             {reason ? (
               <Text style={[styles.reasonPreview, { color: isRemove ? '#7F1D1D' : '#14532D' }]}>
-                Reason: {reason}
+                Reason: {buildStockReason(reason, reasonNotes)}
               </Text>
             ) : null}
           </View>

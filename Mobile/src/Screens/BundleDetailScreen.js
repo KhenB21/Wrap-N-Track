@@ -15,9 +15,14 @@ import { useTheme } from "../Context/ThemeContext";
 import { useAuth } from "../Context/AuthContext";
 import { showcaseAPI, orderAPI } from "../services/api";
 import { SkeletonText, SkeletonCard } from "../Components/Skeleton/Skeleton";
+import { PH_MOBILE_LENGTH, normalizePhMobile, phMobileError, sanitizePhMobileInput } from "../constants/phone";
 
 const { width } = Dimensions.get("window");
-const TODAY = new Date().toISOString().slice(0, 10);
+// The phone's local date. toISOString() is UTC, which is still "yesterday" before 8:00 AM in the Philippines.
+const localToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 // Mirrors Website/client/src/Pages/CustomerPOV/BundleDetails.js — same
 // GET /api/showcase/:id + POST /api/orders (bundle_id) the website uses, so
@@ -37,7 +42,7 @@ export default function BundleDetailScreen({ navigation, route }) {
   const [form, setForm] = useState({
     name: user?.name || "",
     email: user?.email || user?.email_address || "",
-    cellphone: user?.cellphone || user?.phone_number || "",
+    cellphone: normalizePhMobile(user?.cellphone || user?.phone_number || ""),
     shipping_address: "",
     order_quantity: "1",
   });
@@ -77,7 +82,8 @@ export default function BundleDetailScreen({ navigation, route }) {
   const handlePlaceOrder = async () => {
     if (!form.name.trim()) return setOrderError("Full name is required.");
     if (!form.email.trim()) return setOrderError("Email address is required.");
-    if (!form.cellphone.trim()) return setOrderError("Phone number is required.");
+    const phoneError = phMobileError(form.cellphone, { required: true });
+    if (phoneError) return setOrderError(`Phone: ${phoneError}`);
     if (!form.shipping_address.trim()) return setOrderError("Delivery address is required.");
 
     setOrdering(true);
@@ -87,8 +93,8 @@ export default function BundleDetailScreen({ navigation, route }) {
         account_name: form.name.trim(),
         name: form.name.trim(),
         shipped_to: form.name.trim(),
-        order_date: TODAY,
-        expected_delivery: TODAY,
+        order_date: localToday(),
+        expected_delivery: localToday(),
         status: "Pending",
         package_name: bundle.title,
         payment_method: "Cash",
@@ -170,7 +176,7 @@ export default function BundleDetailScreen({ navigation, route }) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <Header showBack showCart onBackPress={() => navigation.goBack()} onCartPress={() => navigation.navigate("MyCart")} darkMode={darkMode} title={bundle.title} />
+      <Header showBack showCart onBackPress={() => navigation.goBack()} onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })} darkMode={darkMode} title={bundle.title} />
       <ScrollView showsVerticalScrollIndicator={false}>
         {imgSrc ? (
           <Image source={imgSrc} style={styles.heroImage} resizeMode="cover" />
@@ -232,9 +238,10 @@ export default function BundleDetailScreen({ navigation, route }) {
           <TextInput
             style={[styles.input, { backgroundColor: colors.input, color: colors.text, borderColor: colors.border }]}
             value={form.cellphone}
-            onChangeText={(v) => setForm((f) => ({ ...f, cellphone: v }))}
-            keyboardType="phone-pad"
-            placeholder="+63 9XX XXX XXXX"
+            onChangeText={(v) => setForm((f) => ({ ...f, cellphone: sanitizePhMobileInput(v) }))}
+            keyboardType="number-pad"
+            maxLength={PH_MOBILE_LENGTH}
+            placeholder="09XXXXXXXXX"
             placeholderTextColor={colors.sub}
           />
 

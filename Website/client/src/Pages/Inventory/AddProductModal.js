@@ -3,6 +3,7 @@ import './AddProductModal.css';
 import Select from 'react-select';
 import SupplierDropdown from '../../Components/SupplierDropdown';
 import AddSupplierModal from '../../Components/AddSupplierModal';
+import { STOCK_REASONS, buildStockReason, validateStockReason } from '../../constants/stockReasons';
 
 const CATEGORIES = [
   'Electronics',
@@ -154,6 +155,8 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     expiration: initialData.expiration || '',
     supplier_id: initialData.supplier_id || null,
     barcode: initialData.barcode || '',
+    stock_reason: '',
+    stock_reason_notes: '',
   });
   const [quantityToAdd, setQuantityToAdd] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -230,6 +233,8 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         if (isNaN(qty) || !Number.isInteger(qty) || qty <= 0) {
             newErrors.quantity = 'Please enter a valid positive integer to add.';
         }
+        const reasonError = validateStockReason(form.stock_reason, form.stock_reason_notes);
+        if (reasonError) newErrors.stock_reason = reasonError;
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     }
@@ -439,7 +444,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
           await onAdd({
               sku: form.sku,
               quantity: quantityToAdd,
-              reason: form.stock_reason || '',
+              reason: buildStockReason(form.stock_reason, form.stock_reason_notes),
               isAddStock: true,
           });
         } finally {
@@ -569,13 +574,26 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 New stock will be <strong>{Number(form.quantity) + Number(quantityToAdd)}</strong>
               </p>
             )}
-            <label className="full-width">Reason <span className="optional-tag">optional</span>
-              <input
+            <label className="full-width">Reason *
+              <select
                 name="stock_reason"
                 value={form.stock_reason || ''}
                 onChange={handleChange}
-                placeholder="e.g. supplier delivery, return, stock count adjustment"
+                className={errors.stock_reason ? 'error' : ''}
+              >
+                <option value="">Select a reason</option>
+                {STOCK_REASONS.STOCK_IN.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </label>
+            <label className="full-width">
+              {form.stock_reason === 'Other' ? 'Describe the reason *' : 'Notes (optional)'}
+              <input
+                name="stock_reason_notes"
+                value={form.stock_reason_notes || ''}
+                onChange={handleChange}
+                placeholder="e.g. PO number, supplier name, count details"
               />
+              {errors.stock_reason && <span className="error-message">{errors.stock_reason}</span>}
             </label>
 
             <div className="button-group">

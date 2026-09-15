@@ -19,6 +19,8 @@ import { useRoute } from '@react-navigation/native';
 import { useInventory } from '../../Context/InventoryContext';
 import { useAuth } from '../../Context/AuthContext';
 import { inventoryAPI } from '../../services/api';
+import StockReasonPicker from '../../Components/StockReasonPicker';
+import { buildStockReason, canAdjustStockRole, validateStockReason } from '../../constants/stockReasons';
 
 const { width } = Dimensions.get('window');
 
@@ -35,8 +37,11 @@ export default function InventoryDetailScreen({ navigation }) {
   const [stockAction, setStockAction] = useState('STOCK_IN');
   const [stockQuantity, setStockQuantity] = useState('');
   const [stockReason, setStockReason] = useState('');
+  const [stockReasonNotes, setStockReasonNotes] = useState('');
+  const [stockReasonError, setStockReasonError] = useState('');
   const inventoryManagerRoles = ['operations_manager', 'sales_manager', 'admin', 'super_admin', 'director'];
   const canManageInventory = userType === 'employee' && inventoryManagerRoles.includes(String(user?.role || '').toLowerCase());
+  const canAdjust = userType === 'employee' && canAdjustStockRole(user?.role);
 
   useEffect(() => {
     setCurrentProduct(product);
@@ -77,24 +82,28 @@ export default function InventoryDetailScreen({ navigation }) {
   };
 
   const handleAddStock = () => {
-    if (!canManageInventory) {
+    if (!canAdjust) {
       Alert.alert('Not Authorized', 'You are not authorized to access this feature');
       return;
     }
     setStockAction('STOCK_IN');
     setStockQuantity('');
     setStockReason('');
+    setStockReasonNotes('');
+    setStockReasonError('');
     setStockModalVisible(true);
   };
 
   const handleStockOut = () => {
-    if (!canManageInventory) {
+    if (!canAdjust) {
       Alert.alert('Not Authorized', 'You are not authorized to access this feature');
       return;
     }
     setStockAction('STOCK_OUT');
     setStockQuantity('');
     setStockReason('');
+    setStockReasonNotes('');
+    setStockReasonError('');
     setStockModalVisible(true);
   };
 
@@ -117,13 +126,19 @@ export default function InventoryDetailScreen({ navigation }) {
       Alert.alert('Invalid Stock Out', 'Stock Out cannot make inventory negative.');
       return;
     }
+    const reasonError = validateStockReason(stockReason, stockReasonNotes, stockAction);
+    if (reasonError) {
+      setStockReasonError(reasonError);
+      return;
+    }
+    const reasonText = buildStockReason(stockReason, stockReasonNotes);
 
     setLoading(true);
     try {
       if (stockAction === 'STOCK_OUT') {
-        await inventoryAPI.stockOut(currentProduct.sku, quantity, stockReason);
+        await inventoryAPI.stockOut(currentProduct.sku, quantity, reasonText);
       } else {
-        await inventoryAPI.stockIn(currentProduct.sku, quantity, stockReason);
+        await inventoryAPI.stockIn(currentProduct.sku, quantity, reasonText);
       }
       await refreshProduct();
       setStockModalVisible(false);
@@ -421,15 +436,17 @@ export default function InventoryDetailScreen({ navigation }) {
               style={[styles.stockInput, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
             />
 
-            <Text style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>Reason</Text>
-            <TextInput
-              value={stockReason}
-              onChangeText={setStockReason}
-              placeholder="Supplier delivery, damage, correction, etc."
-              placeholderTextColor={theme.colors.placeholder}
-              style={[styles.stockInput, styles.reasonInput, { color: theme.colors.onSurface, borderColor: theme.colors.outline }]}
-              multiline
-            />
+            <View style={{ marginBottom: 16 }}>
+              <StockReasonPicker
+                action={stockAction}
+                reason={stockReason}
+                notes={stockReasonNotes}
+                onChangeReason={(value) => { setStockReason(value); setStockReasonError(''); }}
+                onChangeNotes={(value) => { setStockReasonNotes(value); setStockReasonError(''); }}
+                error={stockReasonError}
+                colors={theme.colors}
+              />
+            </View>
 
             <Button
               mode="contained"
@@ -452,7 +469,7 @@ export default function InventoryDetailScreen({ navigation }) {
         >
           Back
         </Button>
-        {canManageInventory && (
+        {canAdjust && (
           <>
             <Button
               mode="contained"
@@ -468,6 +485,10 @@ export default function InventoryDetailScreen({ navigation }) {
             >
               Stock Out
             </Button>
+          </>
+        )}
+        {canManageInventory && (
+          <>
             <Button
               mode="contained"
               onPress={handleEdit}

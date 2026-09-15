@@ -1,85 +1,84 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  KeyboardAvoidingView,
-  Platform
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Card, RadioButton, TextInput } from 'react-native-paper';
-import { useTheme } from '../../Context/ThemeContext';
 import { useRoute } from '@react-navigation/native';
+import { useTheme } from '../../Context/ThemeContext';
 import { customerAPI } from '../../services/api';
 import StatusFeedback from '../../Components/StatusFeedback';
+import {
+  ActionButton,
+  BottomActions,
+  FormField,
+  FormSection,
+  PhoneField,
+  ScreenHeader,
+  Segmented,
+} from '../../Components/FormKit';
+import { normalizePhMobile, phMobileError } from '../../constants/phone';
 
-// Matches Website/client/src/Pages/Customers/CustomerModal.js — keep frontend/backend contract in sync.
-const PH_MOBILE_REGEX = /^(\+639|639|09)\d{9}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const buildInitialState = (customer) => ({
   name: customer?.name || '',
   email_address: customer?.email_address || '',
-  cellphone: customer?.cellphone || customer?.phone_number || '',
+  cellphone: normalizePhMobile(customer?.cellphone || customer?.phone_number || ''),
   telephone: customer?.telephone || '',
   address: customer?.address || '',
-  status: customer?.status || 'active'
+  status: customer?.status || 'active',
 });
 
+const initialsOf = (name) =>
+  String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('');
+
+const peso = (value) =>
+  new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 2 }).format(Number(value) || 0);
+
 export default function AddEditCustomerScreen({ navigation }) {
-  const theme = useTheme();
+  const { colors } = useTheme();
   const route = useRoute();
   const { customer, mode = 'add' } = route.params || {};
+  const isEditMode = mode === 'edit';
 
   const initialState = useMemo(() => buildInitialState(customer), [customer]);
   const [formData, setFormData] = useState(initialState);
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState(null); // { phase: 'updating'|'success'|'error', message }
 
-  const isEditMode = mode === 'edit';
-  const isDirty = useMemo(
-    () => JSON.stringify(formData) !== JSON.stringify(initialState),
-    [formData, initialState]
-  );
+  const isDirty = useMemo(() => JSON.stringify(formData) !== JSON.stringify(initialState), [formData, initialState]);
 
-  useEffect(() => {
-    navigation.setOptions({ title: isEditMode ? 'Edit Customer' : 'Add Customer' });
-  }, [isEditMode]);
-
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: null }));
-    }
+  const setField = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: null }));
   };
 
+  // Flag a wrong prefix or a complete-but-invalid number as soon as it is typed,
+  // instead of waiting for Save.
+  const liveCellError = (() => {
+    const digits = formData.cellphone;
+    if (digits.length >= 2 && !digits.startsWith('09')) return phMobileError(digits);
+    return null;
+  })();
+
   const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.name.trim()) newErrors.name = 'Full name is required';
-
+    const next = {};
+    if (!formData.name.trim()) next.name = 'Full name is required';
     if (!formData.email_address.trim()) {
-      newErrors.email_address = 'Email address is required';
+      next.email_address = 'Email address is required';
     } else if (!EMAIL_REGEX.test(formData.email_address.trim())) {
-      newErrors.email_address = 'Please enter a valid email address';
+      next.email_address = 'Enter a valid email address';
     }
-
-    const normalizedCell = formData.cellphone.trim().replace(/[\s-]/g, '');
-    if (!normalizedCell) {
-      newErrors.cellphone = 'Cellphone number is required';
-    } else if (!PH_MOBILE_REGEX.test(normalizedCell)) {
-      newErrors.cellphone = 'Use a valid PH mobile number (e.g. 09XXXXXXXXX)';
-    }
-
-    if (!formData.address.trim()) {
-      newErrors.address = 'Shipping address is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const cellError = phMobileError(formData.cellphone, { required: true });
+    if (cellError) next.cellphone = cellError;
+    if (!formData.address.trim()) next.address = 'Shipping address is required';
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
   const handleCancel = () => {
@@ -87,28 +86,16 @@ export default function AddEditCustomerScreen({ navigation }) {
       navigation.goBack();
       return;
     }
-    Alert.alert(
-      'Discard changes?',
-      'You have unsaved changes. Are you sure you want to leave without saving?',
-      [
-        { text: 'Keep Editing', style: 'cancel' },
-        { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() }
-      ]
-    );
+    Alert.alert('Discard changes?', 'You have unsaved changes. Leave without saving?', [
+      { text: 'Keep Editing', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() },
+    ]);
   };
 
   const handleSubmit = async () => {
     if (loading) return;
     if (!validateForm()) {
-      // validateForm() re-checks every field, not just the ones the user
-      // touched — a pre-existing customer record that no longer matches the
-      // current strict format (e.g. an old phone/email format) would
-      // otherwise fail here silently, with no API call and no visible error,
-      // which reads as "nothing happened / didn't save."
-      setFeedback({
-        phase: 'error',
-        message: 'Please fix the highlighted fields above before saving.'
-      });
+      setFeedback({ phase: 'error', message: 'Please fix the highlighted fields before saving.' });
       return;
     }
 
@@ -116,318 +103,226 @@ export default function AddEditCustomerScreen({ navigation }) {
     const payload = {
       name: formData.name.trim(),
       email_address: formData.email_address.trim(),
-      cellphone: formData.cellphone.trim().replace(/[\s-]/g, ''),
+      cellphone: formData.cellphone,
       telephone: formData.telephone.trim() || null,
       address: formData.address.trim(),
-      status: formData.status
+      status: formData.status,
     };
 
     setLoading(true);
-    setFeedback({
-      phase: 'updating',
-      message: statusChanged ? 'Updating customer status...' : 'Saving customer...'
-    });
-
+    setFeedback({ phase: 'updating', message: statusChanged ? 'Updating customer status...' : 'Saving customer...' });
     try {
       if (isEditMode) {
         await customerAPI.updateManagedCustomer(customer.customer_id, payload);
       } else {
         await customerAPI.addCustomer(payload);
       }
-
-      const successMessage = statusChanged
+      const message = statusChanged
         ? `Customer is now ${formData.status === 'active' ? 'Active' : 'Inactive'}.`
         : isEditMode
           ? 'Customer updated successfully.'
           : 'Customer added successfully.';
-
-      setFeedback({ phase: 'success', message: successMessage });
+      setFeedback({ phase: 'success', message });
       setTimeout(() => {
         setFeedback(null);
         navigation.goBack();
       }, 1200);
     } catch (error) {
-      // Backend update failed — formData.status was never persisted, so the
-      // displayed radio selection simply reverts to what's on screen already
-      // (no optimistic UI to roll back); we just surface the failure.
       const message =
         error.response?.data?.message ||
         error.response?.data?.error ||
-        (error.response
-          ? `Failed to ${isEditMode ? 'update' : 'add'} customer`
-          : 'Network error — check your connection and try again');
+        (error.response ? `Failed to ${isEditMode ? 'update' : 'add'} customer` : 'Network error. Check your connection and try again.');
       setFeedback({ phase: 'error', message });
     } finally {
       setLoading(false);
     }
   };
 
+  const initials = initialsOf(formData.name);
+  const isActive = formData.status === 'active';
+
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-    >
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <ScrollView
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Basic Information */}
-          <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-            <Card.Content>
-              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                Basic Information
+    <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[styles.flex1, { backgroundColor: colors.background }]}>
+        <ScreenHeader
+          title={isEditMode ? 'Edit Customer' : 'New Customer'}
+          subtitle={isEditMode ? customer?.customer_id && `Customer #${customer.customer_id}` : 'Add a customer to use in orders'}
+          onBack={handleCancel}
+          colors={colors}
+        />
+
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {/* ── Identity card ─────────────────────────────────────────── */}
+          <View style={[styles.identity, { backgroundColor: colors.primary }]}>
+            <View style={styles.avatar}>
+              {initials ? (
+                <Text style={styles.avatarText}>{initials}</Text>
+              ) : (
+                <MaterialCommunityIcons name="account-plus-outline" size={30} color="#fff" />
+              )}
+            </View>
+            <View style={styles.flex1}>
+              <Text style={styles.identityName} numberOfLines={1}>
+                {formData.name.trim() || (isEditMode ? 'Customer' : 'New customer')}
               </Text>
-
-              <TextInput
-                mode="outlined"
-                label="Full Name *"
-                value={formData.name}
-                onChangeText={(value) => handleInputChange('name', value)}
-                error={!!errors.name}
-                style={styles.input}
-              />
-              {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-
-              <TextInput
-                mode="outlined"
-                label="Email Address *"
-                value={formData.email_address}
-                onChangeText={(value) => handleInputChange('email_address', value)}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                error={!!errors.email_address}
-                style={styles.input}
-              />
-              {errors.email_address && <Text style={styles.errorText}>{errors.email_address}</Text>}
-
-              <TextInput
-                mode="outlined"
-                label="Cellphone *"
-                placeholder="09XXXXXXXXX"
-                value={formData.cellphone}
-                onChangeText={(value) => handleInputChange('cellphone', value)}
-                keyboardType="phone-pad"
-                error={!!errors.cellphone}
-                style={styles.input}
-              />
-              {errors.cellphone && <Text style={styles.errorText}>{errors.cellphone}</Text>}
-
-              <TextInput
-                mode="outlined"
-                label="Telephone (optional)"
-                value={formData.telephone}
-                onChangeText={(value) => handleInputChange('telephone', value)}
-                keyboardType="phone-pad"
-                style={styles.input}
-              />
-
-              <TextInput
-                mode="outlined"
-                label="Shipping Address *"
-                value={formData.address}
-                onChangeText={(value) => handleInputChange('address', value)}
-                multiline
-                numberOfLines={3}
-                error={!!errors.address}
-                style={[styles.input, styles.multilineInput]}
-              />
-              {errors.address && <Text style={styles.errorText}>{errors.address}</Text>}
-            </Card.Content>
-          </Card>
-
-          {/* Status */}
-          <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-            <Card.Content>
-              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                Status
+              <Text style={styles.identityMeta} numberOfLines={1}>
+                {formData.email_address.trim() || 'No email yet'}
               </Text>
+              <View style={[styles.statusPill, { backgroundColor: isActive ? 'rgba(76,175,80,0.25)' : 'rgba(255,152,0,0.25)' }]}>
+                <View style={[styles.statusDot, { backgroundColor: isActive ? '#81C784' : '#FFB74D' }]} />
+                <Text style={styles.statusPillText}>{isActive ? 'Active' : 'Inactive'}</Text>
+              </View>
+            </View>
+          </View>
 
-              <RadioButton.Group onValueChange={(value) => handleInputChange('status', value)} value={formData.status}>
-                <View style={styles.statusOption}>
-                  <View style={styles.statusOptionContent}>
-                    <MaterialCommunityIcons name="check-circle" size={20} color="#4CAF50" />
-                    <Text style={[styles.statusLabel, { color: theme.colors.onSurface }]}>
-                      Active
-                    </Text>
-                  </View>
-                  <RadioButton value="active" disabled={loading} />
-                </View>
-                <View style={styles.statusOption}>
-                  <View style={styles.statusOptionContent}>
-                    <MaterialCommunityIcons name="pause-circle" size={20} color="#F57C00" />
-                    <Text style={[styles.statusLabel, { color: theme.colors.onSurface }]}>
-                      Inactive
-                    </Text>
-                  </View>
-                  <RadioButton value="inactive" disabled={loading} />
-                </View>
-              </RadioButton.Group>
-            </Card.Content>
-          </Card>
-
-          {/* Additional Information (edit mode only) */}
           {isEditMode && (
-            <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-              <Card.Content>
-                <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                  Additional Information
-                </Text>
-
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { color: theme.colors.onSurfaceVariant }]}>
-                    Customer ID:
-                  </Text>
-                  <Text style={[styles.infoValue, { color: theme.colors.onSurface }]}>
-                    {customer?.customer_id || 'N/A'}
-                  </Text>
+            <View style={styles.statsRow}>
+              {[
+                { label: 'Orders', value: String(customer?.order_count ?? customer?.total_orders ?? 0), icon: 'receipt-text-outline' },
+                { label: 'Total spent', value: peso(customer?.total_spent), icon: 'cash-multiple' },
+                {
+                  label: 'Since',
+                  value: customer?.created_at ? new Date(customer.created_at).toLocaleDateString('en-PH', { month: 'short', year: 'numeric' }) : '-',
+                  icon: 'calendar-account-outline',
+                },
+              ].map((stat) => (
+                <View key={stat.label} style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <MaterialCommunityIcons name={stat.icon} size={18} color={colors.primary} />
+                  <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1}>{stat.value}</Text>
+                  <Text style={[styles.statLabel, { color: colors.subText }]}>{stat.label}</Text>
                 </View>
-
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { color: theme.colors.onSurfaceVariant }]}>
-                    Created:
-                  </Text>
-                  <Text style={[styles.infoValue, { color: theme.colors.onSurface }]}>
-                    {customer?.created_at ? new Date(customer.created_at).toLocaleDateString() : 'N/A'}
-                  </Text>
-                </View>
-
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { color: theme.colors.onSurfaceVariant }]}>
-                    Total Orders:
-                  </Text>
-                  <Text style={[styles.infoValue, { color: theme.colors.onSurface }]}>
-                    {customer?.order_count ?? customer?.total_orders ?? 0}
-                  </Text>
-                </View>
-
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { color: theme.colors.onSurfaceVariant }]}>
-                    Total Spent:
-                  </Text>
-                  <Text style={[styles.infoValue, { color: theme.colors.onSurface }]}>
-                    {new Intl.NumberFormat('en-PH', {
-                      style: 'currency',
-                      currency: 'PHP',
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    }).format(customer?.total_spent || 0)}
-                  </Text>
-                </View>
-              </Card.Content>
-            </Card>
+              ))}
+            </View>
           )}
 
-          <View style={{ height: 8 }} />
+          {/* ── Contact ───────────────────────────────────────────────── */}
+          <FormSection title="Contact details" icon="card-account-details-outline" colors={colors}>
+            <FormField
+              label="Full name"
+              required
+              icon="account-outline"
+              value={formData.name}
+              onChangeText={(v) => setField('name', v)}
+              placeholder="Juan Dela Cruz"
+              autoCapitalize="words"
+              error={errors.name}
+              colors={colors}
+            />
+            <FormField
+              label="Email address"
+              required
+              icon="email-outline"
+              value={formData.email_address}
+              onChangeText={(v) => setField('email_address', v)}
+              placeholder="name@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              error={errors.email_address}
+              colors={colors}
+            />
+            <PhoneField
+              label="Mobile number"
+              required
+              value={formData.cellphone}
+              onChangeText={(v) => setField('cellphone', v)}
+              error={errors.cellphone || liveCellError}
+              colors={colors}
+            />
+            <FormField
+              label="Telephone"
+              icon="phone-classic"
+              value={formData.telephone}
+              onChangeText={(v) => setField('telephone', v.replace(/[^\d\s()-]/g, '').slice(0, 15))}
+              placeholder="Optional landline, e.g. (02) 8123 4567"
+              keyboardType="phone-pad"
+              helper="Optional"
+              colors={colors}
+              containerStyle={styles.lastField}
+            />
+          </FormSection>
+
+          {/* ── Delivery ──────────────────────────────────────────────── */}
+          <FormSection title="Shipping address" icon="map-marker-outline" description="Used as the default delivery address for this customer's orders." colors={colors}>
+            <FormField
+              value={formData.address}
+              onChangeText={(v) => setField('address', v)}
+              placeholder="House no., street, barangay, city, province"
+              multiline
+              error={errors.address}
+              colors={colors}
+              containerStyle={styles.lastField}
+            />
+          </FormSection>
+
+          {/* ── Status ────────────────────────────────────────────────── */}
+          <FormSection title="Account status" icon="toggle-switch-outline" description="Inactive customers stay on record and can be reactivated anytime." colors={colors}>
+            <Segmented
+              value={formData.status}
+              onChange={(v) => setField('status', v)}
+              colors={colors}
+              options={[
+                { value: 'active', label: 'Active', icon: 'check-circle-outline', tone: '#2E7D32' },
+                { value: 'inactive', label: 'Inactive', icon: 'pause-circle-outline', tone: '#EF6C00' },
+              ]}
+            />
+          </FormSection>
         </ScrollView>
 
-        {/* Action Buttons */}
-        <View style={[styles.actionButtons, { backgroundColor: theme.colors.surface }]}>
-          <Button
-            mode="outlined"
-            onPress={handleCancel}
-            disabled={loading}
-            style={styles.actionButton}
-          >
-            Cancel
-          </Button>
-          <Button
-            mode="contained"
+        <BottomActions colors={colors}>
+          <ActionButton label="Cancel" variant="outline" onPress={handleCancel} disabled={loading} colors={colors} />
+          <ActionButton
+            label={isEditMode ? 'Save Changes' : 'Add Customer'}
+            icon={isEditMode ? 'content-save-outline' : 'account-plus-outline'}
             onPress={handleSubmit}
             loading={loading}
-            disabled={loading || !isDirty}
-            style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
-          >
-            {isEditMode ? 'Save Changes' : 'Add Customer'}
-          </Button>
-        </View>
+            disabled={!isDirty}
+            colors={colors}
+          />
+        </BottomActions>
       </View>
-      <StatusFeedback
-        phase={feedback?.phase}
-        message={feedback?.message}
-        onDismiss={() => setFeedback(null)}
-      />
+      <StatusFeedback phase={feedback?.phase} message={feedback?.message} onDismiss={() => setFeedback(null)} />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
+  flex1: { flex: 1 },
+  content: { padding: 16, paddingBottom: 32 },
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: 16,
     padding: 16,
+    marginBottom: 14,
   },
-  card: {
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  input: {
-    marginBottom: 8,
-  },
-  multilineInput: {
-    minHeight: 80,
-  },
-  errorText: {
-    color: '#F44336',
-    fontSize: 12,
-    marginBottom: 8,
-    marginTop: -4,
-  },
-  statusOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
-    paddingVertical: 8,
+    justifyContent: 'center',
   },
-  statusOptionContent: {
+  avatarText: { color: '#fff', fontSize: 22, fontWeight: '700' },
+  identityName: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  identityMeta: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 2 },
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    alignSelf: 'flex-start',
+    gap: 6,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginTop: 8,
   },
-  statusLabel: {
-    fontSize: 16,
-    marginLeft: 12,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  infoLabel: {
-    fontSize: 14,
-    flex: 1,
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
-    textAlign: 'right',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  actionButton: {
-    flex: 1,
-  },
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
+  statusPillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  stat: { flex: 1, borderWidth: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 8, alignItems: 'center', gap: 2 },
+  statValue: { fontSize: 14, fontWeight: '700', marginTop: 2 },
+  statLabel: { fontSize: 11 },
+  lastField: { marginBottom: 0 },
 });

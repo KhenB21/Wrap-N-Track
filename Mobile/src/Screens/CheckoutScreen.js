@@ -16,7 +16,11 @@ import { useCart } from "../Context/CartContext";
 import { useProfile } from "../Context/ProfileContext";
 import { useTheme } from "../Context/ThemeContext";
 import { useAuth } from "../Context/AuthContext";
-import { otpAPI } from "../services/api";
+import { inventoryAPI, otpAPI } from "../services/api";
+import { PACKAGING_KEY } from "../constants/boutique";
+import DatePickerModal from "../Components/DatePickerModal";
+import { formatLongDate } from "../constants/orderBoard";
+import { PH_MOBILE_LENGTH, normalizePhMobile, phMobileError, sanitizePhMobileInput } from "../constants/phone";
 
 export default function CheckoutScreen({ navigation, route }) {
   const { selectedItems } = route.params || {};
@@ -30,6 +34,25 @@ export default function CheckoutScreen({ navigation, route }) {
   const [shippingAddress, setShippingAddress] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  // SKUs staff published under Packaging. null while loading.
+  const [packagingSkus, setPackagingSkus] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    inventoryAPI
+      .getAvailableInventory()
+      .then((data) => {
+        if (!cancelled) setPackagingSkus(new Set(((data?.available || {})[PACKAGING_KEY] || []).map((p) => String(p.sku))));
+      })
+      .catch((err) => {
+        console.error("Failed to load packaging products", err);
+        if (!cancelled) setPackagingSkus(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [remarks, setRemarks] = useState("");
   // Order confirmation by email OTP — same /api/otp endpoints as the Website order page.
   const [otpModalVisible, setOtpModalVisible] = useState(false);
@@ -48,7 +71,7 @@ export default function CheckoutScreen({ navigation, route }) {
   useEffect(() => {
     if (profile) {
       setShippingAddress(profile.address || "");
-      setContactNumber(profile.phone || "");
+      setContactNumber(normalizePhMobile(profile.phone || ""));
     }
   }, [profile]);
 
@@ -62,12 +85,13 @@ export default function CheckoutScreen({ navigation, route }) {
       Alert.alert("Error", "Please enter your delivery address");
       return false;
     }
-    if (!contactNumber.trim()) {
-      Alert.alert("Error", "Please enter your contact number");
+    const contactError = phMobileError(contactNumber, { required: true });
+    if (contactError) {
+      Alert.alert("Error", `Contact number: ${contactError}`);
       return false;
     }
-    if (!eventDate.trim()) {
-      Alert.alert("Error", "Please enter the event/delivery date (e.g. 2025-12-25)");
+    if (!eventDate) {
+      Alert.alert("Error", "Please select the event/delivery date");
       return false;
     }
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -101,6 +125,17 @@ export default function CheckoutScreen({ navigation, route }) {
     const itemsToCheckout = selectedItems || cartItems;
     if (itemsToCheckout.length === 0) {
       Alert.alert("Error", "No items to checkout");
+      return;
+    }
+    if (packagingSkus === null) {
+      Alert.alert("Please wait", "We are still checking your order. Try again in a moment.");
+      return;
+    }
+    if (!itemsToCheckout.some((item) => packagingSkus.has(String(item.sku)))) {
+      Alert.alert(
+        "No box in your order",
+        "You are ordering products without a box. Every order must include one box from Packaging. Add a box to your cart before placing the order."
+      );
       return;
     }
     if (!customerEmail) {
@@ -189,6 +224,7 @@ export default function CheckoutScreen({ navigation, route }) {
   };
 
   const itemsToDisplay = selectedItems || cartItems;
+  const missingBox = packagingSkus !== null && !itemsToDisplay.some((item) => packagingSkus.has(String(item.sku)));
   const subtotal = itemsToDisplay.reduce((sum, item) => {
     return sum + (parseFloat(item.unit_price || 0) * (item.quantity || 0));
   }, 0);
@@ -207,7 +243,7 @@ export default function CheckoutScreen({ navigation, route }) {
         showCart
         logoType="image"
         onBackPress={() => navigation.goBack()}
-        onCartPress={() => navigation.navigate("MyCart")}
+        onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })}
         darkMode={darkMode}
         title="Place Order"
       />
@@ -219,6 +255,31 @@ export default function CheckoutScreen({ navigation, route }) {
         {/* Order Summary */}
         <View style={[styles.section, { backgroundColor: card }]}>
           <Text style={[styles.sectionTitle, { color: text }]}>Order Summary</Text>
+          {missingBox && (
+            <View
+              style={{
+                flexDirection: "row",
+                gap: 10,
+                backgroundColor: darkMode ? "#3A2020" : "#FDECEA",
+                borderColor: darkMode ? "#7A3B3B" : "#F5C2BD",
+                borderWidth: 1,
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 12,
+              }}
+              accessibilityRole="alert"
+            >
+              <MaterialCommunityIcons name="package-variant-remove" size={22} color={darkMode ? "#EF9A9A" : "#B0413E"} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: darkMode ? "#EF9A9A" : "#B0413E", fontWeight: "700", fontSize: 14 }}>
+                  You are ordering without a box
+                </Text>
+                <Text style={{ color: darkMode ? "#F2C4C4" : "#7A2E2B", fontSize: 13, marginTop: 3, lineHeight: 18 }}>
+                  Your cart only has products. Every order must include one box from Packaging, so this order cannot be placed until you add a box.
+                </Text>
+              </View>
+            </View>
+          )}
           {itemsToDisplay.map((item) => (
             <View key={item.sku} style={[styles.orderItem, { borderBottomColor: border }]}>
               <View style={styles.itemInfo}>
@@ -259,22 +320,31 @@ export default function CheckoutScreen({ navigation, route }) {
             <TextInput
               style={[styles.textInput, { backgroundColor: inputBg, color: text, borderColor: border }]}
               value={contactNumber}
-              onChangeText={setContactNumber}
-              placeholder="e.g. 09171234567"
+              onChangeText={(value) => setContactNumber(sanitizePhMobileInput(value))}
+              placeholder="09XXXXXXXXX"
               placeholderTextColor={sub}
-              keyboardType="phone-pad"
+              keyboardType="number-pad"
+              maxLength={PH_MOBILE_LENGTH}
             />
+            {contactNumber.length > 0 && phMobileError(contactNumber) ? (
+              <Text style={{ color: "#E53935", fontSize: 12, marginTop: 4 }}>{phMobileError(contactNumber)}</Text>
+            ) : (
+              <Text style={{ color: sub, fontSize: 12, marginTop: 4 }}>PH mobile number, 11 digits ({contactNumber.length}/11)</Text>
+            )}
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={[styles.inputLabel, { color: sub }]}>Event / Delivery Date *</Text>
-            <TextInput
-              style={[styles.textInput, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              value={eventDate}
-              onChangeText={setEventDate}
-              placeholder="YYYY-MM-DD (e.g. 2025-12-25)"
-              placeholderTextColor={sub}
-            />
+            <TouchableOpacity
+              style={[styles.textInput, { backgroundColor: inputBg, borderColor: border, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+              onPress={() => setDatePickerVisible(true)}
+              accessibilityLabel="Select event or delivery date"
+            >
+              <Text style={{ color: eventDate ? text : sub, fontSize: 15 }}>
+                {eventDate ? formatLongDate(eventDate) : "Select a date"}
+              </Text>
+              <MaterialCommunityIcons name="calendar-month-outline" size={20} color={sub} />
+            </TouchableOpacity>
           </View>
 
         </View>
@@ -301,14 +371,25 @@ export default function CheckoutScreen({ navigation, route }) {
           <Text style={[styles.totalSummaryAmount, { color: text }]}>₱{subtotal.toFixed(2)}</Text>
         </View>
         <TouchableOpacity
-          style={[styles.checkoutButton, { backgroundColor: "#6B6593" }, loading && styles.checkoutButtonDisabled]}
+          style={[styles.checkoutButton, { backgroundColor: "#6B6593" }, (loading || missingBox) && styles.checkoutButtonDisabled]}
           onPress={handleCheckout}
-          disabled={loading}
+          disabled={loading || missingBox}
         >
           <MaterialCommunityIcons name={loading ? "loading" : "package-variant-closed"} size={20} color="#fff" />
           <Text style={styles.checkoutButtonText}>{loading ? "Placing Order..." : "Place Order"}</Text>
         </TouchableOpacity>
       </View>
+
+      <DatePickerModal
+        visible={datePickerVisible}
+        onClose={() => setDatePickerVisible(false)}
+        onSelect={(iso) => {
+          setEventDate(iso);
+          setDatePickerVisible(false);
+        }}
+        selectedDate={eventDate || undefined}
+        darkMode={darkMode}
+      />
 
       {/* Order Confirmation (email OTP) Modal */}
       <Modal
