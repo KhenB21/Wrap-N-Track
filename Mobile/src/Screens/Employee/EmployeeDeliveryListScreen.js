@@ -15,17 +15,21 @@ import { useTheme } from '../../Context/ThemeContext';
 import { deliveryAPI } from '../../services/api';
 import { SkeletonCard } from '../../Components/Skeleton/Skeleton';
 
+// Same statuses as the website's Delivery Tracking filter.
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'Pending', label: 'Pending' },
+  { key: 'Scheduled', label: 'Scheduled' },
   { key: 'Ready for Delivery', label: 'Ready' },
-  { key: 'Out for Delivery', label: 'Out' },
+  { key: 'Awaiting Pick-up', label: 'Awaiting Pick-up' },
+  { key: 'Sent / Shipped', label: 'Sent / Shipped' },
   { key: 'Delivered', label: 'Delivered' },
+  { key: 'Picked Up', label: 'Picked Up' },
   { key: 'Failed Delivery', label: 'Failed' },
 ];
 
 const STATUS_COLORS = {
   Pending: '#9E9E9E',
+  Scheduled: '#607D8B',
   Preparing: '#FF9800',
   'Ready for Delivery': '#2196F3',
   'Awaiting Pick-up': '#9C27B0',

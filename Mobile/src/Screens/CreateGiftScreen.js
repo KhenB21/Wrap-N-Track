@@ -956,7 +956,7 @@ export default function CreateGiftScreen({ navigation }) {
         logoType="image"
         showCart
         onBackPress={() => navigation.goBack()}
-        onCartPress={() => navigation.navigate("MyCart")}
+        onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })}
         darkMode={darkMode}
         title="Create Your Own Gift"
       />

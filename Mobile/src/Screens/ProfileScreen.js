@@ -225,7 +225,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Header showBack logoType="image" showCart onBackPress={() => navigation.goBack()} onCartPress={() => navigation.navigate("MyCart")} darkMode={darkMode} title="Profile" />
+      <Header showBack logoType="image" showCart onBackPress={() => navigation.goBack()} onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })} darkMode={darkMode} title="Profile" />
       <ScrollView keyboardShouldPersistTaps="handled">
         <View style={[styles.userInfoCard, { backgroundColor: colors.card }]}>
           <View style={styles.userInfoHeader}>

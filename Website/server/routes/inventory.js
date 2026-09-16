@@ -140,6 +140,31 @@ const requireInventoryWrite = (req, res, next) => {
   next();
 };
 
+// Adding or removing stock is limited to these roles on every client (web and
+// mobile), and each movement must say why it happened. Mirrors
+// STOCK_ADJUST_ROLES in Website/client/src/constants/stockReasons.js and
+// Mobile/src/constants/stockReasons.js.
+const STOCK_ADJUST_ROLES = new Set(['admin', 'super_admin', 'operations_manager']);
+
+const requireStockAdjust = (req, res, next) => {
+  const role = String(req.user?.role || '').toLowerCase();
+  if (!STOCK_ADJUST_ROLES.has(role)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only Admin and Operations Manager accounts can add or remove stock.'
+    });
+  }
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (reason.length < 3) {
+    return res.status(400).json({
+      success: false,
+      message: 'A reason is required for every stock adjustment.'
+    });
+  }
+  req.body.reason = reason;
+  next();
+};
+
 const toBoolean = (value) => value === 'true' || value === true;
 
 const getActor = (req) => {
@@ -546,7 +571,7 @@ router.get('/:sku', async (req, res) => {
 });
 
 // POST /api/inventory/add-stock - Add stock to existing item
-router.post('/add-stock', optionalVerifyToken, requireInventoryWrite, async (req, res) => {
+router.post('/add-stock', optionalVerifyToken, requireStockAdjust, async (req, res) => {
   const { sku, quantity, reason, source } = req.body;
 
   console.log('Add stock request received:', { sku, quantity, reason });
@@ -628,7 +653,7 @@ router.post('/add-stock', optionalVerifyToken, requireInventoryWrite, async (req
 });
 
 // POST /api/inventory/stock-out - Deduct stock from an existing item
-router.post('/stock-out', optionalVerifyToken, requireInventoryWrite, async (req, res) => {
+router.post('/stock-out', optionalVerifyToken, requireStockAdjust, async (req, res) => {
   const { sku, quantity, reason, source } = req.body;
   const movementQuantity = Number(quantity);
 

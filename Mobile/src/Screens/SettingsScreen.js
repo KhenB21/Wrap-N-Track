@@ -190,23 +190,8 @@ export default function SettingsScreen({ navigation }) {
           type: "navigation",
           onPress: () => navigation.navigate("About"),
           icon: "information"
-        },
-        {
-          id: "privacy",
-          title: "Privacy Policy",
-          subtitle: "Read our privacy policy",
-          type: "navigation",
-          onPress: () => navigation.navigate("Privacy"),
-          icon: "shield-account"
-        },
-        {
-          id: "terms",
-          title: "Terms of Service",
-          subtitle: "Read our terms of service",
-          type: "navigation",
-          onPress: () => navigation.navigate("Terms"),
-          icon: "file-document"
         }
+        // Privacy Policy and Terms of Service are hidden until approved text is available.
       ]
     },
     {
@@ -297,7 +282,7 @@ export default function SettingsScreen({ navigation }) {
         showCart
         logoType="image"
         onBackPress={() => navigation.goBack()}
-        onCartPress={() => navigation.navigate("MyCart")}
+        onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })}
         darkMode={darkMode}
       />
 

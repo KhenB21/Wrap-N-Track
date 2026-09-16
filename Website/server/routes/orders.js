@@ -158,11 +158,13 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Provide at least an email address or cellphone number for the customer' });
     }
 
+    // Every order ships in at least one box. Older customer pages that never
+    // sent a box count get 1; an explicit 0 or bad value is rejected.
     const boxCount = order_quantity === undefined || order_quantity === null || order_quantity === ''
-      ? 0
+      ? 1
       : Number(order_quantity);
-    if (!Number.isInteger(boxCount) || boxCount < 0) {
-      return res.status(400).json({ error: 'Total boxes must be a non-negative whole number' });
+    if (!Number.isInteger(boxCount) || boxCount < 1) {
+      return res.status(400).json({ error: 'Total boxes must be a whole number of at least 1' });
     }
 
   client = await pool.connect();
@@ -496,8 +498,8 @@ router.put('/:order_id', blockPacker, async (req, res) => {
   const boxCount = order_quantity === undefined || order_quantity === null || order_quantity === ''
     ? undefined
     : Number(order_quantity);
-  if (boxCount !== undefined && (!Number.isInteger(boxCount) || boxCount < 0)) {
-    return res.status(400).json({ error: 'Total boxes must be a non-negative whole number' });
+  if (boxCount !== undefined && (!Number.isInteger(boxCount) || boxCount < 1)) {
+    return res.status(400).json({ error: 'Total boxes must be a whole number of at least 1' });
   }
 
   const hasProductsPayload = Array.isArray(products) && products.length > 0;

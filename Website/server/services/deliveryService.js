@@ -7,6 +7,7 @@ const DELIVERY_STATUSES = [
   'Sent / Shipped',
   'Delivered',
   'Picked Up',
+  'Failed Delivery',
 ];
 
 const DELIVERY_MODE_SEEDS = [

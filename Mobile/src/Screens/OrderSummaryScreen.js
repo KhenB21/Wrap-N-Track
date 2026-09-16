@@ -52,7 +52,7 @@ export default function OrderSummaryScreen({ navigation, route }) {
         logoType="image"
         showCart
         onBackPress={() => navigation.goBack()} // Add back button handler
-        onCartPress={() => navigation.navigate("MyCart")}
+        onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })}
         darkMode={darkMode}
       />
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>

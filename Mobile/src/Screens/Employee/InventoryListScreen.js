@@ -17,6 +17,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../Context/ThemeContext';
 import { useInventory } from '../../Context/InventoryContext';
 import { useAuth } from '../../Context/AuthContext';
+import { canAdjustStockRole } from '../../constants/stockReasons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Toast from '../../Components/Toast';
 import { SkeletonCard } from '../../Components/Skeleton/Skeleton';
@@ -88,6 +89,7 @@ export default function InventoryListScreen() {
   }, [lastRealtimeEvent]);
   const inventoryManagerRoles = ['operations_manager', 'sales_manager', 'admin', 'super_admin', 'director'];
   const canManageInventory = userType === 'employee' && inventoryManagerRoles.includes(String(user?.role || '').toLowerCase());
+  const canAdjust = userType === 'employee' && canAdjustStockRole(user?.role);
 
   useEffect(() => {
     fetchInventory();
@@ -105,13 +107,10 @@ export default function InventoryListScreen() {
     setRefreshing(false);
   };
 
+  // InventoryContext always provides searchProducts; the old fallback called an
+  // undefined setSearchQuery and would have crashed if it were ever reached.
   const handleSearch = (query) => {
-    if (searchProducts) {
-      searchProducts(query);
-    } else {
-      // Fallback local search if context doesn't provide it
-      setSearchQuery(query);
-    }
+    searchProducts?.(query);
   };
 
   const handleFilter = (filterType) => {
@@ -135,7 +134,7 @@ export default function InventoryListScreen() {
   };
 
   const handleAddStock = (item) => {
-    if (!canManageInventory) {
+    if (!canAdjust) {
       Alert.alert('Not Authorized', 'You are not authorized to access this feature');
       return;
     }
@@ -283,12 +282,14 @@ export default function InventoryListScreen() {
           </Text>
           {canManageInventory && (
             <View style={styles.actionButtons}>
+              {canAdjust && (
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
                 onPress={() => handleAddStock(item)}
               >
                 <MaterialCommunityIcons name="plus" size={16} color="#fff" />
               </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
                 onPress={() => handleEdit(item)}
@@ -414,7 +415,7 @@ export default function InventoryListScreen() {
             <MaterialCommunityIcons name="barcode-scan" size={20} color="#fff" />
           </TouchableOpacity>
         )}
-        {canManageInventory && (
+        {canAdjust && (
           <TouchableOpacity
             style={[styles.filterButton, { backgroundColor: '#696a8f', marginLeft: 6 }]}
             onPress={() => navigation.navigate('StockAdjustScanner')}
@@ -422,7 +423,7 @@ export default function InventoryListScreen() {
             <MaterialCommunityIcons name="package-variant-closed" size={20} color="#fff" />
           </TouchableOpacity>
         )}
-        {canManageInventory && (
+        {canAdjust && (
           <TouchableOpacity
             style={[styles.filterButton, { backgroundColor: '#1565C0', marginLeft: 6 }]}
             onPress={() => navigation.navigate('RemoteScanner')}

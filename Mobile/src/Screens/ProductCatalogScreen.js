@@ -214,7 +214,7 @@ export default function ProductCatalogScreen({ navigation, route }) {
         showCart
         logoType="image"
         onBackPress={() => navigation.goBack()}
-        onCartPress={() => navigation.navigate("MyCart")}
+        onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })}
         darkMode={darkMode}
       />
 
@@ -312,10 +312,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginHorizontal: H_PAD,
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 6,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
   },

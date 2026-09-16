@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { canAdjustStockRole } from '../constants/stockReasons';
 
 const rolePermissions = {
   super_admin: { inventory: true, invoices: true, deliveryTracking: true, suppliers: true, accountManagement: true, reports: true, readOnly: false },
@@ -42,7 +43,10 @@ const usePermissions = () => {
     return permissions.readOnly || false;
   };
 
-  return { checkPermission, isReadOnly, canUseTestData, role };
+  // Stock In / Stock Out buttons. The server (requireStockAdjust) enforces the same list.
+  const canAdjustStock = () => canAdjustStockRole(role);
+
+  return { checkPermission, isReadOnly, canUseTestData, canAdjustStock, role };
 };
 
 export default usePermissions;
