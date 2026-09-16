@@ -10,6 +10,14 @@ const {
   restoreOrderStock,
 } = require('../services/orderStock');
 const { checkPaymentGate } = require('../services/orderPayments');
+
+// Packer is a read-only role: it can view orders but must not edit or cancel them.
+const blockPacker = (req, res, next) => {
+  if (req.user?.role === 'packer') {
+    return res.status(403).json({ success: false, message: 'Packer role is read-only. This operation is not allowed.' });
+  }
+  next();
+};
 // dotenv is loaded once at startup in index.js — no second call needed here.
 
 const router = express.Router();
@@ -464,7 +472,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update an existing customer order (supports duplicate SKU lines via line_id surrogate key)
-router.put('/:order_id', async (req, res) => {
+router.put('/:order_id', blockPacker, async (req, res) => {
   const { order_id } = req.params;
   const {
     account_name,
@@ -828,7 +836,7 @@ router.get('/wedding-orders/:orderId', async (req, res) => {
 });
 
 // Delete an order by order_id
-router.delete('/:order_id', async (req, res) => {
+router.delete('/:order_id', blockPacker, async (req, res) => {
   const { order_id } = req.params;
   const client = await pool.connect();
   try {

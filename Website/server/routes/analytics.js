@@ -1291,7 +1291,7 @@ async function computeTeamPerformance(days, actorId = null) {
 }
 
 // GET /api/analytics/team-performance?days=7 — managers only
-router.get('/team-performance', requireRole(['admin', 'super_admin', 'director', 'sales_manager']), async (req, res) => {
+router.get('/team-performance', requireRole(['admin', 'super_admin', 'sales_manager']), async (req, res) => {
   try {
     const days = Math.max(1, parseInt(req.query.days, 10) || 7);
     const cacheKey = days;

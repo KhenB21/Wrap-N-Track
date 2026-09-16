@@ -113,7 +113,7 @@ router.get('/orders', requireRole(['admin', 'sales_manager', 'assistant_sales', 
 });
 
 // PUT /api/order-management/orders/:orderId/status - Update order status
-router.put('/orders/:orderId/status', requireRole(['admin', 'super_admin', 'operations_manager', 'sales_manager', 'social_media_manager', 'assistant_sales', 'packer']), async (req, res) => {
+router.put('/orders/:orderId/status', requireRole(['admin', 'super_admin', 'operations_manager', 'sales_manager', 'social_media_manager', 'assistant_sales']), async (req, res) => {
   try {
     const { orderId } = req.params;
     const { status, notes, payment_method } = req.body;
@@ -404,7 +404,7 @@ router.put('/orders/:orderId/status', requireRole(['admin', 'super_admin', 'oper
 });
 
 // GET /api/order-management/orders/:orderId/history - Get order status history
-router.get('/orders/:orderId/history', requireRole(['admin', 'sales_manager', 'assistant_sales', 'packer']), async (req, res) => {
+router.get('/orders/:orderId/history', requireRole(['admin', 'sales_manager', 'assistant_sales']), async (req, res) => {
   try {
     const { orderId } = req.params;
 
@@ -531,7 +531,7 @@ router.get('/orders/:orderId', requireRole(['admin', 'sales_manager', 'assistant
 });
 
 // GET /api/order-management/archived-orders - Get archived orders
-router.get('/archived-orders', requireRole(['admin', 'sales_manager', 'assistant_sales', 'packer']), async (req, res) => {
+router.get('/archived-orders', requireRole(['admin', 'sales_manager', 'assistant_sales']), async (req, res) => {
   try {
     const { page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;

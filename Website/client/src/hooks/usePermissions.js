@@ -3,12 +3,11 @@ import { useNavigate } from 'react-router-dom';
 const rolePermissions = {
   super_admin: { inventory: true, invoices: true, deliveryTracking: true, suppliers: true, accountManagement: true, reports: true, readOnly: false },
   admin: { inventory: true, invoices: true, deliveryTracking: true, suppliers: true, accountManagement: true, reports: true, readOnly: false },
-  director: { inventory: true, suppliers: true, accountManagement: true, reports: true, readOnly: false },
   business_developer: { inventory: false, suppliers: true, accountManagement: false, reports: true, readOnly: false },
   creatives: { inventory: true, suppliers: false, accountManagement: false, reports: false, readOnly: true },
   sales_manager: { inventory: true, invoices: true, deliveryTracking: true, suppliers: true, accountManagement: false, reports: true, readOnly: false },
   assistant_sales: { inventory: true, suppliers: true, accountManagement: false, reports: true, readOnly: false },
-  packer: { inventory: true, suppliers: false, accountManagement: false, reports: true, readOnly: true },
+  packer: { inventory: true, invoices: false, deliveryTracking: false, suppliers: false, accountManagement: false, reports: false, readOnly: true },
   operations_manager: { inventory: true, invoices: true, deliveryTracking: true, suppliers: true, accountManagement: false, reports: true, readOnly: false },
   social_media_manager: { inventory: false, deliveryTracking: true, suppliers: false, accountManagement: false, reports: true, readOnly: false },
   default: { inventory: true, suppliers: true, accountManagement: false, reports: true, readOnly: false },
@@ -24,7 +23,8 @@ const usePermissions = () => {
     const hasPermission = permissions[page] || false;
     
     if (!hasPermission) {
-      navigate('/'); // Redirect to dashboard if no permission
+      // Packers are inventory-only; send them back to inventory instead of the dashboard.
+      navigate(role === 'packer' ? '/inventory' : '/');
       return false;
     }
     

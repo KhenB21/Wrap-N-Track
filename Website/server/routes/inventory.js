@@ -107,7 +107,6 @@ const toNumberOrNull = (value) => {
 const allowedInventoryRoles = new Set([
   'admin',
   'super_admin',
-  'director',
   'operations_manager',
   'sales_manager',
   'business_developer',

@@ -30,8 +30,9 @@ function LoginPage() {
       if (response.data.success) {
         login(response.data.user, response.data.token, 'employee');
         setShowSuccess(true);
+        const destination = response.data.user?.role === 'packer' ? '/inventory' : '/employee-dashboard';
         setTimeout(() => {
-          navigate("/employee-dashboard");
+          navigate(destination);
         }, 1500);
       }
     } catch (err) {

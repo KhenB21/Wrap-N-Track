@@ -42,6 +42,18 @@ const RouteGuard = ({ children, requiredUserType = 'employee', redirectTo = '/' 
       return;
     }
 
+    // Packers are restricted to inventory / archive products only, read-only.
+    if (user?.role === 'packer') {
+      const packerAllowedPaths = ['/inventory', '/archive-products', '/product-details'];
+      const isAllowed = packerAllowedPaths.some(
+        (path) => location.pathname === path || location.pathname.startsWith(`${path}/`)
+      );
+      if (!isAllowed) {
+        navigate('/inventory');
+        return;
+      }
+    }
+
     // Additional security: Clear conflicting tokens
     clearConflictingTokens(requiredUserType);
 

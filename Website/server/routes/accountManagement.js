@@ -18,7 +18,7 @@ const upload = multer({
   }
 });
 
-const VALID_ROLES = ['admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer'];
+const VALID_ROLES = ['admin', 'business_developer', 'creatives', 'sales_manager', 'assistant_sales', 'packer'];
 
 const deriveName = (first_name, last_name, fallbackName) => {
   const combined = [first_name, last_name].filter(Boolean).join(' ').trim();
@@ -499,7 +499,6 @@ router.get('/roles', async (req, res) => {
   try {
     const roles = [
       { value: 'admin', label: 'Admin', description: 'Full system access' },
-      { value: 'director', label: 'Director', description: 'Management level access' },
       { value: 'business_developer', label: 'Business Developer', description: 'Business development focus' },
       { value: 'creatives', label: 'Creatives', description: 'Design and creative focus' },
       { value: 'sales_manager', label: 'Sales Manager', description: 'Sales team management' },

@@ -462,7 +462,7 @@ app.use('/api/dashboard', verifyJwt, requireReadOnly(), dashboardRouter);
 app.use('/api/analytics', verifyJwt, requireReadOnly(), analyticsRouter);
 app.use('/api/reports', verifyJwt, requireReadOnly(), reportsRouter);
 // Employee-only routes (protected)
-app.use('/api/employee', verifyJwt, requireRole(['admin','business_developer','creatives','director','sales_manager','assistant_sales','packer']), requireReadOnly(), employeeRouter);
+app.use('/api/employee', verifyJwt, requireRole(['admin','business_developer','creatives','sales_manager','assistant_sales','packer']), requireReadOnly(), employeeRouter);
 
 // Account Management routes (Admin only)
 app.use('/api/account-management', accountManagementRouter);
@@ -682,18 +682,18 @@ app.post('/api/fix-role-constraint', async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    // First, update any existing rows with invalid roles to 'director'
+    // First, update any existing rows with invalid roles to 'packer' (least-privilege fallback)
     await client.query(`
-      UPDATE users 
-      SET role = 'director' 
-      WHERE role NOT IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer')
+      UPDATE users
+      SET role = 'packer'
+      WHERE role NOT IN ('admin', 'business_developer', 'creatives', 'sales_manager', 'assistant_sales', 'packer')
     `);
-    
+
     // Then update the constraint
     await client.query(`
       ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
-      ALTER TABLE users ADD CONSTRAINT users_role_check 
-      CHECK (role IN ('admin', 'business_developer', 'creatives', 'director', 'sales_manager', 'assistant_sales', 'packer'));
+      ALTER TABLE users ADD CONSTRAINT users_role_check
+      CHECK (role IN ('admin', 'business_developer', 'creatives', 'sales_manager', 'assistant_sales', 'packer'));
     `);
     
     await client.query('COMMIT');
@@ -769,7 +769,6 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
   const validRoles = [
     'business_developer',
     'creatives',
-    'director',
     'admin',
     'sales_manager',
     'assistant_sales',

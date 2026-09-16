@@ -13,7 +13,7 @@ const NUM  = new Intl.NumberFormat('en-PH');
 const formatPeso = v => PESO.format(v ?? 0);
 const formatNum  = v => NUM.format(v ?? 0);
 
-const FINANCIAL_ROLES = new Set(['admin', 'super_admin', 'director', 'sales_manager', 'assistant_sales', 'business_developer']);
+const FINANCIAL_ROLES = new Set(['admin', 'super_admin', 'sales_manager', 'assistant_sales', 'business_developer']);
 
 function DeltaTag({ pct, direction }) {
   if (pct == null) return null;

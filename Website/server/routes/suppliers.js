@@ -10,7 +10,7 @@ const router = express.Router();
 // employee who can manage customers can also manage suppliers. 'operations_manager'
 // and 'super_admin' were dropped: they are not valid values under the users_role_check
 // DB constraint, so they could never match a real account.
-const STAFF_SUPPLIER_ROLES = ['admin', 'director', 'sales_manager', 'business_developer', 'assistant_sales'];
+const STAFF_SUPPLIER_ROLES = ['admin', 'sales_manager', 'business_developer', 'assistant_sales'];
 
 let supplierSchemaReady = false;
 let supplierOrdersTableExists = null;

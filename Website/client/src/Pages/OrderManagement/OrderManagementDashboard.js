@@ -5,11 +5,13 @@ import "react-toastify/dist/ReactToastify.css";
 import { useAuth } from "../../Context/AuthContext";
 import TopBar from "../../Components/TopBar";
 import withEmployeeAuth from "../../Components/withEmployeeAuth";
+import usePermissions from "../../hooks/usePermissions";
 import "./OrderManagementDashboard.css";
 
 function OrderManagementDashboard() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { isReadOnly } = usePermissions();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -478,12 +480,14 @@ function OrderManagementDashboard() {
                         >
                           View
                         </button>
-                        <button
-                          onClick={() => handleStatusUpdate(order)}
-                          className="update-btn"
-                        >
-                          Update
-                        </button>
+                        {!isReadOnly() && (
+                          <button
+                            onClick={() => handleStatusUpdate(order)}
+                            className="update-btn"
+                          >
+                            Update
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

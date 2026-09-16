@@ -26,9 +26,6 @@ const Sidebar = () => {
     admin: {
       dashboard: true, inventory: true, orders: true, invoices: true, deliveryTracking: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true, showcaseGallery: true,
     },
-    director: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: true, orderHistory: true, accountManagement: true, showcaseGallery: true,
-    },
     business_developer: {
       dashboard: true, inventory: false, orders: true, reports: true, customers: true, suppliers: false, orderHistory: true, accountManagement: false, showcaseGallery: false,
     },
@@ -42,7 +39,7 @@ const Sidebar = () => {
       dashboard: true, inventory: true, orders: true, reports: true, customers: true, suppliers: false, orderHistory: false, accountManagement: false, showcaseGallery: false,
     },
     packer: {
-      dashboard: true, inventory: true, orders: true, reports: true, customers: false, suppliers: false, orderHistory: true, accountManagement: false, showcaseGallery: false,
+      dashboard: false, inventory: true, orders: true, invoices: false, deliveryTracking: false, reports: false, customers: false, suppliers: false, orderHistory: false, accountManagement: false, showcaseGallery: false,
       readOnly: true,
     },
     operations_manager: {
@@ -189,12 +186,14 @@ const Sidebar = () => {
               </Link>
             </li>
           )}
-          <li>
-            <Link to="/customer-home">
-              <span className="icon">💍</span>
-              <span className="text">Go to website</span>
-            </Link>
-          </li>
+          {role !== 'packer' && (
+            <li>
+              <Link to="/customer-home">
+                <span className="icon">💍</span>
+                <span className="text">Go to website</span>
+              </Link>
+            </li>
+          )}
         </ul>
       </nav>
 

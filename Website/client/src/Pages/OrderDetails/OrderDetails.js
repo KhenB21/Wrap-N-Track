@@ -15,6 +15,7 @@ import PortalModal from '../../Components/Modal/PortalModal';
 import OrderInvoiceSection from '../Invoices/OrderInvoiceSection';
 import AddOrderModal from './AddOrderModal';
 import OrderBoard, { parseDeliveryDate } from './OrderBoard';
+import usePermissions from '../../hooks/usePermissions';
 
 // Add these styles at the top of the file
 const styles = {
@@ -299,6 +300,7 @@ export default function OrderDetails() {
   const navigate = useNavigate();
   const location = useLocation();
   const confirm = useConfirm();
+  const { isReadOnly } = usePermissions();
 
   // State variables
   const [selectedOrderInvoices, setSelectedOrderInvoices] = useState([]);
@@ -1214,36 +1216,44 @@ export default function OrderDetails() {
                   )}
                 </div>
               )}
-              <OrderInvoiceSection
-                order={selectedOrder}
-                onInvoicesChange={(invoices, summary) => {
-                  setSelectedOrderInvoices(invoices);
-                  setSelectedOrderPayment(summary);
-                }}
-              />
+              {!isReadOnly() && (
+                <OrderInvoiceSection
+                  order={selectedOrder}
+                  onInvoicesChange={(invoices, summary) => {
+                    setSelectedOrderInvoices(invoices);
+                    setSelectedOrderPayment(summary);
+                  }}
+                />
+              )}
 
               {/* Action Buttons */}
               <div style={{display:'flex',gap:18,marginTop:20,paddingTop:24,borderTop:'1px solid var(--border)', justifyContent:'center', alignItems:'center'}}>
-                <button 
-                  className="edit-btn"
-                  style={{ ...styles.button, ...styles.primaryButton, marginRight: 16 }}
-                  onClick={() => handleEditOrder(selectedOrder)}
-                >
-                  Edit Order
-                </button>
-                <button
-                  className="delete-btn"
-                  style={{ ...styles.button, border: '1.5px solid var(--danger)', color: 'var(--danger)', background: 'var(--surface)', marginRight: 16 }}
-                  onClick={handleCancelPendingOrder}
-                >
-                  Cancel Order
-                </button>
-                <button
-                  style={{ ...styles.button, border: '1.5px solid var(--brand)', color: 'var(--brand)', background: 'var(--surface)', marginRight: 16 }}
-                  onClick={() => navigate(`/delivery-tracking?orderId=${encodeURIComponent(selectedOrder.order_id)}`)}
-                >
-                  Delivery Tracking
-                </button>
+                {!isReadOnly() && (
+                  <button
+                    className="edit-btn"
+                    style={{ ...styles.button, ...styles.primaryButton, marginRight: 16 }}
+                    onClick={() => handleEditOrder(selectedOrder)}
+                  >
+                    Edit Order
+                  </button>
+                )}
+                {!isReadOnly() && (
+                  <button
+                    className="delete-btn"
+                    style={{ ...styles.button, border: '1.5px solid var(--danger)', color: 'var(--danger)', background: 'var(--surface)', marginRight: 16 }}
+                    onClick={handleCancelPendingOrder}
+                  >
+                    Cancel Order
+                  </button>
+                )}
+                {!isReadOnly() && (
+                  <button
+                    style={{ ...styles.button, border: '1.5px solid var(--brand)', color: 'var(--brand)', background: 'var(--surface)', marginRight: 16 }}
+                    onClick={() => navigate(`/delivery-tracking?orderId=${encodeURIComponent(selectedOrder.order_id)}`)}
+                  >
+                    Delivery Tracking
+                  </button>
+                )}
                 {(() => {
                   const normalizedSelectedStatus = normalizeStatus(selectedOrder.status);
                   const isPendingLike = normalizedSelectedStatus === 'pending' || normalizedSelectedStatus === 'orderplaced';

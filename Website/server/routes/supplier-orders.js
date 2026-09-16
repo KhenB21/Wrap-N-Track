@@ -5,7 +5,7 @@ const pool = require('../config/db');
 const verifyJwt = require('../middleware/verifyJwt');
 const requireRole = require('../middleware/requireRole');
 
-const STAFF_SUPPLIER_ORDER_ROLES = ['operations_manager', 'sales_manager', 'super_admin', 'admin', 'director'];
+const STAFF_SUPPLIER_ORDER_ROLES = ['operations_manager', 'sales_manager', 'super_admin', 'admin'];
 const SUPPLIER_ORDER_STATUSES = ['Waiting', 'Pending', 'Ordered', 'In Transit', 'Received', 'Cancelled'];
 
 // PostgreSQL "relation does not exist" (table not yet migrated)

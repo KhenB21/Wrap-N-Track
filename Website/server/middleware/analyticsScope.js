@@ -3,7 +3,7 @@
 // Server-side enforcement of the financial/operational role split for the
 // analytics API. The UI hiding a number is not a security boundary — this is.
 const FINANCIAL_ROLES = new Set([
-  'admin', 'super_admin', 'director', 'sales_manager', 'assistant_sales', 'business_developer'
+  'admin', 'super_admin', 'sales_manager', 'assistant_sales', 'business_developer'
 ]);
 
 function resolveScope(req) {

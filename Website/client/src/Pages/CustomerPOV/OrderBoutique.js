@@ -64,7 +64,7 @@ const STYLE_OTHERS_NOTICE =
 
 const MIN_LEAD_DAYS = 14;          // hard block below this
 const RECOMMENDED_LEAD_DAYS = 21;  // soft warning between MIN and this
-const STAFF_ROLES = ['admin', 'business_developer', 'creatives', 'director', 'sales_manager'];
+const STAFF_ROLES = ['admin', 'business_developer', 'creatives', 'sales_manager'];
 
 // Product photos come from the binary endpoint rather than the base64 blobs the
 // list response can carry: it is ~25% smaller on the wire, is cached for a day

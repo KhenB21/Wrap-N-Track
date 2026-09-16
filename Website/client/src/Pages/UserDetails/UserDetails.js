@@ -10,7 +10,6 @@ const ROLE_LABELS = {
   admin: 'Admin',
   business_developer: 'Business Developer',
   creatives: 'Creatives',
-  director: 'Director',
   sales_manager: 'Sales Manager',
   assistant_sales: 'Assistant Sales',
   packer: 'Packer'

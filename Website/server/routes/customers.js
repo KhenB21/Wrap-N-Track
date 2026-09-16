@@ -12,7 +12,6 @@ const STAFF_CUSTOMER_ROLES = [
   'sales_manager',
   'super_admin',
   'admin',
-  'director',
   'business_developer',
   'assistant_sales',
   'social_media_manager',

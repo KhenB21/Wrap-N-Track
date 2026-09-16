@@ -179,8 +179,8 @@ const PERIODS = [
   { label: 'YTD', value: 'ytd' },
 ];
 
-const FINANCIAL_ROLES = new Set(['admin', 'super_admin', 'director', 'sales_manager', 'assistant_sales', 'business_developer']);
-const MANAGER_ROLES   = new Set(['admin', 'super_admin', 'director', 'sales_manager', 'operations_manager']);
+const FINANCIAL_ROLES = new Set(['admin', 'super_admin', 'sales_manager', 'assistant_sales', 'business_developer']);
+const MANAGER_ROLES   = new Set(['admin', 'super_admin', 'sales_manager', 'operations_manager']);
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
 function Dashboard() {
