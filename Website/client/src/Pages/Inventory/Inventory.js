@@ -648,7 +648,7 @@ function Inventory() {
 
   const exportToPDF = () => {
     const doc = new jsPDF({ orientation: 'landscape' });
-    const tableColumn = ["SKU", "Name", "Description", "Unit Price", "Category", "Expiration", "Last Updated", "UOM", "In Stocks", "Reorder Level", "Stock Status", "Ordered", "Delivered"];
+    const tableColumn = ["SKU", "Name", "Description", "Original Price", "Selling Price", "Category", "Expiration", "Last Updated", "UOM", "In Stocks", "Reorder Level", "Stock Status", "Ordered", "Delivered"];
     const tableRows = [];
 
     filteredProducts.forEach(product => {
@@ -656,6 +656,7 @@ function Inventory() {
             product.sku,
             product.name,
             product.description,
+            product.cost_price == null ? '—' : parseFloat(product.cost_price).toFixed(2),
             parseFloat(product.unit_price).toFixed(2),
             product.category,
             product.expiration ? new Date(product.expiration).toISOString().slice(0, 10) : '',
@@ -681,7 +682,8 @@ function Inventory() {
           SKU: product.sku,
           Name: product.name,
           Description: product.description,
-          'Unit Price': `₱${parseFloat(product.unit_price).toFixed(2)}`,
+          'Original Price': product.cost_price == null ? '' : `₱${parseFloat(product.cost_price).toFixed(2)}`,
+          'Selling Price': `₱${parseFloat(product.unit_price).toFixed(2)}`,
           Category: product.category,
           Supplier: product.supplier_name || 'No supplier',
           'Supplier Phone': product.supplier_phone || '',
@@ -854,7 +856,8 @@ function Inventory() {
                   <th style={{ width: '100px' }}>SKU</th>
                   <th style={{ width: '120px' }}>Name</th>
                   <th style={{ width: '140px' }}>Description</th>
-                  <th style={{ width: '80px', textAlign: 'right' }}>Unit Price</th>
+                  <th style={{ width: '90px', textAlign: 'right' }}>Original Price</th>
+                  <th style={{ width: '90px', textAlign: 'right' }}>Selling Price</th>
                   <th style={{ width: '100px' }}>Category</th>
                   <th style={{ width: '120px' }}>Supplier</th>
                   <th style={{ width: '100px', textAlign: 'center' }}>Expiration</th>
@@ -923,6 +926,11 @@ function Inventory() {
                       </td>
                       <td className="ellipsis" title={product.description}>
                         {product.description}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {product.cost_price == null || product.cost_price === ''
+                          ? <span title="No original price recorded — profit for this product is estimated" style={{ color: 'var(--text-muted, #94a3b8)' }}>—</span>
+                          : `₱${parseFloat(product.cost_price).toFixed(2)}`}
                       </td>
                       <td style={{ textAlign: 'right' }}>₱{parseFloat(product.unit_price).toFixed(2)}</td>
                       <td className="ellipsis" title={product.category}>
