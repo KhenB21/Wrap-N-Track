@@ -458,8 +458,10 @@ router.post('/checkout', async (req, res) => {
     // Add order products
     for (const item of cartResult.rows) {
       await client.query(`
-        INSERT INTO order_products (order_id, sku, quantity, profit_margin, profit_estimation)
-        VALUES ($1, $2, $3, 0, 0)
+        INSERT INTO order_products (order_id, sku, quantity, profit_margin, profit_estimation, unit_price, cost_price)
+        VALUES ($1, $2::text, $3, 0, 0,
+          COALESCE((SELECT unit_price FROM inventory_items WHERE sku = $2::text), 0),
+          (SELECT cost_price FROM inventory_items WHERE sku = $2::text))
       `, [orderId, item.sku, item.quantity]);
     }
 

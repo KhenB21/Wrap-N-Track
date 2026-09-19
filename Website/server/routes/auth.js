@@ -307,9 +307,14 @@ router.post('/customer/login', async (req, res) => {
       });
     }
 
-    // 2. Fallback: treat username as employee 'name' in users table
+    // 2. Fallback: treat the identifier as an employee. Matched against `name`
+    // (the historical employee login) OR `email`, because the sign-in form asks
+    // for an email and the customer branch above already accepts one -- without
+    // this, an employee who types the email the form requests gets a 401.
+    // Email compares case-insensitively; `name` stays exact so existing
+    // credentials keep working unchanged.
     const employeeResult = await pool.query(
-      'SELECT * FROM users WHERE name = $1',
+      'SELECT * FROM users WHERE name = $1 OR LOWER(email) = LOWER($1)',
       [username]
     );
     if (employeeResult.rows.length === 0) {

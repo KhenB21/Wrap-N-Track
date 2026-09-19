@@ -6,6 +6,7 @@ import AddSupplierModal from '../../Components/AddSupplierModal';
 import { STOCK_REASONS, buildStockReason, validateStockReason } from '../../constants/stockReasons';
 
 const CATEGORIES = [
+  'Packaging',
   'Electronics',
   'Beauty & Personal Care',
   'Health & Wellness',
@@ -115,6 +116,11 @@ const CATEGORIES = [
   'Others'
 ];
 
+// One-tap markups for the selling price. Percentages are markup ON COST
+// (cost x (1 + pct/100)), which is how the shop quotes it -- 300 at +50% is 450,
+// not the 600 a 50% *margin* would give.
+const MARKUP_PRESETS = [20, 30, 50, 75, 100];
+
 const UOM_OPTIONS = [
   { value: 'Each', label: 'Each' },
   { value: 'Piece', label: 'Piece' },
@@ -146,6 +152,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     name: initialData.name || '',
     description: initialData.description || '',
     quantity: initialData.quantity || 0,
+    cost_price: initialData.cost_price ?? '',
     unit_price: initialData.unit_price || 0,
     reorder_level: initialData.reorder_level || 0,
     category: initialData.category || '',
@@ -169,8 +176,56 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
   const [productNameSuggestions, setProductNameSuggestions] = useState([]);
   const [showProductNameSuggestions, setShowProductNameSuggestions] = useState(false);
   const [selectedExistingProduct, setSelectedExistingProduct] = useState(null); // To track if we are updating
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [filteredCategories, setFilteredCategories] = useState([]);
+  // Options the Category dropdown offers. A product saved before this field
+  // was locked down may carry a category that is no longer on the list; keep
+  // it as an option so editing that product doesn't silently blank its
+  // category, while still refusing anything typed that isn't an option.
+  const categoryOptions = React.useMemo(() => {
+    const known = new Set(CATEGORIES);
+    const legacy = (initialData.category || '').trim();
+    const all = legacy && !known.has(legacy) ? [legacy, ...CATEGORIES] : CATEGORIES;
+    return all.map(c => ({ value: c, label: c }));
+  }, [initialData.category]);
+  // Applies a markup to the cost and writes the result into the selling price.
+  // Rounded to 2dp because unit_price is numeric(10,2) -- letting an unrounded
+  // value through would be silently truncated by the DB and the margin shown
+  // here would not match the margin stored.
+  const applyMarkup = (pct) => {
+    const cost = Number(form.cost_price);
+    if (!Number.isFinite(cost) || cost <= 0) return;
+    const next = Math.round(cost * (1 + pct / 100) * 100) / 100;
+    setForm(prev => ({ ...prev, unit_price: next }));
+    setErrors(prev => ({ ...prev, unit_price: '', cost_price: '' }));
+  };
+
+  // Which preset (if any) the current pair already represents, so the chosen
+  // one stays highlighted after clicking and when reopening a saved product.
+  const activePreset = React.useMemo(() => {
+    const cost = Number(form.cost_price);
+    const sell = Number(form.unit_price);
+    if (!Number.isFinite(cost) || !Number.isFinite(sell) || cost <= 0) return null;
+    return MARKUP_PRESETS.find(pct =>
+      Math.abs(Math.round(cost * (1 + pct / 100) * 100) / 100 - sell) < 0.005
+    ) ?? null;
+  }, [form.cost_price, form.unit_price]);
+
+  const markupReady = Number(form.cost_price) > 0;
+
+  // Live margin readout under the selling price. Null whenever either side is
+  // blank or the cost is zero, so an un-costed product shows nothing rather
+  // than a misleading 100%.
+  const margin = React.useMemo(() => {
+    const cost = Number(form.cost_price);
+    const sell = Number(form.unit_price);
+    if (!form.cost_price && form.cost_price !== 0) return null;
+    if (!Number.isFinite(cost) || !Number.isFinite(sell) || cost <= 0) return null;
+    const diff = sell - cost;
+    return {
+      peso: `₱${diff.toFixed(2)}`,
+      pct: `${((diff / cost) * 100).toFixed(1)}% markup`,
+    };
+  }, [form.cost_price, form.unit_price]);
+
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false);
 
@@ -181,6 +236,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         name: initialData.name || '',
         description: initialData.description || '',
         quantity: initialData.quantity || 0,
+        cost_price: initialData.cost_price ?? '',
         unit_price: initialData.unit_price || 0,
         reorder_level: initialData.reorder_level || 0,
         category: initialData.category || '',
@@ -208,6 +264,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         name: initialData.name || '',
         description: initialData.description || '',
         quantity: initialData.quantity || 0,
+        cost_price: initialData.cost_price ?? '',
         unit_price: initialData.unit_price || 0,
         reorder_level: initialData.reorder_level || 0,
         category: initialData.category || '',
@@ -262,8 +319,8 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     // Validate category
     if (!form.category) {
       newErrors.category = 'Category is required';
-    } else if (!CATEGORIES.includes(form.category) && form.category !== 'Others') {
-      newErrors.category = 'Please select a valid category';
+    } else if (!categoryOptions.some(option => option.value === form.category)) {
+      newErrors.category = 'Please select a category from the list';
     }
 
     // Validate quantity
@@ -271,9 +328,23 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       newErrors.quantity = 'Quantity cannot be negative';
     }
 
-    // Validate unit price
-    if (form.unit_price < 0) {
-      newErrors.unit_price = 'Unit price cannot be negative';
+    // Validate selling price
+    if (form.unit_price === '' || form.unit_price === null) {
+      newErrors.unit_price = 'Selling price is required';
+    } else if (Number(form.unit_price) < 0) {
+      newErrors.unit_price = 'Selling price cannot be negative';
+    }
+
+    // Validate original price. Blank is allowed (it means "cost not recorded"
+    // and the backend stores NULL), but a negative or above-selling cost is
+    // almost always a typo and would silently produce a negative margin in
+    // the Executive Overview, so it is rejected here.
+    if (form.cost_price !== '' && form.cost_price !== null) {
+      if (Number(form.cost_price) < 0) {
+        newErrors.cost_price = 'Original price cannot be negative';
+      } else if (Number(form.cost_price) > Number(form.unit_price || 0)) {
+        newErrors.cost_price = 'Original price is higher than the selling price';
+      }
     }
 
     if (Number(form.reorder_level) < 0) {
@@ -310,10 +381,14 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleCategorySelect = (selectedCategory) => {
+  // Category is dropdown-only: react-select lets you type to filter, but the
+  // committed value can only ever be one of `categoryOptions`, so no free-form
+  // spellings reach the DB. Migration 042 had to merge "Beverage"/"Beverages"
+  // precisely because this field used to accept whatever was typed.
+  const handleCategorySelect = (option) => {
+    const selectedCategory = option ? option.value : '';
     setForm(prevForm => ({ ...prevForm, category: selectedCategory }));
     setCategoryInput(selectedCategory);
-    setShowSuggestions(false);
     setErrors(prev => ({ ...prev, category: '' })); // Clear category error on select
   };
 
@@ -333,6 +408,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
             name: '',
             description: '',
             quantity: 0,
+            cost_price: '',
             unit_price: 0,
             reorder_level: 0,
             category: '',
@@ -362,6 +438,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       name: product.name,
       description: product.description || '',
       quantity: product.quantity || 0,
+      cost_price: product.cost_price ?? '',
       unit_price: product.unit_price || 0,
       reorder_level: product.reorder_level || 0,
       category: product.category || '',
@@ -381,22 +458,6 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
     setShowProductNameSuggestions(false);
   };
 
-  const handleCategoryChange = (e) => {
-    const value = e.target.value;
-    setCategoryInput(value);
-    setForm(prev => ({ ...prev, category: value }));
-    
-    if (value) {
-      const filtered = CATEGORIES.filter(category =>
-        category.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredCategories(filtered);
-      setShowSuggestions(true);
-    } else {
-      setFilteredCategories([]);
-      setShowSuggestions(false);
-    }
-  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -478,6 +539,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
       dataToSend.append('description', form.description);
       dataToSend.append('quantity', String(Number(form.quantity))); // Ensure numeric conversion
       dataToSend.append('unit_price', String(Number(form.unit_price))); // Ensure numeric conversion
+      dataToSend.append('cost_price', form.cost_price === '' || form.cost_price === null ? '' : String(Number(form.cost_price)));
       dataToSend.append('reorder_level', String(Number(form.reorder_level || 0)));
       dataToSend.append('category', categoryInput || form.category);
       dataToSend.append('supplier_id', form.supplier_id ?? '');
@@ -498,6 +560,7 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
         category: categoryInput || form.category,
         quantity: Number(form.quantity), // Ensure numeric
         unit_price: Number(form.unit_price), // Ensure numeric
+        cost_price: form.cost_price === '' || form.cost_price === null ? null : Number(form.cost_price),
         reorder_level: Number(form.reorder_level || 0),
         supplier_id: form.supplier_id,
         uom: form.uom,
@@ -691,28 +754,18 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
               </div>
 
               <label>Category
-                <div className="category-input-container">
-                  <input
-                    name="category"
-                    value={categoryInput}
-                    onChange={handleCategoryChange}
-                    className={errors.category ? 'error' : ''}
-                    placeholder="Select or type a category"
-                  />
-                  {showSuggestions && filteredCategories.length > 0 && !isEdit && (
-                    <div className="category-suggestions">
-                      {filteredCategories.map((category, index) => (
-                        <div
-                          key={index}
-                          className="suggestion-item"
-                          onClick={() => handleCategorySelect(category)}
-                        >
-                          {category}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <Select
+                  name="category"
+                  value={categoryOptions.find(option => option.value === form.category) || null}
+                  onChange={handleCategorySelect}
+                  options={categoryOptions}
+                  classNamePrefix={errors.category ? 'error react-select' : 'react-select'}
+                  placeholder="Select a category (type to filter)"
+                  isClearable
+                  isSearchable
+                  menuPortalTarget={document.body}
+                  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                />
                 {errors.category && <span className="error-message">{errors.category}</span>}
               </label>
 
@@ -765,16 +818,61 @@ export default function AddProductModal({ onClose, onAdd, initialData = {}, isEd
                 {errors.reorder_level && <span className="error-message">{errors.reorder_level}</span>}
               </label>
 
-              <label>Unit Price (Per UOM)
+              <label>Original Price (Cost, Per UOM)
+                <input
+                  name="cost_price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.cost_price}
+                  onChange={handleChange}
+                  placeholder="What you paid for it"
+                  className={errors.cost_price ? 'error' : ''}
+                />
+                <span className="help-text">Not shown to customers. Used for Gross Profit on the Executive Overview.</span>
+                {errors.cost_price && <span className="error-message">{errors.cost_price}</span>}
+              </label>
+
+              <div className="markup-presets">
+                <span className="markup-presets-label">Quick markup</span>
+                <div className="markup-presets-row">
+                  {MARKUP_PRESETS.map(pct => (
+                    <button
+                      key={pct}
+                      type="button"
+                      className={`markup-chip${activePreset === pct ? ' is-active' : ''}`}
+                      onClick={() => applyMarkup(pct)}
+                      disabled={!markupReady}
+                      title={markupReady
+                        ? `Set selling price to ₱${(Number(form.cost_price) * (1 + pct / 100)).toFixed(2)}`
+                        : 'Enter the original price first'}
+                    >
+                      +{pct}%
+                    </button>
+                  ))}
+                </div>
+                {!markupReady && (
+                  <span className="help-text">Enter an original price to use these.</span>
+                )}
+              </div>
+
+              <label>Selling Price (Per UOM)
                 <input
                   name="unit_price"
                   type="number"
                   step="0.01"
+                  min="0"
                   value={form.unit_price}
                   onChange={handleChange}
                   required
                   className={errors.unit_price ? 'error' : ''}
                 />
+                <span className="help-text">This is the price customers see and pay.</span>
+                {margin && (
+                  <span className="help-text">
+                    Margin: {margin.peso} per unit ({margin.pct})
+                  </span>
+                )}
                 {errors.unit_price && <span className="error-message">{errors.unit_price}</span>}
               </label>
 

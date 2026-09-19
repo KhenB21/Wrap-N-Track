@@ -280,6 +280,7 @@ const inventorySelect = `
   i.category,
   i.quantity,
   i.unit_price,
+  i.cost_price,
   i.last_updated,
   i.uom,
   i.uom AS unit,
@@ -363,8 +364,17 @@ const optionalVerifyToken = (req, res, next) => {
   next();
 };
 
+// Customers (and anonymous callers) hit GET /api/inventory too, so cost_price
+// must never reach them: it is the business's buying price, not a product
+// attribute. Customer roles are stripped alongside anonymous callers.
+const CUSTOMER_ROLES = new Set(['customer', '']);
+const canSeeCost = (req) => {
+  if (!req.user) return false;
+  return !CUSTOMER_ROLES.has(String(req.user.role || '').toLowerCase());
+};
+
 // GET /api/inventory - Get all inventory items (public route for order process)
-router.get('/', async (req, res) => {
+router.get('/', optionalVerifyToken, async (req, res) => {
   try {
     await ensureInventorySchema();
     console.log('Inventory route called');
@@ -417,9 +427,14 @@ router.get('/', async (req, res) => {
     console.log('Inventory query result:', result.rows.length, 'items found');
     console.log('Sample inventory item:', result.rows[0]);
 
+    const showCost = canSeeCost(req);
+    const inventory = showCost
+      ? result.rows
+      : result.rows.map(({ cost_price, ...rest }) => rest);
+
     return res.json({
       success: true,
-      inventory: result.rows
+      inventory
     });
   } catch (error) {
     console.error('Error fetching inventory:', { error: error.message, stack: error.stack });
@@ -544,7 +559,7 @@ router.get('/:sku/image', async (req, res) => {
   }
 });
 
-router.get('/:sku', async (req, res) => {
+router.get('/:sku', optionalVerifyToken, async (req, res) => {
   const { sku } = req.params;
   try {
     await ensureInventorySchema();
@@ -560,9 +575,13 @@ router.get('/:sku', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Item not found' });
     }
 
+    const item = canSeeCost(req)
+      ? result.rows[0]
+      : (({ cost_price, ...rest }) => rest)(result.rows[0]);
+
     return res.json({
       success: true,
-      item: result.rows[0]
+      item
     });
   } catch (error) {
     console.error('Error fetching inventory item:', { sku, error: error.message, stack: error.stack });
@@ -744,6 +763,7 @@ router.post('/', optionalVerifyToken, requireInventoryWrite, upload.single('imag
     category,
     quantity,
     unit_price,
+    cost_price,
     image_data,
     isUpdate,
     supplier_id,
@@ -770,6 +790,10 @@ router.post('/', optionalVerifyToken, requireInventoryWrite, upload.single('imag
   const reorderLevel = Math.max(0, Number(toNumberOrNull(reorder_level) || 0));
   const productQuantity = Math.max(0, Number(toNumberOrNull(quantity) || 0));
   const unitPrice = Number(toNumberOrNull(unit_price) || 0);
+  // Original/acquisition price. Distinct from unit_price (what the customer
+  // pays): blank stays NULL so "never costed" is distinguishable from a
+  // genuine zero cost, which is what the margin queries in analytics.js key off.
+  const costPrice = toNumberOrNull(cost_price);
 
   console.log('Inventory POST request:', { sku, isUpdate: isUpdateRequested, name, category });
 
@@ -849,6 +873,7 @@ router.post('/', optionalVerifyToken, requireInventoryWrite, upload.single('imag
             description = $2,
             category = $3,
             unit_price = $4,
+            cost_price = COALESCE($14, cost_price),
             image_data = COALESCE($5, image_data),
             supplier_id = $6,
             uom = $7,
@@ -860,8 +885,8 @@ router.post('/', optionalVerifyToken, requireInventoryWrite, upload.single('imag
             last_updated = NOW(),
             updated_at = NOW()
         WHERE sku = $12
-        RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration, barcode_value, qr_value, reorder_level, created_at, updated_at
-      `, [name, description, category, unitPrice, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, reorderLevel, sku, barcodeValue]);
+        RETURNING sku, name, description, category, quantity, unit_price, cost_price, supplier_id, uom, conversion_qty, expirable, expiration, barcode_value, qr_value, reorder_level, created_at, updated_at
+      `, [name, description, category, unitPrice, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, reorderLevel, sku, barcodeValue, costPrice]);
 
       await logStockMovement(client, {
         sku,
@@ -966,6 +991,7 @@ router.post('/', optionalVerifyToken, requireInventoryWrite, upload.single('imag
         category,
         quantity,
         unit_price,
+        cost_price,
         image_data,
         supplier_id,
         uom,
@@ -980,9 +1006,9 @@ router.post('/', optionalVerifyToken, requireInventoryWrite, upload.single('imag
         updated_at,
         last_updated
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $14, $15, $13, true, NOW(), NOW(), NOW())
-      RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration, barcode_value, qr_value, reorder_level, created_at, updated_at
-    `, [generatedSku, name, description, category, productQuantity, unitPrice, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, reorderLevel, effectiveBarcode, generatedSku]);
+      VALUES ($1, $2, $3, $4, $5, $6, $16, $7, $8, $9, $10, $11, $12, $14, $15, $13, true, NOW(), NOW(), NOW())
+      RETURNING sku, name, description, category, quantity, unit_price, cost_price, supplier_id, uom, conversion_qty, expirable, expiration, barcode_value, qr_value, reorder_level, created_at, updated_at
+    `, [generatedSku, name, description, category, productQuantity, unitPrice, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, reorderLevel, effectiveBarcode, generatedSku, costPrice]);
 
     await logStockMovement(client, {
       sku: generatedSku,
@@ -1022,7 +1048,9 @@ router.post('/', optionalVerifyToken, requireInventoryWrite, upload.single('imag
 // PUT /api/inventory/:sku - Update inventory item
 router.put('/:sku', optionalVerifyToken, requireInventoryWrite, async (req, res) => {
   const { sku } = req.params;
-  const { name, description, category, quantity, unit_price, image_data, supplier_id, uom, conversion_qty, expirable, expiration, reorder_level } = req.body;
+  const { name, description, category, quantity, unit_price, cost_price, image_data, supplier_id, uom, conversion_qty, expirable, expiration, reorder_level } = req.body;
+  // '' means "clear the cost"; undefined means "leave it alone" (COALESCE).
+  const costPrice = cost_price === '' || cost_price === null || typeof cost_price === 'undefined' ? null : Number(cost_price);
 
   // Convert expirable to boolean
   const expirableBool = typeof expirable === 'undefined' ? null : toBoolean(expirable);
@@ -1088,6 +1116,7 @@ router.put('/:sku', optionalVerifyToken, requireInventoryWrite, async (req, res)
             category = COALESCE($3, category),
             quantity = COALESCE($4, quantity),
             unit_price = COALESCE($5, unit_price),
+            cost_price = COALESCE($14, cost_price),
             image_data = COALESCE($6, image_data),
             supplier_id = COALESCE($7, supplier_id),
             uom = COALESCE($8, uom),
@@ -1098,8 +1127,8 @@ router.put('/:sku', optionalVerifyToken, requireInventoryWrite, async (req, res)
             last_updated = NOW(),
             updated_at = NOW()
         WHERE sku = $13
-        RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, expirable, expiration, barcode_value, qr_value, reorder_level, created_at, updated_at
-      `, [name, description, category, quantity, unit_price, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, reorderLevel, sku]);
+        RETURNING sku, name, description, category, quantity, unit_price, cost_price, supplier_id, uom, conversion_qty, expirable, expiration, barcode_value, qr_value, reorder_level, created_at, updated_at
+      `, [name, description, category, quantity, unit_price, imageBuffer, supplierId, uomValue, conversionQty, expirableBool, expirationDate, reorderLevel, sku, costPrice]);
     } else {
       result = await pool.query(`
         UPDATE inventory_items
@@ -1108,6 +1137,7 @@ router.put('/:sku', optionalVerifyToken, requireInventoryWrite, async (req, res)
             category = COALESCE($3, category),
             quantity = COALESCE($4, quantity),
             unit_price = COALESCE($5, unit_price),
+            cost_price = COALESCE($12, cost_price),
             image_data = COALESCE($6, image_data),
             supplier_id = COALESCE($7, supplier_id),
             uom = COALESCE($8, uom),
@@ -1116,8 +1146,8 @@ router.put('/:sku', optionalVerifyToken, requireInventoryWrite, async (req, res)
             last_updated = NOW(),
             updated_at = NOW()
         WHERE sku = $11
-        RETURNING sku, name, description, category, quantity, unit_price, supplier_id, uom, conversion_qty, barcode_value, qr_value, reorder_level, created_at, updated_at
-      `, [name, description, category, quantity, unit_price, imageBuffer, supplierId, uomValue, conversionQty, reorderLevel, sku]);
+        RETURNING sku, name, description, category, quantity, unit_price, cost_price, supplier_id, uom, conversion_qty, barcode_value, qr_value, reorder_level, created_at, updated_at
+      `, [name, description, category, quantity, unit_price, imageBuffer, supplierId, uomValue, conversionQty, reorderLevel, sku, costPrice]);
     }
 
     const newQuantity = Number(result.rows[0].quantity || 0);

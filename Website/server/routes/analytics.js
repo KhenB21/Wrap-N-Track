@@ -108,7 +108,15 @@ router.get('/kpis', requireFinancialScope(), async (req, res) => {
         COALESCE((SELECT SUM(total_cost) FROM period_orders WHERE status IN ${REVENUE_STATUSES}), 0) AS revenue,
         COALESCE((SELECT SUM(quantity * (unit_price - cost_price)) FROM lines WHERE cost_price IS NOT NULL), 0) AS gross_margin,
         (SELECT COUNT(*) FROM lines) AS line_count,
-        (SELECT COUNT(*) FROM lines WHERE cost_price IS NULL) AS lines_missing_cost
+        (SELECT COUNT(*) FROM lines WHERE cost_price IS NULL) AS lines_missing_cost,
+        -- Order-level cost carried on the invoice rather than the line items.
+        -- Deducted from gross profit to give net profit.
+        COALESCE((
+          SELECT SUM(inv.delivery_fee)
+          FROM invoices inv
+          JOIN period_orders po2 ON po2.order_id = inv.order_id
+          WHERE inv.status <> 'CANCELLED' AND po2.status IN ${REVENUE_STATUSES}
+        ), 0) AS delivery_fees
     `;
     const arQuery = `
       SELECT COALESCE(SUM(amount_due - amount_paid), 0) AS outstanding
@@ -192,6 +200,24 @@ router.get('/kpis', requireFinancialScope(), async (req, res) => {
     const grossMargin = trend(cur.gross_margin, prev.gross_margin);
     grossMargin.sparkline = dailyMarginR.rows.map(r => Number(r.margin));
 
+    // Gross Profit = Revenue - COGS, which is exactly what gross_margin already
+    // sums. Exposed under its own name so the Executive Overview isn't labelling
+    // a tile 'Gross Profit' off a key called margin; `grossMargin` stays for the
+    // existing consumers of this endpoint.
+    const grossProfit = { ...grossMargin };
+
+    // Net Profit = Gross Profit - order-level costs (delivery fees). The app has
+    // no operating-expense ledger, so this is deliberately not a full P&L figure.
+    const curNet = Number(cur.gross_margin) - Number(cur.delivery_fees);
+    const prevNet = Number(prev.gross_margin) - Number(prev.delivery_fees);
+    const netProfit = trend(curNet, prevNet);
+    netProfit.sparkline = grossMargin.sparkline;
+
+    // Margin % of revenue, so the tiles can show quality of earnings, not just size.
+    const grossMarginPct = Number(cur.revenue) > 0
+      ? (Number(cur.gross_margin) / Number(cur.revenue)) * 100
+      : 0;
+
     const curCancelRate = cur.orders_all > 0 ? (Number(cur.orders_cancelled) / Number(cur.orders_all)) * 100 : 0;
     const prevCancelRate = prev.orders_all > 0 ? (Number(prev.orders_cancelled) / Number(prev.orders_all)) * 100 : 0;
     const cancellationRate = trend(curCancelRate, prevCancelRate);
@@ -208,6 +234,10 @@ router.get('/kpis', requireFinancialScope(), async (req, res) => {
         orders,
         aov,
         grossMargin,
+        grossProfit,
+        netProfit,
+        grossMarginPct,
+        deliveryFees: Number(cur.delivery_fees),
         cancellationRate,
         outstandingAr,
         marginCoverage: { lineCount: Number(cur.line_count), linesMissingCost: Number(cur.lines_missing_cost) },

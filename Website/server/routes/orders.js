@@ -408,7 +408,18 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: `Product with SKU '${product.sku}' not found in inventory.` });
           }
           await client.query(
-            'INSERT INTO order_products (order_id, sku, quantity, profit_margin) VALUES ($1,$2,$3,$4)',
+            // Snapshot both prices onto the line. They must be frozen at order
+            // time: re-pricing a product later must not retroactively rewrite the
+            // margin of orders already placed.
+            //
+            // $2 is cast to text in every position because it is both
+            // order_products.sku (varchar 50) and inventory_items.sku (varchar 20);
+            // without the cast Postgres rejects the statement outright with
+            // "inconsistent types deduced for parameter $2".
+            `INSERT INTO order_products (order_id, sku, quantity, profit_margin, unit_price, cost_price)
+             VALUES ($1, $2::text, $3, $4,
+               COALESCE((SELECT unit_price FROM inventory_items WHERE sku = $2::text), 0),
+               (SELECT cost_price FROM inventory_items WHERE sku = $2::text))`,
             [order_id, product.sku, Number(product.quantity) || 0, product.profit_margin != null ? Number(product.profit_margin) : 0]
           );
           console.log(`Successfully inserted product: ${product.sku} (qty: ${product.quantity}) for order ${order_id}`);

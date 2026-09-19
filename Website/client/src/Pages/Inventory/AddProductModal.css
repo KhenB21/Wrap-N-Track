@@ -315,6 +315,55 @@
      needs to scroll to reach it in the first place. */
 }
 
+/* Quick-markup chips sit between the cost and selling price inputs, so they
+   read as the bridge between the two rather than as form fields of their own. */
+.add-product-form .markup-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  padding-bottom: 0.15rem;
+}
+
+.add-product-form .markup-presets-label {
+  color: var(--text-muted, #888);
+  font-size: 0.78rem;
+}
+
+.add-product-form .markup-presets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.add-product-form .markup-chip {
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  color: var(--text, #334155);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.add-product-form .markup-chip:hover:not(:disabled) {
+  border-color: var(--primary, #2563eb);
+  color: var(--primary, #2563eb);
+}
+
+.add-product-form .markup-chip.is-active {
+  background: var(--primary, #2563eb);
+  border-color: var(--primary, #2563eb);
+  color: #fff;
+}
+
+.add-product-form .markup-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .add-product-form .help-text {
   color: var(--text-muted, #888);
   font-size: 0.78rem;

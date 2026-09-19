@@ -44,6 +44,9 @@ function Overview() {
     kpis, tsRevenue, operations, inventoryHealth, breakdown, loading, error,
   } = useDashboardData('30d');
 
+  const lineCount = Number(kpis?.marginCoverage?.lineCount || 0);
+  const missingCost = Number(kpis?.marginCoverage?.linesMissingCost || 0);
+
   const revenueTrend = useMemo(() => {
     return (tsRevenue?.series || []).map(d => ({
       date: d.bucket ? new Date(d.bucket).toISOString().slice(0, 10) : '',
@@ -76,6 +79,12 @@ function Overview() {
 
         <div className="ov-kpi-row">
           <KpiTile label="Revenue" value={formatPeso(kpis?.revenue?.value)} pct={kpis?.revenue?.deltaPct} direction={kpis?.revenue?.direction} loading={loading} />
+          {isFinancial && (
+            <KpiTile label="Gross Profit" value={formatPeso(kpis?.grossProfit?.value)} pct={kpis?.grossProfit?.deltaPct} direction={kpis?.grossProfit?.direction} loading={loading} />
+          )}
+          {isFinancial && (
+            <KpiTile label="Profit" value={formatPeso(kpis?.netProfit?.value)} pct={kpis?.netProfit?.deltaPct} direction={kpis?.netProfit?.direction} loading={loading} />
+          )}
           <KpiTile label="Orders" value={formatNum(kpis?.orders?.value)} pct={kpis?.orders?.deltaPct} direction={kpis?.orders?.direction} loading={loading} />
           {isFinancial && (
             <KpiTile label="Avg Order Value" value={formatPeso(kpis?.aov?.value)} pct={kpis?.aov?.deltaPct} direction={kpis?.aov?.direction} loading={loading} />
@@ -83,6 +92,13 @@ function Overview() {
           <KpiTile label="Stock Value" value={formatPeso(invH.stockValue)} loading={loading} />
           <KpiTile label="Inventory Turnover" value={invH.turnover != null ? Number(invH.turnover).toFixed(2) : '—'} loading={loading} />
         </div>
+
+        {isFinancial && missingCost > 0 && (
+          <p className="ov-header-note">
+            {missingCost} of {lineCount} order {lineCount === 1 ? 'line' : 'lines'} in this period have no original price recorded,
+            {' '}so Gross Profit and Profit are understated. Set the original price on those products in Inventory.
+          </p>
+        )}
 
         <div className="ov-mid-row">
           <div className="ui-card ov-panel">
