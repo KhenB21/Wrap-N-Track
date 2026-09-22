@@ -153,10 +153,22 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
     return list;
   }, [inventory, categoryFilter, productSearch]);
 
-  const productsCost = useMemo(() => selectedProducts.reduce(
+  // One order = one box design: every box holds each selected product (at its
+  // per-box quantity — 1 for a custom order, the bundle's quantity for a
+  // package). Only the box count scales the order, so each product line ships
+  // perBox × boxes units and the total is (cost of one box) × boxes.
+  const boxCount = Number(fields.order_quantity) || 0;
+  const boxCost = useMemo(() => selectedProducts.reduce(
     (sum, p) => sum + (Number(p.unit_price) || 0) * (Number(p.quantity) || 0), 0
   ), [selectedProducts]);
-  const totalCost = productsCost * (Number(fields.order_quantity) || 0);
+  const totalCost = boxCost * boxCount;
+  // Most boxes the current stock can fill — the scarcest product decides.
+  const maxBoxes = useMemo(() => {
+    if (selectedProducts.length === 0) return 9999;
+    return Math.min(9999, ...selectedProducts.map((p) =>
+      Math.floor((p.availableQty || 0) / (Number(p.quantity) || 1))
+    ));
+  }, [selectedProducts]);
   const downPayment = Math.round(totalCost * 0.7 * 100) / 100;
   const remainingBalance = Math.round((totalCost - downPayment) * 100) / 100;
 
@@ -204,15 +216,6 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
     setSelectedProducts((prev) => prev.filter((p) => p.sku !== sku));
   };
 
-  const handleQuantityStep = (sku, delta) => {
-    setSelectedProducts((prev) => prev.map((p) => {
-      if (p.sku !== sku) return p;
-      const cap = p.availableQty > 0 ? p.availableQty : 1;
-      const next = Math.max(1, Math.min(cap, (Number(p.quantity) || 1) + delta));
-      return { ...p, quantity: next };
-    }));
-  };
-
   const handleClose = () => {
     if (submitting) return;
     onClose();
@@ -246,9 +249,13 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
       setFormError('Add at least one product to the order.');
       return;
     }
-    const boxCount = Number(fields.order_quantity);
     if (!Number.isInteger(boxCount) || boxCount < 1) {
       setFormError('Total boxes is required. Every order needs at least 1 box.');
+      return;
+    }
+    const shortProduct = selectedProducts.find((p) => (Number(p.quantity) || 1) * boxCount > (p.availableQty || 0));
+    if (shortProduct) {
+      setFormError(`Not enough stock of "${shortProduct.name}" for ${boxCount} box${boxCount === 1 ? '' : 'es'} — only ${shortProduct.availableQty} available (enough for ${maxBoxes}).`);
       return;
     }
 
@@ -270,7 +277,8 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
         email_address: fields.email_address,
         order_quantity: boxCount,
         customer_id: selectedCustomer?.customer_id,
-        products: selectedProducts.map((p) => ({ sku: p.sku, quantity: Number(p.quantity) || 0 }))
+        // Each box carries every product, so a line ships perBox × boxes units.
+        products: selectedProducts.map((p) => ({ sku: p.sku, quantity: (Number(p.quantity) || 1) * boxCount }))
       };
       await api.post('/api/orders', payload);
       if (onCreated) await onCreated();
@@ -500,17 +508,14 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
                           {p.name}
                           {p.isPackageDefault && <span className="aom-default-badge">Package default</span>}
                         </span>
-                        <span className="aom-selected-meta">{p.sku} · {formatCurrency(p.unit_price)} each</span>
-                        {Number(p.quantity) > (p.availableQty || 0) && (
+                        <span className="aom-selected-meta">
+                          {p.sku} · {formatCurrency(p.unit_price)} each · {p.quantity} per box × {boxCount} box{boxCount === 1 ? '' : 'es'} = {p.quantity * boxCount} pcs
+                        </span>
+                        {Number(p.quantity) * boxCount > (p.availableQty || 0) && (
                           <span className="aom-stock-warning">Only {p.availableQty} in stock</span>
                         )}
                       </div>
-                      <div className="aom-qty-stepper">
-                        <button type="button" onClick={() => handleQuantityStep(p.sku, -1)} disabled={p.quantity <= 1}>−</button>
-                        <span>{p.quantity}</span>
-                        <button type="button" onClick={() => handleQuantityStep(p.sku, 1)} disabled={p.quantity >= (p.availableQty || 1)}>+</button>
-                      </div>
-                      <div className="aom-line-total">{formatCurrency(p.unit_price * p.quantity)}</div>
+                      <div className="aom-line-total">{formatCurrency(p.unit_price * p.quantity * boxCount)}</div>
                       <button type="button" className="aom-remove-btn" onClick={() => handleRemoveProduct(p.sku)} title="Remove" aria-label={`Remove ${p.name}`}>&times;</button>
                     </div>
                   ))}
@@ -538,9 +543,9 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
                       setFields((prev) => ({ ...prev, order_quantity: digits }));
                     }}
                   />
-                  <button type="button" onClick={() => setFields((prev) => ({ ...prev, order_quantity: Math.min(9999, Number(prev.order_quantity || 0) + 1) }))}>+</button>
+                  <button type="button" onClick={() => setFields((prev) => ({ ...prev, order_quantity: Math.min(maxBoxes, Number(prev.order_quantity || 0) + 1) }))} disabled={boxCount >= maxBoxes}>+</button>
                 </div>
-                <p className="aom-hint">The actual number of physical boxes in this shipment — not the product count.</p>
+                <p className="aom-hint">Each box contains every selected product. Increase the boxes to scale the order — product quantities follow automatically.</p>
               </div>
 
               <div className="aom-field-group">
@@ -551,8 +556,12 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
               </div>
 
               <div className="aom-totals">
+                <div className="aom-total-row muted">
+                  <span>Cost per Box</span>
+                  <span>{formatCurrency(boxCost)}</span>
+                </div>
                 <div className="aom-total-row">
-                  <span>Total Cost</span>
+                  <span>Total Cost ({boxCount} box{boxCount === 1 ? '' : 'es'})</span>
                   <strong>{formatCurrency(totalCost)}</strong>
                 </div>
                 <div className="aom-total-row muted">
@@ -563,7 +572,7 @@ export default function AddOrderModal({ isOpen, onClose, inventory, onCreated })
                   <span>Remaining Balance (30%)</span>
                   <span>{formatCurrency(remainingBalance)}</span>
                 </div>
-                <p className="aom-hint">Total Cost is read-only and calculated from the selected products; the server recalculates and validates it on save.</p>
+                <p className="aom-hint">Total Cost = cost per box × number of boxes; the server recalculates and validates it on save.</p>
               </div>
             </div>
           </div>

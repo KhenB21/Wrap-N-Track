@@ -15,6 +15,10 @@
    The paid-amount expression mirrors services/orderPayments.js (and
    calculatePaymentSummary() in routes/invoices.js) so "paid" means the same
    thing on the report as it does when an order is confirmed or completed.
+
+   Cancelled orders: the down payment is non-refundable, so a PAID invoice on a
+   cancelled order still counts as revenue — flagged is_cancelled and reported
+   separately as "from cancelled orders" (services/orderCancellation.js).
    =========================================================================== */
 
 // Company target: profit should be 70% of the selling price (cost = 30%).
@@ -42,7 +46,12 @@ const paidSalesCtes = () => `
       i.order_id::text AS order_id,
       i.invoice_type,
       (COALESCE(i.paid_at, i.updated_at, i.issued_at, i.created_at) AT TIME ZONE '${REPORT_TIME_ZONE}') AS paid_local,
-      ${PAID_AMOUNT_SQL} AS amount
+      ${PAID_AMOUNT_SQL} AS amount,
+      -- A down payment kept from a cancelled order (non-refundable deposit).
+      EXISTS (
+        SELECT 1 FROM all_orders co
+        WHERE co.order_id::text = i.order_id::text AND co.status = 'Cancelled'
+      ) AS is_cancelled
     FROM invoices i
     WHERE i.status = 'PAID'
       AND (COALESCE(i.paid_at, i.updated_at, i.issued_at, i.created_at) AT TIME ZONE '${REPORT_TIME_ZONE}')::date BETWEEN $1 AND $2
@@ -60,13 +69,27 @@ const paidSalesCtes = () => `
   priced_payments AS (
     SELECT
       p.*,
-      COALESCE(m.has_all_costs AND m.goods_value > 0, false) AS actual_margin,
+      p.is_cancelled OR COALESCE(m.has_all_costs AND m.goods_value > 0, false) AS actual_margin,
       CASE
+        -- The goods of a cancelled order went back on the shelf, so the kept
+        -- deposit carries no product cost: all of it is profit.
+        WHEN p.is_cancelled THEN 1::numeric
         WHEN m.has_all_costs AND m.goods_value > 0 THEN (m.goods_value - m.goods_cost) / m.goods_value
         ELSE $3::numeric
       END AS margin_rate
     FROM payments p
     LEFT JOIN order_margins m ON m.order_id = p.order_id
+  )`;
+
+/* CTE for the order-date based reports (dashboard KPIs, business report):
+   money received per order. Joined to Cancelled orders it gives the kept,
+   non-refundable down payments — revenue "from cancelled orders". */
+const retainedDepositsCte = () => `
+  retained_deposits AS (
+    SELECT i.order_id::text AS order_id, SUM(${PAID_AMOUNT_SQL}) AS amount
+    FROM invoices i
+    WHERE i.status = 'PAID'
+    GROUP BY i.order_id::text
   )`;
 
 const toNumber = (value) => Number(value) || 0;
@@ -83,6 +106,8 @@ async function getPaidSalesTotals(db, startDate, endDate) {
       COALESCE(SUM(amount * margin_rate) FILTER (WHERE actual_margin), 0) AS costed_profit,
       COUNT(DISTINCT order_id) AS paid_orders,
       COUNT(DISTINCT order_id) FILTER (WHERE NOT actual_margin) AS estimated_orders,
+      COALESCE(SUM(amount) FILTER (WHERE is_cancelled), 0) AS cancelled_revenue,
+      COUNT(DISTINCT order_id) FILTER (WHERE is_cancelled) AS cancelled_orders,
       COUNT(*) AS payments
     FROM priced_payments
   `, [startDate, endDate, TARGET_PROFIT_MARGIN]);
@@ -101,6 +126,9 @@ async function getPaidSalesTotals(db, startDate, endDate) {
     actualMarginPct: toPct(costedProfit, costedRevenue),
     paidOrders: toNumber(row.paid_orders),
     estimatedOrders: toNumber(row.estimated_orders),
+    // Kept down payments of cancelled orders — already inside `revenue`.
+    cancelledRevenue: toNumber(row.cancelled_revenue),
+    cancelledRevenueOrders: toNumber(row.cancelled_orders),
     payments: toNumber(row.payments),
   };
 }
@@ -109,5 +137,6 @@ module.exports = {
   TARGET_PROFIT_MARGIN,
   REPORT_TIME_ZONE,
   paidSalesCtes,
+  retainedDepositsCte,
   getPaidSalesTotals,
 };

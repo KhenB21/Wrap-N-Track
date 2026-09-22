@@ -64,7 +64,6 @@ export default function BarChart({
               data={data}
               layout={isHorizontal ? 'vertical' : 'horizontal'}
               margin={{ top: 8, right: 16, bottom: 0, left: isHorizontal ? 80 : 8 }}
-              onClick={onBarClick ? (e) => { if (e?.activePayload?.[0]) onBarClick(e.activePayload[0].payload); } : undefined}
               style={onBarClick ? { cursor: 'pointer' } : undefined}
             >
               <CartesianGrid strokeDasharray="3 3" stroke={c.border} horizontal={!isHorizontal} vertical={isHorizontal} />
@@ -81,7 +80,15 @@ export default function BarChart({
                 </>
               )}
               <Tooltip content={<CustomTooltip isCurrency={isCurrency} />} />
-              <Bar dataKey={dataKey} radius={[4, 4, 0, 0]} maxBarSize={48}>
+              {/* Click is on the Bar, not the chart: Recharts 3 dropped
+                  `activePayload` from chart-level click events. stopPropagation
+                  keeps a clickable parent card from also navigating. */}
+              <Bar
+                dataKey={dataKey}
+                radius={[4, 4, 0, 0]}
+                maxBarSize={48}
+                onClick={onBarClick ? (entry, _i, e) => { e?.stopPropagation?.(); onBarClick(entry?.payload ?? entry); } : undefined}
+              >
                 {colorByIndex && data.map((_, i) => (
                   <Cell key={i} fill={palette[i % palette.length]} />
                 ))}

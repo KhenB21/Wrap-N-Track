@@ -181,6 +181,10 @@ export default function OrderDetailScreen({ navigation }) {
   const invoicesReady = !!downPaymentInvoice && downPaymentInvoice.status === 'PAID';
   const outstanding = paymentSummary ? Number(paymentSummary.remaining_balance) || 0 : null;
   const awaitingPayment = outstanding !== null && outstanding > 0.004;
+  // Fully paid orders can't be cancelled; a paid down payment is kept on cancel
+  // (Website/server/services/orderCancellation.js).
+  const fullyPaid = paymentSummary?.payment_status === 'Fully Paid';
+  const paidSoFar = Number(paymentSummary?.total_verified_payments) || 0;
 
   const total = orderTotal(order);
   const downPaymentAmount = Math.round(total * DOWN_PAYMENT_RATE * 100) / 100;
@@ -336,11 +340,17 @@ export default function OrderDetailScreen({ navigation }) {
       Alert.alert('Cannot cancel', `An order that is "${order.status}" can no longer be cancelled — it has already left.`);
       return;
     }
+    if (fullyPaid) {
+      Alert.alert('Cannot cancel', 'This order is already paid in full and can no longer be cancelled. Only unpaid or partially paid orders can be cancelled.');
+      return;
+    }
     const restock = stockWasDeducted(order.status);
     Alert.alert(
       'Cancel Order',
       `Are you sure you want to cancel order ${order.order_id}?` +
-        (restock ? ' Its products will be returned to inventory.' : ' No inventory change — this order had not been packed yet.'),
+        (restock ? ' Its products will be returned to inventory.' : ' No inventory change — this order had not been packed yet.') +
+        (paidSoFar > 0 ? ` The ${peso(paidSoFar)} down payment is non-refundable — it will be kept and recorded as revenue from a cancelled order.` : '') +
+        ' Any unpaid invoices will be voided.',
       [
         { text: 'Keep Order', style: 'cancel' },
         {
@@ -349,10 +359,12 @@ export default function OrderDetailScreen({ navigation }) {
           onPress: async () => {
             setWorking(true);
             try {
-              await orderAPI.cancelOrder(order.order_id);
+              const result = await orderAPI.cancelOrder(order.order_id);
+              const retained = Number(result?.retained_deposit ?? result?.data?.retained_deposit) || 0;
               Alert.alert(
                 'Order cancelled',
-                `Order ${order.order_id} cancelled successfully.${restock ? ' Products have been restocked.' : ''}`,
+                `Order ${order.order_id} cancelled successfully.${restock ? ' Products have been restocked.' : ''}` +
+                  (retained > 0 ? ` The ${peso(retained)} down payment was kept as revenue from a cancelled order.` : ''),
                 [{ text: 'OK', onPress: () => navigation.goBack() }]
               );
             } catch (error) {
@@ -771,7 +783,7 @@ export default function OrderDetailScreen({ navigation }) {
               <MaterialCommunityIcons name="pencil-outline" size={16} color={colors.primary} />
               <Text style={[styles.outlineBtnText, { color: colors.primary }]}>Edit</Text>
             </TouchableOpacity>
-            {isCancellable(order.status) && (
+            {isCancellable(order.status) && !fullyPaid && (
               <TouchableOpacity style={[styles.outlineBtn, styles.flex1, { borderColor: '#C62828' }]} onPress={handleCancelOrder} disabled={working}>
                 <MaterialCommunityIcons name="close-circle-outline" size={16} color="#C62828" />
                 <Text style={[styles.outlineBtnText, { color: '#C62828' }]}>Cancel Order</Text>

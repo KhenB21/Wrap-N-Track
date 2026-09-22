@@ -71,7 +71,7 @@ export default function DonutChart({ data = [], isCurrency = false, colors, heig
               dataKey="value"
               labelLine={false}
               label={renderLabel}
-              onClick={onSegmentClick ? (entry) => onSegmentClick(entry) : undefined}
+              onClick={onSegmentClick ? (entry, _i, e) => { e?.stopPropagation?.(); onSegmentClick(entry?.payload ?? entry); } : undefined}
               style={onSegmentClick ? { cursor: 'pointer' } : undefined}
             >
               {enriched.map((_, i) => (

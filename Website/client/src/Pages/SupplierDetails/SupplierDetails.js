@@ -146,9 +146,10 @@ export default function SupplierDetails() {
   // an unfiltered list. Cleared from history state afterward so refreshing
   // or navigating back here later doesn't keep re-selecting it.
   useEffect(() => {
-    const newSupplierId = location.state?.newSupplierId;
+    // `supplierId` comes from the Supplier dashboard scorecard / risk matrix.
+    const newSupplierId = location.state?.newSupplierId ?? location.state?.supplierId;
     if (!newSupplierId || suppliers.length === 0) return;
-    const match = suppliers.find(s => s.supplier_id === newSupplierId);
+    const match = suppliers.find(s => String(s.supplier_id) === String(newSupplierId));
     if (match) {
       setSelectedSupplier(match);
       setSelectedSuppliers(new Set([match.supplier_id]));

@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AppShell from '../../Components/AppShell';
 import withEmployeeAuth from '../../Components/withEmployeeAuth';
 import EmptyState from '../../Components/EmptyState';
 import { formatPeso as fmtPeso, formatNum as fmtNum } from '../../Components/Charts/chartUtils';
 import api from '../../api';
 import './Details.css';
+import { linkProps } from './clickable';
 
 const formatPeso = v => fmtPeso(v ?? 0);
 const formatNum  = v => fmtNum(v ?? 0);
@@ -25,9 +27,10 @@ const HEALTH_CLASS = {
   'Critical Low': 'det-pill-critical',
 };
 
-function KpiTile({ label, value, note, loading }) {
+function KpiTile({ label, value, note, loading, to, state }) {
+  const navigate = useNavigate();
   return (
-    <div className="ui-card det-kpi-tile">
+    <div className="ui-card det-kpi-tile" {...linkProps(navigate, to, state, label)}>
       <div className="det-kpi-label">{label}</div>
       <div className="det-kpi-value">{loading ? <span className="skeleton-value skeleton-wide" /> : value}</div>
       {note && !loading && <div className="det-kpi-note">{note}</div>}
@@ -36,6 +39,7 @@ function KpiTile({ label, value, note, loading }) {
 }
 
 function Details() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -82,11 +86,11 @@ function Details() {
       {error && <div className="db-error-banner">{error}</div>}
 
       <div className="det-kpi-row">
-        <KpiTile label="Total SKUs" value={formatNum(kpis.total)} note={`${filtered.length} of ${kpis.total} SKUs shown`} loading={loading} />
-        <KpiTile label="Stock Value" value={formatPeso(kpis.stockValue)} note="Current inventory on-hand value" loading={loading} />
-        <KpiTile label="Restock Cost" value={formatPeso(kpis.restockCost)} note={`To restock ${kpis.lowStockCount} low-stock SKUs`} loading={loading} />
-        <KpiTile label="Avg Unit Cost" value={formatPeso(kpis.avgUnitCost)} note="Blended cost across all SKUs" loading={loading} />
-        <KpiTile label="SKU Lead Time" value={kpis.avgLeadTime.toFixed(1)} note="Avg days to replenish" loading={loading} />
+        <KpiTile label="Total SKUs" value={formatNum(kpis.total)} note={`${filtered.length} of ${kpis.total} SKUs shown`} loading={loading} to="/inventory" />
+        <KpiTile label="Stock Value" value={formatPeso(kpis.stockValue)} note="Current inventory on-hand value" loading={loading} to="/reports/inventory" />
+        <KpiTile label="Restock Cost" value={formatPeso(kpis.restockCost)} note={`To restock ${kpis.lowStockCount} low-stock SKUs`} loading={loading} to="/inventory" state={{ filter: 'low-stock' }} />
+        <KpiTile label="Avg Unit Cost" value={formatPeso(kpis.avgUnitCost)} note="Blended cost across all SKUs" loading={loading} to="/inventory" />
+        <KpiTile label="SKU Lead Time" value={kpis.avgLeadTime.toFixed(1)} note="Avg days to replenish" loading={loading} to="/supplier-details" />
       </div>
 
       <div className="ui-card det-table-card">
@@ -131,7 +135,7 @@ function Details() {
                   const health = HEALTH_LABEL[r.reorder_status] || 'Healthy';
                   const restockCost = r.needs_reorder ? Number(r.suggested_reorder_quantity || 0) * Number(r.unit_price || 0) : 0;
                   return (
-                    <tr key={i}>
+                    <tr key={i} {...linkProps(navigate, `/product-details/${encodeURIComponent(r.sku)}`, null, r.name)}>
                       <td>{r.sku}</td>
                       <td>{r.name}</td>
                       <td>{r.category || '—'}</td>

@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../../Context/ThemeContext';
 import { useOrders } from '../../Context/OrdersContext';
 import { orderAPI } from '../../services/api';
@@ -47,6 +47,14 @@ export default function OrderListScreen() {
   const [archived, setArchived] = useState(null);
   const [archivedLoading, setArchivedLoading] = useState(false);
   const [archivedNote, setArchivedNote] = useState('');
+
+  // Dashboard deep links: { tab: 'pending' | 'toBePacked' | 'ready' | 'history' }
+  // or { status: 'To Be Packed' } (pipeline stage) opens the matching tab.
+  const route = useRoute();
+  const deepTab = route.params?.tab || (route.params?.status ? boardTabFor(route.params.status) : null);
+  useEffect(() => {
+    if (deepTab && BOARD_TABS.some((t) => t.key === deepTab)) setActiveTab(deepTab);
+  }, [deepTab]);
 
   const isHistory = activeTab === 'history';
 

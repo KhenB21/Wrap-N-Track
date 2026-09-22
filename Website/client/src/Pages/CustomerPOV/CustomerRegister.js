@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../../api";
+import { getAuthErrorMessage, getAuthErrorField } from "../../constants/authErrors";
 import "./CustomerRegister.css";
 import TopbarCustomer from "../../Components/TopbarCustomer";
 import { useAuth } from "../../Context/AuthContext";
@@ -109,12 +110,17 @@ function CustomerRegister() {
         navigate("/customer-home");
       }
     } catch (err) {
-      const message = err.response?.data?.message;
+      // Show the message under the field the server blamed; anything else
+      // (no connection, server error) goes in the banner at the top.
+      const message = getAuthErrorMessage(err, "Registration failed. Please try again.");
+      const field = getAuthErrorField(err);
 
-      if (message === "Email already registered") {
+      if (field === "email") {
         setEmailError(message);
+      } else if (field === "password") {
+        setPasswordError(message);
       } else {
-        setError(message || "Registration failed. Please try again.");
+        setError(message);
       }
     } finally {
       setLoading(false);

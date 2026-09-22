@@ -22,6 +22,7 @@ const EMPTY_SALES_DATA = {
   pendingOrders: 0,
   paidAmount: 0,
   outstandingAmount: 0,
+  cancelledOrderRevenue: 0,
   ordersByStatus: {},
   revenueTrend: 'stable',
   ordersTrend: 'stable',
@@ -229,6 +230,7 @@ export default function SalesReport() {
         ['Cancelled Orders', formatNumber(salesData.cancelledOrders)],
         ['Paid Amount', formatCurrencyPdf(salesData.paidAmount)],
         ['Outstanding', formatCurrencyPdf(salesData.outstandingAmount)],
+        ['Revenue from Cancelled Orders (kept down payments)', formatCurrencyPdf(salesData.cancelledOrderRevenue)],
       ],
     });
 
@@ -274,6 +276,7 @@ export default function SalesReport() {
       ['Cancelled Orders', salesData.cancelledOrders],
       ['Paid Amount', salesData.paidAmount],
       ['Outstanding', salesData.outstandingAmount],
+      ['Revenue from Cancelled Orders (kept down payments)', salesData.cancelledOrderRevenue],
     ]), 'Summary');
 
     if (topProducts.length > 0) {
@@ -423,6 +426,10 @@ export default function SalesReport() {
             <div className="sr-strip-tile">
               <span className="sr-strip-label">Outstanding</span>
               <span className="sr-strip-value sr-strip-red">{formatCurrency(salesData.outstandingAmount)}</span>
+            </div>
+            <div className="sr-strip-tile" title="Non-refundable down payments kept from cancelled orders. Already included in revenue.">
+              <span className="sr-strip-label">From Cancelled Orders</span>
+              <span className="sr-strip-value">{formatCurrency(salesData.cancelledOrderRevenue)}</span>
             </div>
           </div>
         )}

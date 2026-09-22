@@ -6,6 +6,14 @@ const { Resend } = require('resend');
 const crypto = require('crypto');
 // Use centralized pool from config/db to avoid undefined imports
 const pool = require('../config/db');
+const {
+  EMAIL_REGEX,
+  PASSWORD_PATTERN,
+  PASSWORD_RULE,
+  NO_ACCOUNT,
+  INCORRECT_PASSWORD,
+  EMAIL_TAKEN,
+} = require('../utils/authMessages');
 // dotenv is loaded once at startup in index.js — no second call needed here.
 
 // Resend email client
@@ -60,35 +68,36 @@ async function generateUniqueUsername(email) {
 // and the rest from the profile page. Accounts start unverified; verification
 // is enforced only when the customer tries to place an order, not at signup.
 router.post('/customer/register', async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password } = req.body || {};
 
-  const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   const fullName = String(name || '').trim();
 
   if (!fullName) {
-    return res.status(400).json({ success: false, message: 'Please enter your name.' });
+    return res.status(400).json({ success: false, field: 'name', message: 'Please enter your name.' });
   }
 
-  if (!emailRegex.test(String(email || '').trim())) {
-    return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
+  if (!String(email || '').trim()) {
+    return res.status(400).json({ success: false, field: 'email', message: 'Please enter your email address.' });
+  }
+  if (!EMAIL_REGEX.test(String(email).trim())) {
+    return res.status(400).json({ success: false, field: 'email', message: 'Please enter a valid email address (e.g. name@example.com).' });
   }
 
-  const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
-  if (!passwordPattern.test(String(password || ''))) {
-    return res.status(400).json({
-      success: false,
-      message: 'Password must be at least 8 characters and include at least 1 uppercase, 1 lowercase, 1 number, and 1 symbol.'
-    });
+  if (!String(password || '')) {
+    return res.status(400).json({ success: false, field: 'password', message: 'Please enter a password.' });
+  }
+  if (!PASSWORD_PATTERN.test(String(password))) {
+    return res.status(400).json({ success: false, field: 'password', message: PASSWORD_RULE });
   }
 
   try {
     const emailCheck = await pool.query(
-      'SELECT 1 FROM customer_details WHERE email_address = $1',
+      'SELECT 1 FROM customer_details WHERE LOWER(email_address) = LOWER($1)',
       [email.trim()]
     );
 
     if (emailCheck.rows.length > 0) {
-      return res.status(400).json({ success: false, message: 'Email already registered' });
+      return res.status(409).json({ success: false, field: 'email', message: EMAIL_TAKEN });
     }
 
     const username = await generateUniqueUsername(email.trim());
@@ -150,7 +159,10 @@ router.post('/customer/register', async (req, res) => {
 
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ success: false, message: 'Registration failed. Please try again.' });
+    if (error.code === '23505') {
+      return res.status(409).json({ success: false, field: 'email', message: EMAIL_TAKEN });
+    }
+    res.status(500).json({ success: false, message: 'We couldn\'t create your account because of a problem on our side. Please try again in a moment.' });
   }
 });
 
@@ -260,7 +272,18 @@ router.post('/customer/resend-code', async (req, res) => {
 
 // Customer login (now also allows employee login using same form)
 router.post('/customer/login', async (req, res) => {
-  const { username, password } = req.body;
+  const username = String(req.body?.username || '').trim();
+  const password = String(req.body?.password || '');
+
+  if (!username && !password) {
+    return res.status(400).json({ success: false, field: 'username', message: 'Please enter your email or username and your password.' });
+  }
+  if (!username) {
+    return res.status(400).json({ success: false, field: 'username', message: 'Please enter your email or username.' });
+  }
+  if (!password) {
+    return res.status(400).json({ success: false, field: 'password', message: 'Please enter your password.' });
+  }
 
   try {
     // 1. Try customer_details by username OR email — signup only asks for an
@@ -273,9 +296,11 @@ router.post('/customer/login', async (req, res) => {
 
     if (customerResult.rows.length > 0) {
       const customer = customerResult.rows[0];
-      const validPassword = await bcrypt.compare(password, customer.password_hash);
+      const validPassword = customer.password_hash
+        ? await bcrypt.compare(password, customer.password_hash)
+        : false;
       if (!validPassword) {
-        return res.status(401).json({ success: false, message: 'Invalid username or password' });
+        return res.status(401).json({ success: false, field: 'password', message: INCORRECT_PASSWORD });
       }
       const token = jwt.sign({
         customer_id: customer.customer_id,
@@ -318,12 +343,14 @@ router.post('/customer/login', async (req, res) => {
       [username]
     );
     if (employeeResult.rows.length === 0) {
-      return res.status(401).json({ success: false, message: 'Invalid username or password' });
+      return res.status(401).json({ success: false, field: 'username', message: NO_ACCOUNT });
     }
     const user = employeeResult.rows[0];
-    const validPassword = await bcrypt.compare(password, user.password_hash);
+    const validPassword = user.password_hash
+      ? await bcrypt.compare(password, user.password_hash)
+      : false;
     if (!validPassword) {
-      return res.status(401).json({ success: false, message: 'Invalid username or password' });
+      return res.status(401).json({ success: false, field: 'password', message: INCORRECT_PASSWORD });
     }
     const lastLoginResult = await pool.query(
       'UPDATE users SET last_login = NOW() WHERE user_id = $1 RETURNING last_login',
@@ -348,7 +375,7 @@ router.post('/customer/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Unified customer/employee login error:', error);
-    res.status(500).json({ success: false, message: 'Login failed. Please try again.' });
+    res.status(500).json({ success: false, message: 'We couldn\'t sign you in because of a problem on our side. Please try again in a moment.' });
   }
 });
 

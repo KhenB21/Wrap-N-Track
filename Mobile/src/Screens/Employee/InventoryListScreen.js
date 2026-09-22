@@ -18,7 +18,7 @@ import { useTheme } from '../../Context/ThemeContext';
 import { useInventory } from '../../Context/InventoryContext';
 import { useAuth } from '../../Context/AuthContext';
 import { canAdjustStockRole } from '../../constants/stockReasons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Toast from '../../Components/Toast';
 import { SkeletonCard } from '../../Components/Skeleton/Skeleton';
 
@@ -35,6 +35,7 @@ const CustomChip = ({ icon, children, style, iconColor = '#fff' }) => (
 export default function InventoryListScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
+  const route = useRoute();
   const { user, userType } = useAuth();
   const {
     inventory,
@@ -100,6 +101,18 @@ export default function InventoryListScreen() {
       fetchInventory();
     }, [fetchInventory])
   );
+
+  // Dashboard deep links: { filter: 'low-stock' | 'high-stock' | 'replenishment' }
+  // or { search: 'SKU' }. Re-applied once the list has loaded, since filtering
+  // an empty inventory would be a no-op.
+  const deepFilter = route.params?.filter;
+  const deepSearch = route.params?.search;
+  useEffect(() => {
+    if (!inventory?.length) return;
+    if (deepFilter) filterProducts?.(deepFilter);
+    else if (deepSearch) searchProducts?.(deepSearch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepFilter, deepSearch, inventory?.length]);
 
   const onRefresh = async () => {
     setRefreshing(true);

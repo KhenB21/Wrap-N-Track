@@ -263,6 +263,7 @@ export default function BusinessReport() {
         head: [['KPI Overview', 'Value']],
         body: [
           ['Total Sales', formatPesoPdf(kpis.sales.totalRevenue)],
+          ['  of which: from Cancelled Orders (kept down payments)', formatPesoPdf(kpis.sales.cancelledOrderRevenue || 0)],
           ['Total Orders', formatNum(kpis.sales.totalOrders)],
           ['Total Items Sold', formatNum(kpis.sales.totalUnitsSold)],
           ['Average Order Value', formatPesoPdf(kpis.sales.avgOrderValue)],
@@ -499,6 +500,7 @@ export default function BusinessReport() {
       };
       addKpiBlock('Sales KPIs', [
         ['Total Sales', kpis.sales.totalRevenue, true],
+        ['  of which: from Cancelled Orders (kept down payments)', kpis.sales.cancelledOrderRevenue || 0, true],
         ['Total Orders', kpis.sales.totalOrders],
         ['Total Items Sold', kpis.sales.totalUnitsSold],
         ['Average Order Value', kpis.sales.avgOrderValue, true],
@@ -709,7 +711,12 @@ export default function BusinessReport() {
             {/* ── Section 2: KPI Overview ───────────────────────────────── */}
             <SectionCard title="Executive Summary">
               <div className="br-kpi-grid">
-                <KpiCard label="Total Sales" value={formatPeso(kpis.sales.totalRevenue)} color="brand" />
+                <KpiCard
+                  label="Total Sales"
+                  value={formatPeso(kpis.sales.totalRevenue)}
+                  sub={kpis.sales.cancelledOrderRevenue > 0 ? `incl. ${formatPeso(kpis.sales.cancelledOrderRevenue)} from cancelled orders` : undefined}
+                  color="brand"
+                />
                 <KpiCard label="Total Orders" value={formatNum(kpis.sales.totalOrders)} color="blue" />
                 <KpiCard label="Total Items Sold" value={formatNum(kpis.sales.totalUnitsSold)} color="green" />
                 <KpiCard label="Avg Order Value" value={formatPeso(kpis.sales.avgOrderValue)} color="brand" />

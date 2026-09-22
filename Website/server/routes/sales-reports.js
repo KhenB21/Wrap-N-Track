@@ -58,7 +58,10 @@ router.get('/overview', async (req, res) => {
       ORDER BY count DESC
     `, [defaultStartDate, defaultEndDate]);
 
-    // Balance still owed on (non-cancelled) orders placed in the period.
+    // Balance still owed on OPEN orders placed in the period. Cancelled orders
+    // owe nothing (unpaid invoices are voided, the deposit is kept) and a
+    // Completed order is paid in full by rule — same scope as
+    // services/receivables.js.
     const paymentSummary = await pool.query(`
       SELECT
         COALESCE(SUM(GREATEST(o.total_cost - pay.amount_paid, 0)), 0) as outstanding_amount
@@ -66,10 +69,10 @@ router.get('/overview', async (req, res) => {
       LEFT JOIN LATERAL (
         SELECT COALESCE(SUM(i.amount_paid), 0) as amount_paid
         FROM invoices i
-        WHERE i.order_id = o.order_id::text AND i.status <> 'CANCELLED'
+        WHERE i.order_id = o.order_id::text AND i.status = 'PAID'
       ) pay ON true
       WHERE o.order_date::date BETWEEN $1 AND $2
-        AND o.status <> 'Cancelled'
+        AND o.status NOT IN ('Cancelled', 'Completed')
     `, [defaultStartDate, defaultEndDate]);
 
     // Get previous period data for trend calculation
@@ -137,6 +140,9 @@ router.get('/overview', async (req, res) => {
       cancelledOrders: cancelledCount,
       pendingOrders: pendingCount,
       paidAmount: paid.revenue,
+      // Non-refundable down payments kept from cancelled orders (part of totalRevenue).
+      cancelledOrderRevenue: paid.cancelledRevenue,
+      cancelledRevenueOrders: paid.cancelledRevenueOrders,
       outstandingAmount: parseFloat(payments.outstanding_amount) || 0,
       ordersByStatus: statusData,
       revenueTrend,
@@ -201,6 +207,9 @@ router.get('/top-products', async (req, res) => {
         FROM priced_payments p
         JOIN lines l ON l.order_id = p.order_id
         JOIN order_values v ON v.order_id = p.order_id
+        -- A cancelled order's products were restocked, not sold; its kept
+        -- deposit is reported as cancelled-order revenue, not product sales.
+        WHERE NOT p.is_cancelled
         GROUP BY l.sku
       )
       SELECT

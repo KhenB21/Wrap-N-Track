@@ -6,6 +6,7 @@ const requireRole = require('../middleware/requireRole');
 const { initializeDeliveryForReadyOrder } = require('../services/deliveryService');
 const { applyStatusStockChange } = require('../services/orderStock');
 const { checkPaymentGate } = require('../services/orderPayments');
+const { checkCancellationGate, settleInvoicesOnCancel } = require('../services/orderCancellation');
 
 // Apply authentication middleware to all routes
 router.use(verifyJwt());
@@ -176,6 +177,12 @@ router.put('/orders/:orderId/status', requireRole(['admin', 'super_admin', 'oper
           await client.query('ROLLBACK');
           return res.status(400).json({ success: false, message: paymentBlock });
         }
+        // Fully paid orders cannot be cancelled (services/orderCancellation.js).
+        const cancelBlock = await checkCancellationGate(orderId, oldStatus, status, client);
+        if (cancelBlock) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ success: false, message: cancelBlock });
+        }
 
         // $1 (assigned into the enum `status` column) and $4 (plain-text CASE
         // comparisons) both hold the same `status` value — kept as separate
@@ -203,6 +210,11 @@ router.put('/orders/:orderId/status', requireRole(['admin', 'super_admin', 'oper
         // Deducts when crossing into a committed status, restores when crossing
         // back out, does nothing otherwise.
         await applyStatusStockChange(client, orderId, oldStatus, status);
+
+        // Cancelling voids unpaid invoices (clears AR) and keeps the paid down payment.
+        if (status === 'Cancelled') {
+          await settleInvoicesOnCancel(orderId, client, updatedBy);
+        }
 
         await client.query('COMMIT');
       } catch (stockError) {

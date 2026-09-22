@@ -215,14 +215,18 @@ export default function AddOrderScreen({ navigation }) {
     setErrors((prev) => ({ ...prev, products: null }));
   };
 
-  const setProductQuantity = (sku, quantity) =>
-    setSelectedProducts((prev) => prev.map((p) => (p.sku === sku ? { ...p, quantity } : p)));
-
   const removeProduct = (sku) => setSelectedProducts((prev) => prev.filter((p) => p.sku !== sku));
 
+  // One order = one box design: every box holds each selected product at its
+  // per-box quantity (1 for custom, the bundle's quantity for a package). Only
+  // the box count scales the order — same rule as the web Add Order modal.
   const productsCost = selectedProducts.reduce((sum, p) => sum + (Number(p.unit_price) || 0) * (Number(p.quantity) || 0), 0);
   const boxes = Number(fields.order_quantity) || 0;
   const totalCost = productsCost * boxes;
+  // Most boxes the current stock can fill — the scarcest product decides.
+  const maxBoxes = selectedProducts.length === 0
+    ? 9999
+    : Math.max(1, Math.min(9999, ...selectedProducts.map((p) => Math.floor((p.availableQty || 0) / (Number(p.quantity) || 1)))));
   const downPayment = Math.round(totalCost * 0.7 * 100) / 100;
   const remainingBalance = Math.round((totalCost - downPayment) * 100) / 100;
 
@@ -240,9 +244,12 @@ export default function AddOrderScreen({ navigation }) {
     if (!fields.order_date) next.order_date = 'Order date is required';
     if (!fields.expected_delivery) next.expected_delivery = 'Expected delivery is required';
     if (selectedProducts.length === 0) next.products = 'Add at least one product to the order';
-    else if (selectedProducts.some((p) => !(Number(p.quantity) >= 1))) next.products = 'Every product needs a quantity of at least 1';
     const boxCount = Number(fields.order_quantity);
     if (!Number.isInteger(boxCount) || boxCount < 1) next.order_quantity = 'Total boxes is required. Every order needs at least 1 box.';
+    else {
+      const short = selectedProducts.find((p) => (Number(p.quantity) || 1) * boxCount > (p.availableQty || 0));
+      if (short) next.products = `Not enough stock of "${short.name}" for ${boxCount} box${boxCount === 1 ? '' : 'es'} — only ${short.availableQty} available.`;
+    }
     const found = Object.fromEntries(Object.entries(next).filter(([, v]) => v));
     setErrors(found);
     return found;
@@ -276,7 +283,8 @@ export default function AddOrderScreen({ navigation }) {
         email_address: fields.email_address.trim(),
         order_quantity: Number(fields.order_quantity),
         customer_id: selectedCustomer?.customer_id,
-        products: selectedProducts.map((p) => ({ sku: p.sku, quantity: Number(p.quantity) || 0 })),
+        // Each box carries every product, so a line ships perBox × boxes units.
+        products: selectedProducts.map((p) => ({ sku: p.sku, quantity: (Number(p.quantity) || 1) * Number(fields.order_quantity) })),
       });
       Alert.alert('Order created', `The order for ${accountName} was created.`, [{ text: 'OK', onPress: () => navigation.goBack() }]);
     } catch (error) {
@@ -515,7 +523,7 @@ export default function AddOrderScreen({ navigation }) {
             {!!errors.products && <Text style={[styles.errorText, styles.productsError]}>{errors.products}</Text>}
 
             {selectedProducts.map((p) => {
-              const overStock = Number(p.quantity) > (p.availableQty || 0);
+              const overStock = Number(p.quantity) * boxes > (p.availableQty || 0);
               return (
                 <View key={p.sku} style={[styles.selectedRow, { borderColor: colors.border }]}>
                   <ProductImage sku={p.sku} style={styles.thumb} colors={{ wash: colors.inputBackground, textMute: colors.subText }} iconSize={18} showLabel={false} />
@@ -526,14 +534,10 @@ export default function AddOrderScreen({ navigation }) {
                     </Text>
                     {overStock && <Text style={styles.stockWarn}>Only {p.availableQty} in stock</Text>}
                     <View style={styles.selectedControls}>
-                      <Stepper
-                        value={p.quantity}
-                        onChange={(q) => setProductQuantity(p.sku, q)}
-                        min={1}
-                        max={Math.max(1, p.availableQty || 1)}
-                        colors={colors}
-                      />
-                      <Text style={[styles.lineTotal, { color: colors.text }]}>{peso((Number(p.unit_price) || 0) * (Number(p.quantity) || 0))}</Text>
+                      <Text style={[styles.productMeta, { color: colors.subText }]}>
+                        {p.quantity} per box × {boxes} = {(Number(p.quantity) || 0) * boxes} pcs
+                      </Text>
+                      <Text style={[styles.lineTotal, { color: colors.text }]}>{peso((Number(p.unit_price) || 0) * (Number(p.quantity) || 0) * boxes)}</Text>
                     </View>
                   </View>
                   <TouchableOpacity onPress={() => removeProduct(p.sku)} style={styles.removeBtn} accessibilityLabel={`Remove ${p.name}`}>
@@ -615,12 +619,12 @@ export default function AddOrderScreen({ navigation }) {
           {/* ── Boxes, payment, totals ───────────────────────────────── */}
           <FormSection title="Boxes & payment" icon="package-variant-closed" colors={colors}>
             <FieldLabel label="Total boxes" required colors={colors} />
-            <Stepper value={fields.order_quantity} onChange={(v) => setField('order_quantity', v)} min={1} max={9999} colors={colors} />
+            <Stepper value={fields.order_quantity} onChange={(v) => setField('order_quantity', v)} min={1} max={maxBoxes} colors={colors} />
             {errors.order_quantity ? (
               <Text style={styles.errorText}>{errors.order_quantity}</Text>
             ) : (
               <Text style={[styles.hint, styles.topGapSm, { color: colors.subText }]}>
-                The actual number of physical boxes in this shipment, not the product count. At least 1.
+                Each box contains every selected product. Increase the boxes to scale the order — product quantities follow automatically.
               </Text>
             )}
 

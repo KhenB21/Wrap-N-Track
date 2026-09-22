@@ -64,6 +64,11 @@
   gap: 16px;
 }
 
+/* Financial row carries a 5th tile: revenue from cancelled orders. */
+@media (min-width: 1101px) {
+  .db-kpi-row--5 { grid-template-columns: repeat(5, 1fr); }
+}
+
 .db-kpi-card {
   padding: 20px 22px 16px;
   border-radius: 12px;

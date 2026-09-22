@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ResponsiveContainer, ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
@@ -10,6 +11,15 @@ import { getChartColors, formatPeso as fmtPeso, formatNum as fmtNum } from '../.
 import api from '../../api';
 import './Overview.css';
 import './Operations.css';
+import { linkProps } from './clickable';
+
+// Health bar -> the Inventory filter that lists exactly those SKUs.
+const HEALTH_FILTER = {
+  'Stockout': 'replenishment',
+  'Critical Low': 'low-stock',
+  'Approaching': 'low-stock',
+  'Healthy': 'high-stock',
+};
 
 const formatPeso = v => fmtPeso(v ?? 0);
 const formatNum  = v => fmtNum(v ?? 0);
@@ -47,6 +57,7 @@ function GroupedStockChart({ data, height = 180 }) {
 }
 
 function Operations() {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -92,31 +103,31 @@ function Operations() {
         {error && <div className="db-error-banner">{error}</div>}
 
         <div className="ov-kpi-row">
-          <div className="ui-card ov-kpi-tile">
+          <div className="ui-card ov-kpi-tile" {...linkProps(navigate, '/inventory', { filter: 'low-stock' }, 'Low Stock SKUs')}>
             <div className="ov-kpi-label">Low Stock SKUs</div>
             <div className="ov-kpi-value">{loading ? <span className="skeleton-value skeleton-wide" /> : formatNum(kpis.lowStockSkus)}</div>
           </div>
-          <div className="ui-card ov-kpi-tile">
+          <div className="ui-card ov-kpi-tile" {...linkProps(navigate, '/inventory', { filter: 'replenishment' }, 'Stockout Count')}>
             <div className="ov-kpi-label">Stockout Count</div>
             <div className="ov-kpi-value">{loading ? <span className="skeleton-value skeleton-wide" /> : formatNum(kpis.stockoutCount)}</div>
           </div>
-          <div className="ui-card ov-kpi-tile">
+          <div className="ui-card ov-kpi-tile" {...linkProps(navigate, '/employee-dashboard/details', null, 'Avg. Days of Supply')}>
             <div className="ov-kpi-label">Avg. Days of Supply</div>
             <div className="ov-kpi-value">{loading ? <span className="skeleton-value skeleton-wide" /> : (kpis.avgDaysOfSupply != null ? Number(kpis.avgDaysOfSupply).toFixed(1) : '—')}</div>
           </div>
-          <div className="ui-card ov-kpi-tile">
+          <div className="ui-card ov-kpi-tile" {...linkProps(navigate, '/reports/inventory', null, 'Units Received (30d)')}>
             <div className="ov-kpi-label">Units Received (30d)</div>
             <div className="ov-kpi-value">{loading ? <span className="skeleton-value skeleton-wide" /> : formatNum(kpis.unitsReceived30d)}</div>
           </div>
-          <div className="ui-card ov-kpi-tile">
+          <div className="ui-card ov-kpi-tile" {...linkProps(navigate, '/employee-dashboard/details', null, 'Restock Cost')}>
             <div className="ov-kpi-label">Restock Cost</div>
             <div className="ov-kpi-value">{loading ? <span className="skeleton-value skeleton-wide" /> : formatPeso(kpis.restockCost)}</div>
           </div>
         </div>
 
         <div className="ov-mid-row">
-          <div className="ui-card ov-panel">
-            <h3 className="ov-panel-title">Trend Analysis — Units Received by Month</h3>
+          <div className="ui-card ov-panel" {...linkProps(navigate, '/reports/inventory', null, 'Inventory Report')}>
+            <h3 className="ov-panel-title">Trend Analysis — Units Received by Month <span className="dash-view-link">View report →</span></h3>
             <div className="ov-panel-body">
               {loading ? (
                 <div className="db-chart-skeleton" style={{ height: '100%' }} />
@@ -128,21 +139,22 @@ function Operations() {
             </div>
           </div>
 
-          <div className="ui-card ov-panel">
-            <h3 className="ov-panel-title">Inventory Health Distribution</h3>
+          <div className="ui-card ov-panel" {...linkProps(navigate, '/inventory', null, 'Inventory')}>
+            <h3 className="ov-panel-title">Inventory Health Distribution <span className="dash-view-link">View inventory →</span></h3>
             <div className="ov-panel-body">
               {loading ? (
                 <div className="db-chart-skeleton" style={{ height: '100%' }} />
               ) : (
-                <BarChart data={health} dataKey="value" nameKey="name" layout="vertical" height={180} ariaLabel="Inventory health distribution" />
+                <BarChart data={health} dataKey="value" nameKey="name" layout="vertical" height={180} ariaLabel="Inventory health distribution"
+                  onBarClick={(bar) => navigate('/inventory', { state: { filter: HEALTH_FILTER[bar?.name] } })} />
               )}
             </div>
           </div>
         </div>
 
         <div className="ov-bottom-row">
-          <div className="ui-card ov-panel">
-            <h3 className="ov-panel-title">Products Requiring Replenishment</h3>
+          <div className="ui-card ov-panel" {...linkProps(navigate, '/employee-dashboard/details', null, 'Inventory Detail Report')}>
+            <h3 className="ov-panel-title">Products Requiring Replenishment <span className="dash-view-link">View all →</span></h3>
             <div className="ov-panel-body ov-table-wrap">
               {loading ? (
                 <div className="db-chart-skeleton" style={{ height: '100%' }} />
@@ -155,7 +167,7 @@ function Operations() {
                   </thead>
                   <tbody>
                     {replenishment.slice(0, 6).map((r, i) => (
-                      <tr key={i}>
+                      <tr key={i} {...linkProps(navigate, `/product-details/${encodeURIComponent(r.sku)}`, null, r.name)}>
                         <td>{r.sku}</td>
                         <td>{r.category || '—'}</td>
                         <td>{r.name}</td>
@@ -171,8 +183,8 @@ function Operations() {
             </div>
           </div>
 
-          <div className="ui-card ov-panel">
-            <h3 className="ov-panel-title">Current Stock vs Reorder Point</h3>
+          <div className="ui-card ov-panel" {...linkProps(navigate, '/inventory', { filter: 'low-stock' }, 'low-stock inventory')}>
+            <h3 className="ov-panel-title">Current Stock vs Reorder Point <span className="dash-view-link">View low stock →</span></h3>
             <div className="ov-panel-body">
               {loading ? (
                 <div className="db-chart-skeleton" style={{ height: '100%' }} />

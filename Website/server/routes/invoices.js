@@ -360,6 +360,18 @@ async function calculatePaymentSummary(orderId, client = pool) {
   `, [orderId, PAID_STATUSES]);
   const orderGrandTotal = toMoney(order.total_order_amount);
   const totalVerifiedPayments = toMoney(paidResult.rows[0]?.total_paid);
+  // A cancelled order owes nothing: its unpaid invoices were voided and any
+  // paid down payment is kept as a non-refundable deposit
+  // (services/orderCancellation.js).
+  if (String(order.status || '').toLowerCase() === 'cancelled') {
+    return {
+      order,
+      orderGrandTotal,
+      totalVerifiedPayments,
+      remainingBalance: 0,
+      paymentStatus: totalVerifiedPayments > 0 ? 'Deposit Retained' : 'Cancelled',
+    };
+  }
   const remainingBalance = Math.max(0, toMoney(orderGrandTotal - totalVerifiedPayments));
   const paymentStatus = orderGrandTotal > 0 && remainingBalance === 0
     ? 'Fully Paid'
@@ -471,6 +483,11 @@ async function createInvoice(req, res, invoiceType) {
     if (!order) {
       await client.query('ROLLBACK');
       return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    // A cancelled order has no receivable left (services/orderCancellation.js).
+    if (String(order.status || '').toLowerCase() === 'cancelled') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Cannot generate an invoice for a cancelled order' });
     }
 
     const totalOrderAmount = paymentSummary.orderGrandTotal;
@@ -694,6 +711,17 @@ router.patch('/invoices/:id/status', verifyJwt(), staffOnly, async (req, res) =>
     }
 
     await client.query('BEGIN');
+    if (status !== 'CANCELLED') {
+      // Re-opening an invoice of a cancelled order would bring back AR that
+      // the cancellation cleared.
+      const orderStatus = await client.query(`
+        SELECT o.status FROM invoices i JOIN all_orders o ON o.order_id = i.order_id WHERE i.id = $1
+      `, [req.params.id]);
+      if (String(orderStatus.rows[0]?.status || '').toLowerCase() === 'cancelled') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, message: 'Invoices of a cancelled order cannot be re-opened' });
+      }
+    }
     const result = await client.query(`
       UPDATE invoices
       SET status = $1::varchar,

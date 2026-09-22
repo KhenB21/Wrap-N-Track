@@ -3,6 +3,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const authMessages = require('./utils/authMessages');
 const { Resend } = require('resend');
 const crypto = require('crypto');
 const path = require('path');
@@ -746,24 +747,37 @@ app.get('/api/test/env', async (req, res) => {
 
 // Registration endpoint with file upload (store profile picture in DB)
 app.post('/api/auth/register', upload.single('profilePicture'), async (req, res) => {
-  console.log('Registration request received:', {
-    body: req.body,
-    role: req.body.role,
-    roleType: typeof req.body.role
-  });
-
-  const { name, email, password, role } = req.body;
+  // Never log req.body here — it carries the plaintext password.
+  const name = String(req.body?.name || '').trim();
+  const email = String(req.body?.email || '').trim();
+  const password = String(req.body?.password || '');
+  const role = String(req.body?.role || '');
   let profilePictureData = null;
   if (req.file) {
     profilePictureData = req.file.buffer;
   }
 
+  if (!name) {
+    return res.status(400).json({ success: false, field: 'name', message: 'Please enter your name.' });
+  }
+  if (!email) {
+    return res.status(400).json({ success: false, field: 'email', message: 'Please enter your email address.' });
+  }
+  if (!authMessages.EMAIL_REGEX.test(email)) {
+    return res.status(400).json({ success: false, field: 'email', message: 'Please enter a valid email address (e.g. name@example.com).' });
+  }
+  if (!password) {
+    return res.status(400).json({ success: false, field: 'password', message: 'Please enter a password.' });
+  }
+  if (!authMessages.PASSWORD_PATTERN.test(password)) {
+    return res.status(400).json({ success: false, field: 'password', message: authMessages.PASSWORD_RULE });
+  }
+  if (!role) {
+    return res.status(400).json({ success: false, field: 'role', message: 'Please select a role.' });
+  }
+
   // Convert role to lowercase for validation
   const roleLower = role.toLowerCase();
-  console.log('Role after conversion:', {
-    original: role,
-    converted: roleLower
-  });
 
   // Validate role
   const validRoles = [
@@ -775,15 +789,10 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
     'packer'
   ];
 
-  console.log('Validating role:', {
-    roleLower,
-    isValid: validRoles.includes(roleLower),
-    validRoles
-  });
-
   if (!validRoles.includes(roleLower)) {
     return res.status(400).json({
       success: false,
+      field: 'role',
       message: 'Invalid role selected'
     });
   }
@@ -791,14 +800,15 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
   try {
     // Check if email already exists
     const emailCheck = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
+      'SELECT 1 FROM users WHERE LOWER(email) = LOWER($1)',
       [email]
     );
 
     if (emailCheck.rows.length > 0) {
-      return res.status(400).json({
+      return res.status(409).json({
         success: false,
-        message: 'Email already registered'
+        field: 'email',
+        message: authMessages.EMAIL_TAKEN
       });
     }
 
@@ -851,12 +861,15 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
     if (error.code === '23514') { // Check constraint violation
       res.status(400).json({
         success: false,
+        field: 'role',
         message: 'Invalid role selected'
       });
+    } else if (error.code === '23505') { // Unique violation (email raced in)
+      res.status(409).json({ success: false, field: 'email', message: authMessages.EMAIL_TAKEN });
     } else {
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'We couldn\'t create the account because of a problem on our side. Please try again in a moment.'
       });
     }
   }
@@ -864,19 +877,18 @@ app.post('/api/auth/register', upload.single('profilePicture'), async (req, res)
 
 // Login endpoint
 app.post('/api/auth/login', async (req, res) => {
-  console.log('Login attempt received:', {
-    body: req.body,
-    origin: req.headers.origin,
-    headers: req.headers
-  });
+  // Never log req.body here — it carries the plaintext password.
+  const username = String(req.body?.username || '').trim();
+  const password = String(req.body?.password || '');
 
-  const { username, password } = req.body;
-
-  if (!username || !password) {
-    return res.status(400).json({
-      success: false,
-      message: 'Username and password are required'
-    });
+  if (!username && !password) {
+    return res.status(400).json({ success: false, field: 'username', message: 'Please enter your username and password.' });
+  }
+  if (!username) {
+    return res.status(400).json({ success: false, field: 'username', message: 'Please enter your username.' });
+  }
+  if (!password) {
+    return res.status(400).json({ success: false, field: 'password', message: 'Please enter your password.' });
   }
 
   try {
@@ -892,18 +904,22 @@ app.post('/api/auth/login', async (req, res) => {
       console.log('Login failed: User not found');
       return res.status(401).json({
         success: false,
-        message: 'Invalid username or password'
+        field: 'username',
+        message: 'No employee account found with that username. Check the spelling and try again.'
       });
     }
 
     // Compare password
-    const validPassword = await bcrypt.compare(password, user.password_hash);
+    const validPassword = user.password_hash
+      ? await bcrypt.compare(password, user.password_hash)
+      : false;
 
     if (!validPassword) {
       console.log('Login failed: Invalid password');
       return res.status(401).json({
         success: false,
-        message: 'Invalid username or password'
+        field: 'password',
+        message: authMessages.INCORRECT_PASSWORD
       });
     }
 
@@ -944,7 +960,7 @@ app.post('/api/auth/login', async (req, res) => {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: 'We couldn\'t sign you in because of a problem on our side. Please try again in a moment.',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

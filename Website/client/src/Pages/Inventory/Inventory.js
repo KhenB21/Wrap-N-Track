@@ -162,9 +162,17 @@ function Inventory() {
     console.log('showModal changed:', showModal);
   }, [showModal]);
 
+  // Deep links from the dashboards: { filter: 'low-stock' | 'high-stock' |
+  // 'replenishment' (out of stock) }, { category: 'Beverages' }, { search: 'SKU-1' }.
   useEffect(() => {
     if (location.state?.filter) {
       setFilter(location.state.filter);
+    }
+    if (location.state?.category) {
+      setSelectedCategories([(location.state.category || 'Uncategorized').trim().toLowerCase()]);
+    }
+    if (location.state?.search) {
+      setSearchTerm(location.state.search);
     }
   }, [location]);
 

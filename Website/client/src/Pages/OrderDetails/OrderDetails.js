@@ -8,7 +8,7 @@ import "./OrderDetails.css";
 import axios from "axios";
 import { FaEdit, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { defaultProductNames } from '../CustomerPOV/CarloPreview.js';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import api from '../../api';
 import { useConfirm } from '../../Context/ConfirmContext';
 import PortalModal from '../../Components/Modal/PortalModal';
@@ -254,6 +254,10 @@ const normalizeStatus = (status) => {
   return status.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
 };
 
+// Payment summary from GET /api/orders/:id/invoices. Fully paid orders can't be
+// cancelled (server/services/orderCancellation.js).
+const isFullyPaid = (paymentSummary) => paymentSummary?.payment_status === 'Fully Paid';
+
 // Order columns the Edit Order form saves through PUT /api/orders/:order_id.
 // Status and products are deliberately not among them: status changes go
 // through Confirm Order / Confirm Delivery / Complete Order / Cancel Order,
@@ -299,6 +303,7 @@ function buildDataUrlFromBase64(possibleBase64) {
 export default function OrderDetails() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { orderId: routeOrderId } = useParams();
   const confirm = useConfirm();
   const { isReadOnly } = usePermissions();
 
@@ -532,6 +537,14 @@ export default function OrderDetails() {
       return;
     }
 
+    // Mirrors checkCancellationGate() in server/services/orderCancellation.js:
+    // a fully paid order can't be cancelled, and a paid down payment is kept.
+    if (isFullyPaid(selectedOrderPayment)) {
+      toast.error('This order is already paid in full and can no longer be cancelled. Only unpaid or partially paid orders can be cancelled.');
+      return;
+    }
+    const paidSoFar = Number(selectedOrderPayment?.total_verified_payments) || 0;
+
     // Only promise a restock when there is actually stock to give back. A
     // Pending order was never deducted, and saying otherwise taught staff to
     // expect an inventory change that never came.
@@ -540,7 +553,11 @@ export default function OrderDetails() {
       message: `Are you sure you want to cancel order ${selectedOrder.order_id}?`
         + (stockWasDeducted
           ? ' Its products will be returned to inventory.'
-          : ' No inventory change — this order had not been packed yet.'),
+          : ' No inventory change — this order had not been packed yet.')
+        + (paidSoFar > 0
+          ? ` The ₱${paidSoFar.toLocaleString('en-PH', { minimumFractionDigits: 2 })} down payment is non-refundable — it will be kept and recorded as revenue from a cancelled order.`
+          : '')
+        + ' Any unpaid invoices will be voided.',
       danger: true,
     });
 
@@ -548,8 +565,8 @@ export default function OrderDetails() {
       try {
         const encodedOrderId = encodeURIComponent(selectedOrder.order_id);
         console.log(`Attempting to delete order: /api/orders/${encodedOrderId}`); 
-        await api.delete(`/api/orders/${encodedOrderId}`);
-        toast.success(`Order ${selectedOrder.order_id} cancelled successfully. Products have been restocked.`);
+        const { data } = await api.delete(`/api/orders/${encodedOrderId}`);
+        toast.success(data?.message || `Order ${selectedOrder.order_id} cancelled successfully.`);
         fetchOrders(); // Refresh the orders list
         setSelectedOrderId(null); // Close the modal
         // If a different state controls modal visibility, adjust this line e.g. setShowOrderDetailsModal(false)
@@ -669,6 +686,12 @@ export default function OrderDetails() {
     setSelectedOrderInvoices([]);
     setSelectedOrderPayment(null);
   }, [selectedOrderId]);
+
+  // /orders/:orderId (dashboard activity feed, other deep links) opens that
+  // order's details once the board has loaded it.
+  useEffect(() => {
+    if (routeOrderId) setSelectedOrderId(decodeURIComponent(routeOrderId));
+  }, [routeOrderId]);
 
   useEffect(() => {
     if (selectedOrderId) {
@@ -1272,8 +1295,13 @@ export default function OrderDetails() {
                 {!isReadOnly() && (
                   <button
                     className="delete-btn"
-                    style={{ ...styles.button, border: '1.5px solid var(--danger)', color: 'var(--danger)', background: 'var(--surface)', marginRight: 16 }}
+                    style={{
+                      ...styles.button, border: '1.5px solid var(--danger)', color: 'var(--danger)', background: 'var(--surface)', marginRight: 16,
+                      ...(isFullyPaid(selectedOrderPayment) ? { opacity: 0.5, cursor: 'not-allowed' } : {}),
+                    }}
                     onClick={handleCancelPendingOrder}
+                    disabled={isFullyPaid(selectedOrderPayment)}
+                    title={isFullyPaid(selectedOrderPayment) ? 'Fully paid orders can no longer be cancelled.' : undefined}
                   >
                     Cancel Order
                   </button>

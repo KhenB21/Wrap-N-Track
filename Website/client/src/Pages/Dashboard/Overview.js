@@ -6,6 +6,7 @@ import EmptyState from '../../Components/EmptyState';
 import { DonutChart, TrendChart } from '../../Components/Charts';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import usePermissions from '../../hooks/usePermissions';
+import { linkProps } from './clickable';
 import './Overview.css';
 
 const PESO = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 });
@@ -25,12 +26,15 @@ function DeltaTag({ pct, direction }) {
   );
 }
 
-function KpiTile({ label, value, pct, direction, loading }) {
+// Every tile opens the page behind its number (`to` + optional router state).
+function KpiTile({ label, value, pct, direction, loading, note, to, state }) {
+  const navigate = useNavigate();
   return (
-    <div className="ui-card ov-kpi-tile">
+    <div className="ui-card ov-kpi-tile" {...linkProps(navigate, to, state, label)}>
       <div className="ov-kpi-label">{label}</div>
       <div className="ov-kpi-value">{loading ? <span className="skeleton-value skeleton-wide" /> : value}</div>
       {!loading && <DeltaTag pct={pct} direction={direction} />}
+      {!loading && note && <div className="ov-kpi-note" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{note}</div>}
     </div>
   );
 }
@@ -57,6 +61,7 @@ function Overview() {
   const contribution = useMemo(() => {
     return (breakdown || []).slice(0, 5).map(r => ({
       name: r.label || r.key,
+      sku: r.key,
       value: Number(r.value || 0),
     }));
   }, [breakdown]);
@@ -78,19 +83,31 @@ function Overview() {
         {error && <div className="db-error-banner">{error}</div>}
 
         <div className="ov-kpi-row">
-          <KpiTile label="Revenue" value={formatPeso(kpis?.revenue?.value)} pct={kpis?.revenue?.deltaPct} direction={kpis?.revenue?.direction} loading={loading} />
+          <KpiTile label="Revenue" value={formatPeso(kpis?.revenue?.value)} pct={kpis?.revenue?.deltaPct} direction={kpis?.revenue?.direction} loading={loading}
+            to={isFinancial ? '/reports/sales' : '/orders'}
+            note={Number(kpis?.cancelledOrderRevenue?.value) > 0 ? `incl. ${formatPeso(kpis.cancelledOrderRevenue.value)} from cancelled orders` : null} />
           {isFinancial && (
-            <KpiTile label="Gross Profit" value={formatPeso(kpis?.grossProfit?.value)} pct={kpis?.grossProfit?.deltaPct} direction={kpis?.grossProfit?.direction} loading={loading} />
+            <KpiTile label="Gross Profit" value={formatPeso(kpis?.grossProfit?.value)} pct={kpis?.grossProfit?.deltaPct} direction={kpis?.grossProfit?.direction} loading={loading} to="/reports/sales" />
           )}
           {isFinancial && (
-            <KpiTile label="Profit" value={formatPeso(kpis?.netProfit?.value)} pct={kpis?.netProfit?.deltaPct} direction={kpis?.netProfit?.direction} loading={loading} />
+            <KpiTile label="Profit" value={formatPeso(kpis?.netProfit?.value)} pct={kpis?.netProfit?.deltaPct} direction={kpis?.netProfit?.direction} loading={loading} to="/reports/business" />
           )}
-          <KpiTile label="Orders" value={formatNum(kpis?.orders?.value)} pct={kpis?.orders?.deltaPct} direction={kpis?.orders?.direction} loading={loading} />
+          <KpiTile label="Orders" value={formatNum(kpis?.orders?.value)} pct={kpis?.orders?.deltaPct} direction={kpis?.orders?.direction} loading={loading} to="/orders" />
           {isFinancial && (
-            <KpiTile label="Avg Order Value" value={formatPeso(kpis?.aov?.value)} pct={kpis?.aov?.deltaPct} direction={kpis?.aov?.direction} loading={loading} />
+            <KpiTile label="Avg Order Value" value={formatPeso(kpis?.aov?.value)} pct={kpis?.aov?.deltaPct} direction={kpis?.aov?.direction} loading={loading} to="/reports/sales" />
           )}
-          <KpiTile label="Stock Value" value={formatPeso(invH.stockValue)} loading={loading} />
-          <KpiTile label="Inventory Turnover" value={invH.turnover != null ? Number(invH.turnover).toFixed(2) : '—'} loading={loading} />
+          {isFinancial && (
+            <KpiTile label="Outstanding AR" value={formatPeso(kpis?.outstandingAr?.value)} loading={loading}
+              to="/invoices" state={{ filters: { status: 'UNPAID' } }} note="Unpaid invoices on open orders" />
+          )}
+          {isFinancial && (
+            // Non-refundable down payments kept from cancelled orders — already
+            // inside Revenue and Profit; shown on its own so the source is clear.
+            <KpiTile label="From Cancelled Orders" value={formatPeso(kpis?.cancelledOrderRevenue?.value)} pct={kpis?.cancelledOrderRevenue?.deltaPct} direction={kpis?.cancelledOrderRevenue?.direction} loading={loading}
+              to="/reports/sales" note="Kept down payments · counted as revenue & profit" />
+          )}
+          <KpiTile label="Stock Value" value={formatPeso(invH.stockValue)} loading={loading} to="/employee-dashboard/details" />
+          <KpiTile label="Inventory Turnover" value={invH.turnover != null ? Number(invH.turnover).toFixed(2) : '—'} loading={loading} to="/reports/inventory" />
         </div>
 
         {isFinancial && missingCost > 0 && (
@@ -101,8 +118,8 @@ function Overview() {
         )}
 
         <div className="ov-mid-row">
-          <div className="ui-card ov-panel">
-            <h3 className="ov-panel-title">Revenue Trend</h3>
+          <div className="ui-card ov-panel" {...linkProps(navigate, isFinancial ? '/reports/sales' : '/orders', null, 'Revenue Trend')}>
+            <h3 className="ov-panel-title">Revenue Trend <span className="dash-view-link">View report →</span></h3>
             <div className="ov-panel-body">
               {loading ? (
                 <div className="db-chart-skeleton" style={{ height: '100%' }} />
@@ -114,23 +131,24 @@ function Overview() {
             </div>
           </div>
 
-          <div className="ui-card ov-panel">
-            <h3 className="ov-panel-title">Revenue Contribution</h3>
+          <div className="ui-card ov-panel" {...linkProps(navigate, isFinancial ? '/reports/sales' : '/inventory', null, 'Revenue Contribution')}>
+            <h3 className="ov-panel-title">Revenue Contribution <span className="dash-view-link">View report →</span></h3>
             <div className="ov-panel-body">
               {loading ? (
                 <div className="db-chart-skeleton" style={{ height: '100%' }} />
               ) : contribution.length === 0 ? (
                 <EmptyState message="No breakdown data" />
               ) : (
-                <DonutChart data={contribution} isCurrency height={180} innerRadius={42} outerRadius={68} ariaLabel="Revenue contribution" />
+                <DonutChart data={contribution} isCurrency height={180} innerRadius={42} outerRadius={68} ariaLabel="Revenue contribution"
+                  onSegmentClick={(seg) => seg?.sku && navigate(`/product-details/${encodeURIComponent(seg.sku)}`)} />
               )}
             </div>
           </div>
         </div>
 
         <div className="ov-bottom-row">
-          <div className="ui-card ov-panel">
-            <h3 className="ov-panel-title">Top Products</h3>
+          <div className="ui-card ov-panel" {...linkProps(navigate, '/inventory', null, 'Top Products')}>
+            <h3 className="ov-panel-title">Top Products <span className="dash-view-link">View inventory →</span></h3>
             <div className="ov-panel-body ov-table-wrap">
               {loading ? (
                 <div className="db-chart-skeleton" style={{ height: '100%' }} />
@@ -143,7 +161,7 @@ function Overview() {
                   </thead>
                   <tbody>
                     {topProducts.map((p, i) => (
-                      <tr key={i} onClick={() => navigate('/inventory')}>
+                      <tr key={i} {...linkProps(navigate, `/product-details/${encodeURIComponent(p.key)}`, null, p.label || p.key)}>
                         <td>{p.label || p.key}</td>
                         <td>{formatPeso(p.value)}</td>
                         <td>{p.sharePct != null ? `${p.sharePct}%` : '—'}</td>
@@ -155,8 +173,8 @@ function Overview() {
             </div>
           </div>
 
-          <div className="ui-card ov-panel">
-            <h3 className="ov-panel-title">Order Pipeline</h3>
+          <div className="ui-card ov-panel" {...linkProps(navigate, '/orders', null, 'Order Pipeline')}>
+            <h3 className="ov-panel-title">Order Pipeline <span className="dash-view-link">View orders →</span></h3>
             <div className="ov-panel-body">
               {loading ? (
                 <div className="db-chart-skeleton" style={{ height: '100%' }} />
@@ -165,7 +183,7 @@ function Overview() {
               ) : (
                 <div className="ov-funnel">
                   {stages.map((s, i) => (
-                    <div key={i} className="ov-funnel-row">
+                    <div key={i} className="ov-funnel-row" {...linkProps(navigate, '/orders', { status: s.status }, `${s.status} orders`)}>
                       <span className="ov-funnel-label">{s.status}</span>
                       <div className="ov-funnel-bar-wrap">
                         <div className="ov-funnel-bar" style={{ width: `${Math.max(6, (s.orderCount / stageMax) * 100)}%` }} />

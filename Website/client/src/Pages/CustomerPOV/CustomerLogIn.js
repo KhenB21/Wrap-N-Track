@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from '../../api';
+import { getAuthErrorMessage } from '../../constants/authErrors';
 import "./CustomerLogIn.css";
 import TopbarCustomer from "../../Components/TopbarCustomer";
 import { useAuth } from "../../Context/AuthContext";
@@ -38,7 +39,7 @@ function CustomerLogIn() {
         navigate('/customer-home');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred during login.');
+      setError(getAuthErrorMessage(err, 'Login failed. Please try again.'));
     } finally {
       setLoading(false);
     }

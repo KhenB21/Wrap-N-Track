@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, Cell,
 } from 'recharts';
@@ -10,6 +11,7 @@ import { getChartColors, formatPeso as fmtPeso, formatNum as fmtNum } from '../.
 import api from '../../api';
 import './Overview.css';
 import './Supplier.css';
+import { linkProps } from './clickable';
 
 const formatPeso = v => fmtPeso(v ?? 0);
 const formatNum  = v => fmtNum(v ?? 0);
@@ -21,7 +23,7 @@ function rateClass(pct) {
   return 'sup-status-ok';
 }
 
-function RiskMatrix({ data, height = 180 }) {
+function RiskMatrix({ data, height = 180, onPointClick }) {
   const c = useMemo(() => getChartColors(), []);
   if (!data.length) return <EmptyState message="No supplier data" />;
   return (
@@ -40,7 +42,13 @@ function RiskMatrix({ data, height = 180 }) {
           formatter={(value, name) => name === 'Inventory Value' ? formatPeso(value) : name === 'Avg Lead Time' ? `${value}d` : `${Number(value).toFixed(1)}%`}
           labelFormatter={() => ''}
         />
-        <Scatter data={data} fill={c.brand} isAnimationActive={false}>
+        <Scatter
+          data={data}
+          fill={c.brand}
+          isAnimationActive={false}
+          style={onPointClick ? { cursor: 'pointer' } : undefined}
+          onClick={onPointClick ? (point, _i, e) => { e?.stopPropagation?.(); onPointClick(point?.payload ?? point); } : undefined}
+        >
           {data.map((_, i) => (
             <Cell key={i} fill={c.palette[i % c.palette.length]} fillOpacity={0.75} />
           ))}
@@ -51,6 +59,8 @@ function RiskMatrix({ data, height = 180 }) {
 }
 
 function Supplier() {
+  const navigate = useNavigate();
+  const openSupplier = (row) => navigate('/supplier-details', row?.supplierDbId != null ? { state: { supplierId: row.supplierDbId } } : undefined);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -90,31 +100,31 @@ function Supplier() {
         {error && <div className="db-error-banner">{error}</div>}
 
         <div className="ov-kpi-row">
-          <div className="ui-card ov-kpi-tile">
+          <div className="ui-card ov-kpi-tile" {...linkProps(navigate, '/supplier-details', null, 'Avg Lead Time (Days)')}>
             <div className="ov-kpi-label">Avg Lead Time (Days)</div>
             <div className="ov-kpi-value">{loading ? <span className="skeleton-value skeleton-wide" /> : (kpis.avgLeadTimeDays != null ? Number(kpis.avgLeadTimeDays).toFixed(1) : '—')}</div>
           </div>
-          <div className="ui-card ov-kpi-tile">
+          <div className="ui-card ov-kpi-tile" {...linkProps(navigate, '/reports/inventory', null, 'DIO')}>
             <div className="ov-kpi-label">DIO</div>
             <div className="ov-kpi-value">{loading ? <span className="skeleton-value skeleton-wide" /> : (kpis.dio != null ? Number(kpis.dio).toFixed(1) : '—')}</div>
           </div>
-          <div className="ui-card ov-kpi-tile">
+          <div className="ui-card ov-kpi-tile" {...linkProps(navigate, '/supplier-details', null, 'Active Suppliers')}>
             <div className="ov-kpi-label">Active Suppliers</div>
             <div className="ov-kpi-value">{loading ? <span className="skeleton-value skeleton-wide" /> : formatNum(kpis.activeSuppliers)}</div>
           </div>
-          <div className="ui-card ov-kpi-tile">
+          <div className="ui-card ov-kpi-tile" {...linkProps(navigate, '/inventory', { filter: 'low-stock' }, 'Stockout Risk %')}>
             <div className="ov-kpi-label">Stockout Risk %</div>
             <div className="ov-kpi-value">{loading ? <span className="skeleton-value skeleton-wide" /> : `${Number(kpis.stockoutRiskPct || 0).toFixed(1)}%`}</div>
           </div>
-          <div className="ui-card ov-kpi-tile">
+          <div className="ui-card ov-kpi-tile" {...linkProps(navigate, '/employee-dashboard/details', null, 'Stock Value Spread')}>
             <div className="ov-kpi-label">Stock Value Spread</div>
             <div className="ov-kpi-value">{loading ? <span className="skeleton-value skeleton-wide" /> : formatPeso(kpis.stockValueSpread)}</div>
           </div>
         </div>
 
         <div className="ov-mid-row">
-          <div className="ui-card ov-panel">
-            <h3 className="ov-panel-title">Trend Analysis — Stockout Events by Month</h3>
+          <div className="ui-card ov-panel" {...linkProps(navigate, '/reports/inventory', null, 'Inventory Report')}>
+            <h3 className="ov-panel-title">Trend Analysis — Stockout Events by Month <span className="dash-view-link">View report →</span></h3>
             <div className="ov-panel-body">
               {loading ? (
                 <div className="db-chart-skeleton" style={{ height: '100%' }} />
@@ -126,23 +136,24 @@ function Supplier() {
             </div>
           </div>
 
-          <div className="ui-card ov-panel">
-            <h3 className="ov-panel-title">Inventory Value by Category</h3>
+          <div className="ui-card ov-panel" {...linkProps(navigate, '/inventory', null, 'Inventory')}>
+            <h3 className="ov-panel-title">Inventory Value by Category <span className="dash-view-link">View inventory →</span></h3>
             <div className="ov-panel-body">
               {loading ? (
                 <div className="db-chart-skeleton" style={{ height: '100%' }} />
               ) : categoryValue.length === 0 ? (
                 <EmptyState message="No category data" />
               ) : (
-                <BarChart data={categoryValue} dataKey="value" nameKey="name" layout="horizontal" isCurrency height={180} ariaLabel="Inventory value by category" />
+                <BarChart data={categoryValue} dataKey="value" nameKey="name" layout="horizontal" isCurrency height={180} ariaLabel="Inventory value by category"
+                  onBarClick={(bar) => navigate('/inventory', { state: { category: bar?.name } })} />
               )}
             </div>
           </div>
         </div>
 
         <div className="ov-bottom-row">
-          <div className="ui-card ov-panel">
-            <h3 className="ov-panel-title">Supplier Scorecard</h3>
+          <div className="ui-card ov-panel" {...linkProps(navigate, '/supplier-details', null, 'Suppliers')}>
+            <h3 className="ov-panel-title">Supplier Scorecard <span className="dash-view-link">View suppliers →</span></h3>
             <div className="ov-panel-body ov-table-wrap">
               {loading ? (
                 <div className="db-chart-skeleton" style={{ height: '100%' }} />
@@ -155,7 +166,7 @@ function Supplier() {
                   </thead>
                   <tbody>
                     {scorecard.slice(0, 6).map((r, i) => (
-                      <tr key={i}>
+                      <tr key={i} {...linkProps(navigate, '/supplier-details', r.supplierDbId != null ? { supplierId: r.supplierDbId } : null, r.supplierName)}>
                         <td>{r.supplierId}</td>
                         <td>{r.supplierName}</td>
                         <td>{r.avgLeadTime}d</td>
@@ -170,13 +181,13 @@ function Supplier() {
             </div>
           </div>
 
-          <div className="ui-card ov-panel">
-            <h3 className="ov-panel-title">Supplier Risk Matrix</h3>
+          <div className="ui-card ov-panel" {...linkProps(navigate, '/supplier-details', null, 'Suppliers')}>
+            <h3 className="ov-panel-title">Supplier Risk Matrix <span className="dash-view-link">View suppliers →</span></h3>
             <div className="ov-panel-body">
               {loading ? (
                 <div className="db-chart-skeleton" style={{ height: '100%' }} />
               ) : (
-                <RiskMatrix data={scorecard} />
+                <RiskMatrix data={scorecard} onPointClick={openSupplier} />
               )}
             </div>
           </div>

@@ -141,16 +141,21 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    console.error('API Response Error:', error.response?.data || error.message);
-    console.error('Error details:', {
+    // A rejected login/sign-up (wrong password, email taken) is an expected
+    // outcome the screen explains to the user — not an app error, and not an
+    // expired session to log out of.
+    const isAuthRequest = /\/auth\/customer\/(login|register)\b/.test(error.config?.url || '');
+    const log = isAuthRequest && error.response ? console.log : console.error;
+    log('API Response Error:', error.response?.data || error.message);
+    log('Error details:', {
       message: error.message,
       code: error.code,
       response: error.response?.data,
       status: error.response?.status,
       url: error.config?.url
     });
-    
-    if (error.response?.status === 401) {
+
+    if (error.response?.status === 401 && !isAuthRequest) {
       if (_logoutHandler) {
         _logoutHandler();
       } else {

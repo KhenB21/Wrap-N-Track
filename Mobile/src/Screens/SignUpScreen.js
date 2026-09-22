@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { authAPI } from "../services/api";
+import { getAuthErrorMessage, getAuthErrorField } from "../constants/authErrors";
 import { regions, citiesByRegion, getBarangaysForCity } from "../data/philippineLocations";
 
 const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -219,17 +220,21 @@ export default function SignUpScreen({ navigation }) {
     );
   };
 
+  // Lists what is actually wrong instead of a generic "complete the fields".
+  const describeProblems = (fields) =>
+    fields.map((field) => validate(field)).filter(Boolean).map((message) => `• ${message}`).join("\n");
+
   const handleNext = () => {
     if (validateFields(stepOneFields)) {
       setStep(2);
     } else {
-      Alert.alert("Check Your Details", "Please complete the required fields before continuing.");
+      Alert.alert("Check Your Details", describeProblems(stepOneFields));
     }
   };
 
   const handleSignUp = async () => {
     if (!validateFields([...stepOneFields, ...stepTwoFields])) {
-      Alert.alert("Check Your Details", "Please complete the required fields before creating your customer account.");
+      Alert.alert("Check Your Details", describeProblems([...stepOneFields, ...stepTwoFields]));
       return;
     }
 
@@ -273,7 +278,17 @@ export default function SignUpScreen({ navigation }) {
         Alert.alert("Registration Failed", response.message || "Please try again.");
       }
     } catch (error) {
-      Alert.alert("Registration Failed", error.response?.data?.message || error.message || "Please try again.");
+      const message = getAuthErrorMessage(error, "Registration failed. Please try again.");
+      // Put the server's message under the field it blamed (e.g. email already
+      // taken) and go back to the step that field is on.
+      const field = getAuthErrorField(error);
+      const formField = field === "name" ? "firstName" : field;
+      if (formField && [...stepOneFields, ...stepTwoFields].includes(formField)) {
+        setErrors((prev) => ({ ...prev, [formField]: message }));
+        setTouched((prev) => ({ ...prev, [formField]: true }));
+        if (stepOneFields.includes(formField)) setStep(1);
+      }
+      Alert.alert("Registration Failed", message);
     } finally {
       setSubmitting(false);
     }

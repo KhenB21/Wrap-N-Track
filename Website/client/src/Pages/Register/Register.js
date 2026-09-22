@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from '../../api';
+import { getAuthErrorMessage, getAuthErrorField } from '../../constants/authErrors';
 // (keep axios import only if needed for FormData compatibility, otherwise use api) "axios";
 import "./Register.css";
 
@@ -171,16 +172,21 @@ function Register() {
         navigate("/verify");
       }
     } catch (err) {
-      const message = err.response?.data?.message;
+      // Show the message under the field the server blamed; anything else
+      // (no connection, server error) goes in the banner at the top.
+      const message = getAuthErrorMessage(err, "Registration failed. Please try again.");
+      const field = getAuthErrorField(err);
 
-      if (message === "Email already registered") {
-        setEmailError(message); // shows below the email input
-      } else if (message === "Name already taken") {
+      if (field === "email") {
+        setEmailError(message);
+      } else if (field === "name") {
         setNameError(message);
-      } else if (message === "Invalid role selected") {
+      } else if (field === "password") {
+        setPasswordError(message);
+      } else if (field === "role") {
         setError("Invalid role selected. Please choose a valid role.");
       } else {
-        setError(message || "Registration failed. Please try again.");
+        setError(message);
       }
     }
   } finally {

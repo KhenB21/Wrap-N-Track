@@ -10,6 +10,11 @@ const {
   restoreOrderStock,
 } = require('../services/orderStock');
 const { checkPaymentGate } = require('../services/orderPayments');
+const {
+  isCancelStatus,
+  checkCancellationGate,
+  settleInvoicesOnCancel,
+} = require('../services/orderCancellation');
 
 // Packer is a read-only role: it can view orders but must not edit or cancel them.
 const blockPacker = (req, res, next) => {
@@ -576,6 +581,12 @@ router.put('/:order_id', blockPacker, async (req, res) => {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: paymentBlock });
       }
+      // Fully paid orders cannot be cancelled (services/orderCancellation.js).
+      const cancelBlock = await checkCancellationGate(order_id, existingOrder.status, status, client);
+      if (cancelBlock) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: cancelBlock });
+      }
     }
 
     // If we are replacing products, first restore inventory only if it was previously deducted
@@ -696,6 +707,12 @@ router.put('/:order_id', blockPacker, async (req, res) => {
 
     if (finalNorm === 'readyfordelivery' || finalNorm === 'readyfordeliver') {
       await initializeDeliveryForReadyOrder(client, order_id, req.user?.user_id || null, 'Order marked as Ready for Delivery');
+    }
+
+    // Cancelling voids the unpaid invoices (clears AR) and keeps any paid down
+    // payment. Runs before archival, while the order row still exists.
+    if (status !== undefined && isCancelStatus(status) && !isCancelStatus(existingOrder.status)) {
+      await settleInvoicesOnCancel(order_id, client, req.user?.user_id || null);
     }
 
     // If Completed/Cancelled, archive immediately (move to order_history)
@@ -875,6 +892,11 @@ router.delete('/:order_id', blockPacker, async (req, res) => {
         message: `Order cannot be cancelled once it is "${currentStatus}". Cancellation is only possible up to Ready for Delivery.`
       });
     }
+    const cancelBlock = await checkCancellationGate(order_id, currentStatus, 'Cancelled', client);
+    if (cancelBlock) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: cancelBlock });
+    }
 
     // Restock only if the stock was actually taken off the shelf. This is the
     // SAME predicate the deduct path uses (services/orderStock.js), which is
@@ -923,11 +945,18 @@ router.delete('/:order_id', blockPacker, async (req, res) => {
       "UPDATE orders SET status = 'Cancelled', delivery_status = 'Cancelled' WHERE order_id = $1",
       [order_id]
     );
+    const { retainedDeposit } = await settleInvoicesOnCancel(order_id, client, req.user?.user_id || null);
 
     console.log(`[CancelOrder-${order_id}] Committing transaction.`);
     await client.query('COMMIT');
     console.log(`[CancelOrder-${order_id}] Transaction committed. Responding to client.`);
-    res.json({ success: true, message: 'Order cancelled successfully and products restocked.' });
+    res.json({
+      success: true,
+      retained_deposit: retainedDeposit,
+      message: retainedDeposit > 0
+        ? `Order cancelled. The ₱${retainedDeposit.toLocaleString('en-PH', { minimumFractionDigits: 2 })} down payment is non-refundable and was kept as revenue from a cancelled order.`
+        : 'Order cancelled successfully and products restocked.',
+    });
 
   } catch (error) {
     console.error(`[CancelOrder-${order_id}] Error during cancellation process:`, error.message, error.stack);

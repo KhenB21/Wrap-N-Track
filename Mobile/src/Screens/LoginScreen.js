@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../Context/AuthContext";
+import { getAuthErrorMessage } from "../constants/authErrors";
 
 export default function LoginScreen({ navigation }) {
   const [username, setUsername] = useState("");
@@ -45,21 +46,31 @@ export default function LoginScreen({ navigation }) {
   // Form will only clear when component mounts (after logout navigation)
 
   const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) {
-      Alert.alert("Error", "Please enter both username and password");
+    if (!username.trim() && !password) {
+      Alert.alert("Missing Details", "Please enter your email or username and your password.");
+      return;
+    }
+    if (!username.trim()) {
+      Alert.alert("Missing Details", "Please enter your email or username.");
+      return;
+    }
+    if (!password) {
+      Alert.alert("Missing Details", "Please enter your password.");
       return;
     }
 
     clearError();
-    
+
     try {
       const result = await login(username.trim(), password);
-      
+
       if (!result.success) {
-        Alert.alert("Login Failed", result.message || "Invalid credentials");
+        // result.message is the server's explanation (no account, wrong
+        // password, can't reach server) — see constants/authErrors.js.
+        Alert.alert("Login Failed", result.message || "Login failed. Please try again.");
       }
     } catch (error) {
-      Alert.alert("Error", "Login failed. Please try again.");
+      Alert.alert("Login Failed", getAuthErrorMessage(error, "Login failed. Please try again."));
     }
   };
 

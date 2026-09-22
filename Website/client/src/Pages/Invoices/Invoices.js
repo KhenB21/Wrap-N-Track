@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from '../../Components/Sidebar/Sidebar';
 import TopBar from '../../Components/TopBar';
 import withEmployeeAuth from '../../Components/withEmployeeAuth';
@@ -123,7 +124,13 @@ function Invoices() {
   const confirm = useConfirm();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({ invoice_type: '', status: '', customer: '', order: '' });
+  // Dashboard cards deep-link here with preset filters, e.g. Outstanding AR ->
+  // { filters: { status: 'UNPAID' } }.
+  const location = useLocation();
+  const [filters, setFilters] = useState(() => ({
+    invoice_type: '', status: '', customer: '', order: '',
+    ...(location.state?.filters || {}),
+  }));
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [paymentInvoice, setPaymentInvoice] = useState(null);
 

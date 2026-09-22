@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../Context/AuthContext";
 import api from '../../api';
+import { getAuthErrorMessage } from '../../constants/authErrors';
 import "./Login.css";
 
 function LoginPage() {
@@ -36,7 +37,7 @@ function LoginPage() {
         }, 1500);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed. Please try again.");
+      setError(getAuthErrorMessage(err, "Login failed. Please try again."));
     } finally {
       setLoading(false);
     }

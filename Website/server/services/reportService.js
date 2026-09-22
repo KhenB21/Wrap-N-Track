@@ -34,6 +34,8 @@
 
 const { getReplenishmentSuggestions } = require('./replenishment');
 const { getMovementAnalysis } = require('./movementClassification');
+const { outstandingAmountSql, receivableInvoiceSql } = require('./receivables');
+const { retainedDepositsCte } = require('./salesMetrics');
 
 const REVENUE_STATUSES = "('Order Received', 'Completed')";
 
@@ -100,9 +102,16 @@ async function getSalesSummary(pool, start, end) {
       FROM all_order_products op
       JOIN period_orders po ON po.order_id = op.order_id
       WHERE po.status IN ${REVENUE_STATUSES}
-    )
+    ),
+    ${retainedDepositsCte()}
     SELECT
       COALESCE((SELECT SUM(total_cost) FROM period_orders WHERE status IN ${REVENUE_STATUSES}), 0) AS total_revenue,
+      -- Non-refundable down payments kept from cancelled orders.
+      COALESCE((
+        SELECT SUM(rd.amount) FROM period_orders po3
+        JOIN retained_deposits rd ON rd.order_id = po3.order_id::text
+        WHERE po3.status = 'Cancelled'
+      ), 0) AS cancelled_revenue,
       (SELECT COUNT(*) FROM period_orders) AS total_orders,
       (SELECT COUNT(*) FROM period_orders WHERE status IN ${REVENUE_STATUSES}) AS completed_orders,
       (SELECT COUNT(*) FROM period_orders WHERE status = 'Cancelled') AS cancelled_orders,
@@ -114,17 +123,21 @@ async function getSalesSummary(pool, start, end) {
   `, [s, e]);
 
   const row = r.rows[0];
-  const totalRevenue = Number(row.total_revenue);
+  const orderRevenue = Number(row.total_revenue);
+  const cancelledOrderRevenue = round2(row.cancelled_revenue);
+  const totalRevenue = round2(orderRevenue + cancelledOrderRevenue);
   const completedOrders = Number(row.completed_orders);
   return {
     totalRevenue,
+    // Part of totalRevenue: kept deposits of cancelled orders (no product cost).
+    cancelledOrderRevenue,
     totalOrders: Number(row.total_orders),
     completedOrders,
     cancelledOrders: Number(row.cancelled_orders),
     pendingOrders: Number(row.pending_orders),
     totalUnitsSold: Number(row.total_units_sold),
-    avgOrderValue: completedOrders > 0 ? round2(totalRevenue / completedOrders) : 0,
-    totalProfit: round2(row.total_profit),
+    avgOrderValue: completedOrders > 0 ? round2(orderRevenue / completedOrders) : 0,
+    totalProfit: round2(Number(row.total_profit) + cancelledOrderRevenue),
     marginCoverage: { lineCount: Number(row.line_count), linesMissingCost: Number(row.lines_missing_cost) },
   };
 }
@@ -133,10 +146,13 @@ async function getDailySalesSeries(pool, start, end) {
   const s = toDateStr(start), e = toDateStr(end);
   const r = await pool.query(`
     WITH days AS (SELECT generate_series($1::date, $2::date, interval '1 day')::date AS d),
+    ${retainedDepositsCte()},
     daily AS (
       SELECT o.order_date::date AS d,
-        COALESCE(SUM(o.total_cost) FILTER (WHERE o.status IN ${REVENUE_STATUSES}), 0) AS revenue
+        COALESCE(SUM(o.total_cost) FILTER (WHERE o.status IN ${REVENUE_STATUSES}), 0)
+          + COALESCE(SUM(rd.amount) FILTER (WHERE o.status = 'Cancelled'), 0) AS revenue
       FROM all_orders o
+      LEFT JOIN retained_deposits rd ON rd.order_id = o.order_id::text
       WHERE o.order_date::date BETWEEN $1 AND $2
       GROUP BY o.order_date::date
     )
@@ -154,12 +170,15 @@ async function getMonthlySalesSeries(pool, year) {
     WITH months AS (
       SELECT generate_series(make_date($1::int,1,1), make_date($1::int,12,1), interval '1 month')::date AS m
     ),
+    ${retainedDepositsCte()},
     monthly AS (
       SELECT DATE_TRUNC('month', o.order_date::date)::date AS m,
-        COALESCE(SUM(o.total_cost) FILTER (WHERE o.status IN ${REVENUE_STATUSES}), 0) AS revenue,
+        COALESCE(SUM(o.total_cost) FILTER (WHERE o.status IN ${REVENUE_STATUSES}), 0)
+          + COALESCE(SUM(rd.amount) FILTER (WHERE o.status = 'Cancelled'), 0) AS revenue,
         COUNT(*) AS orders_all,
         COUNT(*) FILTER (WHERE o.status IN ${REVENUE_STATUSES}) AS orders_revenue
       FROM all_orders o
+      LEFT JOIN retained_deposits rd ON rd.order_id = o.order_id::text
       WHERE EXTRACT(YEAR FROM o.order_date::date) = $1::int
       GROUP BY 1
     )
@@ -348,17 +367,21 @@ async function getInventoryMovement(pool, start, end) {
 // the system doesn't actually track.
 async function getArSummary(pool, start, end) {
   const s = toDateStr(start), e = toDateStr(end);
+  // Outstanding follows services/receivables.js; invoiced = collected + outstanding
+  // (a PAID invoice carries amount_due = 0, so SUM(amount_due) under-reported it).
   const r = await pool.query(`
     SELECT
-      COALESCE(SUM(amount_due), 0) AS total_invoiced,
-      COALESCE(SUM(amount_paid), 0) AS total_collected,
-      COALESCE(SUM(amount_due - amount_paid), 0) AS outstanding
-    FROM invoices
-    WHERE status <> 'CANCELLED' AND issued_at::date BETWEEN $1 AND $2
+      COALESCE(SUM(i.amount_paid) FILTER (WHERE i.status = 'PAID'), 0) AS total_collected,
+      COALESCE(SUM(${outstandingAmountSql('i')}) FILTER (WHERE i.is_receivable), 0) AS outstanding
+    FROM (
+      SELECT inv.*, ${receivableInvoiceSql('inv')} AS is_receivable
+      FROM invoices inv
+      WHERE inv.status <> 'CANCELLED' AND inv.issued_at::date BETWEEN $1 AND $2
+    ) i
   `, [s, e]);
   const row = r.rows[0];
   return {
-    totalInvoiced: round2(row.total_invoiced),
+    totalInvoiced: round2(Number(row.total_collected) + Number(row.outstanding)),
     totalCollected: round2(row.total_collected),
     outstandingAr: round2(row.outstanding),
   };
@@ -374,7 +397,7 @@ async function getOutstandingInvoices(pool, asOfDate) {
     LEFT JOIN orders o ON i.order_id = o.order_id
     LEFT JOIN order_history oh ON i.order_id = oh.order_id
     LEFT JOIN customer_details cd ON i.customer_id = cd.customer_id
-    WHERE i.status <> 'CANCELLED' AND (i.amount_due - i.amount_paid) > 0
+    WHERE ${receivableInvoiceSql('i')} AND (i.amount_due - i.amount_paid) > 0
     ORDER BY i.issued_at ASC
   `, [toDateStr(asOfDate)]);
 

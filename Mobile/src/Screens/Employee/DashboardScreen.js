@@ -207,12 +207,23 @@ function useDashboardData(period, { isFinancial, isManager }) {
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────
-function Card({ title, colors, children, style }) {
+// With onPress the whole card opens its page (rows inside can still open
+// their own, more specific page — the innermost touchable wins).
+function Card({ title, colors, children, style, onPress, linkLabel = 'View' }) {
+  const Wrapper = onPress ? TouchableOpacity : View;
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }, style]}>
-      {!!title && <Text style={[styles.cardTitle, { color: colors.text }]}>{title}</Text>}
+    <Wrapper
+      style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }, style]}
+      {...(onPress ? { onPress, activeOpacity: 0.8, accessibilityRole: 'link' } : {})}
+    >
+      {(!!title || !!onPress) && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          {!!title && <Text style={[styles.cardTitle, { color: colors.text, flex: 1 }]}>{title}</Text>}
+          {!!onPress && <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary }}>{linkLabel} →</Text>}
+        </View>
+      )}
       {children}
-    </View>
+    </Wrapper>
   );
 }
 
@@ -245,7 +256,7 @@ function MiniBars({ values, color, height = 28, width }) {
   );
 }
 
-function KpiCard({ label, value, pct, direction, spark, tone, onPress, colors }) {
+function KpiCard({ label, value, pct, direction, spark, tone, onPress, colors, note }) {
   const accent = TONES[tone] || TONES.brand;
   const deltaColor = direction === 'up' ? TONES.green : direction === 'down' ? TONES.red : colors.subText;
   return (
@@ -264,6 +275,7 @@ function KpiCard({ label, value, pct, direction, spark, tone, onPress, colors })
           {direction === 'up' ? '↑' : direction === 'down' ? '↓' : '→'} {Math.abs(Number(pct)).toFixed(1)}%
         </Text>
       )}
+      {!!note && <Text style={{ fontSize: 11, color: colors.subText, marginTop: 2 }} numberOfLines={2}>{note}</Text>}
       {spark?.length > 0 && <MiniBars values={spark} color={accent} width={HALF_W - 28} />}
     </TouchableOpacity>
   );
@@ -373,7 +385,7 @@ function TrendChart({ data, lastActualDate, colors, darkMode }) {
 function HBarList({ rows, color, formatValue, colors, onPress }) {
   const max = Math.max(...rows.map((r) => r.value), 1);
   return rows.map((row, i) => (
-    <TouchableOpacity key={`${row.name}-${i}`} style={styles.hbarRow} disabled={!onPress} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity key={`${row.name}-${i}`} style={styles.hbarRow} disabled={!onPress} onPress={() => onPress?.(row)} activeOpacity={0.7}>
       <View style={styles.hbarHead}>
         <Text style={[styles.hbarName, { color: colors.text }]} numberOfLines={1}>{row.name}</Text>
         <Text style={[styles.hbarValue, { color: colors.subText }]}>
@@ -404,17 +416,41 @@ export default function DashboardScreen({ navigation }) {
     loading, error, activity, activityLoading, teamPerformance, myActivity, refresh, loadMoreActivity,
   } = useDashboardData(period, { isFinancial, isManager });
 
-  // Navigate to a tab when it exists for this role; otherwise fall back.
-  const go = (name, fallback = 'Orders') => {
+  // Navigate to a tab (and optionally a screen inside its stack, with params)
+  // when that tab exists for this role; otherwise fall back to Orders.
+  const go = (name, screen, params, fallback = 'Orders') => {
     let nav = navigation;
     while (nav) {
       if (nav.getState?.()?.routeNames?.includes(name)) {
-        navigation.navigate(name);
+        navigation.navigate(name, screen ? { screen, params } : undefined);
         return;
       }
       nav = nav.getParent?.();
     }
     navigation.navigate(fallback);
+  };
+  const goSales = () => go('Reports', 'SalesReport');
+  const goInventoryReport = () => go('Reports', 'InventoryReport');
+  const goInventory = (params) => go('Inventory', 'InventoryList', params);
+  const goOrders = (params) => go('Orders', 'OrderList', params);
+
+  // Each insight opens the screen where it can be acted on.
+  const openInsight = (id = '') => {
+    if (id.startsWith('stockout-risk:') || id.startsWith('velocity-change:')) return goInventory({ search: id.split(':')[1] });
+    switch (id) {
+      case 'unverified-payment-proofs': return goOrders({ tab: 'pending' });
+      case 'late-deliveries':           return go('Deliveries', undefined, undefined, 'Orders');
+      case 'dead-stock-value':          return goInventoryReport();
+      default:                          return goSales(); // revenue, cancellations, outstanding AR
+    }
+  };
+
+  // Activity feed row -> the order / product it is about.
+  const openActivity = (item) => {
+    if (item.entityType === 'order' && item.entityId) return go('Orders', 'OrderDetail', { order: { order_id: item.entityId } });
+    if (item.entityType === 'delivery') return go('Deliveries', undefined, undefined, 'Orders');
+    if (item.eventType === 'stock_movement') return goInventory(item.detail?.sku ? { search: item.detail.sku } : undefined);
+    return goOrders();
   };
 
   const onRefresh = async () => {
@@ -450,7 +486,7 @@ export default function DashboardScreen({ navigation }) {
   }, [trendData]);
 
   const topProducts = useMemo(
-    () => (breakdown || []).slice(0, 8).map((r) => ({ name: r.label || r.key, value: Number(r.value || 0) })),
+    () => (breakdown || []).slice(0, 8).map((r) => ({ name: r.label || r.key, sku: r.key, value: Number(r.value || 0) })),
     [breakdown]
   );
 
@@ -463,12 +499,12 @@ export default function DashboardScreen({ navigation }) {
     const reorderCount = wq.filter((i) => i.type === 'reorder_sku' && i.severity === 'high').length;
     const packHigh = wq.filter((i) => i.type === 'pack_order' && i.severity === 'high').length;
 
-    if (proofsCount > 0) items.push({ icon: 'file-document-alert-outline', label: `${proofsCount} payment proof${proofsCount > 1 ? 's' : ''} awaiting verification`, tab: 'Orders', severity: proofsCount >= 5 ? 'critical' : 'warning' });
+    if (proofsCount > 0) items.push({ icon: 'file-document-alert-outline', label: `${proofsCount} payment proof${proofsCount > 1 ? 's' : ''} awaiting verification`, tab: 'Orders', screen: 'OrderList', params: { tab: 'pending' }, severity: proofsCount >= 5 ? 'critical' : 'warning' });
     if (lateCount > 0) items.push({ icon: 'truck-alert-outline', label: `${lateCount} overdue deliver${lateCount > 1 ? 'ies' : 'y'}`, tab: 'Deliveries', severity: lateCount >= 10 ? 'critical' : 'warning' });
-    if (reorderCount > 0) items.push({ icon: 'package-variant-remove', label: `${reorderCount} SKU${reorderCount > 1 ? 's' : ''} need urgent reorder`, tab: 'Inventory', severity: 'critical' });
-    if (packHigh > 0) items.push({ icon: 'package-variant-closed', label: `${packHigh} overdue pack order${packHigh > 1 ? 's' : ''}`, tab: 'Orders', severity: 'warning' });
+    if (reorderCount > 0) items.push({ icon: 'package-variant-remove', label: `${reorderCount} SKU${reorderCount > 1 ? 's' : ''} need urgent reorder`, tab: 'Inventory', screen: 'InventoryList', params: { filter: 'low-stock' }, severity: 'critical' });
+    if (packHigh > 0) items.push({ icon: 'package-variant-closed', label: `${packHigh} overdue pack order${packHigh > 1 ? 's' : ''}`, tab: 'Orders', screen: 'OrderList', params: { tab: 'toBePacked' }, severity: 'warning' });
     if (isFinancial && inventoryHealth?.deadStockValue > 20000) {
-      items.push({ icon: 'chart-line-variant', label: 'Dead stock above ₱20,000 threshold', value: formatPeso(inventoryHealth.deadStockValue), tab: 'Inventory', severity: 'warning' });
+      items.push({ icon: 'chart-line-variant', label: 'Dead stock above ₱20,000 threshold', value: formatPeso(inventoryHealth.deadStockValue), tab: 'Reports', screen: 'InventoryReport', severity: 'warning' });
     }
     return items;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -548,17 +584,22 @@ export default function DashboardScreen({ navigation }) {
       <View style={[styles.section, styles.kpiGrid]}>
         {isFinancial ? (
           <>
-            <KpiCard colors={colors} label="Revenue" value={formatPeso(kpis?.revenue?.value)} pct={kpis?.revenue?.deltaPct} direction={kpis?.revenue?.direction} spark={sparkOf('revenue')} tone="brand" />
-            <KpiCard colors={colors} label="Orders" value={formatNum(kpis?.orders?.value)} pct={kpis?.orders?.deltaPct} direction={kpis?.orders?.direction} spark={sparkOf('orders')} tone="green" onPress={() => go('Orders')} />
-            <KpiCard colors={colors} label="Avg Order Value" value={formatPeso(kpis?.aov?.value)} pct={kpis?.aov?.deltaPct} direction={kpis?.aov?.direction} spark={sparkOf('aov')} tone="blue" />
-            <KpiCard colors={colors} label="Outstanding AR" value={formatPeso(kpis?.outstandingAr?.value)} tone="orange" onPress={() => go('Orders')} />
+            <KpiCard colors={colors} label="Revenue" value={formatPeso(kpis?.revenue?.value)} pct={kpis?.revenue?.deltaPct} direction={kpis?.revenue?.direction} spark={sparkOf('revenue')} tone="brand" onPress={goSales}
+              note={Number(kpis?.cancelledOrderRevenue?.value) > 0 ? `incl. ${formatPeso(kpis.cancelledOrderRevenue.value)} from cancelled orders` : null} />
+            <KpiCard colors={colors} label="Orders" value={formatNum(kpis?.orders?.value)} pct={kpis?.orders?.deltaPct} direction={kpis?.orders?.direction} spark={sparkOf('orders')} tone="green" onPress={() => goOrders()} />
+            <KpiCard colors={colors} label="Avg Order Value" value={formatPeso(kpis?.aov?.value)} pct={kpis?.aov?.deltaPct} direction={kpis?.aov?.direction} spark={sparkOf('aov')} tone="blue" onPress={goSales} />
+            <KpiCard colors={colors} label="Outstanding AR" value={formatPeso(kpis?.outstandingAr?.value)} tone="orange" onPress={goSales} />
+            {/* Kept, non-refundable down payments of cancelled orders — already
+                inside Revenue; shown separately so the source is clear. */}
+            <KpiCard colors={colors} label="From Cancelled Orders" value={formatPeso(kpis?.cancelledOrderRevenue?.value)} pct={kpis?.cancelledOrderRevenue?.deltaPct} direction={kpis?.cancelledOrderRevenue?.direction} tone="red" onPress={goSales}
+              note="Kept down payments · counted as revenue & profit" />
           </>
         ) : (
           <>
-            <KpiCard colors={colors} label="Orders to Pack" value={formatNum(packCount)} tone="orange" onPress={() => go('Orders')} />
-            <KpiCard colors={colors} label="Ready to Dispatch" value={formatNum(dispatchCount)} tone="blue" onPress={() => go('Deliveries')} />
-            <KpiCard colors={colors} label="Low Stock SKUs" value={formatNum(invH.lowStockCount || 0)} tone="orange" onPress={() => go('Inventory')} />
-            <KpiCard colors={colors} label="Stockout Risks" value={formatNum(stockoutCount)} tone="red" onPress={() => go('Inventory')} />
+            <KpiCard colors={colors} label="Orders to Pack" value={formatNum(packCount)} tone="orange" onPress={() => goOrders({ tab: 'toBePacked' })} />
+            <KpiCard colors={colors} label="Ready to Dispatch" value={formatNum(dispatchCount)} tone="blue" onPress={() => go('Deliveries', undefined, undefined, 'Orders')} />
+            <KpiCard colors={colors} label="Low Stock SKUs" value={formatNum(invH.lowStockCount || 0)} tone="orange" onPress={() => goInventory({ filter: 'low-stock' })} />
+            <KpiCard colors={colors} label="Stockout Risks" value={formatNum(stockoutCount)} tone="red" onPress={() => goInventory({ filter: 'low-stock' })} />
           </>
         )}
       </View>
@@ -574,7 +615,7 @@ export default function DashboardScreen({ navigation }) {
                 <TouchableOpacity
                   key={item.label}
                   style={[styles.attnRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
-                  onPress={() => go(item.tab)}
+                  onPress={() => go(item.tab, item.screen, item.params)}
                   activeOpacity={0.7}
                 >
                   <MaterialCommunityIcons name={item.icon} size={20} color={color} />
@@ -592,7 +633,7 @@ export default function DashboardScreen({ navigation }) {
       {isFinancial && (
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Revenue & Orders Trend</Text>
-          <Card colors={colors}>
+          <Card colors={colors} onPress={goSales} linkLabel="Sales report">
             {trendData.length === 0 ? (
               <Empty colors={colors} message="No trend data available for this period" />
             ) : (
@@ -610,7 +651,7 @@ export default function DashboardScreen({ navigation }) {
 
       {/* ── Order Pipeline ───────────────────────────────────────────────── */}
       <View style={styles.section}>
-        <Card colors={colors} title="Order Pipeline">
+        <Card colors={colors} title="Order Pipeline" onPress={() => goOrders()}>
           {stages.length === 0 ? (
             <Empty colors={colors} message="No active orders" />
           ) : (
@@ -623,7 +664,7 @@ export default function DashboardScreen({ navigation }) {
                 extra: s.medianAgeDays != null ? `med ${Number(s.medianAgeDays).toFixed(1)}d` : '',
               }))}
               formatValue={formatNum}
-              onPress={() => go('Orders')}
+              onPress={(row) => goOrders({ status: row.name })}
             />
           )}
         </Card>
@@ -631,7 +672,7 @@ export default function DashboardScreen({ navigation }) {
 
       {/* ── Top Products ─────────────────────────────────────────────────── */}
       <View style={styles.section}>
-        <Card colors={colors} title={`Top Products ${isFinancial ? 'by Revenue' : '(by activity)'}`}>
+        <Card colors={colors} title={`Top Products ${isFinancial ? 'by Revenue' : '(by activity)'}`} onPress={isFinancial ? goSales : () => goInventory()}>
           {topProducts.length === 0 ? (
             <Empty colors={colors} message="No product data for this period" />
           ) : (
@@ -640,7 +681,7 @@ export default function DashboardScreen({ navigation }) {
               color={TONES.green}
               rows={topProducts}
               formatValue={isFinancial ? formatPeso : formatNum}
-              onPress={() => go('Inventory')}
+              onPress={(row) => goInventory({ search: row.sku || row.name })}
             />
           )}
         </Card>
@@ -651,23 +692,23 @@ export default function DashboardScreen({ navigation }) {
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Inventory Health</Text>
         <View style={styles.tileGrid}>
           {[
-            { label: 'Turnover Ratio', value: invH.turnover != null ? Number(invH.turnover).toFixed(2) : '—', tone: 'brand' },
-            { label: 'Low Stock', value: formatNum(invH.lowStockCount), tone: 'orange', tab: 'Inventory' },
-            { label: 'Out of Stock', value: formatNum(invH.outOfStockCount), tone: 'red', tab: 'Inventory' },
+            { label: 'Turnover Ratio', value: invH.turnover != null ? Number(invH.turnover).toFixed(2) : '—', tone: 'brand', open: goInventoryReport },
+            { label: 'Low Stock', value: formatNum(invH.lowStockCount), tone: 'orange', open: () => goInventory({ filter: 'low-stock' }) },
+            { label: 'Out of Stock', value: formatNum(invH.outOfStockCount), tone: 'red', open: () => goInventory({ filter: 'replenishment' }) },
             ...(isFinancial
               ? [
-                  { label: 'Stock Value', value: formatPeso(invH.stockValue), tone: 'blue' },
-                  { label: 'Dead Stock', value: formatPeso(invH.deadStockValue), tone: 'orange' },
+                  { label: 'Stock Value', value: formatPeso(invH.stockValue), tone: 'blue', open: goInventoryReport },
+                  { label: 'Dead Stock', value: formatPeso(invH.deadStockValue), tone: 'orange', open: goInventoryReport },
                 ]
               : []),
-            { label: '< 7-day Supply', value: formatNum(invH.daysOfSupplyDistribution?.under7), tone: 'red' },
-            { label: '7–30-day Supply', value: formatNum(invH.daysOfSupplyDistribution?.d7to30), tone: 'brand' },
-            { label: '30–90-day Supply', value: formatNum(invH.daysOfSupplyDistribution?.d30to90), tone: 'green' },
+            { label: '< 7-day Supply', value: formatNum(invH.daysOfSupplyDistribution?.under7), tone: 'red', open: () => goInventory({ filter: 'low-stock' }) },
+            { label: '7–30-day Supply', value: formatNum(invH.daysOfSupplyDistribution?.d7to30), tone: 'brand', open: goInventoryReport },
+            { label: '30–90-day Supply', value: formatNum(invH.daysOfSupplyDistribution?.d30to90), tone: 'green', open: goInventoryReport },
           ].map((tile) => (
             <TouchableOpacity
               key={tile.label}
-              disabled={!tile.tab}
-              onPress={() => tile.tab && go(tile.tab)}
+              onPress={tile.open}
+              accessibilityRole="link"
               activeOpacity={0.75}
               style={[styles.tile, { backgroundColor: colors.card, borderColor: colors.border, borderTopColor: TONES[tile.tone] }]}
             >
@@ -688,11 +729,17 @@ export default function DashboardScreen({ navigation }) {
             insights.map((ins, i) => {
               const color = SEVERITY_COLORS[ins.severity] || SEVERITY_COLORS.info;
               return (
-                <View key={ins.id || i} style={[styles.insight, { borderLeftColor: color, backgroundColor: `${color}12` }]}>
+                <TouchableOpacity
+                  key={ins.id || i}
+                  onPress={() => openInsight(ins.id)}
+                  activeOpacity={0.75}
+                  accessibilityRole="link"
+                  style={[styles.insight, { borderLeftColor: color, backgroundColor: `${color}12` }]}
+                >
                   <Text style={[styles.insightSeverity, { color }]}>{String(ins.severity || 'info').toUpperCase()}</Text>
                   <Text style={[styles.insightTitle, { color: colors.text }]}>{ins.title}</Text>
                   {!!ins.body && <Text style={[styles.insightBody, { color: colors.subText }]}>{ins.body}</Text>}
-                </View>
+                </TouchableOpacity>
               );
             })
           )}
@@ -709,8 +756,11 @@ export default function DashboardScreen({ navigation }) {
           ) : (
             <>
               {activity.items.map((item, i) => (
-                <View
+                <TouchableOpacity
                   key={item.entityId ? `${item.entityId}-${i}` : i}
+                  onPress={() => openActivity(item)}
+                  activeOpacity={0.7}
+                  accessibilityRole="link"
                   style={[styles.activityRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
                 >
                   <MaterialCommunityIcons
@@ -722,7 +772,7 @@ export default function DashboardScreen({ navigation }) {
                     <Text style={[styles.activitySentence, { color: colors.text }]}>{buildSentence(item)}</Text>
                     <Text style={[styles.activityTime, { color: colors.subText }]}>{relativeTime(item.ts)}</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
               {!!activity.nextCursor && (
                 <TouchableOpacity
@@ -743,7 +793,7 @@ export default function DashboardScreen({ navigation }) {
       {/* ── Workload (managers) / My Activity ────────────────────────────── */}
       <View style={styles.section}>
         {isManager ? (
-          <Card colors={colors} title="Workload Distribution (7d)">
+          <Card colors={colors} title="Workload Distribution (7d)" onPress={() => go('Settings', 'AccountManagement', undefined, 'Orders')}>
             {!teamPerformance ? (
               <SkeletonCard withImage={false} lines={3} />
             ) : teamMembers.length === 0 ? (
@@ -758,7 +808,7 @@ export default function DashboardScreen({ navigation }) {
             )}
           </Card>
         ) : (
-          <Card colors={colors} title="My Activity (7d)">
+          <Card colors={colors} title="My Activity (7d)" onPress={() => goOrders()}>
             {!myActivity ? (
               <SkeletonCard withImage={false} lines={3} />
             ) : (

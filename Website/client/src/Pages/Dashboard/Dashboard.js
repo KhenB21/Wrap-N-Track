@@ -7,6 +7,7 @@ import { TrendChart, BarChart, Sparkline } from '../../Components/Charts';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import usePermissions from '../../hooks/usePermissions';
 import './Dashboard.css';
+import { linkProps } from './clickable';
 
 // ── Formatting ─────────────────────────────────────────────────────────────
 const PESO = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 });
@@ -51,12 +52,16 @@ function buildSentence(item) {
   }
 }
 
+// Order ids contain '#', so they must be encoded. There are no /invoices/:id or
+// /deliveries routes — those pages are reached with a preset filter instead.
 function entityLink(item) {
   switch (item.entityType) {
-    case 'order': return `/orders/${item.entityId}`;
-    case 'invoice': return `/invoices/${item.entityId}`;
-    case 'delivery': return `/deliveries`;
-    default: return null;
+    case 'order': return item.entityId ? `/orders/${encodeURIComponent(item.entityId)}` : '/orders';
+    case 'invoice': return '/invoices';
+    case 'delivery': return item.entityId ? `/delivery-tracking?orderId=${encodeURIComponent(item.entityId)}` : '/delivery-tracking';
+    case 'inventory':
+    case 'product': return item.detail?.sku ? `/product-details/${encodeURIComponent(item.detail.sku)}` : '/inventory';
+    default: return item.eventType === 'stock_movement' ? '/inventory' : null;
   }
 }
 
@@ -71,21 +76,19 @@ function DeltaBadge({ pct, direction }) {
   );
 }
 
-function KpiCard({ label, value, pct, direction, sparkData, isCurrency, onClick, loading, color }) {
+function KpiCard({ label, value, pct, direction, sparkData, isCurrency, loading, color, note, to, state }) {
+  const navigate = useNavigate();
   return (
     <div
       className={`db-kpi-card ui-card ui-card-hover${color ? ` db-kpi-${color}` : ''}`}
-      onClick={onClick}
-      tabIndex={onClick ? 0 : undefined}
-      role={onClick ? 'button' : undefined}
-      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
-      style={{ cursor: onClick ? 'pointer' : undefined }}
+      {...linkProps(navigate, to, state, label)}
     >
       <div className="db-kpi-label">{label}</div>
       <div className="db-kpi-value">
         {loading ? <span className="skeleton-value skeleton-wide" /> : value}
       </div>
       {!loading && <DeltaBadge pct={pct} direction={direction} />}
+      {!loading && note && <div className="db-kpi-note" style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{note}</div>}
       {sparkData && sparkData.length > 0 && !loading && (
         <div className="db-kpi-spark">
           <Sparkline data={sparkData} dataKey="value" isCurrency={isCurrency} height={44} />
@@ -98,9 +101,27 @@ function KpiCard({ label, value, pct, direction, sparkData, isCurrency, onClick,
 const SEV_COLOR = { critical: 'var(--danger)', warning: 'var(--warning)', info: 'var(--brand)' };
 const SEV_BG    = { critical: 'rgba(239,68,68,0.07)', warning: 'rgba(245,158,11,0.07)', info: 'rgba(99,102,241,0.07)' };
 
+// Each insight opens the page where it can be acted on.
+function insightLink(id = '') {
+  if (id.startsWith('stockout-risk:') || id.startsWith('velocity-change:')) {
+    return { to: `/product-details/${encodeURIComponent(id.split(':')[1])}` };
+  }
+  switch (id) {
+    case 'revenue-trend':             return { to: '/reports/sales' };
+    case 'unverified-payment-proofs': return { to: '/invoices', state: { filters: { status: 'UNPAID' } } };
+    case 'late-deliveries':           return { to: '/delivery-tracking' };
+    case 'cancellation-rate-spike':   return { to: '/reports/sales' };
+    case 'dead-stock-value':          return { to: '/reports/inventory' };
+    case 'outstanding-ar':            return { to: '/invoices', state: { filters: { status: 'UNPAID' } } };
+    default:                          return { to: '/reports/business' };
+  }
+}
+
 function InsightRow({ insight }) {
+  const navigate = useNavigate();
+  const link = insightLink(insight.id);
   return (
-    <div className="db-insight-row" style={{ borderLeftColor: SEV_COLOR[insight.severity] || SEV_COLOR.info, background: SEV_BG[insight.severity] || SEV_BG.info }}>
+    <div className="db-insight-row" {...linkProps(navigate, link.to, link.state, insight.title)} style={{ borderLeftColor: SEV_COLOR[insight.severity] || SEV_COLOR.info, background: SEV_BG[insight.severity] || SEV_BG.info }}>
       <div className="db-insight-sev" style={{ color: SEV_COLOR[insight.severity] || SEV_COLOR.info }}>{insight.severity}</div>
       <div>
         <div className="db-insight-title">{insight.title}</div>
@@ -115,7 +136,7 @@ function ActivityRow({ item }) {
   const sentence = buildSentence(item);
   const link = entityLink(item);
   return (
-    <div className="db-activity-row" onClick={() => link && navigate(link)} style={{ cursor: link ? 'pointer' : undefined }}>
+    <div className="db-activity-row" {...linkProps(navigate, link, null, 'activity')}>
       <div className="db-activity-actor">
         {item.actorKind === 'customer' ? '🧑' : item.actorKind === 'system' ? '⚙️' : '👤'}
       </div>
@@ -128,6 +149,7 @@ function ActivityRow({ item }) {
 }
 
 function PipelineFunnel({ operations }) {
+  const navigate = useNavigate();
   // stageAges from /operations: [{status, orderCount, medianAgeDays}]
   const stages = (operations?.stageAges || []).slice(0, 8);
   if (!stages.length) return <EmptyState message="No active orders" />;
@@ -135,7 +157,7 @@ function PipelineFunnel({ operations }) {
   return (
     <div className="db-funnel">
       {stages.map((s, i) => (
-        <div key={i} className="db-funnel-stage">
+        <div key={i} className="db-funnel-stage" {...linkProps(navigate, '/orders', { status: s.status }, `${s.status} orders`)}>
           <div className="db-funnel-bar-wrap">
             <div className="db-funnel-bar" style={{ width: `${Math.max(6, (s.orderCount / max) * 100)}%` }} />
           </div>
@@ -153,16 +175,8 @@ function PipelineFunnel({ operations }) {
 function AttentionRow({ icon, label, value, linkTo, severity = 'warning' }) {
   const navigate = useNavigate();
   const color = SEV_COLOR[severity] || SEV_COLOR.warning;
-  const go = () => linkTo && navigate(linkTo);
   return (
-    <div
-      className="db-attn-row"
-      onClick={go}
-      tabIndex={linkTo ? 0 : undefined}
-      role={linkTo ? 'button' : undefined}
-      onKeyDown={linkTo ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } } : undefined}
-      style={{ cursor: linkTo ? 'pointer' : undefined }}
-    >
+    <div className="db-attn-row" {...linkProps(navigate, linkTo, null, label)}>
       <span className="db-attn-icon" style={{ color }}>{icon}</span>
       <span className="db-attn-label">{label}</span>
       {value && <span className="db-attn-value" style={{ color }}>{value}</span>}
@@ -234,6 +248,7 @@ function Dashboard() {
   const topProducts = useMemo(() => {
     return (breakdown || []).slice(0, 8).map(r => ({
       name: r.label || r.key,
+      sku: r.key,
       value: Number(r.value || 0),
       pct: r.sharePct,
     }));
@@ -295,20 +310,27 @@ function Dashboard() {
 
       {/* ── Hero KPI row ─────────────────────────────────────────────────── */}
       <section className="db-section">
-        <div className="db-kpi-row">
+        <div className={`db-kpi-row${isFinancial ? ' db-kpi-row--5' : ''}`}>
           {isFinancial ? (
             <>
-              <KpiCard label="Revenue" value={formatPeso(kpis?.revenue?.value)} pct={kpis?.revenue?.deltaPct} direction={kpis?.revenue?.direction} sparkData={sparkRevenue} isCurrency loading={loading} color="brand" />
-              <KpiCard label="Orders" value={formatNum(kpis?.orders?.value)} pct={kpis?.orders?.deltaPct} direction={kpis?.orders?.direction} sparkData={sparkOrders} loading={loading} color="green" />
-              <KpiCard label="Avg Order Value" value={formatPeso(kpis?.aov?.value)} pct={kpis?.aov?.deltaPct} direction={kpis?.aov?.direction} sparkData={sparkAov} isCurrency loading={loading} color="blue" />
-              <KpiCard label="Outstanding AR" value={formatPeso(kpis?.outstandingAr?.value)} loading={loading} color="orange" onClick={() => navigate('/invoices')} />
+              <KpiCard label="Revenue" value={formatPeso(kpis?.revenue?.value)} pct={kpis?.revenue?.deltaPct} direction={kpis?.revenue?.direction} sparkData={sparkRevenue} isCurrency loading={loading} color="brand" to="/reports/sales"
+                note={Number(kpis?.cancelledOrderRevenue?.value) > 0 ? `incl. ${formatPeso(kpis.cancelledOrderRevenue.value)} from cancelled orders (kept down payments)` : null} />
+              <KpiCard label="Orders" value={formatNum(kpis?.orders?.value)} pct={kpis?.orders?.deltaPct} direction={kpis?.orders?.direction} sparkData={sparkOrders} loading={loading} color="green" to="/orders" />
+              <KpiCard label="Avg Order Value" value={formatPeso(kpis?.aov?.value)} pct={kpis?.aov?.deltaPct} direction={kpis?.aov?.direction} sparkData={sparkAov} isCurrency loading={loading} color="blue" to="/reports/sales" />
+              <KpiCard label="Outstanding AR" value={formatPeso(kpis?.outstandingAr?.value)} loading={loading} color="orange" to="/invoices" state={{ filters: { status: 'UNPAID' } }} />
+              {/* Non-refundable down payments kept when a partially paid order is
+                  cancelled. Already counted in Revenue and profit (no product
+                  cost — the goods were restocked); shown here so it's clear
+                  where that money came from. */}
+              <KpiCard label="From Cancelled Orders" value={formatPeso(kpis?.cancelledOrderRevenue?.value)} pct={kpis?.cancelledOrderRevenue?.deltaPct} direction={kpis?.cancelledOrderRevenue?.direction} loading={loading} color="red" to="/reports/sales"
+                note="Kept down payments · counted as revenue & profit" />
             </>
           ) : (
             <>
-              <KpiCard label="Orders to Pack" value={formatNum(packCount)} loading={loading} color="orange" onClick={() => navigate('/orders')} />
-              <KpiCard label="Ready to Dispatch" value={formatNum(dispatchCount)} loading={loading} color="blue" onClick={() => navigate('/orders')} />
-              <KpiCard label="Low Stock SKUs" value={formatNum(invH.lowStockCount || 0)} loading={loading} color="orange" onClick={() => navigate('/inventory', { state: { filter: 'low-stock' } })} />
-              <KpiCard label="Stockout Risks" value={formatNum(stockoutCount)} loading={loading} color="red" onClick={() => navigate('/inventory')} />
+              <KpiCard label="Orders to Pack" value={formatNum(packCount)} loading={loading} color="orange" to="/orders" />
+              <KpiCard label="Ready to Dispatch" value={formatNum(dispatchCount)} loading={loading} color="blue" to="/delivery-tracking" />
+              <KpiCard label="Low Stock SKUs" value={formatNum(invH.lowStockCount || 0)} loading={loading} color="orange" to="/inventory" state={{ filter: 'low-stock' }} />
+              <KpiCard label="Stockout Risks" value={formatNum(stockoutCount)} loading={loading} color="red" to="/inventory" state={{ filter: 'low-stock' }} />
             </>
           )}
         </div>
@@ -328,7 +350,7 @@ function Dashboard() {
       {isFinancial && (
         <section className="db-section">
           <h2 className="db-section-title">Revenue &amp; Orders Trend</h2>
-          <div className="ui-card db-chart-card">
+          <div className="ui-card db-chart-card" {...linkProps(navigate, '/reports/sales', null, 'Sales Report')}>
             {loading ? (
               <div className="db-chart-skeleton" style={{ height: 300 }} />
             ) : trendData.length === 0 ? (
@@ -361,8 +383,8 @@ function Dashboard() {
 
       {/* ── Middle row: Pipeline + Top Products ─────────────────────────── */}
       <section className="db-section db-row-2col">
-        <div className="ui-card db-chart-card">
-          <h3 className="db-card-title">Order Pipeline</h3>
+        <div className="ui-card db-chart-card" {...linkProps(navigate, '/orders', null, 'Orders')}>
+          <h3 className="db-card-title">Order Pipeline <span className="dash-view-link">View orders →</span></h3>
           {loading ? (
             <div className="db-chart-skeleton" style={{ height: 180 }} />
           ) : (
@@ -370,7 +392,7 @@ function Dashboard() {
           )}
         </div>
 
-        <div className="ui-card db-chart-card">
+        <div className="ui-card db-chart-card" {...linkProps(navigate, isFinancial ? '/reports/sales' : '/inventory', null, 'Top Products')}>
           <h3 className="db-card-title">Top Products {isFinancial ? 'by Revenue' : '(by activity)'}</h3>
           {loading ? (
             <div className="db-chart-skeleton" style={{ height: 180 }} />
@@ -386,7 +408,7 @@ function Dashboard() {
               showValueLabels={false}
               height={Math.max(180, topProducts.length * 34)}
               ariaLabel="Top products by revenue"
-              onBarClick={() => navigate('/inventory')}
+              onBarClick={(bar) => navigate(bar?.sku ? `/product-details/${encodeURIComponent(bar.sku)}` : '/inventory')}
             />
           )}
         </div>
@@ -398,25 +420,21 @@ function Dashboard() {
           <h2 className="db-section-title">Inventory Health</h2>
           <div className="db-inv-strip db-inv-strip-col">
             {[
-              { label: 'Turnover Ratio', value: invH.turnover != null ? Number(invH.turnover).toFixed(2) : '—', color: 'brand' },
-              { label: 'Low Stock',      value: formatNum(invH.lowStockCount),   color: 'orange', linkTo: '/inventory' },
-              { label: 'Out of Stock',   value: formatNum(invH.outOfStockCount), color: 'red',    linkTo: '/inventory' },
+              { label: 'Turnover Ratio', value: invH.turnover != null ? Number(invH.turnover).toFixed(2) : '—', color: 'brand', linkTo: '/reports/inventory' },
+              { label: 'Low Stock',      value: formatNum(invH.lowStockCount),   color: 'orange', linkTo: '/inventory', state: { filter: 'low-stock' } },
+              { label: 'Out of Stock',   value: formatNum(invH.outOfStockCount), color: 'red',    linkTo: '/inventory', state: { filter: 'replenishment' } },
               ...(isFinancial ? [
-                { label: 'Stock Value',  value: formatPeso(invH.stockValue),     color: 'blue' },
-                { label: 'Dead Stock',   value: formatPeso(invH.deadStockValue), color: 'orange' },
+                { label: 'Stock Value',  value: formatPeso(invH.stockValue),     color: 'blue',   linkTo: '/employee-dashboard/details' },
+                { label: 'Dead Stock',   value: formatPeso(invH.deadStockValue), color: 'orange', linkTo: '/reports/inventory' },
               ] : []),
-              { label: '< 7-day Supply',   value: formatNum(invH.daysOfSupplyDistribution?.under7), color: 'red' },
-              { label: '7–30-day Supply',  value: formatNum(invH.daysOfSupplyDistribution?.d7to30), color: 'brand' },
-              { label: '30-90-day Supply', value: formatNum(invH.daysOfSupplyDistribution?.d30to90), color: 'green' },
+              { label: '< 7-day Supply',   value: formatNum(invH.daysOfSupplyDistribution?.under7), color: 'red',   linkTo: '/employee-dashboard/details' },
+              { label: '7–30-day Supply',  value: formatNum(invH.daysOfSupplyDistribution?.d7to30), color: 'brand', linkTo: '/employee-dashboard/details' },
+              { label: '30-90-day Supply', value: formatNum(invH.daysOfSupplyDistribution?.d30to90), color: 'green', linkTo: '/employee-dashboard/details' },
             ].map((tile, i) => (
               <div
                 key={i}
                 className={`db-inv-tile ui-card ui-card-hover db-inv-${tile.color}`}
-                onClick={() => tile.linkTo && navigate(tile.linkTo)}
-                tabIndex={tile.linkTo ? 0 : undefined}
-                role={tile.linkTo ? 'button' : undefined}
-                onKeyDown={tile.linkTo ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(tile.linkTo); } } : undefined}
-                style={{ cursor: tile.linkTo ? 'pointer' : undefined }}
+                {...linkProps(navigate, tile.linkTo, tile.state, tile.label)}
               >
                 <div className="db-inv-label">{tile.label}</div>
                 <div className="db-inv-value">{loading ? <span className="skeleton-value" /> : tile.value}</div>
@@ -461,7 +479,7 @@ function Dashboard() {
         </div>
 
         {/* Manager workload / My Activity */}
-        <div className="ui-card db-activity-panel">
+        <div className="ui-card db-activity-panel" {...linkProps(navigate, isManager ? '/account-management' : '/orders', null, isManager ? 'Account Management' : 'Orders')}>
           {isManager ? (
             <>
               <h3 className="db-card-title">Workload Distribution (7d)</h3>

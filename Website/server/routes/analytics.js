@@ -7,6 +7,8 @@ const { getReplenishmentSuggestions } = require('../services/replenishment');
 const forecastService = require('../services/forecastService');
 const { generateInsights } = require('../services/insightEngine');
 const logger = require('../utils/logger');
+const { outstandingAmountSql, receivableInvoiceSql } = require('../services/receivables');
+const { retainedDepositsCte } = require('../services/salesMetrics');
 
 const REVENUE_STATUSES = "('Order Received', 'Completed')";
 
@@ -100,8 +102,16 @@ router.get('/kpis', requireFinancialScope(), async (req, res) => {
         FROM all_order_products op
         JOIN period_orders po ON po.order_id = op.order_id
         WHERE po.status IN ${REVENUE_STATUSES}
-      )
+      ),
+      ${retainedDepositsCte()}
       SELECT
+        -- Non-refundable down payments kept from cancelled orders.
+        COALESCE((
+          SELECT SUM(rd.amount)
+          FROM period_orders po3
+          JOIN retained_deposits rd ON rd.order_id = po3.order_id::text
+          WHERE po3.status = 'Cancelled'
+        ), 0) AS cancelled_revenue,
         (SELECT COUNT(*) FROM period_orders) AS orders_all,
         (SELECT COUNT(*) FROM period_orders WHERE status IN ${REVENUE_STATUSES}) AS orders_revenue,
         (SELECT COUNT(*) FROM period_orders WHERE status = 'Cancelled') AS orders_cancelled,
@@ -119,21 +129,24 @@ router.get('/kpis', requireFinancialScope(), async (req, res) => {
         ), 0) AS delivery_fees
     `;
     const arQuery = `
-      SELECT COALESCE(SUM(amount_due - amount_paid), 0) AS outstanding
-      FROM invoices
-      WHERE status <> 'CANCELLED' AND issued_at::date BETWEEN $1 AND $2
+      SELECT COALESCE(SUM(${outstandingAmountSql('i')}), 0) AS outstanding
+      FROM invoices i
+      WHERE ${receivableInvoiceSql('i')} AND i.issued_at::date BETWEEN $1 AND $2
     `;
     const dailySeriesQuery = `
       WITH days AS (
         SELECT generate_series($1::date, $2::date, interval '1 day')::date AS d
       ),
+      ${retainedDepositsCte()},
       daily AS (
         SELECT o.order_date::date AS d,
           COUNT(*) AS orders_all,
           COUNT(*) FILTER (WHERE o.status IN ${REVENUE_STATUSES}) AS orders_revenue,
-          COALESCE(SUM(o.total_cost) FILTER (WHERE o.status IN ${REVENUE_STATUSES}), 0) AS revenue,
+          COALESCE(SUM(o.total_cost) FILTER (WHERE o.status IN ${REVENUE_STATUSES}), 0)
+            + COALESCE(SUM(rd.amount) FILTER (WHERE o.status = 'Cancelled'), 0) AS revenue,
           COUNT(*) FILTER (WHERE o.status = 'Cancelled') AS cancelled
         FROM all_orders o
+        LEFT JOIN retained_deposits rd ON rd.order_id = o.order_id::text
         WHERE o.order_date::date BETWEEN $1 AND $2
         GROUP BY o.order_date::date
       )
@@ -163,10 +176,10 @@ router.get('/kpis', requireFinancialScope(), async (req, res) => {
         SELECT generate_series($1::date, $2::date, interval '1 day')::date AS d
       ),
       daily AS (
-        SELECT issued_at::date AS d, COALESCE(SUM(amount_due - amount_paid), 0) AS ar
-        FROM invoices
-        WHERE status <> 'CANCELLED' AND issued_at::date BETWEEN $1 AND $2
-        GROUP BY issued_at::date
+        SELECT i.issued_at::date AS d, COALESCE(SUM(${outstandingAmountSql('i')}), 0) AS ar
+        FROM invoices i
+        WHERE ${receivableInvoiceSql('i')} AND i.issued_at::date BETWEEN $1 AND $2
+        GROUP BY i.issued_at::date
       )
       SELECT days.d, COALESCE(daily.ar, 0) AS ar
       FROM days LEFT JOIN daily ON daily.d = days.d
@@ -186,8 +199,13 @@ router.get('/kpis', requireFinancialScope(), async (req, res) => {
     const cur = curAggR.rows[0];
     const prev = prevAggR.rows[0];
 
-    const revenue = trend(cur.revenue, prev.revenue);
+    // Revenue = completed-order revenue + kept deposits of cancelled orders.
+    // AOV and margin % stay on completed orders only.
+    const curCancelledRevenue = Number(cur.cancelled_revenue) || 0;
+    const prevCancelledRevenue = Number(prev.cancelled_revenue) || 0;
+    const revenue = trend(Number(cur.revenue) + curCancelledRevenue, Number(prev.revenue) + prevCancelledRevenue);
     revenue.sparkline = dailyR.rows.map(r => Number(r.revenue));
+    const cancelledOrderRevenue = trend(curCancelledRevenue, prevCancelledRevenue);
 
     const orders = trend(cur.orders_all, prev.orders_all);
     orders.sparkline = dailyR.rows.map(r => Number(r.orders_all));
@@ -197,7 +215,8 @@ router.get('/kpis', requireFinancialScope(), async (req, res) => {
     const aov = trend(curAov, prevAov);
     aov.sparkline = dailyR.rows.map(r => Number(r.orders_revenue) > 0 ? Number(r.revenue) / Number(r.orders_revenue) : 0);
 
-    const grossMargin = trend(cur.gross_margin, prev.gross_margin);
+    // A kept deposit has no product cost (the goods were restocked): all profit.
+    const grossMargin = trend(Number(cur.gross_margin) + curCancelledRevenue, Number(prev.gross_margin) + prevCancelledRevenue);
     grossMargin.sparkline = dailyMarginR.rows.map(r => Number(r.margin));
 
     // Gross Profit = Revenue - COGS, which is exactly what gross_margin already
@@ -208,14 +227,14 @@ router.get('/kpis', requireFinancialScope(), async (req, res) => {
 
     // Net Profit = Gross Profit - order-level costs (delivery fees). The app has
     // no operating-expense ledger, so this is deliberately not a full P&L figure.
-    const curNet = Number(cur.gross_margin) - Number(cur.delivery_fees);
-    const prevNet = Number(prev.gross_margin) - Number(prev.delivery_fees);
+    const curNet = grossMargin.value - Number(cur.delivery_fees);
+    const prevNet = grossMargin.previousValue - Number(prev.delivery_fees);
     const netProfit = trend(curNet, prevNet);
     netProfit.sparkline = grossMargin.sparkline;
 
     // Margin % of revenue, so the tiles can show quality of earnings, not just size.
-    const grossMarginPct = Number(cur.revenue) > 0
-      ? (Number(cur.gross_margin) / Number(cur.revenue)) * 100
+    const grossMarginPct = revenue.value > 0
+      ? (grossMargin.value / revenue.value) * 100
       : 0;
 
     const curCancelRate = cur.orders_all > 0 ? (Number(cur.orders_cancelled) / Number(cur.orders_all)) * 100 : 0;
@@ -231,6 +250,7 @@ router.get('/kpis', requireFinancialScope(), async (req, res) => {
       scope: 'financial',
       data: {
         revenue,
+        cancelledOrderRevenue,
         orders,
         aov,
         grossMargin,
@@ -503,10 +523,13 @@ router.get('/payments', requireFinancialScope(), async (req, res) => {
     const [summaryR, lagR, methodMixR, unverifiedR] = await Promise.all([
       pool.query(`
         SELECT
-          COALESCE(SUM(amount_paid), 0) AS paid,
-          COALESCE(SUM(amount_due - amount_paid), 0) AS outstanding
-        FROM invoices
-        WHERE status <> 'CANCELLED' AND issued_at::date BETWEEN $1 AND $2
+          COALESCE(SUM(i.amount_paid) FILTER (WHERE i.status = 'PAID'), 0) AS paid,
+          COALESCE(SUM(${outstandingAmountSql('i')}) FILTER (WHERE i.is_receivable), 0) AS outstanding
+        FROM (
+          SELECT inv.*, ${receivableInvoiceSql('inv')} AS is_receivable
+          FROM invoices inv
+          WHERE inv.status <> 'CANCELLED' AND inv.issued_at::date BETWEEN $1 AND $2
+        ) i
       `, [s, e]),
       pool.query(`
         SELECT
@@ -793,6 +816,8 @@ router.get('/supplier-operations', async (req, res) => {
 
     const scorecard = scorecardR.rows.map(r => ({
       supplierId: `SUP-${String(r.supplier_id).padStart(2, '0')}`,
+      // Raw id, so the dashboard can deep-link to this supplier.
+      supplierDbId: r.supplier_id,
       supplierName: r.supplier_name,
       avgLeadTime: Math.round(Number(r.avg_lead_time)),
       skusSupplied: Number(r.skus_supplied),
@@ -1151,7 +1176,7 @@ router.get('/insights', async (req, res) => {
         FROM inventory_items i LEFT JOIN sales s ON s.sku = i.sku
         WHERE i.is_active = true
       `),
-      pool.query(`SELECT COALESCE(SUM(amount_due - amount_paid), 0) AS outstanding FROM invoices WHERE status <> 'CANCELLED'`)
+      pool.query(`SELECT COALESCE(SUM(${outstandingAmountSql('i')}), 0) AS outstanding FROM invoices i WHERE ${receivableInvoiceSql('i')}`)
     ]);
 
     const revenueTotals = revenueTotalsR.rows[0];

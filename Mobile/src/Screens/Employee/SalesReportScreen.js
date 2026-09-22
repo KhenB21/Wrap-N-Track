@@ -234,6 +234,7 @@ export default function SalesReportScreen() {
               ['Cancelled', formatNumber(salesData.cancelledOrders), '#DC2626'],
               ['Paid Amount', formatPeso(salesData.paidAmount), colors.text],
               ['Outstanding', formatPeso(salesData.outstandingAmount), '#DC2626'],
+              ['From Cancelled Orders', formatPeso(salesData.cancelledOrderRevenue || 0), colors.text],
             ].map(([label, value, color], i) => (
               <View key={label} style={[styles.stripTile, i < 3 ? styles.stripThird : styles.stripHalf]}>
                 <Text style={[styles.stripLabel, { color: colors.subText }]}>{label}</Text>

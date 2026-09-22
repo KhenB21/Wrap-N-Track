@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI, setLogoutHandler } from '../services/api';
+import { getAuthErrorMessage, getAuthErrorField } from '../constants/authErrors';
 
 const AuthContext = createContext();
 
@@ -155,10 +156,11 @@ export const AuthProvider = ({ children }) => {
         return { success: false, message: response.message };
       }
     } catch (error) {
-      console.error('Login error:', error);
-      const errorMessage = error.message || 'Login failed. Please try again.';
+      // Was error.message — axios's "Request failed with status code 401" —
+      // instead of the server's explanation (wrong password, no account…).
+      const errorMessage = getAuthErrorMessage(error, 'Login failed. Please try again.');
       dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: errorMessage });
-      return { success: false, message: errorMessage };
+      return { success: false, message: errorMessage, field: getAuthErrorField(error) };
     }
   };
 
