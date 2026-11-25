@@ -86,8 +86,10 @@ export default function CustomerListScreen() {
         status: (customer.account_status || customer.status || 'active').toLowerCase(),
         created_at: customer.created_at || customer.createdAt || new Date().toISOString(),
         profile_picture_data: customer.profile_picture_data || null,
-        total_orders: customer.total_orders || 0,
-        total_spent: customer.total_spent || 0,
+        // GET /customers returns the count as `order_count`; Postgres sends
+        // SUM()/COUNT() as strings, so coerce for display and sorting.
+        total_orders: Number(customer.order_count ?? customer.total_orders) || 0,
+        total_spent: Number(customer.total_spent) || 0,
         address: customer.address || ''
       }));
       
@@ -300,7 +302,7 @@ export default function CustomerListScreen() {
         </View>
         <View style={styles.listItemStats}>
           <Text style={[styles.statText, { color: theme.colors.onSurfaceVariant }]}>
-            {item.total_orders} orders
+            {item.total_orders} {item.total_orders === 1 ? 'order' : 'orders'}
           </Text>
           <Text style={[styles.statText, { color: theme.colors.onSurfaceVariant }]}>
             {formatCurrency(item.total_spent)}
@@ -563,8 +565,12 @@ export default function CustomerListScreen() {
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: theme.colors.primary }]}
         onPress={() => navigation.navigate('AddEditCustomer', { mode: 'add' })}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Add customer"
       >
-        <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+        <MaterialCommunityIcons name="account-plus" size={22} color="#fff" />
+        <Text style={styles.fabText}>Add Customer</Text>
       </TouchableOpacity>
 
       {/* Filter Modal */}
@@ -654,7 +660,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 16,
-    paddingBottom: 80,
+    paddingBottom: 96, // room for the Add Customer button over the last card
   },
   customerInfo: {
     flex: 1,
@@ -722,11 +728,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 2,
   },
+  // Extended floating button: big enough to spot and tap, with a shadow so it
+  // stands out over the customer cards.
   fab: {
     position: 'absolute',
-    margin: 16,
-    right: 0,
-    bottom: 0,
+    right: 16,
+    bottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    paddingHorizontal: 20,
+    borderRadius: 26,
+    borderWidth: 2,
+    borderColor: '#fff',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    marginLeft: 8,
   },
   modalOverlay: {
     flex: 1,

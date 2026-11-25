@@ -12,6 +12,7 @@ export function getAuthErrorMessage(err, fallback = 'Something went wrong. Pleas
   const { status, data } = err.response;
   if (data?.message) return data.message;
   if (data?.error) return data.error;
+  if (status === 401) return 'Incorrect email/username or password. Please try again.';
   if (status === 429) return 'Too many attempts. Please wait a minute and try again.';
   if (status >= 500) return 'Something went wrong on our side. Please try again in a moment.';
   return fallback;

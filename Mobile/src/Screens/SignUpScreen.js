@@ -12,6 +12,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { authAPI } from "../services/api";
 import { getAuthErrorMessage, getAuthErrorField } from "../constants/authErrors";
 import { regions, citiesByRegion, getBarangaysForCity } from "../data/philippineLocations";
@@ -22,6 +23,9 @@ const postalRegex = /^\d{4}$/;
 
 export default function SignUpScreen({ navigation }) {
   const [step, setStep] = useState(1);
+  // One toggle for both password fields so they always look the same
+  // (both masked, or both shown).
+  const [showPasswords, setShowPasswords] = useState(false);
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -156,6 +160,38 @@ export default function SignUpScreen({ navigation }) {
         {...props}
       />
       {props.helperText ? <Text style={styles.helper}>{props.helperText}</Text> : null}
+      {!!touched[field] && !!errors[field] && <Text style={styles.error}>{errors[field]}</Text>}
+    </View>
+  );
+
+  // Both password fields go through this so they mask identically. The extra
+  // props stop keyboards/autofill from treating "Re-enter" as plain text.
+  const renderPasswordInput = (label, field, placeholder) => (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.passwordRow}>
+        <TextInput
+          style={styles.passwordInput}
+          value={form[field]}
+          onChangeText={(value) => setField(field, value)}
+          onBlur={() => setTouched({ ...touched, [field]: true })}
+          placeholder={placeholder}
+          secureTextEntry={!showPasswords}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="off"
+          importantForAutofill="no"
+          textContentType="none"
+          keyboardType="default"
+        />
+        <TouchableOpacity
+          style={styles.passwordIcon}
+          onPress={() => setShowPasswords((v) => !v)}
+          accessibilityLabel={showPasswords ? "Hide passwords" : "Show passwords"}
+        >
+          <MaterialCommunityIcons name={showPasswords ? "eye" : "eye-off"} size={20} color="#6B6593" />
+        </TouchableOpacity>
+      </View>
       {!!touched[field] && !!errors[field] && <Text style={styles.error}>{errors[field]}</Text>}
     </View>
   );
@@ -311,8 +347,8 @@ export default function SignUpScreen({ navigation }) {
                 autoCapitalize: "none",
                 helperText: "Make sure the email is correct for verification.",
               })}
-              {renderInput("Password", "password", { placeholder: "Password", secureTextEntry: true })}
-              {renderInput("Re-Enter Password", "confirmPassword", { placeholder: "Re-enter password", secureTextEntry: true })}
+              {renderPasswordInput("Password", "password", "Password")}
+              {renderPasswordInput("Re-Enter Password", "confirmPassword", "Re-enter password")}
               {renderPhoneInput()}
               <TouchableOpacity style={[styles.button, !canContinue && styles.buttonDisabled]} disabled={!canContinue} onPress={handleNext}>
                 <Text style={styles.buttonText}>Next</Text>
@@ -434,6 +470,24 @@ const styles = StyleSheet.create({
   inputDisabled: {
     backgroundColor: "#F3F2F7",
     color: "#8E89A8",
+  },
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#C7C5D1",
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  passwordIcon: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   phoneRow: {
     flexDirection: "row",

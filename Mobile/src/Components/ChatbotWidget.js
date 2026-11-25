@@ -10,13 +10,15 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import api from '../services/api';
 import { useTheme } from '../Context/ThemeContext';
+import WrappyFace from './WrappyFace';
 
 // Native chat against our own Gemini-backed endpoint (Website/server/routes/chatbot.js).
 //
@@ -26,12 +28,16 @@ import { useTheme } from '../Context/ThemeContext';
 // are gone. It also means recommendations arrive as data we can deep-link into
 // the app's own BundleDetail / ProductDetail screens.
 
-const GUEST_ID_KEY = 'wnt_chat_guest_id';
+// Typed out next to the floating button when the app opens.
+const HELLO_TEXT = "Hello! I'm Wrappy. I'm here to assist you!";
+const TYPE_MS = 35;
+
+const GUEST_ID_KEY ='wnt_chat_guest_id';
 const MAX_CHARS = 500;
 
 const GREETING = {
   role: 'model',
-  text: "Hi! I'm the Wrap N' Track assistant. Tell me what you're celebrating and I'll suggest what works best.",
+  text: "Hello! I'm Wrappy, your Wrap N' Track assistant. Tell me what you're celebrating and I'll suggest what works best.",
   recommendations: [],
   suggestions: ['Wedding giveaways', 'Corporate gifts', 'Birthday gift wrap'],
 };
@@ -66,6 +72,58 @@ export default function ChatbotWidget() {
 
   const scrollRef = useRef(null);
 
+  // Greeting bubble beside the floating button: pops in, types itself out
+  // while Wrappy "talks", then tucks away after a few seconds.
+  const [helloShown, setHelloShown] = useState(false);
+  const [helloTyped, setHelloTyped] = useState('');
+  const helloAnim = useRef(new Animated.Value(0)).current;
+  const wiggle = useRef(new Animated.Value(0)).current;
+  const greetedRef = useRef(false);
+
+  const hideHello = useCallback(() => {
+    Animated.timing(helloAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() =>
+      setHelloShown(false)
+    );
+  }, [helloAnim]);
+
+  useEffect(() => {
+    if (available !== true || greetedRef.current) return undefined;
+    greetedRef.current = true;
+    const timeouts = [];
+    let typer = null;
+    timeouts.push(
+      setTimeout(() => {
+        setHelloShown(true);
+        setHelloTyped('');
+        Animated.spring(helloAnim, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }).start();
+        // A little "wave" of the button as Wrappy says hello.
+        Animated.sequence(
+          [1, -1, 1, -1, 0].map((v) =>
+            Animated.timing(wiggle, { toValue: v, duration: 110, easing: Easing.inOut(Easing.quad), useNativeDriver: true })
+          )
+        ).start();
+        let i = 0;
+        typer = setInterval(() => {
+          i += 1;
+          setHelloTyped(HELLO_TEXT.slice(0, i));
+          if (i >= HELLO_TEXT.length) clearInterval(typer);
+        }, TYPE_MS);
+      }, 900)
+    );
+    timeouts.push(setTimeout(hideHello, 900 + HELLO_TEXT.length * TYPE_MS + 4500));
+    return () => {
+      timeouts.forEach(clearTimeout);
+      if (typer) clearInterval(typer);
+    };
+  }, [available, helloAnim, wiggle, hideHello]);
+
+  const openChat = () => {
+    if (helloShown) hideHello();
+    setVisible(true);
+  };
+
+  const helloTalking = helloShown && helloTyped.length < HELLO_TEXT.length;
+
   const c = palette(darkMode);
 
   // Hide the bubble entirely if the assistant is not configured on the backend.
@@ -90,17 +148,23 @@ export default function ChatbotWidget() {
   }, [visible]);
 
   const send = useCallback(
-    async (rawText) => {
+    async (rawText, { retry = false } = {}) => {
       const text = String(rawText || '').trim();
       if (!text || sending || needsAuth) return;
 
       // Snapshot before appending — the server adds the new message itself.
-      const history = messages
-        .filter((m) => !m.isError && !m.isGate)
-        .slice(-10)
-        .map((m) => ({ role: m.role, text: m.text }));
+      let base = messages.filter((m) => !m.isError && !m.isGate);
+      // On a retry the user's message is already on screen; leave it out of the
+      // history so the server doesn't see it twice.
+      if (retry && base.length && base[base.length - 1].role === 'user') base = base.slice(0, -1);
+      const history = base.slice(-10).map((m) => ({ role: m.role, text: m.text }));
 
-      setMessages((prev) => [...prev, { role: 'user', text, recommendations: [], suggestions: [] }]);
+      if (retry) {
+        // Drop the error bubble; the user's original message stays.
+        setMessages((prev) => prev.filter((m) => !(m.isError && m.retryText === text)));
+      } else {
+        setMessages((prev) => [...prev, { role: 'user', text, recommendations: [], suggestions: [] }]);
+      }
       setDraft('');
       setSending(true);
 
@@ -129,7 +193,8 @@ export default function ChatbotWidget() {
           'I could not reach the assistant just now. Please check your connection and try again.';
         setMessages((prev) => [
           ...prev,
-          { role: 'model', text: message, recommendations: [], suggestions: [], isError: true },
+          // retryText lets the "Try again" button resend the same prompt.
+          { role: 'model', text: message, recommendations: [], suggestions: [], isError: true, retryText: text },
         ]);
       } finally {
         setSending(false);
@@ -181,21 +246,65 @@ export default function ChatbotWidget() {
 
   return (
     <>
-      <TouchableOpacity
-        style={styles.bubble}
-        activeOpacity={0.85}
-        onPress={() => setVisible(true)}
-        accessibilityLabel="Open the Wrap N' Track assistant"
+      {helloShown && (
+        <Animated.View
+          style={[
+            styles.hello,
+            { backgroundColor: c.surface, borderColor: c.line },
+            {
+              opacity: helloAnim,
+              transform: [
+                { translateX: helloAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) },
+                { scale: helloAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) },
+              ],
+            },
+          ]}
+        >
+          <TouchableOpacity activeOpacity={0.8} onPress={openChat} style={{ flex: 1 }}>
+            <Text style={styles.helloName}>Wrappy</Text>
+            <Text style={[styles.helloText, { color: c.ink }]}>
+              {helloTyped}
+              {helloTalking ? <Text style={{ color: '#8A84B8' }}>|</Text> : null}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={hideHello}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Dismiss greeting"
+          >
+            <MaterialCommunityIcons name="close" size={14} color={c.muted} />
+          </TouchableOpacity>
+          <View style={[styles.helloTail, { backgroundColor: c.surface, borderColor: c.line }]} />
+        </Animated.View>
+      )}
+
+      <Animated.View
+        style={[
+          styles.bubbleWrap,
+          { transform: [{ rotate: wiggle.interpolate({ inputRange: [-1, 1], outputRange: ['-14deg', '14deg'] }) }] },
+        ]}
       >
-        <MaterialCommunityIcons name="chat-processing" size={28} color="#fff" />
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.bubble}
+          activeOpacity={0.85}
+          onPress={openChat}
+          accessibilityLabel="Chat with Wrappy, the Wrap N' Track assistant"
+        >
+          <WrappyFace size={42} talking={helloTalking} />
+        </TouchableOpacity>
+      </Animated.View>
 
       <Modal visible={visible} animationType="slide" onRequestClose={() => setVisible(false)}>
         <SafeAreaView style={[styles.modal, { backgroundColor: c.bg }]}>
           <View style={styles.header}>
+            <View style={styles.headerAvatar}>
+              <WrappyFace size={36} talking={sending} />
+            </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.headerTitle}>Wrap N&apos; Track Assistant</Text>
-              <Text style={styles.headerSub}>Gift &amp; packaging recommendations</Text>
+              <Text style={styles.headerTitle}>Wrappy</Text>
+              <Text style={styles.headerSub}>
+                {sending ? 'Typing…' : "Your Wrap N' Track gift assistant"}
+              </Text>
             </View>
             <TouchableOpacity onPress={() => setVisible(false)} style={styles.closeBtn} accessibilityLabel="Close assistant">
               <MaterialCommunityIcons name="close" size={22} color="#fff" />
@@ -218,6 +327,12 @@ export default function ChatbotWidget() {
                 const isUser = msg.role === 'user';
                 return (
                   <View key={i} style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowBot]}>
+                    {!isUser && (
+                      <View style={styles.botLabelRow}>
+                        <WrappyFace size={22} animated={false} />
+                        <Text style={[styles.botLabel, { color: c.muted }]}>Wrappy</Text>
+                      </View>
+                    )}
                     <View
                       style={[
                         styles.bubbleText,
@@ -231,6 +346,26 @@ export default function ChatbotWidget() {
                         {msg.text}
                       </Text>
                     </View>
+
+                    {msg.isError && msg.retryText && i === messages.length - 1 && !sending && (
+                      <View style={[styles.retryBox, { backgroundColor: c.surface, borderColor: c.line }]}>
+                        <WrappyFace size={30} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.retryAsk, { color: c.ink }]}>
+                            Oops, I got a little tangled in my ribbon! 🎀 Do you want to try again?
+                          </Text>
+                          <TouchableOpacity
+                            style={styles.retryBtn}
+                            activeOpacity={0.85}
+                            onPress={() => send(msg.retryText, { retry: true })}
+                            accessibilityLabel="Try sending your message again"
+                          >
+                            <MaterialCommunityIcons name="refresh" size={16} color="#fff" />
+                            <Text style={styles.retryBtnText}>Yes, try again!</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
 
                     {msg.recommendations?.map((rec) => (
                       <TouchableOpacity
@@ -301,8 +436,8 @@ export default function ChatbotWidget() {
 
               {sending && (
                 <View style={styles.typing}>
-                  <ActivityIndicator size="small" color="#696a8f" />
-                  <Text style={[styles.typingText, { color: c.muted }]}>Thinking...</Text>
+                  <WrappyFace size={28} talking />
+                  <Text style={[styles.typingText, { color: c.muted }]}>Wrappy is thinking…</Text>
                 </View>
               )}
             </ScrollView>
@@ -350,10 +485,46 @@ const palette = (darkMode) => ({
 });
 
 const styles = StyleSheet.create({
-  bubble: {
+  bubbleWrap: {
     position: 'absolute',
     right: 20,
     bottom: 90,
+    zIndex: 999,
+    elevation: 6,
+  },
+  hello: {
+    position: 'absolute',
+    right: 88,
+    bottom: 96,
+    maxWidth: 220,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 14,
+    borderBottomRightRadius: 4,
+    borderWidth: 1,
+    zIndex: 999,
+    elevation: 7,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  helloName: { fontSize: 11, fontWeight: '800', color: '#6B6593', marginBottom: 2 },
+  helloText: { fontSize: 13, lineHeight: 18 },
+  helloTail: {
+    position: 'absolute',
+    right: -6,
+    bottom: 10,
+    width: 12,
+    height: 12,
+    borderRightWidth: 1,
+    borderTopWidth: 1,
+    transform: [{ rotate: '45deg' }],
+  },
+  bubble: {
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -365,7 +536,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.28,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-    zIndex: 999,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   modal: { flex: 1 },
 
@@ -379,6 +551,17 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
   headerSub: { color: 'rgba(255,255,255,0.82)', fontSize: 11, marginTop: 2 },
   closeBtn: { padding: 6 },
+  headerAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  botLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: -2 },
+  botLabel: { fontSize: 11, fontWeight: '700' },
 
   messages: { flex: 1 },
   messagesContent: { padding: 16, gap: 12 },
@@ -391,6 +574,26 @@ const styles = StyleSheet.create({
   bubbleUser: { backgroundColor: '#4a4a6a', borderBottomRightRadius: 3 },
   bubbleBot: { borderWidth: 1, borderBottomLeftRadius: 3 },
   bubbleError: { backgroundColor: '#fdf2f2', borderColor: '#f0c9c9' },
+  retryBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+  },
+  retryAsk: { fontSize: 13, lineHeight: 18, marginBottom: 8 },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    backgroundColor: '#4a4a6a',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+  },
+  retryBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   msgText: { fontSize: 14, lineHeight: 20 },
 
   card: { borderWidth: 1, borderRadius: 10, padding: 12 },
