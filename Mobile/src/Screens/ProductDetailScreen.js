@@ -14,6 +14,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCart } from "../Context/CartContext";
 import { useTheme } from "../Context/ThemeContext";
 import Toast from "../Components/Toast";
+import ProductImage from "../Components/ProductImage";
+import ImageViewerModal from "../Components/ImageViewerModal";
+import { getProductImageUrl } from "../services/api";
 
 const { width } = Dimensions.get("window");
 
@@ -25,6 +28,13 @@ export default function ProductDetailScreen({ navigation, route }) {
   const [adding, setAdding] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: "" });
   const bounceAnim = useState(new Animated.Value(1))[0];
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const imageVersion = product.updated_at || product.last_updated;
+  // Older catalog payloads carried the photo inline as base64; current ones
+  // serve it from /inventory/:sku/image.
+  const fullImageUri = product.image_data
+    ? `data:image/png;base64,${product.image_data}`
+    : getProductImageUrl(product.sku, imageVersion);
 
   const handleAddToCart = async () => {
     if (adding) return;
@@ -65,17 +75,28 @@ export default function ProductDetailScreen({ navigation, route }) {
       
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={[styles.imageContainer, { backgroundColor: darkMode ? "#242526" : "#fff" }]}>
-          {product.image_data ? (
-            <Image
-              source={{ uri: `data:image/png;base64,${product.image_data}` }}
-              style={styles.productImage}
-              resizeMode="contain"
-            />
-          ) : (
-            <View style={[styles.placeholderImage, { backgroundColor: darkMode ? "#393A3B" : "#EDECF3" }]}>
-              <MaterialCommunityIcons name="image" size={64} color={darkMode ? "#B0B3B8" : "#6B6593"} />
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setViewerOpen(true)}
+            accessibilityRole="imagebutton"
+            accessibilityLabel={`Enlarge photo of ${product.name}`}
+          >
+            {product.image_data ? (
+              <Image source={{ uri: fullImageUri }} style={styles.productImage} resizeMode="contain" />
+            ) : (
+              <ProductImage
+                sku={product.sku}
+                version={imageVersion}
+                style={[styles.productImage, { borderRadius: 8 }]}
+                iconSize={48}
+                colors={{ wash: darkMode ? "#393A3B" : "#EDECF3", textMute: darkMode ? "#B0B3B8" : "#6B6593" }}
+              />
+            )}
+            <View style={styles.enlargeBadge} pointerEvents="none">
+              <MaterialCommunityIcons name="magnify-plus-outline" size={16} color="#fff" />
+              <Text style={styles.enlargeText}>Tap to enlarge</Text>
             </View>
-          )}
+          </TouchableOpacity>
         </View>
 
         <View style={[styles.detailsContainer, { backgroundColor: darkMode ? "#242526" : "#fff" }]}>
@@ -166,6 +187,12 @@ export default function ProductDetailScreen({ navigation, route }) {
           </TouchableOpacity>
         </Animated.View>
       </View>
+      <ImageViewerModal
+        visible={viewerOpen}
+        uri={fullImageUri}
+        title={product.name}
+        onClose={() => setViewerOpen(false)}
+      />
       <Toast
         visible={toast.visible}
         message={toast.message}
@@ -195,7 +222,23 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: width - 64,
-    height: 200,
+    height: 260,
+  },
+  enlargeBadge: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  enlargeText: {
+    color: '#fff',
+    fontSize: 11,
+    marginLeft: 4,
   },
   placeholderImage: {
     width: width - 64,

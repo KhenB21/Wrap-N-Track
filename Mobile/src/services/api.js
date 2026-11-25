@@ -41,6 +41,14 @@ const PRODUCTION_API_URL = 'https://wrap-n-track-server.onrender.com/api';
 
 // Base URL for the web server API
 const getBaseURL = () => {
+  // Explicit override, e.g. to run `expo start` against the Render server
+  // instead of a local one (see `npm run start:render`, or set it in .env.local).
+  // Expo inlines EXPO_PUBLIC_* vars at bundle time; restart Metro with -c after changing it.
+  const override = process.env.EXPO_PUBLIC_API_URL;
+  if (override) {
+    return override.replace(/\/+$/, '');
+  }
+
   // Standalone/production builds (APK, TestFlight, EAS build, etc.) have no
   // dev server — always point them at the real deployed backend. __DEV__ is
   // false in any release build, true in Expo Go / `expo start` dev builds.
@@ -134,6 +142,33 @@ api.interceptors.request.use(
   }
 );
 
+function toFriendlyMessage(error, isAuthRequest) {
+  const res = error.response;
+  if (!res) {
+    if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
+      return 'The server took too long to respond. Please try again.';
+    }
+    return "Can't reach the server. Check your internet connection and try again.";
+  }
+  const data = res.data;
+  const serverMsg = (data && typeof data === 'object' && (data.message || data.error)) || '';
+  if (typeof serverMsg === 'string' && serverMsg.trim()) return serverMsg;
+  switch (res.status) {
+    case 400: return 'Some details are missing or invalid. Please check and try again.';
+    case 401: return isAuthRequest
+      ? 'Incorrect email/username or password. Please try again.'
+      : 'Your session has expired. Please sign in again.';
+    case 403: return "You don't have permission to do that.";
+    case 404: return "We couldn't find what you were looking for.";
+    case 409: return 'This conflicts with existing information. Please check and try again.';
+    case 429: return 'Too many attempts. Please wait a minute and try again.';
+    default:
+      return res.status >= 500
+        ? 'Something went wrong on our side. Please try again in a moment.'
+        : 'Something went wrong. Please try again.';
+  }
+}
+
 // Response interceptor for error handling and token refresh
 api.interceptors.response.use(
   (response) => {
@@ -154,6 +189,11 @@ api.interceptors.response.use(
       status: error.response?.status,
       url: error.config?.url
     });
+
+    // axios's own message ("Request failed with status code 401", "Network
+    // Error", "timeout of 30000ms exceeded") ends up in alerts customers see via
+    // `error.message`. Swap it for the server's explanation or a plain one.
+    error.message = toFriendlyMessage(error, isAuthRequest);
 
     if (error.response?.status === 401 && !isAuthRequest) {
       if (_logoutHandler) {
@@ -642,6 +682,11 @@ export const customerAPI = {
       console.error('Error fetching customers:', error);
       throw error;
     }
+  },
+  // { ongoing: [...], history: [...] } — active orders plus archived ones.
+  getCustomerOrders: async (customerId) => {
+    const response = await api.get(`/customers/${customerId}/orders`);
+    return response.data;
   },
   getCustomer: async (customerId) => {
     try {

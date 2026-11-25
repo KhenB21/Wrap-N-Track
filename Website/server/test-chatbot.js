@@ -114,13 +114,26 @@ const server = app.listen(0, async () => {
   check('no guest counter for customers', c1.body.guestRepliesUsed === null && c1.body.guestLimit === null);
   check('prompt personalised with name', /name is Ana/.test(lastPrompt));
 
-  console.log('\n7. A failed Gemini turn must not burn the allowance');
+  console.log('\n7. When every AI model fails, answer from the catalogue (and don\'t burn the allowance)');
   nextGemini = { ok: false, code: 'upstream', message: 'Try again.' };
-  const f1 = await post({ message: 'hello', guestId: 'guest-bbbbbbbb' });
-  check('upstream failure surfaces as 502', f1.status === 502, f1.body);
+  const f1 = await post({ message: 'ideas for our wedding', guestId: 'guest-bbbbbbbb' });
+  check('AI failure -> 200 catalogue answer, not an error',
+    f1.status === 200 && f1.body.source === 'catalog' && f1.body.recommendations[0]?.url === '/showcase/7', f1.body);
+  check('catalogue stand-in does not count as a guest reply', f1.body.guestRepliesUsed === 0, f1.body);
   nextGemini = ok([]);
   const f2 = await post({ message: 'hello again', guestId: 'guest-bbbbbbbb' });
   check('still on reply 1 after the failure', f2.body.guestRepliesUsed === 1, f2.body);
+  nextGemini = { ok: false, code: 'blocked', message: "I can't help with that one." };
+  const f3 = await post({ message: 'something off-limits' }, token);
+  check('a safety decline is still shown as-is (not replaced by catalogue)', f3.status === 502 && f3.body.code === 'blocked', f3.body);
+
+  console.log('\n7b. Preset buttons are answered without calling the AI');
+  nextGemini = { ok: false, code: 'upstream', message: 'should not be called' };
+  lastPrompt = null;
+  const p1 = await post({ message: 'Wedding giveaways' }, token);
+  check('preset answered instantly from the catalogue',
+    p1.status === 200 && p1.body.source === 'preset' && p1.body.recommendations[0]?.url === '/showcase/7', p1.body);
+  check('preset did not call the AI', lastPrompt === null);
 
   console.log('\n8. Bundles are ordered ahead of products');
   nextGemini = ok([

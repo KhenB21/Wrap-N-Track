@@ -17,6 +17,7 @@ import { useCart } from "../Context/CartContext";
 import { useTheme } from "../Context/ThemeContext";
 import { SkeletonCard } from "../Components/Skeleton/Skeleton";
 import { getProductImageUrl } from "../services/api";
+import ImageViewerModal from "../Components/ImageViewerModal";
 
 const { width } = Dimensions.get("window");
 
@@ -37,6 +38,8 @@ export default function MyCartScreen({ navigation }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [failedImages, setFailedImages] = useState({});
+  // Item whose photo is open in the enlarged viewer (null = closed).
+  const [previewItem, setPreviewItem] = useState(null);
   const { darkMode } = useTheme();
 
   // Load the cart from the server when the screen opens.
@@ -111,12 +114,21 @@ export default function MyCartScreen({ navigation }) {
   const removeBtnText = darkMode ? "#fff" : "#6B6593";
   const quantityValueColor = darkMode ? "#fff" : "#6B6593";
 
+  // Tapping the photo enlarges it; tapping anywhere else on the card
+  // selects/deselects the item for checkout.
   const renderItem = (item) => (
-    <View
+    <TouchableOpacity
       key={item.sku}
+      activeOpacity={0.9}
+      onPress={() => handleSelect(item.sku)}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selectedIds.includes(item.sku) }}
       style={[
         styles.itemCard,
-        { backgroundColor: itemCardBg, borderColor: border },
+        {
+          backgroundColor: itemCardBg,
+          borderColor: selectedIds.includes(item.sku) ? radioDot : border,
+        },
       ]}
     >
       <TouchableOpacity
@@ -136,17 +148,27 @@ export default function MyCartScreen({ navigation }) {
             <View style={[styles.radioDot, { backgroundColor: radioDot }]} />
           )}
         </TouchableOpacity>
-        {!failedImages[item.sku] ? (
-          <Image
-            source={{ uri: getProductImageUrl(item.sku) }}
-            style={styles.itemImage}
-            onError={() => setFailedImages((prev) => ({ ...prev, [item.sku]: true }))}
-          />
-        ) : (
-          <View style={[styles.itemImage, { backgroundColor: border, justifyContent: 'center', alignItems: 'center' }]}>
-            <MaterialCommunityIcons name="image" size={32} color={subText} />
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setPreviewItem(item)}
+          accessibilityRole="imagebutton"
+          accessibilityLabel={`Enlarge photo of ${item.name}`}
+        >
+          {!failedImages[item.sku] ? (
+            <Image
+              source={{ uri: getProductImageUrl(item.sku) }}
+              style={styles.itemImage}
+              onError={() => setFailedImages((prev) => ({ ...prev, [item.sku]: true }))}
+            />
+          ) : (
+            <View style={[styles.itemImage, { backgroundColor: border, justifyContent: 'center', alignItems: 'center' }]}>
+              <MaterialCommunityIcons name="image" size={32} color={subText} />
+            </View>
+          )}
+          <View style={styles.zoomBadge} pointerEvents="none">
+            <MaterialCommunityIcons name="magnify-plus-outline" size={14} color="#fff" />
           </View>
-        )}
+        </TouchableOpacity>
         <View style={styles.itemInfo}>
           <Text
             style={[styles.itemTitle, { color: darkMode ? "#E4E6EB" : "#222" }]}
@@ -192,7 +214,7 @@ export default function MyCartScreen({ navigation }) {
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const selectedCartItems = cartItems.filter((item) =>
@@ -340,6 +362,12 @@ export default function MyCartScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       )}
+      <ImageViewerModal
+        visible={!!previewItem}
+        uri={previewItem ? getProductImageUrl(previewItem.sku) : null}
+        title={previewItem?.name}
+        onClose={() => setPreviewItem(null)}
+      />
     </View>
   );
 }
@@ -411,6 +439,17 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: "#6B6593",
+  },
+  zoomBadge: {
+    position: "absolute",
+    right: 22,
+    bottom: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   itemImage: {
     width: 80,

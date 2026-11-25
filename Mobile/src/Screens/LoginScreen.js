@@ -67,10 +67,10 @@ export default function LoginScreen({ navigation }) {
       if (!result.success) {
         // result.message is the server's explanation (no account, wrong
         // password, can't reach server) — see constants/authErrors.js.
-        Alert.alert("Login Failed", result.message || "Login failed. Please try again.");
+        Alert.alert("Unable to Sign In", result.message || "Incorrect email/username or password. Please try again.");
       }
     } catch (error) {
-      Alert.alert("Login Failed", getAuthErrorMessage(error, "Login failed. Please try again."));
+      Alert.alert("Unable to Sign In", getAuthErrorMessage(error, "Incorrect email/username or password. Please try again."));
     }
   };
 

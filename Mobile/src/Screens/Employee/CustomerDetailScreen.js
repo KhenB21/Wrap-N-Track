@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,512 +6,450 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Dimensions,
-  Linking
+  Linking,
+  RefreshControl,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Card, Chip, Avatar, Divider } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../Context/ThemeContext';
 import { useRoute, useFocusEffect } from '@react-navigation/native';
 import { customerAPI } from '../../services/api';
-import { SkeletonProfile, SkeletonCard } from '../../Components/Skeleton/Skeleton';
+import { Skeleton, SkeletonStatRow } from '../../Components/Skeleton/Skeleton';
+import { normalizeStatus, statusTone, formatLongDate, peso } from '../../constants/orderBoard';
 
-const { width } = Dimensions.get('window');
+const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'ongoing', label: 'Ongoing' },
+  { key: 'completed', label: 'Completed' },
+  { key: 'cancelled', label: 'Cancelled' },
+];
+
+const isCancelled = (o) => normalizeStatus(o.status) === 'cancelled';
+const isCompleted = (o) => ['completed', 'orderreceived', 'delivered'].includes(normalizeStatus(o.status));
+
+const memberSince = (raw) => {
+  if (!raw) return '—';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-PH', { month: 'short', year: 'numeric' });
+};
 
 export default function CustomerDetailScreen({ navigation }) {
-  const theme = useTheme();
+  const { colors, darkMode } = useTheme();
+  const insets = useSafeAreaInsets();
   const route = useRoute();
-  const { customer: initialCustomer } = route.params;
+  const { customer: initialCustomer } = route.params || {};
+  const customerId = initialCustomer?.customer_id;
 
-  const [customer, setCustomer] = useState(initialCustomer);
+  const [customer, setCustomer] = useState(initialCustomer || null);
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [ordersError, setOrdersError] = useState(null);
+  const [filter, setFilter] = useState('all');
 
-  useEffect(() => {
-    if (initialCustomer?.customer_id) {
-      fetchCustomerDetails();
+  const load = useCallback(async () => {
+    if (!customerId) return;
+    setOrdersError(null);
+    // Profile and orders load independently: a failure in one still shows the other.
+    const [profileRes, ordersRes] = await Promise.allSettled([
+      customerAPI.getCustomer(customerId),
+      customerAPI.getCustomerOrders(customerId),
+    ]);
+    if (profileRes.status === 'fulfilled' && profileRes.value) {
+      setCustomer((prev) => ({ ...prev, ...profileRes.value }));
     }
-  }, [initialCustomer?.customer_id]);
+    if (ordersRes.status === 'fulfilled') {
+      const { ongoing = [], history = [] } = ordersRes.value || {};
+      // An order can exist in both tables while being archived — keep one copy.
+      const seen = new Set();
+      const merged = [...ongoing, ...history].filter((o) => {
+        const id = String(o.order_id);
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+      merged.sort((a, b) => new Date(b.order_date || 0) - new Date(a.order_date || 0));
+      setOrders(merged);
+    } else {
+      setOrdersError(ordersRes.reason?.message || "Couldn't load this customer's orders.");
+    }
+  }, [customerId]);
 
-  // Re-fetch on focus so returning from AddEditCustomerScreen (e.g. after
-  // toggling Active/Inactive) shows the saved state, not the stale param.
+  // Re-fetch on focus so returning from Edit shows the saved state.
   useFocusEffect(
     useCallback(() => {
-      if (initialCustomer?.customer_id) {
-        fetchCustomerDetails();
-      }
-    }, [initialCustomer?.customer_id])
+      let active = true;
+      (async () => {
+        await load();
+        if (active) setLoading(false);
+      })();
+      return () => { active = false; };
+    }, [load])
   );
 
-  const fetchCustomerDetails = async () => {
-    try {
-      setLoading(true);
-      const latestCustomer = await customerAPI.getCustomer(initialCustomer.customer_id);
-      setCustomer(latestCustomer);
-      setOrders(latestCustomer.orders || []);
-    } catch (error) {
-      console.error('Error fetching customer details:', error);
-      Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to fetch customer details');
-    } finally {
-      setLoading(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  };
+
+  const stats = useMemo(() => {
+    const valid = orders.filter((o) => !isCancelled(o));
+    return {
+      totalOrders: orders.length,
+      // Cancelled orders were never paid for, so they don't count as spend.
+      totalSpent: valid.reduce((sum, o) => sum + (Number(o.total_cost) || 0), 0),
+      lastOrder: orders[0]?.order_date || null,
+    };
+  }, [orders]);
+
+  const visibleOrders = useMemo(() => {
+    switch (filter) {
+      case 'ongoing': return orders.filter((o) => !isCancelled(o) && !isCompleted(o));
+      case 'completed': return orders.filter(isCompleted);
+      case 'cancelled': return orders.filter(isCancelled);
+      default: return orders;
     }
-  };
+  }, [orders, filter]);
 
-  const handleEdit = () => {
-    navigation.navigate('AddEditCustomer', { 
-      customer, 
-      mode: 'edit' 
-    });
-  };
-
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Customer',
-      `Are you sure you want to delete ${customer.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await customerAPI.deleteCustomer(customer.customer_id);
-              Alert.alert('Success', 'Customer deleted successfully');
-              navigation.goBack();
-            } catch (error) {
-              Alert.alert('Error', error.response?.data?.message || error.response?.data?.error || 'Failed to delete customer');
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const customerPhone = customer.cellphone || customer.phone_number;
+  const phone = customer?.cellphone || customer?.phone_number;
+  const email = customer?.email_address;
+  const address = customer?.address
+    || [customer?.house_street_number, customer?.barangay, customer?.city, customer?.region].filter(Boolean).join(', ');
+  const isActive = (customer?.status || 'active') === 'active';
 
   const handleCall = () => {
-    if (!customerPhone) {
-      Alert.alert('No Phone Number', 'Customer phone number is not available');
-      return;
-    }
-    Alert.alert(
-      'Call Customer',
-      `Call ${customer.name} at ${customerPhone}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Call',
-          onPress: () => {
-            Linking.openURL(`tel:${customerPhone}`).catch(() =>
-              Alert.alert('Error', 'Unable to open the phone dialer on this device')
-            );
-          }
-        }
-      ]
+    if (!phone) return Alert.alert('No Phone Number', "This customer doesn't have a phone number on file.");
+    Linking.openURL(`tel:${phone}`).catch(() =>
+      Alert.alert('Unable to Call', "This device can't open the phone dialer.")
     );
   };
 
   const handleEmail = () => {
-    if (!customer.email_address) {
-      Alert.alert('No Email', 'Customer email address is not available');
-      return;
-    }
-    Alert.alert(
-      'Email Customer',
-      `Send email to ${customer.name} at ${customer.email_address}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Email',
-          onPress: () => {
-            Linking.openURL(`mailto:${customer.email_address}`).catch(() =>
-              Alert.alert('Error', 'No email app is available on this device')
-            );
-          }
-        }
-      ]
+    if (!email) return Alert.alert('No Email', "This customer doesn't have an email address on file.");
+    Linking.openURL(`mailto:${email}`).catch(() =>
+      Alert.alert('Unable to Email', 'No email app is available on this device.')
     );
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
+  const handleEdit = () => navigation.navigate('AddEditCustomer', { customer, mode: 'edit' });
+
+  const handleDelete = () => {
+    Alert.alert('Delete Customer', `Delete ${customer.name}? This can't be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await customerAPI.deleteCustomer(customer.customer_id);
+            Alert.alert('Customer Deleted', `${customer.name} has been removed.`);
+            navigation.goBack();
+          } catch (error) {
+            Alert.alert('Unable to Delete', error.message);
+          }
+        },
+      },
+    ]);
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-PH', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+  const openOrder = (order) => {
+    // Order details live in the Orders tab's stack.
+    navigation.getParent()?.navigate('Orders', {
+      screen: 'OrderDetail',
+      params: { order },
+      initial: false,
     });
   };
 
-  const getStatusColor = (status) => {
-    const statusColors = {
-      'Order Placed': '#17a2b8',
-      'Order Paid': '#28a745',
-      'To Be Packed': '#ffc107',
-      'Order Shipped Out': '#007bff',
-      'Ready for Delivery': '#6f42c1',
-      'Order Received': '#20c997',
-      'Completed': '#28a745',
-      'Cancelled': '#dc3545'
-    };
-    return statusColors[status] || '#6c757d';
-  };
-
-  const renderCustomerHeader = () => (
-    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-      <Card.Content>
-        <View style={styles.customerHeader}>
-          <Avatar.Text
-            size={80}
-            label={customer.name.charAt(0).toUpperCase()}
-            style={{ backgroundColor: theme.colors.primary }}
-          />
-          <View style={styles.customerInfo}>
-            <Text style={[styles.customerName, { color: theme.colors.onSurface }]}>
-              {customer.name}
-            </Text>
-            <Text style={[styles.customerEmail, { color: theme.colors.onSurfaceVariant }]}>
-              {customer.email_address}
-            </Text>
-            <Text style={[styles.customerPhone, { color: theme.colors.onSurfaceVariant }]}>
-              {customerPhone || 'No phone number'}
-            </Text>
-            {customer.address ? (
-              <Text style={[styles.customerPhone, { color: theme.colors.onSurfaceVariant }]} numberOfLines={2}>
-                {customer.address}
-              </Text>
-            ) : null}
-            <Chip
-              mode="outlined"
-              style={[
-                styles.statusChip,
-                { 
-                  backgroundColor: customer.status === 'active' ? '#E8F5E8' : '#FFEBEE',
-                  borderColor: customer.status === 'active' ? '#4CAF50' : '#F44336'
-                }
-              ]}
-            >
-              {customer.status}
-            </Chip>
-          </View>
-        </View>
-        
-        <View style={styles.contactActions}>
-          <TouchableOpacity
-            style={[styles.contactButton, { backgroundColor: '#4CAF50' }]}
-            onPress={handleCall}
-          >
-            <MaterialCommunityIcons name="phone" size={16} color="#fff" />
-            <Text style={styles.contactButtonText}>Call</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.contactButton, { backgroundColor: '#2196F3' }]}
-            onPress={handleEmail}
-          >
-            <MaterialCommunityIcons name="email" size={16} color="#fff" />
-            <Text style={styles.contactButtonText}>Email</Text>
-          </TouchableOpacity>
-        </View>
-      </Card.Content>
-    </Card>
-  );
-
-  const renderCustomerStats = () => (
-    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-      <Card.Content>
-        <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-          Customer Statistics
-        </Text>
-        
-        <View style={styles.statsGrid}>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.colors.primary }]}>
-              {customer.total_orders || 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>
-              Total Orders
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.colors.primary }]}>
-              {formatCurrency(customer.total_spent || 0)}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>
-              Total Spent
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.colors.primary }]}>
-              {formatDate(customer.created_at)}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>
-              Member Since
-            </Text>
-          </View>
-        </View>
-      </Card.Content>
-    </Card>
-  );
-
-  const renderOrderHistory = () => (
-    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-      <Card.Content>
-        <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-          Order History ({orders.length})
-        </Text>
-        
-        {orders.length > 0 ? (
-          orders.map((order, index) => (
-            <View key={order.order_id} style={styles.orderItem}>
-              <View style={styles.orderInfo}>
-                <Text style={[styles.orderId, { color: theme.colors.primary }]}>
-                  #{order.order_id}
-                </Text>
-                <Text style={[styles.orderDate, { color: theme.colors.onSurfaceVariant }]}>
-                  {formatDate(order.order_date)}
-                </Text>
-                <Text style={[styles.orderTotal, { color: theme.colors.onSurface }]}>
-                  {formatCurrency(order.total_cost)}
-                </Text>
-              </View>
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}>
-                <Text style={styles.statusText}>{order.status}</Text>
-              </View>
-            </View>
-          ))
-        ) : (
-          <Text style={[styles.noOrdersText, { color: theme.colors.onSurfaceVariant }]}>
-            No orders found
-          </Text>
-        )}
-      </Card.Content>
-    </Card>
-  );
-
-  const renderActionButtons = () => (
-    <View style={styles.actionButtons}>
-      <Button
-        mode="outlined"
-        onPress={() => navigation.goBack()}
-        style={styles.actionButton}
-      >
-        Back
-      </Button>
-      <Button
-        mode="contained"
-        onPress={handleEdit}
-        style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
-      >
-        Edit
-      </Button>
-      <Button
-        mode="contained"
-        onPress={handleDelete}
-        style={[styles.actionButton, { backgroundColor: '#F44336' }]}
-      >
-        Delete
-      </Button>
-    </View>
-  );
-
-  if (loading && !customer) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={{ padding: 16 }}>
-          <SkeletonProfile />
-          <SkeletonCard lines={3} style={{ marginTop: 12 }} />
-        </View>
-      </View>
-    );
-  }
+  const card = { backgroundColor: colors.card, borderColor: colors.border };
+  const text = colors.text;
+  const sub = colors.subText;
 
   if (!customer) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background }]}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color={theme.colors.error} />
-        <Text style={[styles.errorText, { color: theme.colors.error }]}>
-          Customer not found
-        </Text>
-        <Button
-          mode="contained"
-          onPress={() => navigation.goBack()}
-          style={styles.retryButton}
-        >
-          Go Back
-        </Button>
+      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+        <MaterialCommunityIcons name="account-alert-outline" size={48} color={colors.error} />
+        <Text style={[styles.emptyTitle, { color: text }]}>Customer not found</Text>
+        <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
+          <Text style={styles.primaryBtnText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
+  const initials = (customer.name || '?')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join('');
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {renderCustomerHeader()}
-        {renderCustomerStats()}
-        {renderOrderHistory()}
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
+      {/* Top bar */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 8, backgroundColor: colors.primary }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} accessibilityLabel="Back">
+          <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Customer Details</Text>
+        <TouchableOpacity onPress={handleEdit} style={styles.iconBtn} accessibilityLabel="Edit customer">
+          <MaterialCommunityIcons name="pencil-outline" size={22} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+      >
+        {/* Profile */}
+        <View style={[styles.card, card]}>
+          <View style={styles.profileRow}>
+            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={[styles.name, { color: text }]} numberOfLines={2}>{customer.name}</Text>
+              <View style={styles.badgeRow}>
+                <View style={[styles.statusPill, { backgroundColor: isActive ? '#E8F5E9' : '#FFEBEE' }]}>
+                  <View style={[styles.dot, { backgroundColor: isActive ? '#2E7D32' : '#C62828' }]} />
+                  <Text style={[styles.statusPillText, { color: isActive ? '#2E7D32' : '#C62828' }]}>
+                    {isActive ? 'Active' : 'Inactive'}
+                  </Text>
+                </View>
+                <Text style={[styles.idText, { color: sub }]}>ID #{customer.customer_id}</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+
+          <InfoRow icon="email-outline" label="Email" value={email} colors={colors} />
+          <InfoRow icon="phone-outline" label="Phone" value={phone} colors={colors} />
+          <InfoRow icon="map-marker-outline" label="Address" value={address} colors={colors} />
+
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[styles.contactBtn, { backgroundColor: colors.primaryContainer, opacity: phone ? 1 : 0.5 }]}
+              onPress={handleCall}
+            >
+              <MaterialCommunityIcons name="phone" size={18} color={colors.primary} />
+              <Text style={[styles.contactBtnText, { color: darkMode ? '#fff' : colors.primary }]}>Call</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.contactBtn, { backgroundColor: colors.primaryContainer, opacity: email ? 1 : 0.5 }]}
+              onPress={handleEmail}
+            >
+              <MaterialCommunityIcons name="email" size={18} color={colors.primary} />
+              <Text style={[styles.contactBtnText, { color: darkMode ? '#fff' : colors.primary }]}>Email</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Stats */}
+        {loading ? (
+          <SkeletonStatRow count={3} style={{ marginBottom: 16 }} />
+        ) : (
+          <View style={styles.statsRow}>
+            <StatTile icon="receipt" label="Total Orders" value={String(stats.totalOrders)} tone="#696a8f" colors={colors} />
+            <StatTile icon="cash-multiple" label="Total Spent" value={peso(stats.totalSpent)} tone="#2E7D32" colors={colors} />
+            <StatTile icon="calendar-account" label="Member Since" value={memberSince(customer.created_at)} tone="#F39C12" colors={colors} />
+          </View>
+        )}
+
+        {/* Order history */}
+        <View style={[styles.card, card]}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: text }]}>Order History</Text>
+            {stats.lastOrder ? (
+              <Text style={[styles.sectionMeta, { color: sub }]}>Last order {formatLongDate(stats.lastOrder)}</Text>
+            ) : null}
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+            {FILTERS.map((f) => {
+              const selected = filter === f.key;
+              return (
+                <TouchableOpacity
+                  key={f.key}
+                  onPress={() => setFilter(f.key)}
+                  style={[
+                    styles.filterChip,
+                    { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : 'transparent' },
+                  ]}
+                >
+                  <Text style={{ color: selected ? '#fff' : sub, fontSize: 13, fontWeight: '600' }}>{f.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {loading ? (
+            [0, 1, 2].map((i) => (
+              <View key={i} style={styles.orderSkeleton}>
+                <Skeleton width="40%" height={14} />
+                <Skeleton width="60%" height={12} style={{ marginTop: 8 }} />
+              </View>
+            ))
+          ) : ordersError ? (
+            <View style={styles.emptyBox}>
+              <MaterialCommunityIcons name="cloud-alert" size={36} color={colors.error} />
+              <Text style={[styles.emptyText, { color: sub }]}>{ordersError}</Text>
+              <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary }]} onPress={onRefresh}>
+                <Text style={styles.primaryBtnText}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
+          ) : visibleOrders.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <MaterialCommunityIcons name="package-variant" size={36} color={sub} />
+              <Text style={[styles.emptyText, { color: sub }]}>
+                {orders.length === 0 ? "This customer hasn't placed any orders yet." : 'No orders in this category.'}
+              </Text>
+            </View>
+          ) : (
+            visibleOrders.map((order, i) => {
+              const tone = statusTone(order.status);
+              return (
+                <TouchableOpacity
+                  key={String(order.order_id)}
+                  onPress={() => openOrder(order)}
+                  activeOpacity={0.7}
+                  style={[styles.orderRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider }]}
+                >
+                  <View style={[styles.orderIcon, { backgroundColor: tone + '22' }]}>
+                    <MaterialCommunityIcons name="shopping-outline" size={20} color={tone} />
+                  </View>
+                  <View style={{ flex: 1, marginHorizontal: 12 }}>
+                    <Text style={[styles.orderId, { color: text }]} numberOfLines={1}>{order.order_id}</Text>
+                    <Text style={[styles.orderDate, { color: sub }]}>{formatLongDate(order.order_date)}</Text>
+                    <View style={[styles.statusTag, { backgroundColor: tone + '1F' }]}>
+                      <Text style={[styles.statusTagText, { color: tone }]}>{order.status || 'Unknown'}</Text>
+                    </View>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text
+                      style={[
+                        styles.orderTotal,
+                        { color: text },
+                        isCancelled(order) && { textDecorationLine: 'line-through', color: sub },
+                      ]}
+                    >
+                      {peso(order.total_cost)}
+                    </Text>
+                    <MaterialCommunityIcons name="chevron-right" size={20} color={sub} style={{ marginTop: 6 }} />
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </View>
+
+        <TouchableOpacity style={[styles.deleteBtn, { borderColor: colors.error }]} onPress={handleDelete}>
+          <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.error} />
+          <Text style={[styles.deleteText, { color: colors.error }]}>Delete Customer</Text>
+        </TouchableOpacity>
       </ScrollView>
-      {renderActionButtons()}
+    </View>
+  );
+}
+
+function InfoRow({ icon, label, value, colors }) {
+  return (
+    <View style={styles.infoRow}>
+      <MaterialCommunityIcons name={icon} size={20} color={colors.primary} style={{ marginTop: 2 }} />
+      <View style={{ flex: 1, marginLeft: 12 }}>
+        <Text style={[styles.infoLabel, { color: colors.subText }]}>{label}</Text>
+        <Text style={[styles.infoValue, { color: value ? colors.text : colors.subText }]}>
+          {value || 'Not provided'}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function StatTile({ icon, label, value, tone, colors }) {
+  return (
+    <View style={[styles.statTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.statIcon, { backgroundColor: tone + '22' }]}>
+        <MaterialCommunityIcons name={icon} size={18} color={tone} />
+      </View>
+      <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
+      <Text style={[styles.statLabel, { color: colors.subText }]}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollView: {
-    flex: 1,
-    padding: 16,
-  },
-  card: {
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  customerHeader: {
+  container: { flex: 1 },
+  centered: { justifyContent: 'center', alignItems: 'center', padding: 24 },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  customerInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  customerName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  customerEmail: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  customerPhone: {
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  statusChip: {
-    alignSelf: 'flex-start',
-  },
-  contactActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  contactButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  contactButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  orderItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  orderInfo: {
-    flex: 1,
-  },
-  orderId: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  orderDate: {
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  orderTotal: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  statusBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingBottom: 12,
   },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  noOrdersText: {
-    textAlign: 'center',
-    fontSize: 14,
-    fontStyle: 'italic',
-    padding: 20,
-  },
-  actionButtons: {
-    flexDirection: 'row',
+  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  topTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  card: {
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
-    gap: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    elevation: 8,
+    marginBottom: 16,
+    elevation: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
   },
-  actionButton: {
-    flex: 1,
+  profileRow: { flexDirection: 'row', alignItems: 'center' },
+  avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#fff', fontSize: 24, fontWeight: '700' },
+  name: { fontSize: 20, fontWeight: '700' },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'wrap' },
+  statusPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, marginRight: 10 },
+  dot: { width: 7, height: 7, borderRadius: 4, marginRight: 6 },
+  statusPillText: { fontSize: 12, fontWeight: '700' },
+  idText: { fontSize: 12 },
+  divider: { height: StyleSheet.hairlineWidth, marginVertical: 14 },
+  infoRow: { flexDirection: 'row', marginBottom: 12 },
+  infoLabel: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 },
+  infoValue: { fontSize: 15, marginTop: 2 },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  contactBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 10 },
+  contactBtnText: { marginLeft: 6, fontSize: 14, fontWeight: '600' },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  statTile: { flex: 1, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 12, alignItems: 'flex-start' },
+  statIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  statValue: { fontSize: 17, fontWeight: '700', alignSelf: 'stretch' },
+  statLabel: { fontSize: 11, marginTop: 2 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 },
+  sectionTitle: { fontSize: 17, fontWeight: '700' },
+  sectionMeta: { fontSize: 12 },
+  filterChip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8 },
+  orderSkeleton: { paddingVertical: 12 },
+  orderRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  orderIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  orderId: { fontSize: 15, fontWeight: '700' },
+  orderDate: { fontSize: 12, marginTop: 2 },
+  statusTag: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginTop: 6 },
+  statusTagText: { fontSize: 11, fontWeight: '700' },
+  orderTotal: { fontSize: 15, fontWeight: '700' },
+  emptyBox: { alignItems: 'center', paddingVertical: 24 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', marginTop: 12, marginBottom: 16 },
+  emptyText: { fontSize: 14, textAlign: 'center', marginTop: 8, marginBottom: 12 },
+  primaryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
+  primaryBtnText: { color: '#fff', fontWeight: '700' },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
   },
-  loadingText: {
-    fontSize: 16,
-    marginTop: 16,
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 16,
-  },
-  retryButton: {
-    marginTop: 16,
-  },
+  deleteText: { marginLeft: 6, fontWeight: '700', fontSize: 15 },
 });

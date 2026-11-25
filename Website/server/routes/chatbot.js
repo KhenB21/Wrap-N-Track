@@ -20,6 +20,7 @@ const {
   renderCatalogForPrompt,
   resolveRecommendations,
 } = require('../services/chatbotContext');
+const { buildCatalogReply, matchPreset } = require('../services/chatbotFallback');
 
 const GUEST_REPLY_LIMIT   = 2;      // answers before sign-up is required
 const GUEST_IP_HOURLY_CAP = 20;     // backstop so one visitor can't drain quota
@@ -188,10 +189,6 @@ router.post('/message', async (req, res) => {
     }
 
     const catalog = await getCatalog();
-    const systemPrompt = buildSystemPrompt({
-      catalogText: renderCatalogForPrompt(catalog),
-      customerName: customer ? customer.name : null,
-    });
 
     const trimmedHistory = Array.isArray(history)
       ? history
@@ -199,11 +196,34 @@ router.post('/message', async (req, res) => {
           .slice(-MAX_HISTORY_TURNS)
       : [];
 
-    const result = await generateReply({
-      systemPrompt,
-      history: trimmedHistory,
-      message: message.trim(),
-    });
+    let result;
+    // `source` is reported back so the app/logs can tell how a reply was made.
+    let source = 'ai';
+    if (matchPreset(message)) {
+      // Preset buttons ("Wedding giveaways", …) get an instant answer from the
+      // catalogue — no AI call, so they don't use the free Gemini quota.
+      result = { ok: true, data: buildCatalogReply({ message, history: trimmedHistory, catalog, mode: 'preset' }) };
+      source = 'preset';
+    } else {
+      const systemPrompt = buildSystemPrompt({
+        catalogText: renderCatalogForPrompt(catalog),
+        customerName: customer ? customer.name : null,
+      });
+      result = await generateReply({
+        systemPrompt,
+        history: trimmedHistory,
+        message: message.trim(),
+      });
+
+      // Every AI model failed (overloaded, out of free quota, timed out…):
+      // answer from the catalogue instead of showing an error. A deliberate
+      // safety decline ('blocked') is still shown as-is.
+      if (!result.ok && result.code !== 'blocked') {
+        logger.warn('chatbot_catalog_fallback', { aiCode: result.code });
+        result = { ok: true, data: buildCatalogReply({ message, history: trimmedHistory, catalog, mode: 'offline' }) };
+        source = 'catalog';
+      }
+    }
 
     if (!result.ok) {
       // A failed turn must not consume the guest's allowance.
@@ -213,9 +233,12 @@ router.post('/message', async (req, res) => {
 
     const recommendations = resolveRecommendations(result.data.recommendations, catalog);
 
-    // Only a successful answer counts against the guest allowance.
+    // Only a real answer counts against the guest allowance — a catalogue
+    // stand-in while the AI is down doesn't.
     let guestRepliesUsed = null;
-    if (!customer) {
+    if (!customer && source === 'catalog') {
+      guestRepliesUsed = guestUsage.get(gKey)?.replies || 0;
+    } else if (!customer) {
       const entry = guestUsage.get(gKey) || { replies: 0, firstSeen: Date.now() };
       entry.replies += 1;
       guestUsage.set(gKey, entry);
@@ -229,6 +252,7 @@ router.post('/message', async (req, res) => {
     return res.json({
       success: true,
       gated: false,
+      source,
       reply: result.data.reply,
       recommendations,
       suggestedReplies,
