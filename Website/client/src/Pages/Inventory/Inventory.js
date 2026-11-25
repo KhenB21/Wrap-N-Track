@@ -64,6 +64,20 @@ function Inventory() {
   const psWsRef = useRef(null);
   const psMountedRef = useRef(false);
   const psLookupRef = useRef(null); // avoids stale closure in ws.onmessage
+  // Current step, readable inside ws.onmessage (whose closure would be stale).
+  const psStepRef = useRef('setup');
+  psStepRef.current = psStep;
+  const psLookingUpRef = useRef(false);
+
+  // Tell the phone what happened to its last scan. The phone pauses after
+  // every scan and only resumes once it hears back (see the mobile
+  // RemoteScannerScreen). status: 'pending' | 'not_found' | 'done' | 'resume' | 'ignored'
+  const psSendFeedback = (status, extra = {}) => {
+    const ws = psWsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try { ws.send(JSON.stringify({ type: 'scan_feedback', status, ...extra })); } catch (_) {}
+    }
+  };
 
   // ── Real-time inventory update listener ───────────────────────────────────
   const rtWsRef = useRef(null);
@@ -309,6 +323,7 @@ function Inventory() {
   }, []);
 
   const psClose = useCallback(() => {
+    psSendFeedback('resume'); // free the phone if it was waiting on us
     psCloseWs();
     setPsOpen(false);
     setPsStep('setup');
@@ -349,6 +364,22 @@ function Inventory() {
         } else if (msg.type === 'barcode_scanned' || msg.type === 'barcode') {
           const code = msg.barcode || msg.data;
           if (!code) return;
+          // Only take a scan while actually waiting for one. Before, a scan in
+          // any step jumped straight to the confirm screen (even with no
+          // quantity set) and a repeat scan replaced the product being confirmed.
+          // From the "Stock Updated!" screen a new scan simply starts the next
+          // product — no need to click "Scan Another" first.
+          const step = psStepRef.current;
+          const ready = step === 'scan_ready' || step === 'success';
+          if (!ready || psLookingUpRef.current) {
+            const busy = ['confirming', 'applying', 'not_found'].includes(step);
+            psSendFeedback('ignored', {
+              message: busy
+                ? 'Finish the current product on the website first.'
+                : 'Choose an action and tap "Start Scanning" on the website first.',
+            });
+            return;
+          }
           psLookupRef.current?.(code);
         } else if (msg.type === 'pong') {
           // keep-alive
@@ -373,25 +404,33 @@ function Inventory() {
 
   const lookupPsBarcode = useCallback(async (code) => {
     if (!psMountedRef.current) return;
+    psLookingUpRef.current = true;
     try {
       const response = await api.get(`/api/inventory/scan/${encodeURIComponent(code)}`);
       const found = response.data?.item || response.data?.product || response.data?.data || response.data;
       if (!found || !found.sku) {
         toast.error('Product not found for that barcode.');
+        psSendFeedback('ignored', { message: 'No matching product was found. Try another code.' });
         return;
       }
       setPsProduct(found);
       setPsApplyError('');
       setPsStep('confirming');
+      psSendFeedback('pending', { productName: found.name });
     } catch (err) {
       if (err.response?.status === 404) {
         setPsNotFoundBarcode(code);
         setPsStep('not_found');
+        psSendFeedback('not_found');
         return;
       }
       const msg = err.response?.data?.message || 'Failed to look up product.';
       toast.error(msg);
+      psSendFeedback('ignored', { message: "The website couldn't look up that code. Please scan again." });
+    } finally {
+      psLookingUpRef.current = false;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   psLookupRef.current = lookupPsBarcode;
 
@@ -559,6 +598,10 @@ function Inventory() {
       fetchProducts();
       fetchReorderInsights();
       setPsStep('success');
+      const newQty = psAction === 'STOCK_IN' ? Number(psProduct.quantity) + qty : Number(psProduct.quantity) - qty;
+      psSendFeedback('done', {
+        message: `${psAction === 'STOCK_IN' ? '+' : '−'}${qty} ${psProduct.name} · now ${newQty} in stock`,
+      });
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to update stock. Please try again.';
       setPsApplyError(msg);
@@ -571,6 +614,7 @@ function Inventory() {
     setPsResult(null);
     setPsApplyError('');
     setPsStep('scan_ready');
+    psSendFeedback('resume'); // Rescan / Scan Another: let the phone scan again
     toast.info('Ready! Scan next product on your phone.', { autoClose: 2500 });
   };
 
@@ -1202,6 +1246,7 @@ function Inventory() {
                         onClick={() => {
                           setPsNotFoundBarcode('');
                           setPsStep('scan_ready');
+                          psSendFeedback('resume');
                         }}
                       >
                         No
@@ -1210,6 +1255,7 @@ function Inventory() {
                         type="button"
                         className="submit-btn primary"
                         onClick={() => {
+                          psSendFeedback('resume');
                           setPendingBarcode(psNotFoundBarcode);
                           setPsNotFoundBarcode('');
                           setPsOpen(false);
