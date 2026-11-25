@@ -54,7 +54,7 @@ if (!_envValid) {
 // ──────────────────────────────────────────────────────────────────────────────
 // Pool now sourced from config/db.js
 let wss, notifyChange;
-const { setWss, routeBarcodeToWeb, notifyPeer, isPeerOnline } = require('./broadcast');
+const { setWss, routeBarcodeToWeb, routeScanFeedbackToMobile, notifyPeer, isPeerOnline } = require('./broadcast');
 const pool = require('./config/db');
 const { runAutoMigrations } = require('./auto-migrate');
 const customersRouter = require('./routes/customers');
@@ -1394,6 +1394,15 @@ wss.on('connection', (ws) => {
         if (!ws.userId || ws.clientType !== 'mobile') return;
         const barcode = data.barcode || data.data;
         if (barcode) routeBarcodeToWeb(ws.userId, barcode);
+        break;
+      }
+
+      // Website -> phone: what happened to the last scan (found and waiting
+      // for confirmation, not found, applied, rescan…). The phone stays paused
+      // after a scan until it gets one of these.
+      case 'scan_feedback': {
+        if (!ws.userId || ws.clientType !== 'web') return;
+        routeScanFeedbackToMobile(ws.userId, data);
         break;
       }
 

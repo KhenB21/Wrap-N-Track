@@ -94,7 +94,13 @@ const Header = ({
             <Image source={logo} style={styles.logoImage} resizeMode="contain" />
           ) : (
             title ? (
-              <Text style={[styles.title, { color: colors.buttonText }]}>
+              // One line only: a long title (e.g. a bundle name) used to wrap
+              // onto a second line and spill below the 44px bar.
+              <Text
+                style={[styles.title, { color: colors.buttonText }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {title}
               </Text>
             ) : null
@@ -187,6 +193,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     flex: 1,
+    marginRight: 8,
   },
   logoImage: {
     height: 28,

@@ -54,6 +54,68 @@ export default function RemoteScannerScreen({ navigation }) {
     setWsStatus(next);
   };
 
+  // ── one scan at a time ───────────────────────────────────────────────────
+  // The camera reports the same barcode on every frame while it's in view, so
+  // without a lock one product got sent (and vibrated) over and over. After a
+  // scan the phone pauses and shows a "waiting for the website" card until the
+  // website replies with a scan_feedback message (see Inventory.js on the web).
+  //   scan = null                       → camera is scanning
+  //   scan = { code, status, ... }      → paused; status is one of
+  //     'sent'      waiting for the website to look it up
+  //     'pending'   product found; waiting for confirm on the website
+  //     'not_found' not in inventory; the website is asking what to do
+  //     'done'      stock updated (shown briefly, then resumes)
+  //     'ignored'   website wasn't ready to scan (shown briefly, then resumes)
+  const [scan, setScan] = useState(null);
+  const scanLockRef = useRef(false);
+  const lastCodeRef = useRef({ code: null, until: 0 });
+  const scanTimerRef = useRef(null);
+  const [noReply, setNoReply] = useState(false);
+
+  const resumeScanning = (ignoreSameCodeMs = 2500) => {
+    clearTimeout(scanTimerRef.current);
+    // The same product is probably still in front of the camera — ignore that
+    // exact code for a moment so it isn't instantly re-sent.
+    if (scan?.code || lastCodeRef.current.code) {
+      lastCodeRef.current = { code: scan?.code || lastCodeRef.current.code, until: Date.now() + ignoreSameCodeMs };
+    }
+    scanLockRef.current = false;
+    setNoReply(false);
+    setScan(null);
+  };
+  const resumeRef = useRef(resumeScanning);
+  resumeRef.current = resumeScanning;
+
+  const handleScanFeedback = (msg) => {
+    if (!scanLockRef.current) return; // nothing waiting
+    clearTimeout(scanTimerRef.current);
+    setNoReply(false);
+    switch (msg.status) {
+      case 'pending':
+        Vibration.vibrate(60);
+        setScan((s) => s && { ...s, status: 'pending', productName: msg.productName || null });
+        break;
+      case 'not_found':
+        setScan((s) => s && { ...s, status: 'not_found' });
+        break;
+      case 'done':
+        Vibration.vibrate([0, 60, 80, 60]);
+        setScan((s) => s && { ...s, status: 'done', message: msg.message || 'Stock updated.' });
+        scanTimerRef.current = setTimeout(() => resumeRef.current(), 1800);
+        break;
+      case 'ignored':
+        setScan((s) => s && { ...s, status: 'ignored', message: msg.message || null });
+        scanTimerRef.current = setTimeout(() => resumeRef.current(), 2800);
+        break;
+      case 'resume':
+      default:
+        resumeRef.current();
+        break;
+    }
+  };
+  const feedbackRef = useRef(handleScanFeedback);
+  feedbackRef.current = handleScanFeedback;
+
   // ── connect ────────────────────────────────────────────────────────────────
   const connect = async () => {
     if (!mountedRef.current || connectingRef.current) return;
@@ -124,6 +186,9 @@ export default function RemoteScannerScreen({ navigation }) {
         } else if (msg.type === 'peer_disconnected') {
           setWebOnline(false);
           setStatus('registered');
+          resumeRef.current(); // nothing left to wait for
+        } else if (msg.type === 'scan_feedback') {
+          feedbackRef.current(msg);
         } else if (msg.type === 'ping') {
           ws.send(JSON.stringify({ type: 'pong' }));
         }
@@ -161,6 +226,7 @@ export default function RemoteScannerScreen({ navigation }) {
       mountedRef.current = false;
       connectingRef.current = false;
       clearTimeout(reconnectTimer.current);
+      clearTimeout(scanTimerRef.current);
       if (wsRef.current) {
         wsRef.current.onclose = null;
         wsRef.current.close();
@@ -172,8 +238,23 @@ export default function RemoteScannerScreen({ navigation }) {
   // ── barcode handler ────────────────────────────────────────────────────────
   const handleBarcode = ({ data }) => {
     if (!data || wsRef.current?.readyState !== WebSocket.OPEN) return;
+    if (scanLockRef.current) return; // already waiting on the website
+    const last = lastCodeRef.current;
+    if (data === last.code && Date.now() < last.until) return; // same item still in view
+    scanLockRef.current = true;
+    lastCodeRef.current = { code: data, until: 0 };
     Vibration.vibrate(120);
+    setScan({ code: data, status: 'sent' });
     wsRef.current.send(JSON.stringify({ type: 'barcode', barcode: data }));
+    // An older server/website (or one with the scan window closed) never
+    // replies. Don't stay stuck: say so after 6s, then resume on our own a few
+    // seconds later. The same code stays ignored for 10s so the product still
+    // in view isn't re-sent in a loop. "Scan Again" is always available too.
+    clearTimeout(scanTimerRef.current);
+    scanTimerRef.current = setTimeout(() => {
+      setNoReply(true);
+      scanTimerRef.current = setTimeout(() => resumeRef.current(10000), 4000);
+    }, 6000);
   };
 
   // ── camera permission check ────────────────────────────────────────────────
@@ -280,7 +361,8 @@ export default function RemoteScannerScreen({ navigation }) {
         barcodeScannerSettings={{
           barcodeTypes: ['qr', 'code128', 'code39', 'ean13', 'ean8', 'upc_a', 'upc_e'],
         }}
-        onBarcodeScanned={handleBarcode}
+        // No scan callback at all while paused, so the camera stops reporting.
+        onBarcodeScanned={scan ? undefined : handleBarcode}
         onCameraReady={() => console.log('[RemoteScanner] camera ready')}
         onMountError={(e) => console.log('[RemoteScanner] camera mount error:', e?.message)}
       />
@@ -306,22 +388,88 @@ export default function RemoteScannerScreen({ navigation }) {
         <View style={{ width: 44 }} />
       </View>
 
-      {/* Scan frame */}
-      <View style={styles.frameWrap} pointerEvents="none">
-        <View style={styles.scanFrame}>
-          <View style={[styles.corner, styles.tl]} />
-          <View style={[styles.corner, styles.tr]} />
-          <View style={[styles.corner, styles.bl]} />
-          <View style={[styles.corner, styles.br]} />
-          <MaterialCommunityIcons name="barcode-scan" size={40} color="rgba(255,255,255,0.7)" />
-          <Text style={styles.frameHint}>Align barcode inside box</Text>
+      {/* Scan frame — or, after a scan, the "waiting for the website" card */}
+      {!scan ? (
+        <View style={styles.frameWrap} pointerEvents="none">
+          <View style={styles.scanFrame}>
+            <View style={[styles.corner, styles.tl]} />
+            <View style={[styles.corner, styles.tr]} />
+            <View style={[styles.corner, styles.bl]} />
+            <View style={[styles.corner, styles.br]} />
+            <MaterialCommunityIcons name="barcode-scan" size={40} color="rgba(255,255,255,0.7)" />
+            <Text style={styles.frameHint}>Align barcode inside box</Text>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={styles.pauseWrap}>
+          <View style={styles.pauseCard}>
+            {(() => {
+              const view = {
+                sent: {
+                  icon: 'timer-sand', color: '#6366F1',
+                  title: noReply ? 'No reply from the website' : 'Scanned! Checking…',
+                  sub: noReply
+                    ? 'The website didn\'t answer — it may need updating. Check it on your computer; scanning resumes in a moment.'
+                    : 'Looking up this code on the website.',
+                },
+                pending: {
+                  icon: 'monitor-dashboard', color: '#6366F1',
+                  title: 'Confirm on the website',
+                  sub: `${scan.productName ? `${scan.productName} found. ` : ''}Tap "Apply Adjustment" or "Rescan" on your computer.`,
+                },
+                not_found: {
+                  icon: 'help-circle-outline', color: '#F59E0B',
+                  title: 'Not in inventory',
+                  sub: 'Choose on the website whether to add it as a new product.',
+                },
+                done: {
+                  icon: 'check-circle', color: '#22C55E',
+                  title: 'Stock updated',
+                  sub: scan.message || 'Ready for the next scan…',
+                },
+                ignored: {
+                  icon: 'alert-circle-outline', color: '#F59E0B',
+                  title: 'Website not ready',
+                  sub: scan.message || 'Choose an action and tap "Start Scanning" on the website first.',
+                },
+              }[scan.status] || {};
+              const waiting = scan.status === 'sent' || scan.status === 'pending' || scan.status === 'not_found';
+              return (
+                <>
+                  <View style={[styles.pauseIcon, { backgroundColor: `${view.color}22` }]}>
+                    <MaterialCommunityIcons name={view.icon} size={34} color={view.color} />
+                  </View>
+                  <Text style={styles.pauseTitle}>{view.title}</Text>
+                  <Text style={styles.pauseSub}>{view.sub}</Text>
+                  <View style={styles.pauseCode}>
+                    <MaterialCommunityIcons name="barcode" size={14} color="#6B7280" />
+                    <Text style={styles.pauseCodeText} numberOfLines={1}>{scan.code}</Text>
+                  </View>
+                  {waiting && !noReply && (
+                    <View style={styles.pauseWaiting}>
+                      <ActivityIndicator size="small" color="#6366F1" />
+                      <Text style={styles.pauseWaitingText}>Scanner paused until the website confirms</Text>
+                    </View>
+                  )}
+                  {waiting && (
+                    <TouchableOpacity style={styles.pauseBtn} onPress={() => resumeScanning()}>
+                      <MaterialCommunityIcons name="barcode-scan" size={16} color="#fff" />
+                      <Text style={styles.pauseBtnText}>Scan Again</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              );
+            })()}
+          </View>
+        </View>
+      )}
 
       {/* Bottom bar */}
       <View style={styles.camBottom}>
         <Text style={styles.camBottomText}>
-          Scan a barcode or QR code — it will appear on the web dashboard.
+          {scan
+            ? 'One scan at a time — the scanner resumes once the website is done.'
+            : 'Scan a barcode or QR code — it will appear on the web dashboard.'}
         </Text>
       </View>
     </View>
@@ -448,6 +596,60 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
   },
+
+  // "waiting for the website" card shown after a scan
+  pauseWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    zIndex: 25,
+  },
+  pauseCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  pauseIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  pauseTitle: { fontSize: 19, fontWeight: '800', color: '#111827', textAlign: 'center' },
+  pauseSub: { fontSize: 14, color: '#4B5563', textAlign: 'center', lineHeight: 20, marginTop: 6 },
+  pauseCode: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 14,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    maxWidth: '100%',
+  },
+  pauseCodeText: { fontSize: 12, color: '#374151', fontWeight: '600', flexShrink: 1 },
+  pauseWaiting: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
+  pauseWaitingText: { fontSize: 12, color: '#6B7280' },
+  pauseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+    backgroundColor: '#696a8f',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  pauseBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
 
   camBottom: {
     position: 'absolute',

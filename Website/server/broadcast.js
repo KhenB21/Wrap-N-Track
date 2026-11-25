@@ -59,6 +59,31 @@ const routeBarcodeToWeb = (userId, barcode) => {
 };
 
 /**
+ * Route the website's reply to a scan back to that user's phone, so the phone
+ * can pause after one scan and resume only once the website has dealt with it.
+ * status: 'pending' | 'not_found' | 'done' | 'resume' | 'ignored'
+ */
+const ALLOWED_FEEDBACK = ['pending', 'not_found', 'done', 'resume', 'ignored'];
+const routeScanFeedbackToMobile = (userId, { status, message, productName } = {}) => {
+  if (!_wss || !ALLOWED_FEEDBACK.includes(status)) return;
+  const payload = JSON.stringify({
+    type: 'scan_feedback',
+    status,
+    message: typeof message === 'string' ? message.slice(0, 200) : undefined,
+    productName: typeof productName === 'string' ? productName.slice(0, 120) : undefined,
+  });
+  _wss.clients.forEach((client) => {
+    if (
+      client.readyState === WebSocket.OPEN &&
+      client.userId === userId &&
+      client.clientType === 'mobile'
+    ) {
+      try { client.send(payload); } catch (_) {}
+    }
+  });
+};
+
+/**
  * Whether the opposite-type peer for this userId is currently connected —
  * used right after a client registers, so a client that connects SECOND
  * still finds out the first side is already there (notifyPeer alone only
@@ -106,6 +131,7 @@ module.exports = {
   broadcastInventoryRestored,
   broadcastAvailableInventoryUpdate,
   routeBarcodeToWeb,
+  routeScanFeedbackToMobile,
   notifyPeer,
   isPeerOnline
 };

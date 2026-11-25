@@ -5,13 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  TextInput,
   TouchableOpacity,
   FlatList,
   Dimensions,
   RefreshControl,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import Header from "../Components/Header";
 import SideMenu from "../Components/SideMenu";
@@ -34,16 +33,24 @@ const sectionData = [
 ];
 
 const bannerData = [
-  { title: "Wedding", image: require("../Images/Background/background.png") },
+  {
+    title: "Wedding",
+    tagline: "Giveaways & keepsakes for your big day",
+    image: require("../Images/Background/background.png"),
+  },
   {
     title: "Corporate",
+    tagline: "Thoughtful gifts for clients & teams",
     image: require("../Images/Background/corporateBackground.png"),
   },
   {
     title: "Bespoke",
+    tagline: "Personal gifts, made just for them",
     image: require("../Images/Background/bespokeBackground.png"),
   },
 ];
+
+const AUTO_ADVANCE_MS = 5000;
 
 export default function HomeScreen() {
   const scrollRef = useRef();
@@ -53,15 +60,12 @@ export default function HomeScreen() {
   const { darkMode } = useTheme();
   const [expandedSections, setExpandedSections] = useState({});
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  const { 
-    filteredInventory, 
-    loading, 
-    error, 
-    loadInventory, 
-    setSearchQuery: setInventorySearchQuery,
-    setCategoryFilter 
+  const {
+    filteredInventory,
+    loading,
+    error,
+    loadInventory,
+    setCategoryFilter
   } = useInventory();
   const { addToCart, totalItems } = useCart();
 
@@ -108,35 +112,45 @@ export default function HomeScreen() {
   };
 
   const handleScroll = (event) => {
-    const page = Math.round(event.nativeEvent.contentOffset.x / width);
+    const page = Math.round(event.nativeEvent.contentOffset.x / SLIDE_WIDTH);
     setBannerIndex(page);
   };
 
   const scrollToIndex = (idx) => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTo({ x: idx * width, animated: true });
+      scrollRef.current.scrollTo({ x: idx * SLIDE_WIDTH, animated: true });
     }
+    setBannerIndex(idx);
   };
+
+  // Slides move on by themselves every few seconds. Any swipe or tap on an
+  // arrow/dot restarts the countdown, so it never jumps while someone is looking.
+  const [autoTick, setAutoTick] = useState(0);
+  const restartAutoAdvance = () => setAutoTick((t) => t + 1);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToIndex((bannerIndex + 1) % bannerData.length);
+    }, AUTO_ADVANCE_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bannerIndex, autoTick]);
 
   // Looping logic for arrows
   const handleLeft = () => {
     const newIndex = (bannerIndex - 1 + bannerData.length) % bannerData.length;
     scrollToIndex(newIndex);
+    restartAutoAdvance();
   };
   const handleRight = () => {
     const newIndex = (bannerIndex + 1) % bannerData.length;
     scrollToIndex(newIndex);
+    restartAutoAdvance();
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([loadInventory(), loadShowcaseBundles()]);
     setRefreshing(false);
-  };
-
-  const handleSearch = (query) => {
-    setSearchQuery(query);
-    setInventorySearchQuery(query);
   };
 
   const handleCategoryPress = (category) => {
@@ -161,84 +175,87 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Welcome and Search */}
+        {/* Welcome */}
         <Text style={[styles.welcome, { color: colors.text }]}>
           WELCOME TO PENSEE
         </Text>
-        <View style={styles.searchRow}>
-          <TextInput
-            style={[
-              styles.searchInput,
-              {
-                backgroundColor: colors.card,
-                color: colors.text,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholder="Search products..."
-            placeholderTextColor={colors.subText}
-            value={searchQuery}
-            onChangeText={handleSearch}
-          />
-          <TouchableOpacity
-            style={[styles.searchButton, { backgroundColor: colors.button }]}
-            onPress={() => navigation.navigate('Catalog')}
-          >
-            <Ionicons name="search" size={22} color={colors.buttonText} />
-          </TouchableOpacity>
-        </View>
-        {/* Slidable Banner/Carousel */}
-        <View style={[styles.bannerContainer, { backgroundColor: colors.bg }]}>
-          <TouchableOpacity style={styles.arrowLeft} onPress={handleLeft}>
-            <MaterialCommunityIcons
-              name="chevron-left"
-              size={32}
-              color={colors.accent}
-            />
-          </TouchableOpacity>
+
+        {/* Collections carousel: rounded photo cards with the name, a short
+            tagline and an "Explore" button over a dark fade, plus dots. */}
+        <View style={styles.carousel}>
           <ScrollView
             ref={scrollRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
+            onScrollBeginDrag={restartAutoAdvance}
             onMomentumScrollEnd={handleScroll}
-            style={{ flex: 1 }}
+            style={styles.slider}
           >
-            {bannerData.map((banner, idx) => (
+            {bannerData.map((banner) => (
               <TouchableOpacity
                 key={banner.title}
-                style={{
-                  width,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                activeOpacity={0.9}
+                style={styles.slide}
                 onPress={() => handleCategoryPress(banner.title.toUpperCase())}
+                accessibilityRole="button"
+                accessibilityLabel={`Explore ${banner.title} gifts`}
               >
-                <Image
-                  source={banner.image}
-                  style={styles.bannerImage}
-                  resizeMode="cover"
-                />
-                <View
-                  style={[
-                    styles.bannerOverlay,
-                    { backgroundColor: colors.card },
-                  ]}
-                >
-                  <Text style={[styles.bannerText, { color: colors.text }]}>
-                    {banner.title}
-                  </Text>
+                <Image source={banner.image} style={styles.slideImage} resizeMode="cover" />
+                {/* Layered dark bands fake a gradient so the text stays readable. */}
+                <View style={styles.fadeTop} pointerEvents="none" />
+                <View style={styles.fadeMid} pointerEvents="none" />
+                <View style={styles.fadeBottom} pointerEvents="none" />
+
+                <View style={styles.slideText} pointerEvents="none">
+                  <Text style={styles.slideEyebrow}>COLLECTION</Text>
+                  <Text style={styles.slideTitle}>{banner.title}</Text>
+                  <Text style={styles.slideTagline} numberOfLines={1}>{banner.tagline}</Text>
+                  <View style={styles.exploreButton}>
+                    <Text style={styles.exploreText}>Explore</Text>
+                    <MaterialCommunityIcons name="arrow-right" size={14} color="#4A4570" />
+                  </View>
                 </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
-          <TouchableOpacity style={styles.arrowRight} onPress={handleRight}>
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={32}
-              color={colors.accent}
-            />
+
+          <TouchableOpacity
+            style={[styles.arrowButton, { left: 24 }]}
+            onPress={handleLeft}
+            accessibilityLabel="Previous collection"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.arrowButton, { right: 24 }]}
+            onPress={handleRight}
+            accessibilityLabel="Next collection"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialCommunityIcons name="chevron-right" size={22} color="#fff" />
+          </TouchableOpacity>
+
+          <View style={styles.dots}>
+            {bannerData.map((banner, idx) => (
+              <TouchableOpacity
+                key={banner.title}
+                onPress={() => { scrollToIndex(idx); restartAutoAdvance(); }}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                accessibilityLabel={`Show ${banner.title}`}
+              >
+                <View
+                  style={[
+                    styles.dot,
+                    idx === bannerIndex
+                      ? [styles.dotActive, { backgroundColor: colors.accent }]
+                      : { backgroundColor: colors.border },
+                  ]}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
         {/* 3 Steps Section */}
         <View style={[styles.stepsSection, { backgroundColor: colors.steps }]}>
@@ -402,6 +419,9 @@ export default function HomeScreen() {
 }
 
 const { width } = Dimensions.get("window");
+const CAROUSEL_INSET = 16;
+const SLIDE_WIDTH = width - CAROUSEL_INSET * 2;
+const SLIDE_HEIGHT = Math.round(SLIDE_WIDTH * 0.56);
 
 const styles = StyleSheet.create({
   root: {
@@ -421,76 +441,117 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textAlign: "center",
   },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 18,
-    marginBottom: 18,
+  carousel: {
+    marginBottom: 20,
   },
-  searchInput: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#C7C5D1",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    fontSize: 15,
-    color: "#6B6593",
+  // The slider is inset 16px with rounded corners; each slide is exactly the
+  // slider's width so paging lands cleanly on every card.
+  slider: {
+    marginHorizontal: CAROUSEL_INSET,
+    borderRadius: 16,
+    overflow: "hidden",
   },
-  searchButton: {
-    backgroundColor: "#6B6593",
-    borderRadius: 8,
-    marginLeft: 8,
-    padding: 8,
+  slide: {
+    width: SLIDE_WIDTH,
+    height: SLIDE_HEIGHT,
   },
-  bannerContainer: {
-    marginHorizontal: 0,
-    marginBottom: 18,
-    alignItems: "center",
-    position: "relative",
-    flexDirection: "row",
-    width: width,
+  slideImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: SLIDE_WIDTH,
+    height: SLIDE_HEIGHT,
   },
-  bannerImage: {
-    width: width,
-    height: 160,
-    borderRadius: 0,
-  },
-  bannerOverlay: {
-    position: "absolute",
-    top: 60,
-    left: width / 2 - 60,
-    backgroundColor: "#F5F4FA",
-    paddingHorizontal: 18,
-    paddingVertical: 6,
-    borderRadius: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  bannerText: {
-    color: "#6B6593",
-    fontSize: 18,
-    fontWeight: "bold",
-    letterSpacing: 1,
-  },
-  arrowLeft: {
+  fadeTop: {
     position: "absolute",
     left: 0,
-    top: "50%",
-    zIndex: 2,
-    padding: 8,
-    marginTop: -16,
-  },
-  arrowRight: {
-    position: "absolute",
     right: 0,
-    top: "50%",
-    zIndex: 2,
-    padding: 8,
-    marginTop: -16,
+    bottom: SLIDE_HEIGHT * 0.45,
+    height: SLIDE_HEIGHT * 0.15,
+    backgroundColor: "rgba(20,16,40,0.10)",
+  },
+  fadeMid: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: SLIDE_HEIGHT * 0.25,
+    height: SLIDE_HEIGHT * 0.2,
+    backgroundColor: "rgba(20,16,40,0.28)",
+  },
+  fadeBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: SLIDE_HEIGHT * 0.25,
+    backgroundColor: "rgba(20,16,40,0.48)",
+  },
+  slideText: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 16,
+  },
+  slideEyebrow: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 2,
+  },
+  slideTitle: {
+    color: "#fff",
+    fontSize: 28,
+    fontWeight: "bold",
+    marginTop: 2,
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  slideTagline: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 13,
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  exploreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    backgroundColor: "#fff",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  exploreText: {
+    color: "#4A4570",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  arrowButton: {
+    position: "absolute",
+    top: SLIDE_HEIGHT / 2 - 18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.28)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dots: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  dotActive: {
+    width: 22,
   },
   stepsSection: {
     backgroundColor: "#B6B3C6",

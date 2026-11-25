@@ -176,8 +176,8 @@ export default function BundleDetailScreen({ navigation, route }) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <Header showBack showCart onBackPress={() => navigation.goBack()} onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })} darkMode={darkMode} title={bundle.title} />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <Header showBack showCart onBackPress={() => navigation.goBack()} onCartPress={() => navigation.navigate("CustomerTabs", { screen: "Cart" })} darkMode={darkMode} title="Bundle Details" />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 88 }}>
         {imgSrc ? (
           <Image source={imgSrc} style={styles.heroImage} resizeMode="cover" />
         ) : (
@@ -280,8 +280,9 @@ export default function BundleDetailScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   heroImage: { width, height: 240 },
-  section: { margin: 16, marginTop: 0, padding: 18, borderRadius: 12, elevation: 2 },
-  categoryBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 16, marginBottom: 8 },
+  // 12px gap below the photo; even 16px sides.
+  section: { marginHorizontal: 16, marginTop: 12, marginBottom: 4, padding: 16, borderRadius: 12, elevation: 2 },
+  categoryBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginBottom: 8 },
   categoryBadgeText: { color: "#fff", fontSize: 11, fontWeight: "bold" },
   title: { fontSize: 22, fontWeight: "bold", marginBottom: 8 },
   description: { fontSize: 14, lineHeight: 20 },
