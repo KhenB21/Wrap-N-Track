@@ -3,6 +3,7 @@ const express = require('express');
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
 const { initializeDeliveryForReadyOrder } = require('../services/deliveryService');
+const NotificationService = require('../services/notificationService');
 const {
   normalizeOrderStatus,
   hasStockDeducted,
@@ -382,6 +383,24 @@ router.post('/', async (req, res) => {
       for (const p of resolvedProducts) {
         if (p._stock < p.quantity) {
           await client.query('ROLLBACK');
+          // Staff see the numbers; a customer is never shown the stock level —
+          // employees are notified instead so they can follow up.
+          const byCustomer = req.user?.role === 'customer' || !!req.user?.customer_id;
+          if (byCustomer) {
+            await NotificationService.notifyOverStock({
+              customerId: req.user?.customer_id,
+              customerName: req.user?.name,
+              sku: p.sku,
+              productName: p._item_name,
+              requested: p.quantity,
+              inStock: p._stock,
+              context: 'order',
+            });
+            return res.status(400).json({
+              code: 'insufficient_stock',
+              error: `We can't fulfil this many sets right now. Our team has been notified and will reach out to help with your order.`,
+            });
+          }
           return res.status(400).json({
             error: `Insufficient stock for "${p._item_name}". Available: ${p._stock}, required: ${p.quantity}`
           });

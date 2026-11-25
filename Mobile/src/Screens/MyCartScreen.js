@@ -47,18 +47,20 @@ export default function MyCartScreen({ navigation }) {
     loadCartItems();
   }, [loadCartItems]);
 
+  // The server decides whether the quantity is available. Customers are never
+  // shown the stock number; if they ask for too much, the quantity stays as it
+  // was, they get a friendly note, and the server notifies the staff.
   const handleQuantityChange = async (item, value) => {
-    const stock = Number(item.available_stock);
-    let quantity = Math.max(1, value);
-    if (Number.isFinite(stock) && quantity > stock) {
-      quantity = Math.max(1, stock);
-      Alert.alert("Limited Stock", `Only ${stock} available in stock.`);
-    }
+    const quantity = Math.max(1, value);
     if (quantity === item.quantity) return;
     try {
       await updateQuantity(item.sku, quantity);
     } catch (error) {
-      Alert.alert("Error", error.message || "Failed to update quantity. Please try again.");
+      const overStock = /team has been notified/i.test(error.message || "");
+      Alert.alert(
+        overStock ? "Limited Availability" : "Unable to Update",
+        error.message || "Couldn't update the quantity. Please try again."
+      );
     }
   };
 

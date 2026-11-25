@@ -47,7 +47,9 @@ export default function ProductDetailScreen({ navigation, route }) {
       ]).start();
       setToast({ visible: true, message: "Added to cart" });
     } catch (error) {
-      setToast({ visible: true, message: "Failed to add product to cart. Please try again." });
+      // Shows the server's explanation (e.g. "Our team has been notified…" when
+      // the quantity is above stock) — never the stock number itself.
+      setToast({ visible: true, message: error.message || "Couldn't add this to your cart. Please try again." });
     } finally {
       setAdding(false);
     }
@@ -56,8 +58,9 @@ export default function ProductDetailScreen({ navigation, route }) {
   const handleQuantityChange = (change) => {
     const newQuantity = quantity + change;
     // product.quantity is the available stock, not a cart quantity.
-    const maxQuantity = Number(product.quantity);
-    if (newQuantity >= 1 && (!Number.isFinite(maxQuantity) || newQuantity <= maxQuantity)) {
+    // No cap at the stock level here: stopping the "+" button at the stock
+    // count would reveal it. "Add to Cart" checks with the server instead.
+    if (newQuantity >= 1) {
       setQuantity(newQuantity);
     }
   };
@@ -73,7 +76,11 @@ export default function ProductDetailScreen({ navigation, route }) {
         darkMode={darkMode}
       />
       
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={[styles.imageContainer, { backgroundColor: darkMode ? "#242526" : "#fff" }]}>
           <TouchableOpacity
             activeOpacity={0.85}
@@ -87,7 +94,7 @@ export default function ProductDetailScreen({ navigation, route }) {
               <ProductImage
                 sku={product.sku}
                 version={imageVersion}
-                style={[styles.productImage, { borderRadius: 8 }]}
+                style={styles.productImage}
                 iconSize={48}
                 colors={{ wash: darkMode ? "#393A3B" : "#EDECF3", textMute: darkMode ? "#B0B3B8" : "#6B6593" }}
               />
@@ -209,11 +216,17 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  // Even 12px gaps everywhere; room at the bottom so the floating Wrappy
+  // button doesn't sit on top of the quantity controls.
+  scrollContent: {
+    paddingTop: 12,
+    paddingBottom: 88,
+  },
+  // The photo fills its card edge to edge — no white frame around it.
   imageContainer: {
-    margin: 16,
+    marginHorizontal: 12,
+    marginBottom: 12,
     borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -221,13 +234,15 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   productImage: {
-    width: width - 64,
-    height: 260,
+    width: width - 24,
+    height: 240,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   enlargeBadge: {
     position: 'absolute',
-    right: 8,
-    bottom: 8,
+    right: 10,
+    bottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -248,9 +263,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   detailsContainer: {
-    margin: 16,
-    marginTop: 0,
-    padding: 20,
+    marginHorizontal: 12,
+    padding: 16,
     borderRadius: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -259,10 +273,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   productName: {
-    fontSize: 24,
+    fontSize: 22,
     fontFamily: 'serif',
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   skuContainer: {
     flexDirection: 'row',
