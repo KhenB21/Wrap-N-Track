@@ -85,6 +85,43 @@ class NotificationService {
     }
   }
 
+  // A customer asked for more of a product than is in stock (cart or order).
+  // Tell every employee so they can restock or contact the customer; the
+  // customer is only told "our team has been notified", never the number.
+  // One notification per product: repeat attempts within 2 hours refresh it
+  // instead of stacking up (createNotification dedupes on type + category).
+  // Never throws — it must not fail the customer's request.
+  static async notifyOverStock({ customerId, customerName, sku, productName, requested, inStock, context = 'cart' }) {
+    try {
+      let name = customerName;
+      if (!name && customerId) {
+        const r = await pool.query('SELECT name FROM customer_details WHERE customer_id = $1', [customerId]);
+        name = r.rows[0]?.name;
+      }
+      const who = name || 'A customer';
+      const action = context === 'order' ? 'ordered' : 'tried to order';
+      return await this.createBulkNotification({
+        title: `Order request above stock: ${productName}`.slice(0, 255),
+        message: `${who} ${action} ${requested} × "${productName}" (${sku}), but only ${inStock} are in stock.`,
+        type: 'stock_alert',
+        priority: 'urgent',
+        category: `over_stock:${sku}`.slice(0, 50),
+        metadata: {
+          sku,
+          name: productName,
+          requested_quantity: requested,
+          stock_quantity: inStock,
+          customer_id: customerId || null,
+          customer_name: name || null,
+          context,
+        },
+      });
+    } catch (error) {
+      console.error('Error creating over-stock notification:', error);
+      return [];
+    }
+  }
+
   // Get notifications for a user
   static async getUserNotifications(userId, limit = 50, offset = 0) {
     try {

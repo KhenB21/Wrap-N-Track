@@ -2,9 +2,25 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const verifyJwt = require('../middleware/verifyJwt');
+const NotificationService = require('../services/notificationService');
 
 // Apply authentication middleware to all routes
 router.use(verifyJwt());
+
+// What a customer sees when they ask for more than we have. Deliberately
+// without the stock number — that's internal; staff get it in a notification.
+const OVER_STOCK_MESSAGE =
+  "We can't add that many of this item right now. Our team has been notified and may reach out to help with a larger order.";
+
+const notifyOverStock = ({ req, sku, productName, requested, inStock }) =>
+  NotificationService.notifyOverStock({
+    customerId: req.user?.customer_id,
+    customerName: req.user?.name,
+    sku,
+    productName,
+    requested,
+    inStock,
+  });
 
 // GET /api/cart - Get customer's cart
 router.get('/', async (req, res) => {
@@ -100,10 +116,8 @@ router.post('/add', async (req, res) => {
     const product = productResult.rows[0];
     
     if (product.stock_quantity < quantity) {
-      return res.status(400).json({
-        success: false,
-        message: `Only ${product.stock_quantity} items available in stock`
-      });
+      await notifyOverStock({ req, sku, productName: product.name, requested: quantity, inStock: product.stock_quantity });
+      return res.status(400).json({ success: false, code: 'insufficient_stock', message: OVER_STOCK_MESSAGE });
     }
 
     // Check if item already exists in cart
@@ -117,10 +131,8 @@ router.post('/add', async (req, res) => {
       const newQuantity = existingItem.rows[0].quantity + quantity;
       
       if (newQuantity > product.stock_quantity) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot add ${quantity} items. Only ${product.stock_quantity - existingItem.rows[0].quantity} more available`
-        });
+        await notifyOverStock({ req, sku, productName: product.name, requested: newQuantity, inStock: product.stock_quantity });
+        return res.status(400).json({ success: false, code: 'insufficient_stock', message: OVER_STOCK_MESSAGE });
       }
 
       await pool.query(
@@ -171,7 +183,7 @@ router.put('/update', async (req, res) => {
 
     // Check stock availability
     const productResult = await pool.query(
-      'SELECT quantity as stock_quantity FROM inventory_items WHERE sku = $1',
+      'SELECT name, quantity as stock_quantity FROM inventory_items WHERE sku = $1',
       [sku]
     );
 
@@ -185,10 +197,8 @@ router.put('/update', async (req, res) => {
     const stockQuantity = productResult.rows[0].stock_quantity;
     
     if (quantity > stockQuantity) {
-      return res.status(400).json({
-        success: false,
-        message: `Only ${stockQuantity} items available in stock`
-      });
+      await notifyOverStock({ req, sku, productName: productResult.rows[0].name, requested: quantity, inStock: stockQuantity });
+      return res.status(400).json({ success: false, code: 'insufficient_stock', message: OVER_STOCK_MESSAGE });
     }
 
     if (quantity === 0) {
